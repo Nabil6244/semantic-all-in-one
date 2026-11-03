@@ -35,7 +35,17 @@ class BackgroundDraw(unittest.TestCase):
             th.join(5)
         self.assertEqual(done, [0])
         self.assertTrue((Path(d) / "board_x.mp4").is_file())
-        self.assertFalse((Path(d) / J.PENDING).is_file())
+        self.assertTrue((Path(d) / J.PENDING).is_file())       # kept: the next render checks the clips again and redraws a broken one
+
+    def test_a_clip_cut_off_half_way_is_not_finished(self):
+        d = tempfile.mkdtemp()
+        cut = Path(d) / "cut.mp4"
+        cut.write_bytes(b"\x00\x00\x00\x20ftypisom" + b"\x00" * 5000)       # an MP4 with no index: ffmpeg was stopped
+        self.assertFalse(J.clip_ok(cut))
+        whole = Path(d) / "whole.mov"
+        whole.write_bytes(b"\x00" * 5000 + b"\x00\x00\x01\x00moov" + b"\x00" * 200)
+        self.assertTrue(J.clip_ok(whole))
+        self.assertFalse(J.clip_ok(Path(d) / "missing.mp4"))
 
     def test_no_queue_is_nothing(self):
         self.assertEqual(J.ensure_built(tempfile.mkdtemp()), 0)

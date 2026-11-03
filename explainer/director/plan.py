@@ -1045,7 +1045,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         built = False
         if materialize:
             f = out_dir / name
-            if not (f.is_file() and f.stat().st_size > 0):
+            from ..board.jobs import clip_ok
+            if not clip_ok(f):                      # a clip cut off half-way is drawn again, never reused
                 kw = dict(dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=beat_bg,
                           camera="off" if plate else opt.camera, texture=False if plate else opt.texture)
                 # the layout runs now (its problems belong to the plan); the drawing is queued and done in parallel just before the render (board/jobs.py)

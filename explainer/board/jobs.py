@@ -51,6 +51,24 @@ def _lock(out_dir: "str | Path") -> threading.Lock:
         return _LOCKS.setdefault(str(Path(out_dir).resolve()), threading.Lock())
 
 
+def clip_ok(path: "str | Path") -> bool:
+    """A finished clip: on disk, not empty, and with its index (the "moov" box an MP4 / MOV file gets when ffmpeg finishes; a drawing cut off half-way has none).
+    Reads at most the first and last 4 MB, so checking hundreds of clips takes well under a second each render."""
+    p = Path(path)
+    try:
+        n = p.stat().st_size
+        if n < 64:
+            return False
+        with open(p, "rb") as fh:
+            head = fh.read(4 << 20)
+            if b"moov" in head:
+                return True
+            fh.seek(max(0, n - (4 << 20)))
+            return b"moov" in fh.read()
+    except OSError:
+        return False
+
+
 def ensure_built(out_dir: "str | Path", log: Callable[[str], None] = lambda m: None, max_workers: int = 0, background: bool = False) -> int:
     """Draws every queued board that is not on disk yet. Returns how many could not be drawn (0 = all there). Never raises.
     background=True returns at once (0) and draws in a thread, so the Flow pictures start without waiting; a later call (the render) waits for it."""
@@ -67,15 +85,12 @@ def _ensure_built(out_dir: "str | Path", log: Callable[[str], None], max_workers
         data = pickle.loads(f.read_bytes())
     except (OSError, pickle.UnpicklingError, EOFError, ValueError, AttributeError, ImportError):
         return 0
-    failed = run(data["words"], data["jobs"], log, max_workers)
-    if not failed:
-        f.unlink(missing_ok=True)
-    return failed
+    return run(data["words"], data["jobs"], log, max_workers)      # the queue stays: every render checks the clips again and redraws any that broke
 
 
 def run(words, jobs, log: Callable[[str], None] = lambda m: None, max_workers: int = 0) -> int:
     """Draws the jobs whose clip is not on disk yet, in parallel when it can; returns how many failed."""
-    todo = [j for j in jobs if not (Path(j["out_path"]).is_file() and Path(j["out_path"]).stat().st_size > 0)]
+    todo = [j for j in jobs if not clip_ok(j["out_path"])]
     failed: List[Dict] = []
     if todo:
         n = max_workers or max(1, min(8, (os.cpu_count() or 2) - 1, len(todo)))

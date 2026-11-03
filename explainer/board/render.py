@@ -8,8 +8,9 @@ exact frame edges. Production clips are drawn without it."""
 
 from __future__ import annotations
 
-import subprocess
 import math
+import os
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -488,6 +489,21 @@ def encode(items: Sequence[Item], n_frames: int, fps: int, size: Tuple[int, int]
            camera: str = "off", texture=False, camera_focus: Optional[Tuple[float, float]] = None, notes: Optional[List[str]] = None) -> int:
     """`notes`, when given, receives one line per degraded opt-in (for example a missing texture asset). With camera "off" and texture False nothing changes.
     background "alpha": an RGBA QuickTime Animation clip (no camera, no texture: the picture under it moves instead)."""
+    final = Path(out_path)            # drawn under a temporary name and renamed once complete: a drawing cut off half-way (a stopped render, a killed app)
+    out_path = final.with_name(final.stem + ".part" + final.suffix)     # left a file with the real name and no index, and every later render failed on it
+    try:
+        rc = _encode(items, n_frames, fps, size, out_path, font_path, instrument, narrator, background, camera, texture, camera_focus, notes)
+    except BaseException:
+        out_path.unlink(missing_ok=True)
+        raise
+    if rc == 0 and out_path.is_file():
+        os.replace(out_path, final)
+    else:
+        out_path.unlink(missing_ok=True)
+    return rc
+
+
+def _encode(items, n_frames, fps, size, out_path, font_path, instrument, narrator, background, camera, texture, camera_focus, notes) -> int:
     W, H = size
     if background == ALPHA:
         cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-", "-an", "-c:v", "qtrle", "-pix_fmt", "argb", str(out_path)]
