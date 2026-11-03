@@ -49,9 +49,13 @@ class Plates(unittest.TestCase):
     def test_a_plate_is_kept_for_a_short_run_then_the_framing_changes(self):
         st = {}
         ps = [PL.backdrop_prompt(self.beats, k, self.words, "Venice", st) for k in range(4)]
-        self.assertEqual(ps[0], ps[1])
-        self.assertEqual(ps[1], ps[2])                 # PLATE_RUN 3: one Flow picture serves three 3-4 s scenes
-        self.assertNotEqual(ps[2], ps[3])
+        self.assertIn("ships", ps[1])                  # a beat that names its own thing gets its own picture ("built ships", "the sea")
+        self.assertIn("sea", ps[3])
+        self.assertNotEqual(ps[0], ps[1])
+        st3 = {}
+        same = [PL.backdrop_prompt(self.beats, 0, self.words, "Venice", st3) for _ in range(4)]
+        self.assertEqual(same[0], same[2])             # PLATE_RUN 3: the same subject keeps one Flow picture for three 3-4 s scenes
+        self.assertNotEqual(same[2], same[3])          # then the framing changes
         self.assertTrue(all("Venice" in p and "where a presenter will stand" in p for p in ps))      # a stage for the narrator, not an empty scene
 
     def test_a_new_period_gets_a_new_plate(self):

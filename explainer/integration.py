@@ -251,4 +251,16 @@ def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any]
     opt.defer_boards = True                          # the app draws the boards while the pictures are fetched (pakmap generate_pakmap_video -> board/jobs.py)
     opt.csv_first = bool(places) and (settings.get("explainer_csv_first", True) is not False)   # a CSV that names places: look up only those (switch off with explainer_csv_first=False)
     r = direct(words, script, opt, duration=duration, log=log)
+    try:          # the plan check (explainer/plan_audit.py): faults seen in renders, caught before any picture is fetched
+        from pathlib import Path as _P
+        from .plan_audit import audit
+        from .ui_options import KEPT_NAME
+        found = audit(r.plan, r.report or {}, scene_notes=opt.scene_notes, kept_scene_csv=(_P(work_dir) / KEPT_NAME).is_file(), duration=duration or 0.0)
+        (r.report or {})["plan_check"] = found
+        log("Plan check: nothing wrong found" if not found else f"Plan check found {len(found)} thing(s) to look at:")
+        for f_ in found:
+            log(f"  - {f_}")
+            r.warnings.append(f"plan check: {f_}")
+    except Exception as exc:
+        log(f"Plan check could not run ({str(exc)[:100]})")
     return {"plan": r.plan, "problems": r.problems, "warnings": r.warnings, "report": r.report}

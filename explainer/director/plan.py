@@ -331,7 +331,8 @@ def cast_plate_prompt(spec, state: Dict[str, Any]) -> str:
     from . import lexicon_v2 as LV
     things = [o for o in spec.objects if o in LX.CONCRETE and o not in LV.CHARACTER_OF and o not in _SCENE_PEOPLE]      # the plate has no people: "armies" stay out of it, the characters bring them
     plate = SI.SceneSpec(place=spec.place, place_type=spec.place_type, region=spec.region, year=spec.year, architecture=spec.architecture, objects=things,
-                         background=CAST_SHOTS[(n + turn) % len(CAST_SHOTS)], atmosphere=CAST_LOOK + (f", variation {n // len(CAST_SHOTS) + 1}" if n >= len(CAST_SHOTS) else ""))
+                         background=CAST_SHOTS[(n + turn) % len(CAST_SHOTS)],
+                         atmosphere=CAST_LOOK + (f", {SEEN_AGAIN[(n // len(CAST_SHOTS) - 1) % len(SEEN_AGAIN)]}" if n >= len(CAST_SHOTS) else ""))     # never "variation N": Flow drew panels for it
     return SI.flow_prompt(plate)
 
 
@@ -469,11 +470,12 @@ def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], note
         key = ("note", note, subject.lower())
     else:
         region = beat_place(beats, k) or main
-        objs = _uniq(t["tok"] for t in beat_tokens(words, b.start, b.end) if t["tok"] in LX.CONCRETE and t["tok"] not in _SCENE_PEOPLE)[:3]
+        subject = narrated_subject(words, b.start, b.end, cased)       # no CSV scene: the narration says both where and what ("Abrams tank fires" and "heat seeking missile locks" were one "Idaho" picture)
+        objs = _uniq(([subject] if subject else []) + [t["tok"] for t in beat_tokens(words, b.start, b.end) if t["tok"] in LX.CONCRETE and t["tok"] not in _SCENE_PEOPLE])[:3]
         if not region and year is None and not objs:
             return ""
         spec = SI.SceneSpec(region=region, year=year, architecture="specific" if region else "generic", objects=objs)
-        key = (region, None if year is None else int(year) // 50 * 50)          # objects named in passing do not make a new Flow picture
+        key = (region, None if year is None else int(year) // 50 * 50, subject.lower())          # the same subject keeps its picture; a new one gets its own
     if key == state.get("key") and state.get("run", 0) < PLATE_RUN:
         state["run"] += 1
         return state["prompt"]
@@ -521,7 +523,8 @@ def scene_intel_pass(beats, words, opt: DirectorOptions, SI, cased: Optional[Dic
             toks = [t["tok"] for t in beat_tokens(words, b.start, b.end)]
             spec.people = spec.people or _uniq(t for t in toks if t in _SCENE_PEOPLE)[:2]
             subject = [t for t in (b.picture_query or "").lower().split() if t in toks and t not in LX.STOP] if restock else []      # the stock search's own spoken subject ("ports") leads
-            spec.objects = spec.objects or _uniq(subject + [t for t in toks if t in LX.CONCRETE and t not in _SCENE_PEOPLE])[:3]
+            said = narrated_subject(words, b.start, b.end, cased)
+            spec.objects = spec.objects or _uniq(subject + ([said] if said else []) + [t for t in toks if t in LX.CONCRETE and t not in _SCENE_PEOPLE])[:3]
             mid = (b.start + b.end) / 2
             note = " ; ".join(n["text"] for n in opt.scene_notes if n["start"] - 1e-6 <= mid < n["end"] + 1e-6)
             noted = SI.from_notes(note, spec)
@@ -992,6 +995,10 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             resolved = CP.gate(br, b.id, b.start, b.end, words, opt)
         from .onscreen import drop_icons_out_of_sense, finish_texts
         n_fin = finish_texts(br.cues)            # whichever composer wrote a phrase, it ends as a finished thought ("buried on the" -> "buried")
+        from .onscreen import finish_phrase
+        for ph_ in br.phrases:                    # the report says what the screen shows
+            if (ph_.get("phrase") or "").strip():
+                ph_["phrase"] = finish_phrase(ph_["phrase"])
         n_off = drop_icons_out_of_sense(br.cues, words, b.start, b.end)      # "crushed ore" gets no battle swords, "the United States" no castle
         if n_fin:
             info.setdefault("texts_finished", []).append(b.id)

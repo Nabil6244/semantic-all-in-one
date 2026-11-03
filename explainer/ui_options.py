@@ -110,6 +110,7 @@ def take_scene_csv(app: Any, path: str) -> bool:
     except OSError:
         return False
     if not scene_csv.is_scene_csv(text):
+        _keep(app, None)                    # another kind of CSV replaces the project's scene CSV
         return False
     name = path.replace("\\", "/").rsplit("/", 1)[-1]
     if not bool(app._hybrid_explainer_var.get()):
@@ -117,8 +118,46 @@ def take_scene_csv(app: Any, path: str) -> bool:
         return True
     scenes = sum(1 for line in text.splitlines() if line.lstrip().lower().startswith("scene,"))
     app._hybrid_file_var.set(str(path))
+    _keep(app, text)
     app._hybrid_status_var.set(f"Scene CSV loaded: {name}, {scenes} scene(s). Click Direct with Explainer to make the plan.")
     return True
+
+
+KEPT_NAME = "explainer_scene.csv"
+
+
+def _kept_path(app: Any) -> Any:
+    ws = getattr(app, "_workspace", None)
+    d = getattr(ws, "hybrid_dir", None) if ws is not None else None
+    if not d:
+        return None
+    from pathlib import Path
+    return Path(d) / KEPT_NAME
+
+
+def _keep(app: Any, text: Any) -> None:
+    """The project keeps a copy of its scene CSV: once a plan is made, the panel's file field shows the plan instead of the CSV, and the CSV used to be
+    forgotten by the next Direct with Explainer (and by a project opened again), so the plan was silently made from the narration alone."""
+    try:
+        p = _kept_path(app)
+        if p is None:
+            return
+        if text is None:
+            p.unlink(missing_ok=True)
+        else:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(text, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def kept_scene_csv(app: Any) -> str:
+    """The project's scene CSV text ("" when none was loaded)."""
+    try:
+        p = _kept_path(app)
+        return p.read_text(encoding="utf-8") if p is not None and p.is_file() else ""
+    except OSError:
+        return ""
 
 
 def needs_scenes(plan: Any) -> bool:

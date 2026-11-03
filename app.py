@@ -3724,6 +3724,9 @@ class VideoGeneratorApp(ctk.CTk):
                 csv_text = Path(csv_path).read_text(encoding="utf-8-sig")
             except OSError:
                 csv_text = ""
+        if not csv_text:   # the project's scene CSV, kept in its folder: a plan made earlier shows in the file field instead, and the CSV was silently left out
+            from explainer.ui_options import kept_scene_csv
+            csv_text = kept_scene_csv(self)
         self._hybrid_busy = True
         self._hybrid_explainer_btn.configure(state="disabled", text="Directing…")
         self._append_log("[HYBRID] Directing with the Explainer look…\n")

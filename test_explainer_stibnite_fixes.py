@@ -215,6 +215,38 @@ class PlanNeverStopsTest(unittest.TestCase):
         self.assertEqual(PL.beats_named(["the plan needs exactly one camera 'start'"], ["e1"]), [])
 
 
+class KeptCsvAndPlanCheckTest(unittest.TestCase):
+    def test_the_project_keeps_its_scene_csv(self):
+        import tempfile
+        from types import SimpleNamespace
+        from explainer import ui_options as U
+        with tempfile.TemporaryDirectory() as d:
+            app = SimpleNamespace(_workspace=SimpleNamespace(hybrid_dir=d))
+            self.assertEqual(U.kept_scene_csv(app), "")
+            U._keep(app, "row,scene,vo_anchor\nscene,1,hello\n")
+            self.assertIn("scene,1,hello", U.kept_scene_csv(app))
+            U._keep(app, None)
+            self.assertEqual(U.kept_scene_csv(app), "")
+
+    def test_plan_check_names_the_faults(self):
+        from explainer.plan_audit import audit
+        beats = [{"id": f"e{i}", "mode": "footage", "start": i * 4.0, "end": i * 4.0 + 4,
+                  "footage": {"clips": [{"asset": "flow_image:factory floor, people: soldier, variation 4. flat"}]}} for i in range(12)]
+        found = " | ".join(audit({"beats": beats, "duration": 48.0}, {}, kept_scene_csv=True, duration=48.0))
+        for bit in ("made without it", "different pictures", "beats in a row", "variation", "soldier", "map"):
+            self.assertIn(bit, found)
+        ok = [{"id": "e0", "mode": "map", "start": 0, "end": 4}] + [{"id": f"e{i}", "mode": "footage", "start": i * 4.0, "end": i * 4.0 + 4,
+              "footage": {"clips": [{"asset": f"flow_image:scene {i}. flat"}]}} for i in range(1, 6)]
+        self.assertEqual(audit({"beats": ok, "duration": 24.0}, {}, duration=24.0), [])
+
+    def test_no_csv_picture_names_what_the_beat_says(self):
+        from explainer.director import plan as PL
+        from explainer.director.select import BeatPlan
+        w = _words("every time an abrams tank fires in the desert")
+        p = PL.backdrop_prompt([BeatPlan("e1", 0.0, w[-1][2], [])], 0, w, "Idaho", {}, (), "left")
+        self.assertIn("abrams tank", p)
+
+
 class PicturesTest(unittest.TestCase):
     def test_plate_prompt_never_asks_for_variations(self):
         from explainer.director import plan as PL
