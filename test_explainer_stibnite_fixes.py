@@ -182,7 +182,7 @@ class PicturesTest(unittest.TestCase):
         import tempfile
         import numpy as np
         from PIL import Image
-        from pakmap import sourcing as S
+        from explainer import panels as S
         rng = np.random.default_rng(1)
         img = (rng.normal(120, 6, (180, 320, 3))).clip(0, 255).astype("uint8")
         with tempfile.TemporaryDirectory() as d:
@@ -196,7 +196,8 @@ class PicturesTest(unittest.TestCase):
             self.assertTrue(S.panel_seams(pan))
             self.assertTrue(S.unpanel(pan))
             self.assertEqual(S.panel_seams(pan), [])
-            self.assertEqual(Image.open(pan).size, (320, 180))
+            with Image.open(pan) as im:
+                self.assertEqual(im.size, (320, 180))
 
 
 if __name__ == "__main__":

@@ -227,62 +227,10 @@ def fetch_scenes(
         else:
             result.missing[n] = err_text or error or "no picture was found for it"
     _vet_period_pictures(scenes, result, images_dir, manifest_cls)
-    _unpanel_pictures(result, {n for n, r in before.items() if r.get("status") == "complete"}, log)
     _illustrate_missing(scenes, result, images_dir, log)
     if on_complete is not None:
         _report_unreported(scenes, result, reported, on_complete)
     return result
-
-
-def panel_seams(path: "str | Path") -> List[int]:
-    """x of each full-height straight vertical edge in a picture: an AI picture that came back as two or three panels side by side. [] for a normal picture (or one that cannot be read)."""
-    try:
-        import numpy as np
-        from PIL import Image
-
-        g = np.asarray(Image.open(path).convert("L"), dtype=np.int16)
-    except Exception:
-        return []
-    if g.ndim != 2 or g.shape[1] < 64:
-        return []
-    frac = (np.abs(np.diff(g, axis=1)) > 18).mean(axis=0)          # share of rows where the column changes sharply: about 1.0 on a panel border, under 0.5 on real edges
-    margin = int(g.shape[1] * 0.04)
-    frac[:margin] = 0
-    frac[-margin:] = 0
-    seams: List[int] = []
-    for x in np.nonzero(frac > 0.9)[0]:
-        if not seams or x - seams[-1] > 8:
-            seams.append(int(x))
-    return seams
-
-
-def unpanel(path: "str | Path") -> bool:
-    """A panelled picture is cut to its widest panel, cropped to the picture's own shape and saved over itself. -> True when it was changed."""
-    seams = panel_seams(path)
-    if not seams:
-        return False
-    from PIL import Image
-
-    img = Image.open(path).convert("RGB")
-    w, h = img.size
-    edges = [0] + seams + [w]
-    a, b = max(zip(edges, edges[1:]), key=lambda e: e[1] - e[0])
-    a, b = a + 4, b - 4                             # the border line itself stays out
-    ch = min(h, int((b - a) * h / w))
-    top = (h - ch) // 2
-    img.crop((a, top, b, top + ch)).resize((w, h), Image.LANCZOS).save(path)
-    return True
-
-
-def _unpanel_pictures(result: "FetchResult", reused: set, log: Callable[[str], None]) -> None:
-    """Only pictures fetched in this run are looked at (a reused one was looked at when it came in)."""
-    for n, p in list(result.paths.items()):
-        if n not in reused and str(p).lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-            try:
-                if unpanel(p):
-                    log(f"[ASSET] Scene {n}: the picture came back as side-by-side panels; cut to its widest panel")
-            except Exception:
-                continue
 
 
 def _vet_period_pictures(scenes: Sequence[Any], result: "FetchResult", images_dir: Path, manifest_cls: Any) -> None:

@@ -110,6 +110,11 @@ def clear_under_boards(spec: Dict[str, Any], work: Any, log: Callable[[str], Non
         rr = next((p for p in (_P(work) / "explainer" / "render_report.json", _P(work).parent / "explainer" / "render_report.json") if p.is_file()), None)
         if rr is None:
             return 0
+        try:                       # the same pre-render moment: a picture that came back as side-by-side panels is cut to one panel (explainer/panels.py)
+            from .panels import unpanel_spec_pictures
+            unpanel_spec_pictures(spec, log)
+        except Exception:
+            pass
         import json
         details = json.loads(rr.read_text(encoding="utf-8"))["report"].get("beat_details") or {}
         wins = [(float(i["board_overlay"]["start"]), float(i["board_overlay"]["end"])) for i in details.values() if (i or {}).get("board_overlay")]
@@ -183,6 +188,13 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
             if snd:
                 out["audio"] = snd
                 log("[Explainer] sound effects and a quiet bed are mixed under the narration")
+        base = out["audio"] or voice_path
+        if base and _P(str(base)).is_file():     # YouTube's loudness (-14 LUFS, as the What If styles): the Stibnite video played at -23 LUFS, far softer than the videos around it
+            from whatif.sound import normalize_loudness
+            loud = normalize_loudness(str(base), str(rr.parent / "explainer_audio_lufs.wav"))
+            if str(loud) != str(base):
+                out["audio"] = str(loud)
+                log("[Explainer] the sound is set to -14 LUFS")
     except Exception as exc:
         log(f"[Explainer] the finishing step could not run ({str(exc)[:100]}); the video is used as it is")
     return out
