@@ -142,6 +142,36 @@ class SpellingAndPlacesTest(unittest.TestCase):
         self.assertEqual(SL.home_places(_words("the mine sits in the mountains"), o)[0], "Idaho")
 
 
+class CsvMapPlacesTest(unittest.TestCase):
+    def test_comma_places_are_split(self):
+        from explainer.director import select as SL
+        from explainer.director.options import DirectorOptions
+        o = DirectorOptions(csv_first=True)
+        o.places = ["Stibnite, Idaho, USA", "remote mountain canyon"]
+        cands, _weak = SL.place_candidates(None, o)
+        self.assertIn("Idaho", cands)
+        self.assertIn("USA", cands)
+
+    def test_a_csv_run_still_finds_the_places_the_narration_names(self):
+        import inspect
+        from explainer.director import select as SL
+        src = inspect.getsource(SL.choose_kinds)
+        self.assertNotIn("not (opt.csv_first and opt.places)", src)
+
+    def test_narration_places_are_quick_and_careful(self):
+        import time
+        from explainer.director import select as SL
+        text = ("china and russia control the supply while idaho waits " * 40 + "washington treated it lightly and miners pitched washington the plan "
+                "the west end pit flooded and they flew to beijing")
+        t = time.time()
+        got = SL.transcript_places(_words(text))[0]
+        self.assertLess(time.time() - t, 3.0)
+        for name in ("China", "Russia", "Idaho", "Beijing"):
+            self.assertIn(name, got)
+        self.assertNotIn("Washington", got)          # said for the government
+        self.assertNotIn("West End", got)            # a pit, not a province
+
+
 class PicturesTest(unittest.TestCase):
     def test_plate_prompt_never_asks_for_variations(self):
         from explainer.director import plan as PL

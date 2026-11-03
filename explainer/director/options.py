@@ -57,7 +57,7 @@ class DirectorOptions:
     size: Tuple[int, int] = (1920, 1080)
     # ---- inputs the caller may supply ----
     places: List[str] = field(default_factory=list)          # place names to look for in the narration (besides capitalised script words)
-    csv_first: bool = False                                  # a loaded CSV named the places: only those are looked up (the narration is not searched again for place names)
+    csv_first: bool = False                                  # a loaded CSV named the places: they come first; a script's capitals are not searched (a lowercase narration still is)
     defer_boards: bool = False                               # True (the app): board clips are queued and drawn at the render (board/jobs.py); False: drawn, in parallel, before direct() returns
     fallback_place: str = "Europe"                           # the mandatory opening map when no place is spoken (arbitrary: a warning says so)
     archive_dir: Optional[str] = None                        # folder with archive.json: [{"file", "subjects": [...], "reason"}]

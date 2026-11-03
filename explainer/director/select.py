@@ -93,9 +93,10 @@ def place_candidates(script: Optional[str], opt: DirectorOptions, limit: int = 6
     out: List[str] = []
     weak: set = set()
     for p in opt.places:
-        if p and p not in out:
-            out.append(p)
-    if script and not (opt.csv_first and out):      # CSV first: the CSV's places are the list
+        for q in [p] + ([x.strip() for x in p.split(",")] if p and "," in p else []):     # "Stibnite, Idaho, USA" is not one name: Idaho and USA are
+            if q and q not in out:
+                out.append(q)
+    if script and not (opt.csv_first and out):      # CSV first: the CSV's places come first; a script's capitals are not searched
         for sent in re.split(r"(?<=[.!?])\s+|\n+", script):
             toks = re.findall(r"[A-Za-z][A-Za-z'\-]*", sent)
             if toks and toks[0][0].isupper() and norm(toks[0]) not in LX.STOP and toks[0] not in out:
@@ -126,6 +127,7 @@ EVERYDAY_PLACE_WORDS = frozenset("""acre afar antique apace bade bang barb benef
     union rivers river lake lakes island islands plains hills falls buffalo charlotte jackson phoenix friday bath grace victoria florence sale nelson derby kent york""".split())
 # a country whose name is also an everyday word: in lowercase it counts only with a place word before it ("in turkey") or when spoken twice
 AMBIGUOUS_COUNTRIES = frozenset("turkey china chile chad jordan guinea georgia niger cuba malta".split())
+GOVERNMENT_NAMES = frozenset("washington beijing moscow london paris tokyo berlin kremlin brussels tehran pyongyang".split())   # a capital said for its government
 PLACE_CUES = frozenset("in to from across near reached reach reaching toward towards beyond around at including into through between via of sailed sailing".split())
 TRANSCRIPT_KINDS = ("country", "region", "sea", "admin1", "city")
 WATER_WORDS = {"river", "sea", "lake", "lakes", "gulf", "bay", "ocean", "delta", "strait", "canal"}
@@ -154,24 +156,35 @@ _KNOWN: Dict[str, Any] = {}
 def _known_place_keys() -> frozenset:
     """Every name (lowercase) the offline lookup can answer as a country, state, named region, sea or city of 100,000 people or more, built once per process (well under a second). A word
     outside this set is never looked up, which keeps a whole transcript's word groups to a handful of lookups."""
-    if "keys" not in _KNOWN:
-        keys: set = set()
+    return frozenset(_known_place_kinds())
+
+
+def _known_place_kinds() -> Dict[str, str]:
+    """name (lowercase) -> its kind in the offline data ("country", "region", "admin1", "city", "sea"); a name in several datasets keeps the widest kind."""
+    if "kinds" not in _KNOWN:
+        kinds: Dict[str, str] = {}
         try:
             from map_scene import places as MP
             from pakmap import geo as PG
             from pakmap import waters as W
-            keys |= set(MP._named_regions())
-            for ds in ("countries", "admin1"):
-                for f in MP._dataset(ds):
-                    keys.update(MP._names(f))
+            for f in MP._dataset("countries"):
+                for k in MP._names(f):
+                    kinds.setdefault(k, "country")
+            for k in MP._named_regions():
+                kinds.setdefault(k, "region")
+            for f in MP._dataset("admin1"):
+                for k in MP._names(f):
+                    kinds.setdefault(k, "admin1")
             for ks, _nm, _lon, _lat, pop, _iso, _reg in PG._cities():
                 if pop >= 100_000:
-                    keys |= ks
-            keys |= set(W._INDEX) | set(W.OVERRIDES)
+                    for k in ks:
+                        kinds.setdefault(k, "city")
+            for k in set(W._INDEX) | set(W.OVERRIDES):
+                kinds.setdefault(k, "sea")
         except Exception:
-            keys = set()
-        _KNOWN["keys"] = frozenset(keys)
-    return _KNOWN["keys"]
+            kinds = {}
+        _KNOWN["kinds"] = kinds
+    return _KNOWN["kinds"]
 
 
 def home_places(words, opt: DirectorOptions) -> List[str]:
@@ -226,6 +239,7 @@ def transcript_places(words, limit: int = 60) -> Tuple[List[str], List[str]]:
     out: List[str] = []
     notes: List[str] = []
     seen: set = set()
+    looked: Dict[str, str] = {}
     i = 0
     while i < len(toks):
         took = 1
@@ -242,15 +256,18 @@ def transcript_places(words, limit: int = 60) -> Tuple[List[str], List[str]]:
             if key in seen:
                 took = n
                 break
-            try:
-                r = geo.resolve(name)
-            except Exception:
+            if key not in looked:           # the kind comes from the offline index (a country's full lookup takes 1-2 s: 12 of them were 9 s of every plan)
+                looked[key] = _known_place_kinds().get(key, "")
+            kind = looked[key]
+            if not kind:
                 continue
-            kind = str(r.kind)
             if kind not in TRANSCRIPT_KINDS:
                 continue
             cue = i > 0 and toks[i - 1] in PLACE_CUES
-            if n == 1 and (kind not in ("country", "region", "sea") or key in AMBIGUOUS_COUNTRIES) and not cue and count.get(key, 0) < 2:
+            if key in GOVERNMENT_NAMES and not cue:     # "Washington treated antimony", "pitched Washington": the government, not the place (Washington state on the map)
+                notes.append(f"{name} without a place word before it: the government, not taken as a place")
+                continue
+            if (n == 1 or gram[0] in LX.DIRECTION_WORDS) and (kind not in ("country", "region", "sea") or key in AMBIGUOUS_COUNTRIES) and not cue and count.get(key, 0) < 2:   # "west end pit" is not West End province
                 notes.append(f"{name} ({kind}) spoken once with no place word before it: not taken as a place")
                 continue
             seen.add(key)
@@ -494,7 +511,7 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
     cands, weak = place_candidates(script, opt)
     from_transcript: List[str] = []
     low_notes: List[str] = []
-    if lowercase_text(script, words) and not (opt.csv_first and opt.places):                # a voiceover with no script: speech-to-text writes "venice", so the capitals rule above finds nothing
+    if lowercase_text(script, words):                # a voiceover with no script: speech-to-text writes "venice", so the capitals rule above finds nothing (a CSV run too: a scene CSV's places are settings, the narration names the map's places)
         from_transcript, low_notes = transcript_places(words)
         cands += [c for c in from_transcript if c not in cands]
     resolved, ignored = resolve_places(cands, weak, opt.places)
