@@ -14,6 +14,7 @@ sys.dont_write_bytecode = True
 
 from explainer.beats import framing as F          # noqa: E402
 from explainer.beats import overlay as O          # noqa: E402
+O.MAP_DRIFT_PCT_PER_S = 0.0      # these tests prove the geometry on a still map; on a drifting Hybrid map the shapes are left to the map's own layers
 
 TEXT = "Germany invaded France in June 1940 and Switzerland was surrounded , completely surrounded , by the Axis powers until the end"
 WORDS = []
@@ -89,7 +90,10 @@ class Planning(unittest.TestCase):
             if c["type"] == "outline":
                 self.assertTrue(O.rect_inside(tuple(c["bbox"]), s), c["id"])
         # independent check against the geography: the arrow's ends are the places' projected positions on that view (within the trimmed length)
-        a = next(c for c in PLAN["cues"] if c["type"] == "arrow")
+        a = next((c for c in PLAN["cues"] if c["type"] == "arrow"), None)
+        if a is None:                       # it is spoken while the camera is still pulling back: left out, and the plan says why
+            self.assertTrue(any(d["type"] == "arrow" and "moves" in d["why"] for d in PLAN["dropped"]))
+            return
         g = O._locate("Germany")
         px = O.view_pixel(g.lon, g.lat, a["view"])
         self.assertLess(((a["p0"][0] - px[0]) ** 2 + (a["p0"][1] - px[1]) ** 2) ** 0.5, 120)

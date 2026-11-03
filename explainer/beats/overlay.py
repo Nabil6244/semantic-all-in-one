@@ -20,6 +20,7 @@ Opt-in flag proposal: DirectorOptions.mapoverlay (default False)."""
 from __future__ import annotations
 
 import math
+import os
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -125,6 +126,22 @@ class _Drop(Exception):
     pass
 
 
+GEO_TYPES = frozenset(("outline", "pin", "arrow"))      # cues drawn at a place on the map (stamps and plates sit on the screen, not on the map)
+MAP_DRIFT_PCT_PER_S = 0.5     # Hybrid's always-on camera drift (hybrid/plan.py drift_pct_per_s): the map is never still under a painted-on shape
+
+
+def camera_moving(beat: Dict[str, Any], t0: float, t1: float) -> bool:
+    """True when a camera step of the beat (fly_to, push_in, pull_back) is still moving at any time in [t0, t1]: the map is not where the overlay was placed."""
+    for c in beat.get("camera", []):
+        if c.get("action") == "start":
+            continue
+        a = float(c.get("t", beat["start"]))
+        b = a + float(c.get("dur") or (2.2 if c.get("action") == "fly_to" else 8.0 if c.get("action") == "push_in" else 2.0))
+        if a < t1 and b > t0:
+            return True
+    return False
+
+
 def _life(t: float, end: float, starts: Sequence[float]) -> float:
     nxt = [s for s in starts if s > t + 0.05]
     return min(end, nxt[0]) if nxt else end
@@ -165,6 +182,8 @@ def _plan_cue(i: int, spec: Dict[str, Any], beat: Dict[str, Any], tk, vws, start
     view = F.view_at(vws, t)
     if view is None:
         raise _Drop("no camera view is in force at that time")
+    if typ in GEO_TYPES and (MAP_DRIFT_PCT_PER_S > 0 or camera_moving(beat, t, _life(t, end, starts))):
+        raise _Drop("the map moves under it (a zoom or the camera drift): a shape painted on after the render would slide off its place; the map's own layer shows it")
     until = _life(t, end, starts)
     if until - t < 0.6:
         raise _Drop("the camera moves again less than 0.6 s after it would appear")
@@ -580,6 +599,47 @@ def _duration(path: "str | Path") -> float:
     return float(r.stdout.strip() or 0.0)
 
 
+from .. import hwenc as HW      # noqa: E402  the Mac's video engine (explainer/hwenc.py)
+
+CHUNK_MAX_S = 10.0         # a chunk is cut where its clips start and end, at most this long, with at most CHUNK_MAX_CLIPS clips
+CHUNK_MAX_CLIPS = 3
+PLAIN_MAX_S = 30.0         # a stretch with nothing to lay on is copied through in pieces of at most this long
+
+
+def chunk_bounds(total: int, fps: float, items: Sequence[Tuple[str, float, float]], windows: Sequence[Tuple[float, float]] = ()) -> List[int]:
+    """Frame numbers where the video is cut for laying on: at the clips' own start and end frames, so each chunk carries only the one to three clips it shows.
+    The 8 equal chunks of before each carried ~20 full-HD alpha clips that ffmpeg decoded from the chunk's start and held in memory until their turn
+    (1.2 GB and all cores per chunk, 25 min for a 16-minute video)."""
+    edges = {0, total}
+    for _m, a, b in items:
+        edges |= {min(total, max(0, round(a * fps))), min(total, max(0, round(b * fps)))}
+    for a, b in windows:
+        edges |= {min(total, max(0, round(float(a) * fps))), min(total, max(0, round(float(b) * fps)))}
+    pts = sorted(edges)
+    spans = [(round(a * fps), round(b * fps)) for _m, a, b in items]
+
+    def busy(x: int, y: int) -> int:
+        return sum(1 for a, b in spans if a < y and b > x)
+
+    out, start, last = [0], 0, 0
+    for p in pts[1:]:
+        if last > start and (p - start > CHUNK_MAX_S * fps or busy(start, p) > CHUNK_MAX_CLIPS):
+            out.append(last)
+            start = last
+        last = p
+    out.append(total)
+    out = sorted(set(out))
+    fine: List[int] = [0]
+    for a, b in zip(out, out[1:]):              # a long stretch is still cut, so no single chunk keeps one core busy while the others wait
+        step = int(PLAIN_MAX_S * fps)
+        x = a + step
+        while x < b:
+            fine.append(x)
+            x += step
+        fine.append(b)
+    return sorted(set(fine))
+
+
 def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, presenter: Optional[Dict[str, Any]] = None,
                       crf: int = 10, workers: int = 0, max_per_chunk: int = 24, log=lambda m: None) -> int:
     """composite_many in ONE pass: the video is cut into time chunks drawn at the same time on several cores, each chunk laying on only the alpha clips (and the presenter
@@ -597,9 +657,8 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
     items = [(str(m), float(s), float(s) + d) for (m, s), d in zip(overlays, lens) if d > 0]
     cores = os.cpu_count() or 4
     workers = workers or max(1, min(8, cores - 1))
-    n_chunks = max(workers, math.ceil(len(items) / max(1, max_per_chunk)) + 1, 1)
-    n_chunks = min(n_chunks, max(1, total // max(1, int(fps * 4))))      # never a chunk shorter than ~4 s
-    bounds = [round(total * k / n_chunks) for k in range(n_chunks + 1)]
+    bounds = chunk_bounds(total, fps, items, (presenter or {}).get("windows", ()))
+    n_chunks = len(bounds) - 1
     parts_dir = out_path.with_name(out_path.stem + "__chunks")
     parts_dir.mkdir(parents=True, exist_ok=True)
     threads = max(1, cores // workers)
@@ -608,7 +667,7 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
         f0, f1 = bounds[k], bounds[k + 1]
         t0, t1 = f0 / fps, f1 / fps
         mine = [it for it in items if it[1] < t1 and it[2] > t0]
-        cmd = ["ffmpeg", "-v", "error", "-y", "-ss", f"{t0:.6f}", "-i", str(video)]
+        cmd = ["ffmpeg", "-v", "error", "-y", "-threads", "2", "-ss", f"{t0:.6f}", "-i", str(video)]
         graph, last, n_in = [], "0:v", 0
         for mov, s, _e in mine:
             n_in += 1
@@ -630,16 +689,26 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
             cmd += ["-filter_complex", ";".join(graph), "-map", f"[{last}]"]
         else:
             cmd += ["-map", "0:v"]
-        cmd += ["-frames:v", str(f1 - f0), "-an", "-c:v", "libx264", "-crf", str(crf), "-pix_fmt", "yuv420p", "-preset", "superfast", "-r", f"{fps:.6f}", "-threads", str(threads),
+        enc = list(HW.H264) if hw else ["-c:v", "libx264", "-crf", str(crf), "-preset", "superfast", "-threads", str(threads)]
+        cmd += ["-frames:v", str(f1 - f0), "-an", *enc, "-pix_fmt", "yuv420p", "-r", f"{fps:.6f}",
                 "-video_track_timescale", str(round(fps * 1000)), "-avoid_negative_ts", "make_zero", str(parts_dir / f"c{k:03d}.mp4")]      # exact frame ticks: the joins stay on the frame grid
         try:
             return subprocess.run(cmd, timeout=7200).returncode
         except subprocess.TimeoutExpired:
             return -1
 
-    log(f"[Explainer] laying {len(items)} clip(s){' and the presenter' if presenter else ''} on in {n_chunks} chunk(s), {workers} at a time")
+    hw = HW.h264_ok()
+    if hw:                                     # the Mac's video engine: about 4.5x real time whatever the number of jobs, and the cores stay free (and cool)
+        workers = min(workers, HW.WORKERS)
+    log(f"[Explainer] laying {len(items)} clip(s){' and the presenter' if presenter else ''} on in {n_chunks} chunk(s), {workers} at a time"
+        + (" (hardware encoder)" if hw else ""))
     with ThreadPoolExecutor(workers) as ex:
         rcs = list(ex.map(chunk, range(n_chunks)))
+    if hw and any(rcs):                        # the video engine refused a chunk: every chunk again with the software encoder, so the joined parts all match
+        log("[Explainer] the hardware encoder failed on a chunk; laying on again with the software encoder")
+        hw = False
+        with ThreadPoolExecutor(max(1, min(8, (os.cpu_count() or 4) - 1))) as ex:
+            rcs = list(ex.map(chunk, range(n_chunks)))
     try:
         if any(rcs):
             return next(r for r in rcs if r) or -1

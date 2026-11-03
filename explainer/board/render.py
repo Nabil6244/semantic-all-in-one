@@ -531,8 +531,10 @@ def _encode(items, n_frames, fps, size, out_path, font_path, instrument, narrato
         from ..motion import texture as TX
         if TX.normalize(texture) and TX.get_layer(size)[0] is None and notes is not None:
             notes.append(TX.get_layer(size)[1])
+    # veryfast, not medium: boards are flat drawings (the same picture to the eye, SSIM 0.9999), and seven boards drawn at once no longer fill every core with encoding;
+    # not the video engine here: it is one unit, and seven boards at once would queue on it
     cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
-           "-an", "-c:v", "libx264", "-crf", "10", "-pix_fmt", "yuv420p", "-preset", "medium", "-movflags", "+faststart", str(out_path)]
+           "-an", "-c:v", "libx264", "-crf", "10", "-pix_fmt", "yuv420p", "-preset", "veryfast", "-movflags", "+faststart", str(out_path)]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for i in range(n_frames):
         p.stdin.write(draw_frame(items, i / fps, size, font_path, i, instrument, narrator, background, camera, texture, n_frames, fps, camera_focus).tobytes())

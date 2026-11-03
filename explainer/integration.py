@@ -115,6 +115,11 @@ def clear_under_boards(spec: Dict[str, Any], work: Any, log: Callable[[str], Non
             unpanel_spec_pictures(spec, log)
         except Exception:
             pass
+        try:                       # and each board over a picture is baked onto it (explainer/bake.py): no board is left for the pass over the whole finished video
+            from .bake import bake_spec
+            bake_spec(spec, work, log)
+        except Exception as exc:
+            log(f"[Explainer] boards are laid on after the render as before ({str(exc)[:100]})")
         import json
         details = json.loads(rr.read_text(encoding="utf-8"))["report"].get("beat_details") or {}
         wins = [(float(i["board_overlay"]["start"]), float(i["board_overlay"]["end"])) for i in details.values() if (i or {}).get("board_overlay")]
@@ -146,8 +151,10 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
         report, words, total = data["report"], data["words"], float(data["total"])
         cur = _P(video)
         from .beats import overlay as OV
+        from .bake import baked_movs
+        baked = baked_movs(rr.parent)                  # boards already baked onto their pictures before the render
         boards = [((info or {})["board_overlay"]["mov"], float(info["board_overlay"]["start"])) for _bid, info in sorted((report.get("beat_details") or {}).items())
-                  if (info or {}).get("board_overlay") and _P(info["board_overlay"]["mov"]).is_file()]
+                  if (info or {}).get("board_overlay") and _P(info["board_overlay"]["mov"]).is_file() and info["board_overlay"]["mov"] not in baked]
         maps = []                                      # the map overlays are drawn as small alpha clips first, then laid on with the boards in ONE re-encode of the video
         for bid, info in sorted((report.get("beat_details") or {}).items()):
             plan = (info or {}).get("overlay")
