@@ -90,6 +90,20 @@ def _same_feature(a: str, b: str) -> bool:
 
 
 _ZONE_LATEST_S = 0.55                         # a zone label never starts later than this after its word (the relevance gate allows +0.6 s; the camera may arrive up to 0.5 s late)
+def _plain_first_map(b, words) -> Optional[Dict[str, Any]]:
+    """The opening map with nothing drawn on it: where the camera starts, at the beat's first place. None when even that cannot be built."""
+    try:
+        pl = b.places[0]
+        frame = ("continental" if FR._is_continent(pl.name) else "country") if pl.kind in ("country", "region") else "region"
+        beat, _ev, probs = make_map_beat(b.id, b.start, b.end, words, camera_start={"place": pl.name, "frame": frame}, purpose="map: " + pl.name, geo_intent="where " + pl.name + " is", strict=False)
+        if probs:
+            return None
+        beat["camera"] = [c for c in beat.get("camera", []) if c.get("action") == "start"] or [{"action": "start", "place": pl.name, "frame": frame}]
+        return beat
+    except Exception:
+        return None
+
+
 FILL_PALETTE = ("red", "featured", "orange", "green", "compare", "accent", "water", "primary")      # strong colours first: the engine draws fills at ~45 % and purple reads as pale pink over desert; the last two only past six countries
 MAX_TEXT_LAYERS = 5               # pakMap's renderer rule: at most five text objects (marker or zone label, caption, stat, title) on screen at once
 LABEL_HOLD_S = 2.2
@@ -613,6 +627,13 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
                 first_map = False
                 map_places_done.update(h.name for h in b.places)
             except Exception as exc:
+                plain = _plain_first_map(b, words) if first_map else None      # the plan needs exactly one camera start: the first map is kept as a plain map (camera only) rather than lost
+                if plain is not None:
+                    b.notes.append(f"map layers could not be built, plain map instead: {exc}")
+                    plan_beats.append(plain)
+                    beat_notes[b.id] = {"kind": "map", "places": [h.name for h in b.places]}
+                    cur_view, first_map = None, False
+                    continue
                 b.notes.append(f"map beat could not be built, board beat instead: {exc}")
                 b.kind = "board"
                 plan_beats.append(None)

@@ -107,6 +107,16 @@ class MapCamera(unittest.TestCase):
             self.assertLess(fill["t"], egypt_said, b)          # coloured before the name, as soon as the camera is there
             self.assertLessEqual(fill["t"] - b["start"], 1.0, b)
 
+    def test_a_failed_first_map_still_gives_the_one_camera_start(self):
+        from unittest import mock
+        text = ("A great harbour city once traded with every corner of the known world. For thousands of years the great river shaped every part of life along the coast of Egypt. "
+                "Merchants from Greece sailed across the sea to buy grain and linen. The temples were filled with gold and the streets with traders.")
+        words = _words(text.lower().replace(".", ""))
+        with mock.patch.object(FR, "check_framing", return_value=["forced failure"]):
+            res = PL.direct(words, text, DirectorOptions(), duration=words[-1][2] + 0.4, materialize=False)
+        starts = [c for b in res.plan["beats"] for c in b.get("camera", []) if c["action"] == "start"]
+        self.assertEqual(len(starts), 1, res.plan["beats"])
+
 
 if __name__ == "__main__":
     unittest.main()
