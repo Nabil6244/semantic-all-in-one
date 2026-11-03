@@ -337,15 +337,14 @@ def cast_plate_prompt(spec, state: Dict[str, Any]) -> str:
 
 
 HEAL_ROUNDS = 3
+MAP_MODES = ("map", "map_footage")
 
 
 def beats_named(problems: Sequence[str], ids: Sequence[str]) -> List[str]:
-    """The beats the problems are about ("beat e125: ...", "e125: ..."), in plan order. A problem that names no beat cannot be healed by folding."""
+    """The beats the problems are about ("beat e125: ...", "e125: ..."), in plan order. A problem that names no beat is not folded."""
     known = set(ids)
     hit = {m for p in problems for m in re.findall(r"\b(e\d+)\b", str(p)) if m in known}
-    if any(not (set(re.findall(r"\b(e\d+)\b", str(p))) & known) for p in problems):
-        return []
-    return [i for i in ids if i in hit]
+    return [i for i in ids if i in hit]          # a problem naming no beat is left for the report; it never stops the beats that are named from being healed
 
 
 def fold_beats(plan: Dict[str, Any], bad: Sequence[str]) -> Dict[str, str]:
@@ -358,6 +357,18 @@ def fold_beats(plan: Dict[str, Any], bad: Sequence[str]) -> Dict[str, str]:
         if bid not in ids or len(beats_) < 2:
             continue
         k = ids.index(bid)
+        start = [c for c in beats_[k].get("camera") or [] if c.get("action") == "start"]
+        heir = None
+        if start:                        # the beat where the map begins: its camera start goes with its time (the plan needs exactly one), first to the beat that takes the time
+            near = [k - 1, k + 1] if k > 0 else [k + 1]
+            order = near + [j for j in range(k + 1, len(beats_)) if j not in near] + [j for j in range(k - 1, -1, -1) if j not in near]
+            heir = next((j for j in order if 0 <= j < len(beats_) and beats_[j].get("mode") in MAP_MODES), None)
+            if heir is None:             # no other map beat can begin the map: the beat stays, without the layers and cards that carry its problem
+                beats_[k]["layers"], beats_[k]["support"], beats_[k]["more_cards"] = [], None, []
+                out[bid] = "had a problem, so its text and cards are left out (the map begins here)"
+                continue
+            mv = [c for c in beats_[heir].get("camera") or [] if c.get("action") != "start"]
+            beats_[heir]["camera"] = [dict(start[0])] + mv
         gone = beats_.pop(k)
         if k > 0:
             beats_[k - 1]["end"] = gone["end"]

@@ -213,6 +213,29 @@ class PlanNeverStopsTest(unittest.TestCase):
     def test_a_problem_naming_no_beat_is_not_folded(self):
         from explainer.director import plan as PL
         self.assertEqual(PL.beats_named(["the plan needs exactly one camera 'start'"], ["e1"]), [])
+        self.assertEqual(PL.beats_named(["the plan needs exactly one camera 'start'", "beat e2: layer e2_cap1: the caption 'x' is not a contiguous quote"], ["e1", "e2"]), ["e2"])
+
+    def test_folding_the_beat_where_the_map_begins_keeps_the_start(self):
+        from explainer.director import plan as PL
+        from hybrid.plan import HybridPlan, validate_plan
+        st = {"action": "start", "place": "Idaho", "frame": "region"}
+        plan = {"duration": 12.0, "beats": [{"id": "e1", "mode": "map", "start": 0.0, "end": 4.0, "camera": [st], "layers": [{"id": "e1_cap1"}]},
+                                            {"id": "e2", "mode": "footage", "start": 4.0, "end": 8.0, "clips": [{"asset": "a.mp4", "reason": "r"}]},
+                                            {"id": "e3", "mode": "map", "start": 8.0, "end": 12.0, "camera": [{"action": "push_in", "t": 9.0}]}]}
+        PL.fold_beats(plan, ["e1"])
+        self.assertEqual([b["id"] for b in plan["beats"]], ["e2", "e3"])
+        self.assertEqual(plan["beats"][1]["camera"], [st, {"action": "push_in", "t": 9.0}])
+        starts = [c for b in plan["beats"] for c in b.get("camera") or [] if c.get("action") == "start"]
+        self.assertEqual(len(starts), 1)
+        self.assertFalse(any("camera 'start'" in p for p in validate_plan(HybridPlan.from_dict(plan))))
+
+    def test_the_only_map_beat_is_kept_without_its_text(self):
+        from explainer.director import plan as PL
+        plan = {"beats": [{"id": "e1", "mode": "map", "start": 0.0, "end": 4.0, "camera": [{"action": "start", "place": "Idaho"}], "layers": [{"id": "c"}]},
+                          {"id": "e2", "mode": "footage", "start": 4.0, "end": 8.0}]}
+        PL.fold_beats(plan, ["e1"])
+        self.assertEqual([b["id"] for b in plan["beats"]], ["e1", "e2"])
+        self.assertEqual(plan["beats"][0]["layers"], [])
 
 
 class KeptCsvAndPlanCheckTest(unittest.TestCase):
