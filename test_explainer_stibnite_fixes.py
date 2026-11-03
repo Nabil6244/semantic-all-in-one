@@ -172,6 +172,49 @@ class CsvMapPlacesTest(unittest.TestCase):
         self.assertNotIn("West End", got)            # a pit, not a province
 
 
+class PicturesFollowNarrationTest(unittest.TestCase):
+    def test_subject_comes_from_the_beat_words(self):
+        from explainer.director import plan as PL
+        w = _words("they combine refined antimony with indium to create ultra sensitive infrared detectors")
+        self.assertIn("detectors", PL.narrated_subject(w, 0, 99))
+        self.assertEqual(PL.narrated_subject(_words("and it goes far deeper than that for three weeks"), 0, 99), "")
+
+    def test_scene_note_keeps_the_setting_but_shows_the_narration(self):
+        from explainer.director import plan as PL
+        from explainer.director.select import BeatPlan
+        w = _words("even the tents and uniforms our troops sleep in depend on it")
+        beats = [BeatPlan("e1", 0.0, w[-1][2], [])]
+        note = [{"start": 0.0, "end": 99.0, "text": "place: ammunition factory floor; region: USA; period: 2020; people: metallurgist; activity: inspecting bullet cores; "
+                                                    "background: bullets moving on belts"}]
+        p = PL.backdrop_prompt(beats, 0, w, "", {}, note, "left")
+        self.assertIn("ammunition factory floor", p)
+        self.assertIn("tents and uniforms", p)
+        self.assertNotIn("inspecting bullet cores", p)
+        self.assertNotIn("bullets moving on belts", p)
+
+
+class PlanNeverStopsTest(unittest.TestCase):
+    def test_board_subject_is_always_spoken(self):
+        from explainer.director import plan as PL
+        w = _words("the river was shut off and the diversion tunnels collapsed")
+        self.assertEqual(PL.spoken_subject("", w, 0, 99), "river")
+        self.assertEqual(PL.spoken_subject("diversion tunnels", w, 0, 99), "diversion tunnels")
+
+    def test_a_beat_with_a_problem_is_folded_into_its_neighbour(self):
+        from explainer.director import plan as PL
+        plan = {"beats": [{"id": "e1", "start": 0.0, "end": 4.0}, {"id": "e2", "start": 4.0, "end": 8.0}, {"id": "e3", "start": 8.0, "end": 12.0}]}
+        bad = PL.beats_named(["beat e2: clip 1: none of its subjects [''] is spoken", "e2: layout"], ["e1", "e2", "e3"])
+        self.assertEqual(bad, ["e2"])
+        PL.fold_beats(plan, bad)
+        self.assertEqual([(b["id"], b["start"], b["end"]) for b in plan["beats"]], [("e1", 0.0, 8.0), ("e3", 8.0, 12.0)])
+        PL.fold_beats(plan, ["e1"])
+        self.assertEqual([(b["id"], b["start"], b["end"]) for b in plan["beats"]], [("e3", 0.0, 12.0)])
+
+    def test_a_problem_naming_no_beat_is_not_folded(self):
+        from explainer.director import plan as PL
+        self.assertEqual(PL.beats_named(["the plan needs exactly one camera 'start'"], ["e1"]), [])
+
+
 class PicturesTest(unittest.TestCase):
     def test_plate_prompt_never_asks_for_variations(self):
         from explainer.director import plan as PL

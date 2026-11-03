@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -334,6 +335,113 @@ def cast_plate_prompt(spec, state: Dict[str, Any]) -> str:
     return SI.flow_prompt(plate)
 
 
+HEAL_ROUNDS = 3
+
+
+def beats_named(problems: Sequence[str], ids: Sequence[str]) -> List[str]:
+    """The beats the problems are about ("beat e125: ...", "e125: ..."), in plan order. A problem that names no beat cannot be healed by folding."""
+    known = set(ids)
+    hit = {m for p in problems for m in re.findall(r"\b(e\d+)\b", str(p)) if m in known}
+    if any(not (set(re.findall(r"\b(e\d+)\b", str(p))) & known) for p in problems):
+        return []
+    return [i for i in ids if i in hit]
+
+
+def fold_beats(plan: Dict[str, Any], bad: Sequence[str]) -> Dict[str, str]:
+    """Each bad beat is removed and its time given to the beat before it (or after it, for the first beat): the picture or board of the neighbour simply plays on.
+    -> {beat id: what happened}. The plan keeps at least one beat and still covers the whole narration."""
+    beats_ = plan["beats"]
+    out: Dict[str, str] = {}
+    for bid in bad:
+        ids = [b_["id"] for b_ in beats_]
+        if bid not in ids or len(beats_) < 2:
+            continue
+        k = ids.index(bid)
+        gone = beats_.pop(k)
+        if k > 0:
+            beats_[k - 1]["end"] = gone["end"]
+            out[bid] = f"had a problem, so its time is given to {beats_[k - 1]['id']}"
+        else:
+            beats_[0]["start"] = gone["start"]
+            out[bid] = f"had a problem, so its time is given to {beats_[0]['id']}"
+    return out
+
+
+def spoken_subject(subject: str, words, start: float, end: float) -> str:
+    """The board clip's subject as words the beat really says: the composer's subject when it is a quote of the beat, else the beat's own first words. A board is drawn from
+    its own narration, so it always has a spoken subject (an empty one, from an icon with no label, used to stop the whole plan)."""
+    from ..beats.relevance import beat_tokens, find_phrase
+    tk = beat_tokens(words, start, end)
+    if (subject or "").strip() and find_phrase(tk, subject) is not None:
+        return subject
+    toks = [t["tok"] for t in tk]
+    content = [t for t in toks if t not in LX.STOP] or toks
+    return content[0] if content else (subject or "")
+
+
+NOT_SUBJECT = frozenset("""thing things way ways time times part parts kind lot lots fact case point reason story question answer world country people everyone someone something
+nothing everything year years decade decades century day days percent number numbers million billion thousand hundred sleep reality matter problem idea like per across inside onto via
+goes look looks needs need takes make makes gets turns comes runs says seems keeps puts sets stands holds shows means becomes remains far deeper global total single entire
+called named known covers cover covered used using based two three four five six seven eight nine ten eleven twelve twenty thirty forty fifty sixty seventy eighty ninety dozen half week weeks month months hour hours minute minutes""".split())
+SUBJECT_JOIN = frozenset(("and", "of"))
+NOUN_END = ("tion", "sion", "ment", "ness", "ity", "ure", "ist", "ery", "age", "ance", "ence", "ine", "ide", "ium", "ony", "ite", "ore", "ill", "ank", "ine", "ant", "ter", "tor", "or")
+
+
+def _nounish(t: str, cased: Dict[str, str]) -> bool:
+    return t in LX.CONCRETE or t in cased or t.endswith(NOUN_END) or (len(t) > 3 and t.endswith("s") and not t.endswith(("ss", "us", "is")))
+
+
+def narrated_subject(words, start: float, end: float, cased: Optional[Dict[str, str]] = None) -> str:
+    """What this stretch of narration is about, in its own words, for its picture: the best run of 1 to 4 content words ending on a noun ("ultra sensitive infrared detectors",
+    "tents and uniforms", "chinese smelters"). Verbs, numbers and filler never make a subject; a run with a thing a picture can show (LX.CONCRETE) or a name wins. "" when nothing is picturable."""
+    from ..beats.relevance import beat_tokens
+    toks = [t["tok"] for t in beat_tokens(words, start, end)]
+    cased = cased or {}
+
+    def content(t: str) -> bool:
+        return (t.isalpha() and len(t) > 2 and t not in LX.STOP and t not in LX.WEAK and t not in NOT_SUBJECT and t not in LX.DANGLING_END
+                and not (len(t) > 4 and (t.endswith("ed") or t.endswith("ing")) and t not in cased) and not (len(t) > 4 and t.endswith("ly")))
+
+    def modifier(t: str) -> bool:
+        return t.isalpha() and len(t) > 4 and t.endswith(("ed", "ing")) and t not in LX.STOP and t not in NOT_SUBJECT
+
+    best, best_sc = "", 0.0
+    for e, last in enumerate(toks):              # every run of up to 4 content words that ends on a noun ("create ultra sensitive infrared detectors" -> "ultra sensitive infrared detectors")
+        if not content(last) or not _nounish(last, cased):
+            continue
+        run = [last]
+        k = e - 1
+        while k >= 0 and len([t for t in run if t not in SUBJECT_JOIN]) < 4:
+            if (content(toks[k]) or modifier(toks[k])) and not _verb_start(toks[k]):     # "infrared", "refined" before a noun describe it
+                run.insert(0, toks[k])
+            elif toks[k] in SUBJECT_JOIN and k > 0 and content(toks[k - 1]) and _nounish(toks[k - 1], cased):
+                run.insert(0, toks[k])
+            else:
+                break
+            k -= 1
+        n = len([t for t in run if t not in SUBJECT_JOIN])
+        sc = 1.5 * n + 1.0 * any(t in LX.CONCRETE for t in run) + 1.5 * any(t in cased for t in run)
+        if sc > best_sc and (n > 1 or last in LX.CONCRETE or last in cased):
+            best, best_sc = " ".join(cased.get(t, t) for t in run), sc
+    return best
+
+
+VERB_START = frozenset("create creates combine combines build builds use uses produce produces make makes ship ships send sends buy buys sell sells".split())
+
+
+def _verb_start(t: str) -> bool:
+    return t in VERB_START
+
+
+def narrated_spec(spec, subject: str):
+    """A CSV scene's spec showing what the narration says right now: the scene keeps its place, period, people and their looks; the thing in the picture is the narration's subject
+    (the scene row's own activity, objects and backdrop describe the whole scene, so they step aside while the narration names something else)."""
+    if subject:
+        spec.objects = [subject]
+        spec.activity = spec.background = ""
+    return spec
+
+
 def plate_stage(side: str) -> str:
     """The part of a background plate the narrator and the board stand in front of: open calm ground on the narrator's side, a quiet uncluttered area for the words on the other."""
     other = "right" if side == "left" else "left"
@@ -341,7 +449,7 @@ def plate_stage(side: str) -> str:
             f"will stand; quiet uncluttered sky or ground toward the {other} for words; any people stay small in the middle distance; no text")
 
 
-def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], notes: Sequence[Dict[str, Any]] = (), side: str = "left") -> str:
+def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], notes: Sequence[Dict[str, Any]] = (), side: str = "left", cased: Optional[Dict[str, str]] = None) -> str:
     """The Flow background plate behind board beat k, made for what this stretch of narration is about: the CSV scene note over the beat when there is one (its place, period,
     people, activity, objects, mood), else the beat's place, period and the concrete things it names. Composed as a stage for the narrator (plate_stage). The same subject keeps its
     plate for PLATE_RUN beats, then the camera moves to another framing. "" when the beat names no place, no period and nothing to show (a topic with no setting keeps paper)."""
@@ -356,7 +464,9 @@ def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], note
     if spec is not None:
         if spec.year is None:
             spec.year = year
-        key = ("note", note)
+        subject = narrated_subject(words, b.start, b.end, cased)        # the scene row says where and who; the narration says what the picture shows now
+        narrated_spec(spec, subject)
+        key = ("note", note, subject.lower())
     else:
         region = beat_place(beats, k) or main
         objs = _uniq(t["tok"] for t in beat_tokens(words, b.start, b.end) if t["tok"] in LX.CONCRETE and t["tok"] not in _SCENE_PEOPLE)[:3]
@@ -379,7 +489,7 @@ def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], note
     return prompt
 
 
-def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
+def scene_intel_pass(beats, words, opt: DirectorOptions, SI, cased: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
     """Read every cartoon beat (its words, then the CSV scene note over it when there is one) and turn the ones the library cannot show truthfully into Flow image beats, up to
     `opt.scene_flow_share` of the runtime. Returns the per-beat record for the report. Never raises: a beat that cannot be read stays as it was."""
     from ..beats.relevance import beat_tokens
@@ -414,7 +524,9 @@ def scene_intel_pass(beats, words, opt: DirectorOptions, SI) -> Dict[str, Any]:
             spec.objects = spec.objects or _uniq(subject + [t for t in toks if t in LX.CONCRETE and t not in _SCENE_PEOPLE])[:3]
             mid = (b.start + b.end) / 2
             note = " ; ".join(n["text"] for n in opt.scene_notes if n["start"] - 1e-6 <= mid < n["end"] + 1e-6)
-            spec = SI.from_notes(note, spec) or spec
+            noted = SI.from_notes(note, spec)
+            if noted is not None:                   # a CSV scene: its place, period and cast, showing what this beat's narration names
+                spec = narrated_spec(noted, narrated_subject(words, b.start, b.end, cased))
             d = SI.decide(spec)
             if d.route == "compose" and set_uses.get(d.set_name, 0) >= SET_MAX_USES:      # the audience has seen this set enough: this moment gets its own picture
                 b.notes.append(f"cartoon set {d.set_name!r} already used {SET_MAX_USES} times: drawn by Flow instead")
@@ -544,7 +656,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     info.setdefault("map_layers_rejected", [])
     if opt.scene_intel:                                  # opt-in: read each cartoon beat; what the library cannot show truthfully becomes a Flow image beat (capped by share of runtime)
         from .. import scene_intel as SI
-        info["scene_intel"] = scene_intel_pass(beats, words, opt, SI)
+        info["scene_intel"] = scene_intel_pass(beats, words, opt, SI, cased)
     for b in beats:
         if b.kind == "map":
             try:
@@ -892,7 +1004,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             n_board += 1
             side_ = next((c.params.get("side") for c in br.cues if c.kind == "narrator" and (c.params or {}).get("side")), "left")
             paper = keeps_paper(n_board - 1) and not bare_board(br.cues)      # paper only carries a board that shows something; a presenter alone stands in front of a picture
-            plate = "" if paper else backdrop_prompt(beats, k, words, plate_main, plate_state, opt.scene_notes, side_)
+            plate = "" if paper else backdrop_prompt(beats, k, words, plate_main, plate_state, opt.scene_notes, side_, cased)
             if plate:
                 beat_bg = "alpha"
         elif b.kind == "cartoon" and b.plate:
@@ -948,7 +1060,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
             plan_beats[k], b.kind = saved_pic, "footage"
             board_info[b.id] = {"cues": len(br.cues), "stand_in_for": b.picture_query, "clip": name, "built": built}
             continue
-        evidence_subjects[b.id] = {"0": [br.subject]}
+        evidence_subjects[b.id] = {"0": [spoken_subject(br.subject, words, b.start, b.end)]}
         board_info[b.id] = {"cues": len(br.cues), "kinds": sorted({c.kind for c in br.cues}), "dropped": br.dropped, "rescued": br.rescued, "lost": br.lost, "repairs": br.repairs, "still_gap_s": round(br.still_gap_s, 2), "still_gap_all_s": round(br.still_gap_all_s, 2), "still_gap_strict_s": round(br.still_gap_strict_s, 2),
                             **({"board_overlay": {"mov": clip_path, "start": b.start, "end": b.end, "plate": plate}} if plate else {}),
                             "narrator": modes[k], "labels": [s.label for s in b.sents], "phrases": br.phrases, "peak_occupancy_share": br.peak_occupancy, "clip": name, "built": built, "problems": br.problems, "cue_specs": [_cue_key(c) for c in br.cues],
@@ -981,30 +1093,52 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     plan = assemble_plan(total, plan_beats, {"dissolve_s": float(opt.dissolve_s)})
     fx_budget = motion_state["budget"].summary() if "budget" in motion_state else None
     # ---- gates ----
-    rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
-                     allow_sources=LX.FOOTAGE_SOURCES if (opt.footage_share > 0 or opt.pictures or info.get("scene_flow_beats")) else (), composed=info.get("scene_flow_beats", ())) if materialize else None
-    if rep is not None:
-        late = [q["out_path"] for q in queued]       # a board clip still waiting in the queue is not a missing file
-        res.problems += [p for p in rep.problems if not (late and "file not found" in str(p) and any(q in str(p) for q in late))]
-        res.warnings += rep.warnings
-    else:
-        from hybrid.plan import HybridPlan, PlanError, validate_plan
-        try:
-            res.problems += validate_plan(HybridPlan.from_dict(json.loads(json.dumps(plan))))
-        except PlanError as e:
-            res.problems += e.problems
-    res.problems += [f"{bid}: {p}" for bid, v in board_info.items() for p in v["problems"]]
-    editorial: Dict[str, Any] = {}
-    try:                                                              # the application's own editorial validator: its errors are what "Check plan" would block rendering on
-        from hybrid.plan import HybridPlan
-        from hybrid.validate import validate as hybrid_validate
-        fnd = hybrid_validate(HybridPlan.from_dict(json.loads(json.dumps(plan))))
-        editorial = {"errors": [f.message for f in fnd if f.severity == "error" and f.code != "technical"], "technical": [f.message for f in fnd if f.code == "technical"],
+    def gates(plan_):
+        probs: List[str] = []
+        warns: List[str] = []
+        rep_ = check_plan(plan_, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
+                          allow_sources=LX.FOOTAGE_SOURCES if (opt.footage_share > 0 or opt.pictures or info.get("scene_flow_beats")) else (), composed=info.get("scene_flow_beats", ())) if materialize else None
+        if rep_ is not None:
+            late = [q["out_path"] for q in queued]       # a board clip still waiting in the queue is not a missing file
+            probs += [p for p in rep_.problems if not (late and "file not found" in str(p) and any(q in str(p) for q in late))]
+            warns += rep_.warnings
+        else:
+            from hybrid.plan import HybridPlan, PlanError, validate_plan
+            try:
+                probs += validate_plan(HybridPlan.from_dict(json.loads(json.dumps(plan_))))
+            except PlanError as e:
+                probs += e.problems
+        probs += [f"{bid}: {p}" for bid, v in board_info.items() for p in v["problems"]]
+        edit_: Dict[str, Any] = {}
+        try:                                                              # the application's own editorial validator: its errors are what "Check plan" would block rendering on
+            from hybrid.plan import HybridPlan
+            from hybrid.validate import validate as hybrid_validate
+            fnd = hybrid_validate(HybridPlan.from_dict(json.loads(json.dumps(plan_))))
+            edit_ = {"errors": [f.message for f in fnd if f.severity == "error" and f.code != "technical"], "technical": [f.message for f in fnd if f.code == "technical"],
                      "warnings": [f.message for f in fnd if f.severity == "warning"]}
-        res.problems += [f"hybrid.validate: {m}" for m in editorial["errors"]]          # technical findings are validate_plan's, already reported above
-        res.warnings += [f"hybrid.validate: {m}" for m in editorial["warnings"]]
-    except Exception as exc:
-        res.warnings.append(f"hybrid.validate could not run: {exc!r}")
+            probs += [f"hybrid.validate: {m}" for m in edit_["errors"]]          # technical findings are validate_plan's, already reported above
+            warns += [f"hybrid.validate: {m}" for m in edit_["warnings"]]
+        except Exception as exc:
+            warns.append(f"hybrid.validate could not run: {exc!r}")
+        return probs, warns, edit_, rep_
+
+    probs_, warns_, editorial, rep = gates(plan)
+    for _round in range(HEAL_ROUNDS):     # a problem on one beat never withholds the whole video: that beat is folded into its neighbour and the plan is checked again
+        bad = beats_named(probs_, [bb["id"] for bb in plan["beats"]])
+        if not bad or len(bad) > max(3, len(plan["beats"]) // 10):
+            break
+        healed = fold_beats(plan, bad)
+        if not healed:
+            break
+        for bid, why in healed.items():
+            board_info.pop(bid, None)
+            evidence_subjects.pop(bid, None)
+            res.warnings.append(f"{bid}: {why}")
+        info.setdefault("healed_beats", []).extend(sorted(healed))
+        log(f"[Explainer] {len(healed)} beat(s) with a problem folded into their neighbours: " + ", ".join(sorted(healed)))
+        probs_, warns_, editorial, rep = gates(plan)
+    res.problems += probs_
+    res.warnings += warns_
     pic_rec = info.pop("pictures", None) if opt.pictures else None
     if pic_rec is not None:
         pic_rec.pop("cased", None)

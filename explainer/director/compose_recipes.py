@@ -890,7 +890,7 @@ def _finish(c: _Ctx, name: str, narrator: str, carry_pose: str, start: float, en
     res.phrases = list(c.phrases)
     res.used_extra = set(c.used)
     res.last_pose = last_pose
-    first = next(iter(c.phrases), None)
+    first = next((p for p in c.phrases if (p.get("phrase") or "").strip()), None)      # an icon with no label has no words to be the subject
     res.subject = first["phrase"] if first else " ".join(c.tok[g] for g in c.bw[:2])
     gate(res, c.beat_id, start, end, words, opt)
     kept = {q.id for q in res.cues}

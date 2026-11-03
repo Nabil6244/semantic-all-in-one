@@ -301,7 +301,7 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
         if narrator in ("only", "end"):
             late = [k for k, g in enumerate(bw) if words[g][1] <= end - 0.45]
             cues.append(Cue(f"{beat_id}_n_hide", "narrator", {"index": late[-1] if late else len(bw) - 1}, params={"action": "hide", "exit": "slide"}))
-    first = next((p for p in res.phrases), None)
+    first = next((p for p in res.phrases if (p.get("phrase") or "").strip()), None)      # an icon with no label has no words to be the subject
     res.subject = first["phrase"] if first else " ".join(norm(words[g][0]) for g in bw[:2])
     res.cues = cues
     res.authored = list(cues)

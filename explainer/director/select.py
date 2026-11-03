@@ -594,7 +594,8 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
     if not any(b.kind == "map" for b in beats):
         first = beats[0]
         fp = None
-        for name in home_places(words, opt) + [opt.fallback_place]:      # the story's own home (the CSV's most used region, else the place the narration names most), Europe only as a last resort
+        rejected = " ".join(info["places_comparison"] + [str(x) for x in info["places_ignored"]]).lower()       # "the size of England" is a comparison, not where the story is
+        for name in [p for p in home_places(words, opt) if p.lower() not in rejected] + [opt.fallback_place]:      # the story's own home (the CSV's most used region, else the place the narration names most), Europe only as a last resort
             try:
                 from hybrid import geo
                 r = geo.resolve(name)
