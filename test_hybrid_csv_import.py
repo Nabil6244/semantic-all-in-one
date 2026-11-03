@@ -54,11 +54,13 @@ class TestTheExample(unittest.TestCase):
         self.assertEqual((b[0].support.asset, b[0].support.place, b[0].support.label), ("stock_image:endless sand dunes of the Sahara under a hard noon sun", "Algeria", "SAHARA"))
         self.assertEqual(b[4].support.place, "28.5,8.0")
 
-    def test_the_camera_opens_on_the_globe_flies_in_and_never_moves_under_footage(self):
+    def test_the_camera_opens_with_a_picked_move_and_never_moves_under_footage(self):
         steps = [(s.action, s.place, s.frame, s.t) for bt in self.plan.beats for s in bt.camera]
-        self.assertEqual(steps[0], ("start", "Algeria", "globe", 0.0))
-        self.assertEqual(steps[1][:3], ("fly_to", "Algeria", "country"))
-        self.assertAlmostEqual(steps[1][3], 1.4, places=2)
+        self.assertEqual(steps[0][:2], ("start", "Algeria"))
+        self.assertEqual(steps[0][3], 0.0)
+        self.assertTrue(self.plan.settings.get("opening_picked"))          # a frameless start row: the app picks the opening (hybrid.openings)
+        first = [s for s in self.plan.beats[0].camera if s.action == "fly_to" and s.place == "Algeria"]   # the opening move, not the CSV's later fly_to
+        self.assertTrue(not first or (first[0].place, first[0].frame) == ("Algeria", "country"))
         self.assertEqual(sum(1 for s in steps if s[0] == "start"), 1)
         for a, b in self.plan.footage_windows():
             self.assertFalse(any(a + 0.01 < s[3] < b - 0.01 for s in steps))

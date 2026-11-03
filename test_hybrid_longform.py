@@ -96,7 +96,7 @@ class TestMasterPlan(unittest.TestCase):
         res, llm = self.check(60)
         steps = [(b.id, c) for b in res.plan.beats for c in b.camera]
         self.assertEqual([c.action for _, c in steps].count("start"), 1)               # one opening for the whole documentary
-        self.assertEqual(steps[0][1].frame, "globe")
+        self.assertEqual(steps[0][1].t, 0.0)                                            # the opening move is picked by hybrid.openings
         self.assertTrue(all(c.frame != "globe" for _, c in steps[2:]) or all(c.place for _, c in steps), "no later globe reset")
         for chap in res.plan.chapters[1:]:
             first = next(b for b in res.plan.beats if b.chapter == chap["id"])

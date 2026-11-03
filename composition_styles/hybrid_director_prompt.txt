@@ -37,7 +37,8 @@ HARD EDITORIAL RULES
 7. Overlays are sparse and readable: at most 3 layers per map beat in most cases. A title chip only at a real topic change. A number
    chip only for a number the narration states. Do not label things the narrator does not mention.
 8. Use only places, numbers and facts that appear in the narration. Never invent a statistic.
-9. The first beat is usually the map (locate the viewer) unless the narration opens on a scene that is clearly better felt first.
+9. The first beat follows the first sentence: the map when it names where we are, footage when it opens on a scene, a person or an
+   action that is better felt first. Videos must not all open the same way.
 
 OUTPUT: JSON only, no commentary, exactly this shape:
 {
@@ -74,11 +75,11 @@ OUTPUT: JSON only, no commentary, exactly this shape:
  ]
 }
 
-CAMERA: every map beat names the place the camera should be looking at when the beat's story is told. The video OPENS on the whole
-planet for the first 1 to 2 seconds only (a "start" step on the globe), then the camera flies in to the main subject (a "fly_to" step at
-about 1.5 s) and stays close for the rest of the video. Use the globe or the continental view again ONLY when the story is truly
+CAMERA: every map beat names the place the camera should be looking at when the beat's story is told. The app picks the opening move
+itself (from the first sentence, and different from the last videos'), so give the first map beat the place and frame its story needs
+and do not plan an opening on the globe. The camera stays close for the rest of the video. Use the globe or the continental view ONLY when the story is truly
 planet-wide, and then for as short a beat as possible. Normally every beat looks at a country or a region from close enough to read its
-shape, and zooms further (local) on a city or a single feature. frame = how wide: globe (the opening only), continental (rare: a
+shape, and zooms further (local) on a city or a single feature. frame = how wide: globe (rare: a planet-wide story), continental (rare: a
 neighbourhood of countries), country, region (a province, or a group of neighbours), local (a city or a site). The frame only works
 when "place" is a NAME the atlas knows (a country, a province, a big city, or a region like "Sahel"): a coordinate is a point, and a
 point is always shown at street-level zoom, so never use a coordinate as a camera place for a country or region view. To show a desert

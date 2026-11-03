@@ -64,10 +64,10 @@ THE HYBRID RHYTHM (what makes it good)
   head, not in the CSV.
 
 CAMERA
-- First row of the video: layer_type=camera, camera_action=start, frame=globe, geo_ref=
-  the main subject. Directly after it, on the same vo_anchor, a camera fly_to row with
-  offset_s=1.4, the same geo_ref and frame=country. So the video opens on the whole planet
-  for about 1.4 seconds, then flies in and STAYS CLOSE.
+- First row of the video: layer_type=camera, camera_action=start, geo_ref=the main subject,
+  frame LEFT EMPTY. The app picks the opening move from the first sentence (a fly-in, a pull
+  back, a slow push, a still frame under a number) and never the one the last video used.
+  Do not add an opening fly_to. The camera STAYS CLOSE after the opening.
 - After that use frame=country or region (a country, a province, a region such as Sahel).
   Use frame=local for a city or a site. Do not return to globe or continental unless the
   story is truly planet-wide, and then only briefly.
@@ -146,8 +146,8 @@ PACING AND LIMITS (the app enforces these; breaking them is an error)
 CHECKLIST BEFORE YOU ANSWER
 1. The header is exactly as given; every row has the same number of cells.
 2. Every vo_anchor is copied from the script, in order, and unique.
-3. The video opens with camera start on the globe, then a fly_to with offset_s 1.4 (unless
-   this is a later part).
+3. The video opens with one camera start row, frame empty, on the main subject (unless this
+   is a later part).
 4. Every item starts with a hud_title; no title is repeated.
 5. Footage rows have asset_path stock_video:/stock_image:, a hold, and the footage params;
    no two clips overlap; no camera move while footage plays.
@@ -163,8 +163,7 @@ The Sahara stretches across nine million square kilometers of North Africa. On t
 
 CSV:
 item_no,vo_anchor,offset_s,layer_type,layer_id,geo_ref,label_text,sub_text,color_role,value_from,value_to,value_format,anchor,asset_path,camera_action,frame,line_kind,hold,params
-1,The Sahara,,camera,cam0,Algeria,,,,,,,,,start,globe,,,
-1,The Sahara,1.4,camera,cam1,Algeria,,,,,,,,,fly_to,country,,,
+1,The Sahara,,camera,cam0,Algeria,,,,,,,,,start,,,,
 1,The Sahara,,hud_title,,,THE GREEN SAHARA,A SHIFTING LANDSCAPE,,,,,,,,,,,
 1,The Sahara,,fill,sahara,Algeria,,,subject,,,,,,,,,,
 1,nine million,,stat,area,,,SAHARA,,0,9,0 MILLION KM²,br,,,,,,

@@ -66,6 +66,23 @@ def _first(tr: Any, m: Any) -> int:
     return 0
 
 
+def _opening_steps(plan: HybridPlan, place: str, frame: str, words: Sequence[Word], steps: Sequence[CameraStep]) -> List[CameraStep]:
+    """A CSV with no camera start: the opening move is picked like a Director plan's (hybrid.openings), before the CSV's own first move."""
+    from . import openings
+
+    if not plan.beats or not plan.setting("globe_opening"):
+        return [CameraStep(action="start", place=place, frame=frame, t=0.0)]
+    if plan.beats[0].mode == "footage":
+        openings.note_cold_open(plan)
+        return [CameraStep(action="start", place=place, frame=frame, t=0.0)]
+    lo, hi = free_interval(plan, 0)
+    nxt = [s.t for s in steps if s.t > 0.05]
+    if nxt:
+        hi = min(hi, min(nxt) - 0.3)
+    text = " ".join(w[0] for w in words if w[1] < 8.0)
+    return openings.apply(plan, 0, place, frame, lo, hi, text=text)
+
+
 def plan_from_csv(text: str, words: Sequence[Word], duration: Optional[float] = None, *, settings: Optional[Dict[str, Any]] = None) -> CsvImport:
     from pakmap.compile import CompileError, compile_rows
     from pakmap.schema import CsvError, parse_csv
@@ -226,6 +243,7 @@ def plan_from_csv(text: str, words: Sequence[Word], duration: Optional[float] = 
     # ---- camera ------------------------------------------------------------------------------------------------------------
     times = _row_times(rows, words)
     steps: List[CameraStep] = []
+    auto_start: Optional[str] = None
     for r in rows:
         if r.layer_type != "camera" or not r.camera_action or r.camera_action == "drift":
             continue
@@ -238,6 +256,9 @@ def plan_from_csv(text: str, words: Sequence[Word], duration: Optional[float] = 
         place = r.geo_ref or (f"{r.lat},{r.lon}" if r.lat is not None and r.lon is not None else "")
         if r.camera_action in ("start", "fly_to") and not place:
             warnings.append(f"row {r.line}: the camera {r.camera_action} has no geo_ref, so it was left out")
+            continue
+        if r.camera_action == "start" and not r.frame and auto_start is None:
+            auto_start = place  # a start with no frame: the app picks the opening move (hybrid.openings)
             continue
         frame = r.frame or ("country" if r.camera_action in ("start", "fly_to") else "")
         dur = r.camera_dur
@@ -255,10 +276,13 @@ def plan_from_csv(text: str, words: Sequence[Word], duration: Optional[float] = 
             notes.append("more than one camera start: the later ones became fly_to moves")
     if not starts:
         first = next((s for s in steps if s.place), None)
-        place = first.place if first else next((l.place for b in beats for l in b.layers if l.place), "")
+        place = auto_start or (first.place if first else next((l.place for b in beats for l in b.layers if l.place), ""))
         if place:
-            steps.insert(0, CameraStep(action="start", place=place, frame=(first.frame if first and first.frame else "country"), t=0.0))
-            notes.append(f"the CSV has no camera start; the video opens on {place}")
+            frame = "country" if auto_start else (first.frame if first and first.frame else "country")
+            opening = _opening_steps(plan, place, frame, words, steps)
+            steps[:0] = opening
+            notes.append(f"the CSV has no camera start; the video opens on {place}"
+                         + (f" ({plan.settings['opening_note']})" if plan.settings.get("opening_note") else ""))
     elif starts[0].t > 0.0:
         starts[0].t = 0.0
     # each step goes into a map beat, clear of the footage dissolves; steps never overlap

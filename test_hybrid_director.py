@@ -175,9 +175,12 @@ class TestPayloadToPlan(unittest.TestCase):
         plan, _ = self.build()
         steps = [(b.id, c.action, c.place) for b in plan.beats for c in b.camera]
         self.assertEqual(steps[0], ("b1", "start", "Pakistan"))
-        self.assertEqual([s[1] for s in steps], ["start", "fly_to", "fly_to", "fly_to"])   # the opening fly-in, then one move per later beat
+        self.assertEqual([s[1] for s in steps if s[0] != "b1"], ["fly_to", "fly_to"])   # the opening move (hybrid.openings), then one move per later beat
         first = plan.beats[0].camera
-        self.assertEqual([(c.frame, c.t) for c in first], [("globe", 0.0), ("country", 1.4)])  # the planet for 1.4 s, then close
+        self.assertIn(plan.settings["opening_picked"], ("globe_fly_in", "continental_fly_in", "close_pull_back", "push_open"))
+        self.assertEqual(first[0].t, 0.0)
+        flies = [c for c in first if c.action == "fly_to"]
+        self.assertTrue(not flies or (flies[-1].place, flies[-1].frame) == ("Pakistan", "country"))  # an opening fly lands close on the subject
         legacy, _ = self.build()
         legacy.settings["globe_opening"] = False
         from hybrid.director import derive_cameras

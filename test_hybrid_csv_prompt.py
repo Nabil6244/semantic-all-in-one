@@ -44,7 +44,7 @@ class TestHybridCsvPrompt(unittest.TestCase):
 
     def test_the_rules_that_matter_are_in_the_prompt(self):
         t = PROMPT.read_text(encoding="utf-8")
-        for needle in ("frame=globe", "offset_s=1.4", "can NEVER outlive its item", "NEVER type the number itself", "never use a coordinate for a camera",
+        for needle in ("frame LEFT EMPTY", "never the one the last video used", "can NEVER outlive its item", "NEVER type the number itself", "never use a coordinate for a camera",
                        "stock_video:", "cover_ui", "Never use Flow", "44 characters"):
             self.assertIn(needle, t)
 

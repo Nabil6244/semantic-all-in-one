@@ -308,9 +308,13 @@ def derive_cameras(plan: HybridPlan) -> None:
     they already have (a hand-authored plan)."""
     from .plan import free_interval
 
+    from . import openings
+
     current: Optional[Tuple[str, str]] = None
     started = any(c.action == "start" for b in plan.beats if not b.cam_place for c in b.camera)
     pushed = False
+    if not started and plan.setting("globe_opening") and plan.beats and plan.beats[0].mode == "footage":
+        openings.note_cold_open(plan)
     for i, b in enumerate(plan.beats):
         if not plan.is_map_mode(b) or not b.cam_place:
             continue
@@ -318,10 +322,9 @@ def derive_cameras(plan: HybridPlan) -> None:
         b.camera = []
         target = (b.cam_place, b.cam_frame or "region")
         if not started:
-            if plan.setting("globe_opening") and b.start < 0.05 and target[1] != "globe" and hi - 1.4 >= 2.6:
-                # the video opens on the whole planet for a moment, then flies in to its subject and stays close
-                b.camera.append(CameraStep(action="start", place=target[0], frame="globe", t=0.0))
-                b.camera.append(CameraStep(action="fly_to", place=target[0], frame=target[1], t=1.4, dur=2.2))
+            if plan.setting("globe_opening") and b.start < 0.05:
+                # the video's opening move follows its first sentence and differs from the last videos' (hybrid.openings)
+                b.camera.extend(openings.apply(plan, i, target[0], target[1], lo, hi))
             else:
                 b.camera.append(CameraStep(action="start", place=target[0], frame=target[1], t=0.0))
             started, current = True, target

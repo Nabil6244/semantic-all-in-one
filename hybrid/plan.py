@@ -37,7 +37,8 @@ DEFAULT_SETTINGS = {
     "pause_overlays": True,     # freeze the map layers' animations under footage and resume them on return
     "globe_hop_km": 1800,       # a camera jump at least this long pulls out to the globe and back in
     "idle_motion_min_s": 0.0,   # > 0: a map beat this long with no camera move gets a slow push in, and the next eases back (0 = off; a CSV import turns it on at 6)
-    "globe_opening": True,      # a Director-made plan opens on the whole planet for ~1.4 s, then flies in and stays close
+    "globe_opening": True,      # a Director-made plan opens with a move (hybrid.openings picks which); False = a plain start, no move
+    "opening": "auto",          # "auto" = picked from the first sentence, never the last video's; or one hybrid.openings type
     "cover_ui": True,           # footage covers chips, cards, captions and the title
     "drift_pct_per_s": 0.5,     # the always-on camera drift (the same default as pakMap)
     "dissolve_centered": True,  # the dissolve is centred on the beat boundary, so it does not eat the footage beat's own time
