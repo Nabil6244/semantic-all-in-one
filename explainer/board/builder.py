@@ -67,8 +67,10 @@ def build_board_clip(cues: Sequence[Cue], words: Sequence[Word], beat_start: flo
                      fps: int = 30, size: Tuple[int, int] = (1920, 1080), instrument: bool = False, strict: bool = True, beat_id: str = "board",
                      purpose: str = "", font_path: "str | Path | None" = None, manifest_path: "str | Path | None" = None,
                      sentences: Optional[Sequence[Tuple[float, float]]] = None, tail_frames: int = 0, background: str = "grey",
-                     camera: str = "off", texture=False, camera_focus: Optional[Tuple[float, float]] = None) -> BoardBuild:
-    """Resolve the cues against `words`, draw the clip, write it to `out_path`.
+                     camera: str = "off", texture=False, camera_focus: Optional[Tuple[float, float]] = None, draw: bool = True) -> BoardBuild:
+    """`draw=False` stops after the layout: the cue problems are known and nothing is written (the clip is drawn later, see board/jobs.py).
+
+    Resolve the cues against `words`, draw the clip, write it to `out_path`.
 
     strict=True  (default): any cue problem raises BoardCueError before anything is drawn (nothing is guessed).
     strict=False: a cue with a problem is left out and listed in `problems`; the clip is still made (the never-stop behaviour)."""
@@ -84,11 +86,12 @@ def build_board_clip(cues: Sequence[Cue], words: Sequence[Word], beat_start: flo
     if problems and strict:
         raise BoardCueError(problems)
     out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     notes: List[str] = []
-    rc = encode(items, n_frames, fps, size, out_path, font, instrument, track, background, camera, texture, camera_focus, notes)
-    if rc != 0:
-        raise RuntimeError(f"ffmpeg could not encode the board clip (exit {rc})")
+    if draw:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        rc = encode(items, n_frames, fps, size, out_path, font, instrument, track, background, camera, texture, camera_focus, notes)
+        if rc != 0:
+            raise RuntimeError(f"ffmpeg could not encode the board clip (exit {rc})")
     fragment = {"beat": {"id": beat_id, "mode": "footage", "start": beat_start, "end": beat_end, "purpose": purpose or "board clip",
                          "footage": {"clips": [{"asset": str(out_path), "reason": "Explainer board clip, word-timed"}]}},
                 "settings": {"dissolve_s": float(dissolve_s)}}

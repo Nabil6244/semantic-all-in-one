@@ -725,6 +725,7 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         creg = SceneRegistry()
     dlg_state = None
     sig_hist: List[Tuple[str, ...]] = []        # the picture-layout family of each board beat so far (opt.variety)
+    queued: list = []                           # board clips drawn after the plan (board/jobs.py)
     dossier_hist: List[bool] = []
     from . import compose_pictures as CPX_r                              # only period pictures (the ones likely to be refused) get a drawn stand-in: a 40-minute video has dozens of picture beats
     plate_main, plate_state = (story_place(beats), {}) if opt.flow_backdrops else ("", {})
@@ -871,10 +872,13 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         if materialize:
             f = out_dir / name
             if not (f.is_file() and f.stat().st_size > 0):
-                bb = build_board_clip(br.cues, words, b.start, b.end, f, dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=beat_bg,
-                                      camera="off" if plate else opt.camera, texture=False if plate else opt.texture)
+                kw = dict(dissolve_s=opt.dissolve_s, fps=opt.fps, size=opt.size, strict=False, beat_id=b.id, background=beat_bg,
+                          camera="off" if plate else opt.camera, texture=False if plate else opt.texture)
+                # the layout runs now (its problems belong to the plan); the drawing is queued and done in parallel just before the render (board/jobs.py)
+                bb = build_board_clip(br.cues, words, b.start, b.end, f, draw=False, **kw)
                 if bb.problems:
                     br.problems += bb.problems
+                queued.append({"cues": br.cues, "beat_start": b.start, "beat_end": b.end, "out_path": str(f), **kw})
             built = True
         beat = {"id": b.id, "mode": "footage", "start": b.start, "end": b.end, "purpose": f"explainer {'cartoon' if b.kind == 'cartoon' else 'board'}: {b.sents[0].label}",
                 "footage": {"clips": [{"asset": clip_path, "reason": "explainer board clip drawn from this beat's own narration"}]}}
@@ -910,13 +914,21 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         board_info[bid_]["continuity"] = rec_
     for bid_, rec_ in dialogue_rec.items():
         board_info[bid_]["dialogue"] = rec_
+    if materialize:
+        from ..board import jobs as BJ
+        try:
+            BJ.queue(out_dir, words, queued)
+        except Exception as exc:        # a queue that cannot be saved: draw them now, one pool, so the plan never depends on it
+            log(f"[Explainer] the board queue could not be saved ({str(exc)[:100]}); drawing the boards now")
+            BJ.run(words, queued, log)
     plan = assemble_plan(total, plan_beats, {"dissolve_s": float(opt.dissolve_s)})
     fx_budget = motion_state["budget"].summary() if "budget" in motion_state else None
     # ---- gates ----
     rep = check_plan(plan, words, subjects=evidence_subjects, base_dir=Path(opt.work_dir) / "explainer" if opt.work_dir else None,
                      allow_sources=LX.FOOTAGE_SOURCES if (opt.footage_share > 0 or opt.pictures or info.get("scene_flow_beats")) else (), composed=info.get("scene_flow_beats", ())) if materialize else None
     if rep is not None:
-        res.problems += rep.problems
+        late = [q["out_path"] for q in queued]       # a board clip still waiting in the queue is not a missing file
+        res.problems += [p for p in rep.problems if not (late and "file not found" in str(p) and any(q in str(p) for q in late))]
         res.warnings += rep.warnings
     else:
         from hybrid.plan import HybridPlan, PlanError, validate_plan

@@ -203,5 +203,6 @@ def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any]
     if _flag(settings, "explainer_flow_only"):         # Flow only: a stock photograph shows the place as it is today; every picture is made for its moment in the story instead
         opt.flow_only, opt.scene_intel, opt.scene_flow_share, opt.footage_source = True, True, 1.0, "flow_image"
     opt.flow_backdrops = _flag(settings, "explainer_flow_backdrops")
+    opt.csv_first = bool(places) and (settings.get("explainer_csv_first", True) is not False)   # a CSV that names places: look up only those (switch off with explainer_csv_first=False)
     r = direct(words, script, opt, duration=duration, log=log)
     return {"plan": r.plan, "problems": r.problems, "warnings": r.warnings, "report": r.report}

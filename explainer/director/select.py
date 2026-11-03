@@ -94,7 +94,7 @@ def place_candidates(script: Optional[str], opt: DirectorOptions, limit: int = 6
     for p in opt.places:
         if p and p not in out:
             out.append(p)
-    if script:
+    if script and not (opt.csv_first and out):      # CSV first: the CSV's places are the list
         for sent in re.split(r"(?<=[.!?])\s+|\n+", script):
             toks = re.findall(r"[A-Za-z][A-Za-z'\-]*", sent)
             if toks and toks[0][0].isupper() and norm(toks[0]) not in LX.STOP and toks[0] not in out:
@@ -455,7 +455,7 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
     cands, weak = place_candidates(script, opt)
     from_transcript: List[str] = []
     low_notes: List[str] = []
-    if lowercase_text(script, words):                # a voiceover with no script: speech-to-text writes "venice", so the capitals rule above finds nothing
+    if lowercase_text(script, words) and not (opt.csv_first and opt.places):                # a voiceover with no script: speech-to-text writes "venice", so the capitals rule above finds nothing
         from_transcript, low_notes = transcript_places(words)
         cands += [c for c in from_transcript if c not in cands]
     resolved, ignored = resolve_places(cands, weak, opt.places)
