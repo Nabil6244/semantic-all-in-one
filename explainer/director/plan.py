@@ -227,9 +227,19 @@ def _map_cards(b, words, hits, info: Dict[str, Any], opt, n_labels: int = 0) -> 
                 info["scene_flow_beats"].append(b.id)
         card = {"asset": f"{src}:{q_asset}", "t": round(t, 3), "label": label, "reason": f"shows {query}: the narration says it here"}
         if place:
-            card["place"] = place
+            card["place"] = _place_point(place)
         out.append(card)
     return out
+
+
+def _place_point(name: str) -> str:
+    """The place the map shows, as "lat,lon": a card's leader line is resolved as a point, and a bare "York" as a point is York, Pennsylvania (the map shows York, England)."""
+    try:
+        from pakmap import geo as _g
+        loc = _g.resolve(name, prefer="area")
+        return f"{loc.lat:.3f},{loc.lon:.3f}"
+    except Exception:
+        return name
 
 
 def _stats_for(b, words) -> List[Dict[str, Any]]:
@@ -315,29 +325,47 @@ def cast_plate_prompt(spec, state: Dict[str, Any]) -> str:
     return SI.flow_prompt(plate)
 
 
-def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any]) -> str:
-    """The Flow background plate behind board beat k: the place it is about (its own, the story's just before it, or the story's home), its period, and a framing from SCENE_SHOTS that
-    changes when the place or period changes or after PLATE_RUN beats on the same plate. "" when the beat names no place, no period and nothing to show (a topic with no setting keeps paper)."""
+def plate_stage(side: str) -> str:
+    """The part of a background plate the narrator and the board stand in front of: open calm ground on the narrator's side, a quiet uncluttered area for the words on the other."""
+    other = "right" if side == "left" else "left"
+    return (f"the {side} third is open calm ground in the near foreground with nothing on it, where a presenter will stand; the {other} side is quiet and uncluttered for words; "
+            "any people stay small in the middle distance; no text")
+
+
+def backdrop_prompt(beats, k: int, words, main: str, state: Dict[str, Any], notes: Sequence[Dict[str, Any]] = (), side: str = "left") -> str:
+    """The Flow background plate behind board beat k, made for what this stretch of narration is about: the CSV scene note over the beat when there is one (its place, period,
+    people, activity, objects, mood), else the beat's place, period and the concrete things it names. Composed as a stage for the narrator (plate_stage). The same subject keeps its
+    plate for PLATE_RUN beats, then the camera moves to another framing. "" when the beat names no place, no period and nothing to show (a topic with no setting keeps paper)."""
     from ..beats.relevance import beat_tokens
     from . import compose_pictures as CPX
     from .. import scene_intel as SI
     b = beats[k]
-    region = beat_place(beats, k) or main
+    mid = (b.start + b.end) / 2.0
+    note = " ; ".join(n["text"] for n in notes if n.get("start", 0.0) - 1e-6 <= mid < n.get("end", 0.0) + 1e-6)
     year = CPX.era_of_beat(words, b)["year"]
-    objs = _uniq(t["tok"] for t in beat_tokens(words, b.start, b.end) if t["tok"] in LX.CONCRETE and t["tok"] not in _SCENE_PEOPLE)[:2]
-    if not region and year is None and not objs:
-        return ""
-    key = (region, None if year is None else int(year) // 50 * 50)
+    spec = SI.from_notes(note) if note else None
+    if spec is not None:
+        if spec.year is None:
+            spec.year = year
+        key = ("note", note)
+    else:
+        region = beat_place(beats, k) or main
+        objs = _uniq(t["tok"] for t in beat_tokens(words, b.start, b.end) if t["tok"] in LX.CONCRETE and t["tok"] not in _SCENE_PEOPLE)[:3]
+        if not region and year is None and not objs:
+            return ""
+        spec = SI.SceneSpec(region=region, year=year, architecture="specific" if region else "generic", objects=objs)
+        key = (region, None if year is None else int(year) // 50 * 50)          # objects named in passing do not make a new Flow picture
     if key == state.get("key") and state.get("run", 0) < PLATE_RUN:
         state["run"] += 1
         return state["prompt"]
     n = state.setdefault("shots", {}).get(key, 0)
     state["shots"][key] = n + 1
-    spec = SI.SceneSpec(region=region, year=year, architecture="specific" if region else "generic", objects=objs if not region else [],
-                        background=SCENE_SHOTS[n % len(SCENE_SHOTS)], atmosphere=PLATE_LOOK)
+    if n or not spec.background:                    # the note's own backdrop first; a second plate of the same subject is another framing of it
+        spec.background = ", ".join(x for x in (spec.background if n == 0 else "", SCENE_SHOTS[n % len(SCENE_SHOTS)]) if x)
+    spec.atmosphere = ", ".join(x for x in (spec.atmosphere, plate_stage(side)) if x)
     prompt = SI.flow_prompt(spec)
-    if n >= len(SCENE_SHOTS):                       # every framing used: the place is seen again at another hour, never the same request twice
-        prompt = prompt.replace(PLATE_LOOK, PLATE_LOOK + f", variation {n // len(SCENE_SHOTS) + 1}")
+    if n >= len(SCENE_SHOTS):                       # every framing used: the subject is seen again at another hour, never the same request twice
+        prompt = prompt.replace(". flat 2D", f", variation {n // len(SCENE_SHOTS) + 1}. flat 2D", 1)
     state.update(key=key, run=1, prompt=prompt)
     return prompt
 
@@ -461,6 +489,9 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
     SG.label_sentences(sents, words, script)
     SG.compute_breaks(sents, words)
     cased = SG.casing(script)
+    if SL.lowercase_text(script, words):           # speech-to-text writes "mercia", "viking": the names the CSV gives (its places and scene notes) are written as the CSV writes them
+        for k_, v_ in SG.vocab_casing(words, list(opt.places) + [n.get("text", "") for n in opt.scene_notes]).items():
+            cased.setdefault(k_, v_)
     table = {**LX.ICONS, **{k.lower(): v for k, v in opt.metaphors.items()}}
     if opt.scenes2:
         try:
@@ -792,7 +823,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         plate = ""
         if opt.flow_backdrops and b.kind == "board" and saved_pic is None:      # the narrator and the cards stand in front of a picture of the story's place and period, not on paper
             n_board += 1
-            plate = "" if keeps_paper(n_board - 1) else backdrop_prompt(beats, k, words, plate_main, plate_state)
+            side_ = next((c.params.get("side") for c in br.cues if c.kind == "narrator" and (c.params or {}).get("side")), "left")
+            plate = "" if keeps_paper(n_board - 1) else backdrop_prompt(beats, k, words, plate_main, plate_state, opt.scene_notes, side_)
             if plate:
                 beat_bg = "alpha"
         elif b.kind == "cartoon" and b.plate:
@@ -918,6 +950,8 @@ def _direct(words, script, opt: DirectorOptions, duration, materialize, log) -> 
         from ..board import jobs as BJ
         try:
             BJ.queue(out_dir, words, queued)
+            if not opt.defer_boards:
+                BJ.ensure_built(out_dir, log)
         except Exception as exc:        # a queue that cannot be saved: draw them now, one pool, so the plan never depends on it
             log(f"[Explainer] the board queue could not be saved ({str(exc)[:100]}); drawing the boards now")
             BJ.run(words, queued, log)

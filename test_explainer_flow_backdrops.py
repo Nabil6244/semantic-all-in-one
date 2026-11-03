@@ -52,13 +52,21 @@ class Plates(unittest.TestCase):
         self.assertEqual(ps[0], ps[1])
         self.assertEqual(ps[1], ps[2])                 # PLATE_RUN 3: one Flow picture serves three 3-4 s scenes
         self.assertNotEqual(ps[2], ps[3])
-        self.assertTrue(all("Venice" in p and "no people" in p for p in ps))
+        self.assertTrue(all("Venice" in p and "where a presenter will stand" in p for p in ps))      # a stage for the narrator, not an empty scene
 
     def test_a_new_period_gets_a_new_plate(self):
         st = {}
         ps = [PL.backdrop_prompt(self.beats, k, self.words, "Venice", st) for k in range(5)]
         self.assertIn("1204", ps[4])
         self.assertNotIn(ps[4], ps[:4])
+
+    def test_a_csv_scene_note_makes_the_plate(self):
+        notes = [{"start": 0.0, "end": 99.0, "text": "place: beach landing; region: East Anglia; period: 865; background: longships beached on the sand; people: viking; activity: wading ashore"}]
+        p = PL.backdrop_prompt(self.beats, 0, self.words, "Venice", {}, notes, "right")
+        self.assertIn("longships beached", p)
+        self.assertIn("East Anglia", p)
+        self.assertNotIn("Venice", p)
+        self.assertIn("the right third is open calm ground", p)
 
     def test_a_topic_with_no_setting_keeps_paper(self):
         words = timed("prices rose because demand was strong .")

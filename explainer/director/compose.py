@@ -83,14 +83,22 @@ def _clauses(idxs: Sequence[int], words, breaks: set) -> List[List[int]]:
     return out
 
 
+CONTINUES = frozenset("to so than that of".split())     # after these the clause is not finished: a phrase never stops right before one
+
+
 def best_phrases(idxs: Sequence[int], words, cased: Dict[str, str], table: Dict[str, str], breaks: set, *, k: int = 2, max_words: int = 8, fit=None,
                  min_score: float = 5.0, min_words: int = 1, strict_edges: bool = False, require_clause_end: bool = False) -> List[Phrase]:
     """Up to k phrases, each the best contiguous quote of the narration inside one clause: 2 to max_words words, never starting or ending on a function or weak word, containing a
     content word, scored by content weight (+2 when it begins and +2 when it ends with its clause, a complete thought). `fit(text)` must accept the text (it has to fit its card).
     A single word is allowed only if it is a number, a name from the script or a metaphor keyword."""
     cands: List[Tuple[float, int, Phrase]] = []
+    after = lambda g: norm(words[g + 1][0]) if g + 1 < len(words) else ""  # noqa: E731   the word the narrator says next, inside or outside idxs
     for ci, cl in enumerate(_clauses(idxs, words, breaks)):
         toks = [norm(words[g][0]) for g in cl]
+        # a clause cut by the edge of idxs (a time window) has not ended: its last word is a cut inside the clause ("scandinavia come | so close")
+        g_ = cl[-1]
+        closed = g_ in breaks or not after(g_) or (after(g_) in LX.SOFT_BREAK and not (after(g_) in CONTINUES and words[g_ + 1][1] - words[g_][2] < 0.15))   # "come so close": no pause, not a connector
+        last = len(cl) - 1 if closed else -1
         best = None
         for i in range(len(cl)):
             if (toks[i] in LX.STOP or toks[i] in LX.WEAK or not toks[i]) and not (not strict_edges and toks[i] in LX.LEADING_OK and i + 1 < len(cl)) and not (not strict_edges and toks[i] in LX.CLAUSE_START_OK and i == 0 and len(cl) >= 2):
@@ -102,16 +110,18 @@ def best_phrases(idxs: Sequence[int], words, cased: Dict[str, str], table: Dict[
                 run = toks[i:j + 1]
                 if n < min_words or (toks[i] in LX.LEADING_OK and n < 2):
                     continue
-                if require_clause_end and j != len(cl) - 1:
+                if require_clause_end and j != last:
                     continue
-                if j != len(cl) - 1 and (toks[j] in LX.DANGLING_END or (len(toks[j]) > 4 and toks[j].endswith("ly") and toks[j] not in cased and toks[j] not in table)):
+                if j != last and (toks[j] in LX.DANGLING_END or (len(toks[j]) > 4 and toks[j].endswith("ly") and toks[j] not in cased and toks[j] not in table)):
                     continue            # it would stop in the middle of the clause on a word that needs what comes next ("... and officially", "right above")
-                if j != len(cl) - 1 and toks[j + 1] not in LX.STOP:
+                if j != last and after(cl[j]) not in LX.STOP:
                     continue            # a cut inside a clause falls before a function word ("founder died in 1994 | and ..."), never between two content words ("its eternal | leader")
+                if j != last and after(cl[j]) in CONTINUES:
+                    continue            # ... and never before a word that finishes the thought ("warriors intended | to", "much | of the north", "come | so close")
                 if n == 1 and not (any(c.isdigit() for c in run[0]) or run[0] in cased or run[0] in table):
                     continue
                 sc = sum(_weight(t, cased, table) for t in run)
-                sc += 2.0 * (i == 0) + 2.0 * (j == len(cl) - 1) - 0.2 * max(0, n - 5)
+                sc += 2.0 * (i == 0) + 2.0 * (j == last) - 0.2 * max(0, n - 5)
                 text = " ".join(_disp(t, cased) for t in run)
                 if fit is not None and not fit(text):
                     continue

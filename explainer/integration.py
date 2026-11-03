@@ -102,6 +102,30 @@ def composite_map_overlays(report: Dict[str, Any], map_clips: Dict[str, str], ou
     return done
 
 
+def clear_under_boards(spec: Dict[str, Any], work: Any, log: Callable[[str], None] = lambda m: None) -> int:
+    """An Explainer board is laid over its picture after the render, so the graphics step does not know it is there: a graphic it added from the narration ("auto_" quote,
+    headline...) over that picture would show the same words twice, half behind the narrator. Those are taken out of the spec. Returns how many. Never raises."""
+    from pathlib import Path as _P
+    try:
+        rr = next((p for p in (_P(work) / "explainer" / "render_report.json", _P(work).parent / "explainer" / "render_report.json") if p.is_file()), None)
+        if rr is None:
+            return 0
+        import json
+        details = json.loads(rr.read_text(encoding="utf-8"))["report"].get("beat_details") or {}
+        wins = [(float(i["board_overlay"]["start"]), float(i["board_overlay"]["end"])) for i in details.values() if (i or {}).get("board_overlay")]
+        evs = spec.get("events") or []
+        wins += [(float(e["t_in"]), float(e["t_out"])) for e in evs if e.get("type") == "media_full" and _P(str(e.get("media", ""))).name.startswith("board_")]   # a board drawn on paper
+        if not wins:
+            return 0
+        drop = [e for e in evs if str(e.get("id", "")).startswith("auto_") and any(float(e.get("t_in", 0)) < b1 and float(e.get("t_out", 0)) > b0 for b0, b1 in wins)]
+        if drop:
+            spec["events"] = [e for e in evs if e not in drop]
+            log(f"[Explainer] {len(drop)} narration graphic(s) left out where a board already shows the words: " + ", ".join(str(e["id"]) for e in drop))
+        return len(drop)
+    except Exception:
+        return 0
+
+
 def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
     """After the whole video is drawn (map, board clips, presenter): lays each map beat's overlay (outlines, arrows, stamps, plates) over it at the beat's time, and builds the sound track
     (effects + ducked bed + the voice) from the plan the director left in <work>/explainer/render_report.json (or beside work). Returns {"video": path, "audio": path or None}; anything that
@@ -203,6 +227,7 @@ def direct_plan(words: Sequence, script: Optional[str], settings: Dict[str, Any]
     if _flag(settings, "explainer_flow_only"):         # Flow only: a stock photograph shows the place as it is today; every picture is made for its moment in the story instead
         opt.flow_only, opt.scene_intel, opt.scene_flow_share, opt.footage_source = True, True, 1.0, "flow_image"
     opt.flow_backdrops = _flag(settings, "explainer_flow_backdrops")
+    opt.defer_boards = True                          # the app draws the boards while the pictures are fetched (pakmap generate_pakmap_video -> board/jobs.py)
     opt.csv_first = bool(places) and (settings.get("explainer_csv_first", True) is not False)   # a CSV that names places: look up only those (switch off with explainer_csv_first=False)
     r = direct(words, script, opt, duration=duration, log=log)
     return {"plan": r.plan, "problems": r.problems, "warnings": r.warnings, "report": r.report}

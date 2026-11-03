@@ -46,6 +46,11 @@ def _cut_on_participle(text: str, idxs: Sequence[int], words) -> bool:
     return bool(hits) and all(hits)
 
 
+def bare_verb(tok: str, cased) -> bool:
+    """A verb form on its own ("ruled", "controlled", "raiding"): as an icon's label it is a fragment, so the icon shows without one."""
+    return len(tok) > 4 and tok not in cased and (tok.endswith("ed") or tok.endswith("ing"))
+
+
 def best_phrases(idxs, words, cased, table, breaks, *, fit=None, **kw):
     """compose.best_phrases that never offers a junk fragment (see above)."""
     ix = list(idxs)
@@ -134,7 +139,7 @@ def author_ref(beat_id: str, start: float, end: float, sents: Sequence[Sent], wo
 
         def add_tile(c: Tuple[int, str, str], x: int, y: int, style: str = "tile", role: Optional[str] = None) -> None:
             g, t, asset = c
-            lab = _disp(t, cased)
+            lab = "" if bare_verb(t, cased) else _disp(t, cased)      # the icon says "ruled" by itself; the word alone under it says nothing
             prm = {"style": style}
             cues.append(Cue(cid("tile"), "visual", at(g), text=lab, role=role or (ring if style == "tile" else ICON_ROLE.get(asset, "blue")), asset=asset, pos=(x, y), params=prm))
             res.metaphor_uses.append({"keyword": t, "asset": asset, "role": ICON_ROLE.get(asset, "blue"), "beat": beat_id})
@@ -453,7 +458,7 @@ def repair_still_ref(res: BoardResult, beat_id: str, start: float, end: float, w
             if t in table and table[t] not in used_assets and t not in LX.STOP and t not in LX.WEAK:
                 for (x, y) in spots(330, 420):
                     cid_ = f"{beat_id}_tile_r{rnd + 1}_{x}_{y}"
-                    res.cues.append(Cue(cid_, "visual", {"index": bw.index(gi)}, text=_disp(t, cased), role="gold", asset=table[t], pos=(x, y), params={"style": "tile"}))
+                    res.cues.append(Cue(cid_, "visual", {"index": bw.index(gi)}, text="" if bare_verb(t, cased) else _disp(t, cased), role="gold", asset=table[t], pos=(x, y), params={"style": "tile"}))
                     n0 = len(res.dropped)
                     resolved = gate(res, beat_id, start, end, words, opt)
                     if any(d["cue"] == cid_ for d in res.dropped[n0:]):

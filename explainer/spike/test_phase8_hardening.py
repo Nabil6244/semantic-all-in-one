@@ -94,6 +94,8 @@ class Settings(unittest.TestCase):
             wd.mkdir(parents=True)
             out = direct_plan(words, SCRIPT, {"explainer_cartoon_share": 0.3}, work_dir=str(wd), duration=dur)
             self.assertIsNotNone(out["plan"], out["problems"])
+            from explainer.board.jobs import ensure_built
+            self.assertEqual(ensure_built(wd / "explainer"), 0)          # the app draws the queued boards at the render
             for b in out["plan"]["beats"]:
                 if b["mode"] == "footage":
                     p = Path(b["footage"]["clips"][0]["asset"])
@@ -123,6 +125,8 @@ class ShippedFilesOnly(unittest.TestCase):
                     "import explainer; assert explainer.__file__.startswith(%r), explainer.__file__\n" % str(app) +
                     "words, dur = json.loads(%r)\n" % json.dumps([[list(w) for w in words], dur]) +
                     "out = direct_plan([tuple(w) for w in words], %r, {'explainer_cartoon_share': 0.3}, work_dir=%r, duration=dur)\n" % (SCRIPT, str(Path(d) / "work")) +
+                    "from explainer.board.jobs import ensure_built; ensure_built(pathlib.Path(%r) / 'explainer')\n" % str(Path(d) / "work") +   # the app draws the queued boards at the render
+
                     "clips = [b['footage']['clips'][0]['asset'] for b in (out['plan'] or {'beats': []})['beats'] if b['mode'] == 'footage']\n"
                     "print(json.dumps({'plan': out['plan'] is not None, 'problems': out['problems'], 'clips': len(clips), 'sizes': [pathlib.Path(c).stat().st_size for c in clips]}))\n")
             env = dict(os.environ, PYTHONPATH=str(ROOT), PYTHONDONTWRITEBYTECODE="1")      # the repository comes after the app copy: the Explainer itself must come from the copy

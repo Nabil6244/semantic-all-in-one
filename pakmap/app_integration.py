@@ -309,6 +309,12 @@ def generate_pakmap_video(
     except Exception as exc:
         return PakmapResult(False, [f"unexpected error while compiling the script: {exc!r}"])
     spec = res.spec
+    try:   # an Explainer board shows its words over its picture: a narration graphic there would say them twice (explainer.integration.clear_under_boards)
+        from explainer.integration import clear_under_boards
+
+        clear_under_boards(spec, work, log)
+    except Exception:
+        pass
     pixel_scale = 2 if int(pixel_scale or 1) >= 2 else 1
     if pixel_scale > 1:
         spec["pixel_scale"] = pixel_scale

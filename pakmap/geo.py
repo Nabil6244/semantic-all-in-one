@@ -144,7 +144,11 @@ def _suggest_city(query: str) -> List[str]:
 def _from_place(p, ref: str) -> Located:
     bb = p.bbox()
     lon, lat = p.anchor()
-    return Located(p.name, "point" if p.is_point else p.kind, lon, lat, tuple(bb), p.country or "", None if p.is_point else [list(poly) for poly in p.polygons])
+    polys = None if p.is_point else [list(poly) for poly in p.polygons]
+    if polys and getattr(p, "source", "") == "named_region" and len(polys) > 1:   # England = ~150 councils: filled and stroked as one coast, not every council border
+        from map_scene.places import _dissolve
+        polys = _dissolve(polys)
+    return Located(p.name, "point" if p.is_point else p.kind, lon, lat, tuple(bb), p.country or "", polys)
 
 
 def resolve(ref: str, prefer: str = "area") -> Located:

@@ -177,6 +177,61 @@ def _from_components(name: str, kind_key: str, items: Sequence[str], source: str
     return Place(name=name, kind="region", polygons=polygons, country=country, state=state, source=source)
 
 
+def _dissolve(polygons: list) -> list:
+    """One outline for a region made of parts (England = ~150 councils) as polygons: a border two parts share is dropped, the rest is chained back into rings, so a fill
+    drawn with its border shows the region's coast and frontier only, not every council line (pakmap.geo uses it for named regions; Place.polygons keeps the parts).
+    The parts as they were when the borders do not chain up."""
+    from collections import Counter, defaultdict
+    key = lambda pt: (round(pt[0], 6), round(pt[1], 6))  # noqa: E731
+    seen, parts = set(), []
+    for poly in polygons:                       # the same part listed twice (two names for one council) is one part
+        sig = tuple(key(pt) for pt in poly[0]) if poly else ()
+        if sig and sig not in seen:
+            seen.add(sig)
+            parts.append(poly)
+    way: Counter = Counter()
+    for poly in parts:
+        for ring in poly:
+            for a, b in zip(ring, ring[1:]):
+                ka, kb = key(a), key(b)
+                if ka != kb:
+                    way[(ka, kb)] += 1
+    nxt = defaultdict(list)
+    for (ka, kb), n in way.items():
+        if n > way.get((kb, ka), 0):            # a border two parts share runs both ways and cancels out
+            nxt[ka].append(kb)
+    if not nxt or len(nxt) * 10 > 9 * len({e[0] for e in way}):   # (almost) nothing shared: keep the parts
+        return polygons
+    near = lambda a, b: abs(a[0] - b[0]) + abs(a[1] - b[1]) < 0.02  # noqa: E731   a border vertex one part has and its neighbour lacks: bridged, never a gap
+    rings = []
+    for start in list(nxt):
+        while nxt.get(start):
+            ring, cur = [start], nxt[start].pop()
+            while cur != start and len(ring) < 1_000_000:
+                if not nxt.get(cur):
+                    if near(cur, start):
+                        break
+                    hop = next((k for k, v in nxt.items() if v and near(k, cur)), None)
+                    if hop is None:
+                        return polygons
+                    ring.append(cur)
+                    cur = hop
+                    continue
+                ring.append(cur)
+                cur = nxt[cur].pop()
+            if len(ring) < 3:
+                continue
+            rings.append([list(p_) for p_ in ring] + [list(start)])
+    sign = 1 if sum(_ring_area(poly[0]) for poly in parts) >= 0 else -1
+    outers = [[r] for r in rings if _ring_area(r) * sign > 0]
+    for r in rings:
+        if _ring_area(r) * sign <= 0:
+            host = next((o for o in outers if _point_in_ring(r[0][0], r[0][1], o[0])), None)
+            if host is not None:
+                host.append(r)
+    return outers or polygons
+
+
 def _within_parent(key: str, parent: Place) -> Optional[Place]:
     if parent.kind in ("admin1", "region") and parent.country == "USA" and parent.state:
         hit = _county(key, parent.state)

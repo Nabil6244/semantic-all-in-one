@@ -83,6 +83,7 @@ def group(sents: Sequence[Sent], duration: float, opt: DirectorOptions) -> List[
     return beats
 
 
+REPEAT_MAP_GAP_S = 8.0           # a map of places just mapped, starting within this long after that map ends, is not drawn again
 _PLACE_KINDS = ("country", "region", "admin1", "admin2", "city", "county", "state")
 
 
@@ -492,6 +493,18 @@ def choose_kinds(beats: List[BeatPlan], words, script, duration: float, opt: Dir
             if _sc:
                 b.notes.append("geography beat (priority " + str(_sc) + "): " + "; ".join(_why))
     map_ids = set(GEO.pick_map_beats(_cands, len(beats), opt.max_map_share * duration))
+    prev = None                                        # the same places mapped again right after (England, then England): the second map says nothing new and is a board instead
+    for b in beats:
+        if b.id not in map_ids:
+            continue
+        names = {h.name for h in b.places}
+        if prev is not None and names <= prev[0] and b.start - prev[1] < REPEAT_MAP_GAP_S:
+            map_ids.discard(b.id)
+            prev = (prev[0], b.end)
+            b.notes.append("map of " + ", ".join(sorted(names)) + " again right after the same map: board beat")
+            info.setdefault("maps_not_repeated", []).append(b.id)
+        else:
+            prev = (names, b.end)
     for b in beats:
         tk = beat_tokens(words, b.start, b.end)
         if b.id in map_ids:

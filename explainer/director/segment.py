@@ -116,6 +116,34 @@ def casing(script: Optional[str]) -> Dict[str, str]:
     return out
 
 
+_TITLES = frozenset("king queen lord lady prince princess emperor bishop".split())
+
+
+def vocab_casing(words: Sequence[Word], texts: Sequence[str]) -> Dict[str, str]:
+    """norm(token) -> its capitalised form, for transcript words that are a name in `texts` (the CSV's places and scene notes): "mercia" -> "Mercia", "scandinavia" -> "Scandinavia"
+    ("Scandinavian" in a note), and a word the speech-to-text misheard by one letter -> the name as written ("wesex" -> "Wessex")."""
+    import difflib
+    names: Dict[str, str] = {}
+    for t in texts:
+        for w in re.findall(r"[A-Z][a-z][A-Za-z'\-]+", t or ""):
+            names.setdefault(norm(w), w)
+    out: Dict[str, str] = {}
+    for tok in {norm(w[0]) for w in words}:
+        if len(tok) < 4 or tok in LX.STOP or tok in LX.WEAK or tok in LX.DIRECTION_WORDS or tok in _TITLES or tok in out:   # "North Sea" does not make every "north" a name
+            continue
+        if tok in names:
+            out[tok] = names[tok]
+            continue
+        stem = next((n for n in names if len(n) >= 5 and (n.startswith(tok) or tok.startswith(n)) and abs(len(n) - len(tok)) <= 2), None)
+        if stem is not None:                     # "scandinavia" / "Scandinavian", "saxons" / "Saxon": the spoken word, capitalised
+            out[tok] = tok[0].upper() + tok[1:]
+            continue
+        near = difflib.get_close_matches(tok, list(names), n=1, cutoff=0.88) if len(tok) >= 5 else []
+        if near and near[0][0] == tok[0] and abs(len(near[0]) - len(tok)) <= 1:
+            out[tok] = names[near[0]]
+    return out
+
+
 def _breaks_for(text: str, widx: List[int], words: Sequence[Word]) -> set:
     """Clause ends inside one sentence (global word indices after which a clause ends). With the script's text: after a word followed by , ; : or a dash (script tokens aligned to the
     words with difflib; used when at least 60% of the words align). Always also: after a word followed by a pause of at least 0.25 s."""
