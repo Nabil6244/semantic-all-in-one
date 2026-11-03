@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import os
 import pickle
+import threading
 from pathlib import Path
 from typing import Callable, Dict, List, Sequence
 
 PENDING = "pending_boards.pkl"
 _WORDS: list = []
+_LOCKS: Dict[str, threading.Lock] = {}
+_LOCKS_GUARD = threading.Lock()
 
 
 def queue(out_dir: "str | Path", words: Sequence, jobs: List[Dict]) -> None:
@@ -32,8 +35,22 @@ def _draw(job: Dict) -> str:
     return str(job["out_path"])
 
 
-def ensure_built(out_dir: "str | Path", log: Callable[[str], None] = lambda m: None, max_workers: int = 0) -> int:
-    """Draws every queued board that is not on disk yet. Returns how many could not be drawn (0 = all there). Never raises."""
+def _lock(out_dir: "str | Path") -> threading.Lock:
+    with _LOCKS_GUARD:
+        return _LOCKS.setdefault(str(Path(out_dir).resolve()), threading.Lock())
+
+
+def ensure_built(out_dir: "str | Path", log: Callable[[str], None] = lambda m: None, max_workers: int = 0, background: bool = False) -> int:
+    """Draws every queued board that is not on disk yet. Returns how many could not be drawn (0 = all there). Never raises.
+    background=True returns at once (0) and draws in a thread, so the Flow pictures start without waiting; a later call (the render) waits for it."""
+    if background:
+        threading.Thread(target=ensure_built, args=(out_dir, log, max_workers), daemon=True, name="explainer-boards").start()
+        return 0
+    with _lock(out_dir):
+        return _ensure_built(out_dir, log, max_workers)
+
+
+def _ensure_built(out_dir: "str | Path", log: Callable[[str], None], max_workers: int) -> int:
     f = Path(out_dir) / PENDING
     try:
         data = pickle.loads(f.read_bytes())

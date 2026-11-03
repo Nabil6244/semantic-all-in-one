@@ -5192,6 +5192,7 @@ class VideoGeneratorApp(ctk.CTk):
         pexels_api_key = self.pexels_key_var.get().strip() or os.environ.get("PEXELS_API_KEY", "")
         flow_engine_manager = None
         flow_video_account_ids = None
+        hybrid_flow_settings = None
         plan_rows = list(self._scene_rows) if getattr(self, "_scene_rows_owner", None) == "hybrid" else None
         images_dir = ws.hybrid_images_dir
         try:
@@ -5215,6 +5216,10 @@ class VideoGeneratorApp(ctk.CTk):
                 return
             flow_engine_manager = self._get_flow_engine_manager()
             flow_video_account_ids = self._video_account_ids()
+            try:   # the Flow settings StarMap sends: with "Fast Flow images (agent mode)" on, the pictures go as batched agent requests, not one paste each
+                hybrid_flow_settings = self._media_flow_run_settings()
+            except Exception:
+                hybrid_flow_settings = None
 
         self._hybrid_cancel.clear()
         self._hybrid_running = True
@@ -5265,6 +5270,10 @@ class VideoGeneratorApp(ctk.CTk):
                 import functools
 
                 generate_hybrid_video = functools.partial(generate_hybrid_video, media_only=True)
+            if hybrid_flow_settings is not None:
+                import functools
+
+                generate_hybrid_video = functools.partial(generate_hybrid_video, flow_settings=hybrid_flow_settings)
             prun = self._production_begin("hybrid")
 
             try:

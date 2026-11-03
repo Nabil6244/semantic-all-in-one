@@ -193,12 +193,12 @@ def generate_pakmap_video(
     cancelled = lambda: bool(cancel_check is not None and cancel_check())  # noqa: E731
     work = Path(work_dir)
     work.mkdir(parents=True, exist_ok=True)
-    try:   # an Explainer plan queued its board clips; they are all drawn here, in parallel, before the render uses them (explainer/board/jobs.py; no queue = nothing happens)
-        from explainer.board.jobs import ensure_built
+    try:   # an Explainer plan queued its board clips; they are drawn in parallel (explainer/board/jobs.py; no queue = nothing happens). Getting the scenes
+        from explainer.board.jobs import ensure_built   # draws them in the background while the pictures come; the render waits for any still being drawn
 
         for _d in (work / "explainer", work.parent / "explainer"):
             if (_d / "pending_boards.pkl").is_file():
-                ensure_built(_d, log)
+                ensure_built(_d, log, background=media_only)
     except Exception:
         pass
     try:
