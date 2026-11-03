@@ -6,6 +6,9 @@
 - Flow batches run alongside the stock downloads instead of after them.
 - An explainer overlay whose frame fails to draw stops its ffmpeg (two were found waiting on their pipe two hours later).
 - The map renderer encodes its pieces with x264 "faster" unless the spec asks otherwise.
+Same results, less time (2026-11-04): place names are looked up by name instead of a scan of every region (project 004: 202 s -> 10 s
+before the map is drawn), CSV rows find the narrator's words with cheap upper bounds first, and the channel name is laid on as its
+corner only, read once (half the time, the same frames).
 No network, no real ffmpeg for the stock and Flow tests.
 """
 
@@ -157,6 +160,66 @@ class TestMapPiecesEncodeFaster(unittest.TestCase):
         src = (ROOT / "pakmap-engine" / "render.mjs").read_text(encoding="utf-8")
         self.assertIn("spec.x264_preset || 'faster'", src)
         self.assertNotIn("spec.x264_preset || 'medium'", src)
+
+
+class TestPlaceLookupByName(unittest.TestCase):
+    def test_the_name_index_finds_what_the_scan_found(self):
+        from map_scene import places as P
+
+        for ds in ("countries", "admin1"):
+            feats = P._dataset(ds)
+            for f in feats[::max(1, len(feats) // 150)]:
+                for key in P._names(f):
+                    scan = [g for g in feats if key in P._names(g)]
+                    self.assertEqual([id(g) for g in P._match(ds, key)], [id(g) for g in scan], f"{ds}: {key}")
+
+    def test_the_label_point_is_the_same_arithmetic(self):
+        from map_scene import places as P
+
+        segs = [((0.0, 0.0), (4.0, 0.0)), ((4.0, 0.0), (4.0, 3.0)), ((4.0, 3.0), (0.0, 0.0)), ((1.0, 1.0), (1.0, 1.0))]
+        packed = [(x0, y0, x1 - x0, y1 - y0, ((x1 - x0) ** 2 + (y1 - y0) ** 2) or 1e-12) for (x0, y0), (x1, y1) in segs]
+        for x, y in ((1.5, 0.7), (3.9, 2.0), (-2.0, 5.0), (1.0, 1.0)):
+            self.assertEqual(P._nearest_segment(x, y, packed), min(P._dist_to_ring(x, y, [a, b]) for a, b in segs))
+
+
+class TestNarrationMatchSameAnswers(unittest.TestCase):
+    def test_same_and_nearest_answer_as_a_plain_ratio(self):
+        import difflib
+
+        from pakmap import anchor as A
+
+        pairs = [("marchlyn", "marchlin"), ("llanberis", "lamberis"), ("generator", "generators"), ("dinorwig", "dinorwic"), ("mountain", "fountain"),
+                 ("hydro", "hydra"), ("electric", "eclectic"), ("snowdonia", "snowdon")]
+        for a, b in pairs:
+            plain = a == b or A._stem(a) == A._stem(b) or difflib.SequenceMatcher(None, a, b).ratio() >= 0.84
+            self.assertEqual(A.same(a, b), plain, (a, b))
+        t = A.Transcript([(w, i * 0.5, i * 0.5 + 0.4) for i, w in enumerate("from a visitor center in lamberis the tour goes into elidir".split())])
+        self.assertEqual(t.nearest("visitor centre in Llanberis"), ("visitor center in lamberis", 1.0))
+
+
+class TestChannelNameCornerOnly(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("ffmpeg"), "needs ffmpeg")
+    def test_the_frames_match_the_whole_frame_overlay(self):
+        from hybrid.generate import add_watermark, watermark_png
+
+        d = Path(tempfile.mkdtemp())
+        try:
+            v = d / "v.mp4"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=s=640x360:r=25:d=1", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(v)], check=True)
+            wm = {"text": "My Channel"}
+            png = watermark_png(wm, (640, 360), d / "full.png")
+            old = d / "old.mp4"
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(v), "-loop", "1", "-i", str(png), "-filter_complex", "[0:v][1:v]overlay=0:0:shortest=1:format=auto[v]",
+                            "-map", "[v]", "-c:v", "libx264", "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", str(old)], check=True)
+            self.assertEqual(add_watermark(v, wm, d), "")
+
+            def frames(p):
+                out = subprocess.run(["ffmpeg", "-v", "error", "-i", str(p), "-f", "framemd5", "-"], capture_output=True, text=True, check=True).stdout
+                return [ln.split(",")[-1] for ln in out.splitlines() if ln and not ln.startswith("#")]
+
+            self.assertEqual(frames(v), frames(old))
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
 
 
 if __name__ == "__main__":

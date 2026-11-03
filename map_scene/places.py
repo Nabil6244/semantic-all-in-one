@@ -108,6 +108,7 @@ def _named_regions() -> Dict[str, dict]:
     return {_norm(k): dict(v, name=k) for k, v in data["regions"].items()}
 
 
+@lru_cache(maxsize=None)
 def _norm(text: str) -> str:
     t = (text or "").lower().replace("&", " and ")
     t = re.sub(r"\bsaint\b", "st", t)
@@ -123,6 +124,16 @@ def _names(feature: dict) -> List[str]:
     return [_norm(feature["n"])] + [_norm(a) for a in feature.get("alt", [])]
 
 
+@lru_cache(maxsize=None)
+def _by_name(dataset: str) -> Dict[str, List[dict]]:
+    """Every feature of a bundled dataset under each of its names, in dataset order (a lookup instead of a scan of every feature)."""
+    index: Dict[str, List[dict]] = {}
+    for f in _dataset(dataset):
+        for n in dict.fromkeys(_names(f)):
+            index.setdefault(n, []).append(f)
+    return index
+
+
 def _to_place(feature: dict, kind: str) -> Place:
     return Place(name=feature["n"], kind=kind, polygons=feature["g"]["coordinates"],
                  country=feature.get("iso", "USA" if kind == "county" else ""),
@@ -131,7 +142,7 @@ def _to_place(feature: dict, kind: str) -> Place:
 
 
 def _match(dataset: str, key: str, *, where: Callable[[dict], bool] = lambda f: True) -> List[dict]:
-    return [f for f in _dataset(dataset) if where(f) and key in _names(f)]
+    return [f for f in _by_name(dataset).get(key, ()) if where(f)]
 
 
 def _county(key: str, state: Optional[str]) -> Optional[Place]:
@@ -152,8 +163,8 @@ def _from_components(name: str, kind_key: str, items: Sequence[str], source: str
                 return None
             state, country = outer, "USA"
         elif kind_key == "admin1":
-            hits = [f for f in _dataset("admin1") if _norm(inner) in _names(f)
-                    and (_norm(outer) in (_norm(f.get("country", "")), _norm(f.get("iso", ""))))]
+            hits = [f for f in _by_name("admin1").get(_norm(inner), ())
+                    if _norm(outer) in (_norm(f.get("country", "")), _norm(f.get("iso", "")))]
             if not hits:
                 return None
             hit, country = _to_place(hits[0], "admin1"), hits[0].get("iso", "")
@@ -413,7 +424,7 @@ def _inner_point_of_many(polygons, outline, bbox: BBox) -> Tuple[float, float]:
     """Point inside any of the polygons, farthest from the combined outer border."""
     segments = [seg for line in outline for seg in zip(line, line[1:])]
     stride = max(1, len(segments) // 1500)
-    segments = segments[::stride]
+    segments = [(x0, y0, x1 - x0, y1 - y0, ((x1 - x0) ** 2 + (y1 - y0) ** 2) or 1e-12) for (x0, y0), (x1, y1) in segments[::stride]]
     minx, miny, maxx, maxy = bbox
     best, best_d = None, -1.0
     steps = 24
@@ -423,12 +434,23 @@ def _inner_point_of_many(polygons, outline, bbox: BBox) -> Tuple[float, float]:
             y = miny + (maxy - miny) * j / steps
             if not any(_point_in_ring(x, y, p[0]) for p in polygons):
                 continue
-            d = min(_dist_to_ring(x, y, [a, b]) for a, b in segments) if segments else 0.0
+            d = _nearest_segment(x, y, segments) if segments else 0.0
             if d > best_d:
                 best, best_d = (x, y), d
     if best is None:
         return ((minx + maxx) / 2, (miny + maxy) / 2)
     return best
+
+
+def _nearest_segment(x: float, y: float, segments) -> float:
+    """_dist_to_ring to the nearest of many (x0, y0, dx, dy, length²) segments, the same arithmetic without a list per segment."""
+    best = float("inf")
+    for x0, y0, dx, dy, ll in segments:
+        t = max(0.0, min(1.0, ((x - x0) * dx + (y - y0) * dy) / ll))
+        d = (x - (x0 + t * dx)) ** 2 + (y - (y0 + t * dy)) ** 2
+        if d < best:
+            best = d
+    return best ** 0.5
 
 
 def _outer_edges(polygons) -> List[List[List[float]]]:

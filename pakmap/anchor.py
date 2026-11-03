@@ -13,6 +13,7 @@ from __future__ import annotations
 import difflib
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import List, Optional, Sequence, Tuple
 
 Word = Tuple[str, float, float]
@@ -97,13 +98,20 @@ def _stem(t: str) -> str:
     return t
 
 
+def _close(a: str, b: str, cut: float) -> bool:
+    """SequenceMatcher(a, b).ratio() >= cut; the two cheap upper bounds rule most pairs out first (same answer, far fewer full matches)."""
+    sm = difflib.SequenceMatcher(None, a, b)
+    return sm.real_quick_ratio() >= cut and sm.quick_ratio() >= cut and sm.ratio() >= cut
+
+
+@lru_cache(maxsize=65536)
 def same(a: str, b: str) -> bool:
     if a == b:
         return True
     if _stem(a) == _stem(b):
         return True
     if len(a) >= 5 and len(b) >= 5 and not a.isdigit() and not b.isdigit():
-        return difflib.SequenceMatcher(None, a, b).ratio() >= 0.84
+        return _close(a, b, 0.84)
     return False
 
 
@@ -163,7 +171,7 @@ class Transcript:
             if j + span <= len(self._tokens):
                 joined = "".join(self._tokens[j:j + span])
                 # same first letter: otherwise a neighbouring word ("of" + "Marsa" + "Bit") slips into the match
-                if not joined.isdigit() and joined[:1] == want[:1] and difflib.SequenceMatcher(None, joined, want).ratio() >= 0.78:
+                if not joined.isdigit() and joined[:1] == want[:1] and _close(joined, want, 0.78):
                     return span
         return 0
 
@@ -174,12 +182,16 @@ class Transcript:
             return None
         size = max(1, len(want.split()))
         best = (0.0, None)
+        sm = difflib.SequenceMatcher(None)
+        sm.set_seq2(want)   # `want` is indexed once, not once per candidate
         for i in range(len(self._tokens)):
             for span in {max(1, size - 1), size, size + 1}:
                 if i + span > len(self._tokens):
                     continue
-                cand = " ".join(self._tokens[i:i + span])
-                r = difflib.SequenceMatcher(None, cand, want).ratio()
+                sm.set_seq1(" ".join(self._tokens[i:i + span]))
+                if sm.real_quick_ratio() <= best[0] or sm.quick_ratio() <= best[0]:
+                    continue   # upper bounds: this candidate cannot beat the best so far
+                r = sm.ratio()
                 if r > best[0]:
                     best = (r, i, span)
         if best[0] < 0.55:

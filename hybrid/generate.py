@@ -85,9 +85,20 @@ def add_watermark(video: Path, wm: dict, work: Path) -> str:
                                capture_output=True, text=True, timeout=60)
         size = tuple(int(v) for v in probe.stdout.strip().split(",")[:2])
         png = watermark_png(wm, size, Path(work) / "channel_name.png")
+        # only the drawn corner is laid on, read once (overlay repeats a single picture to the end): the same frames as the whole
+        # transparent frame re-read every frame, in about half the time. Kept to even pixels so the 4:2:0 colour lands the same way.
+        from PIL import Image
+
+        x0, y0 = 0, 0
+        with Image.open(png) as im:
+            box = im.getchannel("A").getbbox()
+            if box:
+                x0, y0 = box[0] // 2 * 2, box[1] // 2 * 2
+                x1, y1 = min(im.width, -(-box[2] // 2) * 2), min(im.height, -(-box[3] // 2) * 2)
+                im.crop((x0, y0, x1, y1)).save(png)
         tmp = video.with_name(f".{video.stem}.wm{video.suffix}")
-        r = subprocess.run([ffmpeg, "-y", "-v", "error", "-i", str(video), "-loop", "1", "-i", str(png), "-filter_complex",
-                            "[0:v][1:v]overlay=0:0:shortest=1:format=auto[v]", "-map", "[v]", "-map", "0:a?", "-c:v", "libx264",
+        r = subprocess.run([ffmpeg, "-y", "-v", "error", "-i", str(video), "-i", str(png), "-filter_complex",
+                            f"[0:v][1:v]overlay={x0}:{y0}:format=auto[v]", "-map", "[v]", "-map", "0:a?", "-c:v", "libx264",
                             "-preset", "fast", "-crf", "18", "-pix_fmt", "yuv420p", "-c:a", "copy", "-movflags", "+faststart", str(tmp)],
                            capture_output=True, text=True, timeout=6 * 3600)
         if r.returncode != 0 or not tmp.is_file():

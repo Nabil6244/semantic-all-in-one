@@ -44,4 +44,13 @@ e._hybrid_running = False; e._workspace = None; A.VideoGeneratorApp._whisper_ear
 ok(e._whisper_job is None, "no project: no early start")
 e._settings = {"early_transcribe": False}; e.after = lambda *a: (_ for _ in ()).throw(AssertionError("scheduled"))
 A.VideoGeneratorApp._whisper_early_schedule(e); ok(True, "setting off: nothing scheduled")
+# Load beat CSV while the early job still runs: the real _pakmap_get_words waits for it, never a second Whisper of the same file
+calls.clear(); sd = Path(tempfile.mkdtemp())
+A.vg = NS(transcribe_audio=lambda p, m: (calls.append((p, m)), time.sleep(0.5), [("hi", 0.0, 0.5)])[2])
+g = NS(_pakmap_words=None, _whisper_job=None)
+g._pakmap_get_words = lambda *a: A.VideoGeneratorApp._pakmap_get_words(g, *a)
+A.VideoGeneratorApp._whisper_warm(g, f, "base", sd)
+time.sleep(0.1)
+got = A.VideoGeneratorApp._pakmap_get_words(g, f, "base", sd, lambda m: None)
+ok(got == [("hi", 0.0, 0.5)] and len(calls) == 1, "Load beat CSV waits for the background reading (one Whisper run)")
 print("FAILED" if fails else "ALL OK"); raise SystemExit(bool(fails))

@@ -6308,6 +6308,15 @@ class VideoGeneratorApp(ctk.CTk):
                         log("[pakMap] Reusing this voiceover's saved word timing.")
             except (OSError, ValueError, TypeError):
                 words = None
+        # the voiceover is already being read in the background (_whisper_warm, started when it was picked): wait for that run instead of
+        # starting a second Whisper on the same file (Load beat CSV right after picking a long voiceover ran two at once, each half as fast)
+        _bg = getattr(self, "_whisper_job", None)
+        if words is None and _bg and _bg["thread"] is not threading.current_thread() and _bg["thread"].is_alive() \
+                and _bg["key"] == (_audio_fingerprint(voiceover_path), str(whisper_model)):
+            log("Waiting for the voiceover reading that is already running in the background…")
+            _bg["thread"].join(timeout=3600)
+            if _bg.get("words") and not short(_bg["words"]):
+                words = [(str(w), float(s), float(e)) for w, s, e in _bg["words"]]
         if words is None:
             log(f"Transcribing the narration with Whisper ({whisper_model}) to time the script: a long voiceover takes a few minutes…")
             try:
