@@ -60,7 +60,7 @@ from asset_manager import AssetManager
 from providers.base import AssetResult, AssetSource, MediaType, SceneRow, SceneStatus
 from providers.router import SceneAssetRouter
 from scene_recovery import SceneRecoveryTracker, summarize_assets
-from scene_qa import RENDER_OK as _QA_RENDER_OK, SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error
+from scene_qa import RENDER_OK as _QA_RENDER_OK, render_gate as _qa_render_gate, weak_scenes_message as _weak_scenes_message, SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error
 from manual_clip import FILE_DIALOG_TYPES, ManualClipError, validate_local_media
 from project_picker import ProjectPickerDialog, project_dicts_from_workspaces
 from project_workspace import (
@@ -2722,7 +2722,37 @@ class VideoGeneratorApp(ctk.CTk):
             self._append_log(f"[OVERSCALED] Could not stop the running encoder: {exc}\n")
         self._sync_primary_cta()
 
-    def _run_overscaled_generation(self) -> None:
+    def _overscaled_render_gate(self) -> "tuple[list[str], list[str]]":
+        """(weak, blocked) scene keys of the Visual Plan: blocked = no readable file (a technical error),
+        weak = a VQA WEAK/FAIL/MANUAL_REVIEW scene or an unconfirmed row whose file is on disk (the user decides)."""
+        manifest = None
+        if self._workspace is not None:
+            try:
+                from asset_manager import AssetManifest
+                images_dir = self._workspace.overscaled_images_dir
+                if (images_dir / ".asset_manifest.json").is_file():
+                    manifest = AssetManifest(images_dir)
+            except Exception:
+                manifest = None
+
+        def file_for(scene):
+            rec = (manifest.get(scene.scene_number) or {}) if manifest is not None else {}
+            return rec.get("local_path") if rec.get("status") == "complete" else None
+
+        statuses = {_scene_key(r.scene_number): self._row_status_from_result(r) for r in self._scene_rows}
+        return _qa_render_gate(self._scene_rows, statuses, self._asset_results, file_for)
+
+    def _confirm_weak_render(self, n_weak: int) -> bool:
+        """The one YES/NO question before Render when scenes are weak. NO keeps every file and returns to the Visual Plan."""
+        if messagebox.askyesno("Weak scenes", _weak_scenes_message(n_weak)):
+            self._append_log(f"[OVERSCALED] {n_weak} weak scene(s) accepted: rendering with the existing files.\n")
+            return True
+        self._overscaled_status_var.set(f"Render cancelled. {n_weak} weak scene(s) kept as they are: review them in the Visual Plan.")
+        self._append_log(f"[OVERSCALED] Render cancelled by you. {n_weak} weak scene(s) kept; nothing was deleted or fetched again.\n")
+        self._goto_workflow_view("visual_plan")
+        return False
+
+    def _run_overscaled_generation(self, weak_confirmed: bool = False) -> None:
         """The Overscaled branch of the SHARED _on_generate() entry point —
         reached only via the existing Generate button/(_on_primary_cta ->
         _on_generate) dispatch when self.generation_mode == "overscaled".
@@ -2877,7 +2907,15 @@ class VideoGeneratorApp(ctk.CTk):
             self._asset_manager = manager
             self._overscaled_run_manager = manager
 
-        overscaled_media_only = bool(self._scene_rows) and not self._scenes_all_ready(None)   # Generate fetches the scenes and stops; Render draws the video
+        overscaled_media_only = bool(self._scene_rows) and not self._scenes_all_ready(None) and not weak_confirmed   # Generate fetches the scenes and stops; Render draws the video
+        if self._scene_rows and not overscaled_media_only and not weak_confirmed:
+            weak, blocked = self._overscaled_render_gate()   # Render click: weak scenes are the user's call (fetch-stage rows are asked in finish)
+            if weak and not blocked and not self._confirm_weak_render(len(weak)):
+                self._overscaled_running = False
+                tracking_run, self._overscaled_tracking = self._overscaled_tracking, None
+                self._track_generation_end(tracking_run, "cancelled", output_path=None, validated=False, message="weak scenes: render declined")
+                self._sync_primary_cta()
+                return
         self._append_log("[OVERSCALED] Getting the scenes: the video is drawn when you click Render once they are all ready.\n" if overscaled_media_only
                          else "[OVERSCALED] Every scene is ready: rendering the video.\n")
 
@@ -2953,9 +2991,15 @@ class VideoGeneratorApp(ctk.CTk):
                     self._append_log("[OVERSCALED] Every scene is ready. Nothing was rendered yet: click Render to draw the video.\n")
                     self._notify("Scenes ready. Click Render to draw the video.", tone="success")
                 else:
-                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in _QA_RENDER_OK)
+                    weak, blocked = self._overscaled_render_gate()
+                    if weak and not blocked:   # every file is there, only quality is in question: the user decides
+                        self._sync_primary_cta()
+                        if self._confirm_weak_render(len(weak)):
+                            self.after(0, lambda: self._run_overscaled_generation(weak_confirmed=True))
+                        return
+                    n = len(blocked) or sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in _QA_RENDER_OK)
                     self._overscaled_status_var.set(f"{n} scene(s) need attention: Retry, Change source or Skip them, then click Generate scenes.")
-                    self._append_log(f"[OVERSCALED] {n} scene(s) need attention before Render. Fix or skip them in the Visual Plan, then click Generate scenes again.\n")
+                    self._append_log(f"[OVERSCALED] {n} scene(s) have no usable file (missing, empty or failed). Fix or skip them in the Visual Plan, then click Generate scenes again.\n")
                 self._sync_primary_cta()
                 return
             result = self._export_verified(result)   # never "video ready" for a missing, empty or old file

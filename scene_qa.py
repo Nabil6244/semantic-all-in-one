@@ -40,6 +40,63 @@ RENDER_OK = frozenset({"ready", "success", "skipped", CONTINUES})
 def is_continuation(scene) -> bool:
     return bool(getattr(scene, "continues_previous", False))
 
+
+def _usable_file(path) -> bool:
+    try:
+        p = Path(path)
+        return p.is_file() and p.stat().st_size > 0
+    except (OSError, TypeError, ValueError):
+        return False
+
+
+def _vqa_flagged(result) -> bool:
+    """WEAK/FAIL score or a MANUAL_REVIEW recommendation from Visual QA."""
+    raw = ((getattr(result, "metadata", None) or {}).get("visual_qa")) if result is not None else None
+    if not isinstance(raw, dict):
+        return False
+    return (str(raw.get("status") or "").upper() in ("WEAK", "FAIL")
+            or str(raw.get("recommended_action") or "").lower() == "manual_review")
+
+
+def render_gate(scenes, statuses: Dict[str, str], results, file_for=None) -> Tuple[List[str], List[str]]:
+    """Split the Visual Plan into (weak, blocked) scene keys for Render.
+
+    blocked = a technical error: the scene has no readable, non-empty file, so
+    nothing can be drawn for it. weak = a quality warning the USER decides on:
+    a Visual QA WEAK/FAIL/MANUAL_REVIEW result, or a row the table has not
+    confirmed READY although its file is on disk. Each scene is counted once.
+    `file_for(scene)` may return an on-disk file for rows without a result
+    (e.g. the asset manifest's record). VQA itself is not changed."""
+    weak: List[str] = []
+    blocked: List[str] = []
+    for scene in scenes:
+        key = scene_key(scene.scene_number)
+        status = statuses.get(key, "")
+        if status in ("skipped", CONTINUES):
+            continue
+        result = results.get(key)
+        path = getattr(result, "path", None) if result is not None else None
+        if status in READY:
+            if path is not None and not _usable_file(path):
+                blocked.append(key)
+            elif _vqa_flagged(result):
+                weak.append(key)
+            continue
+        if not (path is not None and _usable_file(path)) and file_for is not None:
+            try:
+                path = file_for(scene)
+            except Exception:
+                path = None
+        if path is not None and _usable_file(path):
+            weak.append(key)
+        else:
+            blocked.append(key)
+    return weak, blocked
+
+
+def weak_scenes_message(n: int) -> str:
+    return f"{n} weak scene{'' if n == 1 else 's'} detected. Do you still want to render the video?"
+
 PROVIDER_LABELS = {
     "youtube_video": "YouTube Video",
     "youtube": "YouTube Video",
