@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import threading
 from typing import List, Optional, Set
 
 from providers.base import AssetResult, SceneRow
@@ -35,6 +36,8 @@ def _tokens(text: str) -> Set[str]:
 # far larger inline payloads; this bound still guards against sending an
 # unreasonable file (base64 inflates by ~33%).
 _MAX_VISION_IMAGE_BYTES = 4_000_000
+# Longest a vision QA call may hold a finished scene before it is skipped (seconds).
+_VISION_TIMEOUT_S = 30
 
 _VISION_MIME_TYPES = {
     ".png": "image/png",
@@ -132,6 +135,10 @@ def needs_vision_inspection(
 ) -> bool:
     """Level 3 gate — vision only when uncertain."""
     source = getattr(result.source, "value", str(result.source or "")).lower()
+    # A map clip is drawn by our own map engine from the place the scene names, so its subject is right by construction;
+    # a vision model judging a stylised map against narration only adds a slow call (minutes under load) before READY.
+    if source == "map":
+        return False
     # A Flow still has no metadata tier that could ever confirm its subject
     # (see metadata_semantic_score), so gating on `semantic` would be gating
     # on a constant. Always offer it to vision; vision itself returns None
@@ -220,11 +227,27 @@ def vision_semantic_score(
         }
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
         started = time.monotonic()
-        try:
-            resp = requests.post(url, json=body, timeout=45, headers={"x-goog-api-key": api_key})
-        except Exception as exc:
-            _record_ai_call(model, started, ok=False, error=exc, task="vision_qa")
-            raise
+        # A hard wall-clock cap: requests' timeout is per socket step, so a slow trickle or retried connect could hold the
+        # scene (it is not READY until QA ends) for minutes. Past the cap the check is skipped and metadata scoring stands.
+        box: dict = {}
+
+        def _post() -> None:
+            try:
+                box["resp"] = requests.post(url, json=body, timeout=(10, _VISION_TIMEOUT_S),
+                                            headers={"x-goog-api-key": api_key})
+            except Exception as exc:  # handed to the caller below
+                box["error"] = exc
+
+        worker = threading.Thread(target=_post, name="vision-qa", daemon=True)
+        worker.start()
+        worker.join(_VISION_TIMEOUT_S + 5)
+        if worker.is_alive():
+            _record_ai_call(model, started, ok=False, error="timeout", task="vision_qa")
+            return None, []
+        if "error" in box:
+            _record_ai_call(model, started, ok=False, error=box["error"], task="vision_qa")
+            raise box["error"]
+        resp = box["resp"]
         if resp.status_code != 200:
             _record_ai_call(model, started, ok=False, error=f"HTTP {resp.status_code}", task="vision_qa")
             return None, []

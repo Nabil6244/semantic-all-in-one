@@ -707,8 +707,12 @@ class TestCancellation(AssetPipelineTestCase):
                     "status": "done",
                     "path": str(path),
                 })
-                # Still generating the rest of the batch — asset must already exist.
+                # Still generating the rest of the batch — asset must already exist (placed on a placer thread).
                 mid_batch_asset["path"] = self.images / "001.png"
+                import time as _t
+                deadline = _t.monotonic() + 3.0
+                while _t.monotonic() < deadline and not (mid_batch_asset["path"].is_file() and ready_calls):
+                    _t.sleep(0.02)
                 self.assertTrue(
                     mid_batch_asset["path"].is_file(),
                     "file must land in assets/ before GENERATE_DONE",

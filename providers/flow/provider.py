@@ -49,6 +49,8 @@ _ABORT_RETRY_MAX_ELAPSED = 90.0
 # failing with "not downloaded" when leftover stopAll aborted before any work.
 _ABORT_RETRY_MIN_SCENES = 1
 _BATCH_SETTLE_SECONDS = 0.35
+# Finished Flow images are placed (copied + Visual QA + manifest) by this many threads at once.
+_PLACER_THREADS = 4
 _IDLE_POLL_SECONDS = 0.45
 _SOFT_STOP_AFTER_SECONDS = 2.0
 _FORCE_RESET_AFTER_SECONDS = 6.0
@@ -353,17 +355,22 @@ class FlowProvider(AssetProvider):
         prompt_activity_seen = threading.Event()
         replay_end: List[dict] = []
 
+        placing: set = set()
+        placing_lock = threading.Lock()
+
         def _try_place_early(idx: int, scene: SceneRow, progress_msg: dict) -> None:
             """Copy into assets/ as soon as Node finishes a scene — otherwise the
             folder stays empty until the whole 100+ prompt batch ends."""
-            if idx in early_placed:
-                return
             if not (
                 progress_msg.get("status") == "done"
                 or progress_msg.get("path")
                 or progress_msg.get("file")
             ):
                 return
+            with placing_lock:  # several placers run at once: one scene is placed by one of them only
+                if idx in early_placed or idx in placing:
+                    return
+                placing.add(idx)
             try:
                 placed = self._resolve_one_result(
                     idx,
@@ -384,10 +391,14 @@ class FlowProvider(AssetProvider):
                             log(f"[FLOW] Scene {scene.scene_number} ready callback failed: {exc}")
             except Exception as exc:
                 log(f"[FLOW] Scene {scene.scene_number} early copy failed: {exc}")
+            finally:
+                with placing_lock:
+                    placing.discard(idx)
 
-        # Agent batches: placing a finished image runs the scene's finishing work (Visual QA can take tens of seconds). On the
-        # connection's own thread that blocks its keepalive replies until the socket drops (1011 keepalive ping timeout,
-        # reproduced), so for agent batches it runs on a worker thread instead.
+        # Placing a finished image runs the scene's finishing work (Visual QA can take tens of seconds). On the connection's
+        # own thread that blocks its keepalive replies until the socket drops (1011 keepalive ping timeout, reproduced), so it
+        # runs on placer threads instead — several of them: with one, images from six accounts queued behind each other's
+        # QA and a generated scene waited ~10 minutes to turn READY (2026-11-04).
         place_queue: "queue.Queue" = queue.Queue()
         place_worker: List[threading.Thread] = []
 
@@ -404,13 +415,11 @@ class FlowProvider(AssetProvider):
                     place_queue.task_done()
 
         def place_early(idx: int, scene: SceneRow, progress_msg: dict) -> None:
-            if not agent:
-                _try_place_early(idx, scene, progress_msg)
-                return
             if not place_worker:
-                t = threading.Thread(target=_placer, daemon=True)
-                t.start()
-                place_worker.append(t)
+                for _ in range(_PLACER_THREADS):
+                    t = threading.Thread(target=_placer, daemon=True, name="flow-placer")
+                    t.start()
+                    place_worker.append(t)
             place_queue.put((idx, scene, dict(progress_msg)))
 
         def on_message(msg: dict) -> None:
@@ -603,9 +612,10 @@ class FlowProvider(AssetProvider):
                     break
                 done_event.wait(timeout=min(poll_seconds, remaining))
 
-            if agent and place_worker:
+            if place_worker:
                 place_queue.join()      # every finished image placed before the batch is collected
-                place_queue.put(None)
+                for _ in place_worker:
+                    place_queue.put(None)
             # Late flush: Node may still be writing the last file after DONE.
             if not cancelled:
                 time.sleep(_BATCH_SETTLE_SECONDS)
