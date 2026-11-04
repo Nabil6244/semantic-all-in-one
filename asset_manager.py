@@ -2022,6 +2022,27 @@ class AssetManager:
             flow_thread = threading.Thread(target=run_flow, name="flow-batches", daemon=True)
             flow_thread.start()
 
+        # Map clips render in a local browser (GPU/CPU-bound): two at a time, on their own thread alongside the downloads below
+        # (which mostly wait on the network) instead of after them, never adding to the downloads' worker count.
+        map_errors: List[BaseException] = []
+
+        def run_maps() -> None:
+            try:
+                self._resolve_parallel(
+                    [(AssetSource.MAP, scene) for scene in pending[AssetSource.MAP]],
+                    results,
+                    max_workers=2,
+                    on_scene_start=on_scene_start,
+                    on_scene_complete=on_scene_complete,
+                )
+            except BaseException as exc:   # re-raised on the caller's thread once the downloads are done
+                map_errors.append(exc)
+
+        map_thread = None
+        if pending[AssetSource.MAP]:
+            map_thread = threading.Thread(target=run_maps, name="map-clips", daemon=True)
+            map_thread.start()
+
         parallel_items: List[Tuple[AssetSource, SceneRow]] = []
         for stock_source in (AssetSource.STOCK, AssetSource.STOCK_IMAGE, AssetSource.STOCK_VIDEO):
             parallel_items.extend((stock_source, scene) for scene in pending[stock_source])
@@ -2038,16 +2059,6 @@ class AssetManager:
             parallel_items,
             results,
             max_workers=parallel_limit,
-            on_scene_start=on_scene_start,
-            on_scene_complete=on_scene_complete,
-        )
-
-        # Map clips render in a local browser (GPU/CPU-bound): two at a time,
-        # never alongside the downloads' worker count.
-        self._resolve_parallel(
-            [(AssetSource.MAP, scene) for scene in pending[AssetSource.MAP]],
-            results,
-            max_workers=2,
             on_scene_start=on_scene_start,
             on_scene_complete=on_scene_complete,
         )
@@ -2075,8 +2086,13 @@ class AssetManager:
         # Waits in 1 s steps, never unbounded; Flow keeps its own stuck-run cut-off and sees a cancel itself.
         while flow_thread is not None and flow_thread.is_alive():
             flow_thread.join(timeout=1.0)
+        # The map renderer has its own timeout and sees a cancel itself; waited for in 1 s steps like Flow.
+        while map_thread is not None and map_thread.is_alive():
+            map_thread.join(timeout=1.0)
         if flow_errors:
             raise flow_errors[0]
+        if map_errors:
+            raise map_errors[0]
 
         ok_count = sum(1 for r in results.values() if r.ok)
         self.log(f"[ASSET] {ok_count}/{len(rows)} scenes ready.")

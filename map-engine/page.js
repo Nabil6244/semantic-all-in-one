@@ -231,12 +231,33 @@ async function setup() {
     map.triggerRepaint();
   });
 
-  window.renderFrame = async (t) => {
+  const composeFrame = async (t) => {
     const cam = cameraAt(t);
     map.jumpTo(cam);
     styleAt(t, cam.zoom);
     await waitDrawn();
     composite(t);
+  };
+  // drawFrame(t) draws frame t and starts its JPEG encode in the background (canvas.toBlob: same encoder and quality as
+  // toDataURL, off the main thread; the canvas is copied when it is called); takeFrame() hands back the oldest encoded
+  // frame. The renderer asks for frame t's JPEG while frame t+1 draws, so the encode no longer adds to each frame's time.
+  const encoded = [];
+  const toBase64 = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result).slice(String(r.result).indexOf(',') + 1));
+    r.onerror = () => reject(r.error || new Error('could not read the encoded frame'));
+    r.readAsDataURL(blob);
+  });
+  window.drawFrame = async (t) => {
+    await composeFrame(t);
+    encoded.push(new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error('the frame could not be encoded'))), 'image/jpeg', 0.92)).then(toBase64));
+  };
+  window.takeFrame = async () => {
+    if (!encoded.length) throw new Error('no frame was drawn');
+    return encoded.shift();
+  };
+  window.renderFrame = async (t) => {
+    await composeFrame(t);
     return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);
   };
   window.__mapReady = true;

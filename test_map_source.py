@@ -201,5 +201,35 @@ class TestAppAndPackaging(unittest.TestCase):
         self.assertEqual(workflow.count("cd map-engine"), 2)  # macOS + Windows jobs
 
 
+class TestMapsRunAlongsideDownloads(unittest.TestCase):
+    """Map clips draw on the Mac while the downloads wait on the network: a map scene starts before the downloads finish."""
+
+    def test_map_starts_while_a_download_is_still_running(self):
+        import threading
+        from unittest import mock
+        from providers.base import AssetResult
+
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, True)
+        mgr = AssetManager(tmp / "Images", log=lambda *_: None)
+        map_started = threading.Event()
+        seen = {}
+
+        def fake_resolve_one(scene, source):
+            if source == AssetSource.MAP:
+                map_started.set()
+            else:   # the download only finishes once a map is drawing (old order: map after downloads -> never)
+                seen["map_during_download"] = map_started.wait(timeout=5)
+            return AssetResult(scene.scene_number, None, None, source, SceneStatus.FAILED, error="fake")
+
+        rows = [SceneRow.from_csv_row({"scene_number": "1", "script_segment": "x", "stock": "ocean waves"}),
+                SceneRow.from_csv_row({"scene_number": "2", "script_segment": "x", "asset_type": "map", "prompt": "Egypt"})]
+        self.assertEqual(SceneAssetRouter.classify(rows[1]), AssetSource.MAP)
+        with mock.patch.object(mgr, "_resolve_one", side_effect=fake_resolve_one):
+            summary = mgr.resolve_all(rows)
+        self.assertTrue(seen.get("map_during_download"))
+        self.assertEqual(set(summary.results), {"1", "2"})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -135,16 +135,44 @@ async function main() {
     ffmpeg.stderr.on('data', (d) => { ffErr += d; });
     const ffDone = new Promise((resolve) => ffmpeg.on('close', resolve));
 
+    // The page encodes frame i while it draws frame i+1 (page.js drawFrame/takeFrame): at most one frame is waiting.
+    // MAP_ENGINE_PIPELINE=0 goes back to one frame at a time (renderFrame).
+    const pipelined = process.env.MAP_ENGINE_PIPELINE !== '0';
+    const write = async (b64) => {
+      if (!ffmpeg.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => ffmpeg.stdin.once('drain', r));
+    };
     let tDraw = 0, tShot = 0;
+    let waiting = null;
+    const flush = async () => {
+      if (!waiting) return;
+      const p = waiting; waiting = null;
+      const t1 = Date.now();
+      await write(await p);
+      tShot += Date.now() - t1;
+    };
     for (let i = 0; i < total; i++) {
       const t0 = Date.now();
-      const b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
-      const t1 = Date.now();
-      const jpg = Buffer.from(b64, 'base64');
-      tDraw += t1 - t0; tShot += Date.now() - t1;
-      if (!ffmpeg.stdin.write(jpg)) await new Promise((r) => ffmpeg.stdin.once('drain', r));
+      if (pipelined) {
+        try {
+          await page.evaluate((t) => window.drawFrame(t), i / fps);
+        } catch (err) {
+          if (waiting) waiting.catch(() => {});
+          throw err;
+        }
+        tDraw += Date.now() - t0;
+        await flush();   // the previous frame, encoded while this one was drawn
+        waiting = page.evaluate(() => window.takeFrame());
+        waiting.catch(() => {});   // handled in flush
+      } else {
+        const b64 = await page.evaluate((t) => window.renderFrame(t), i / fps);
+        const t1 = Date.now();
+        tDraw += t1 - t0;
+        await write(b64);
+        tShot += Date.now() - t1;
+      }
       if (i % 10 === 0 || i === total - 1) emit({ event: 'progress', frame: i + 1, total });
     }
+    await flush();
     ffmpeg.stdin.end();
     const code = await ffDone;
     if (code !== 0) throw new Error(`ffmpeg exited ${code}: ${ffErr.trim().slice(-500)}`);
