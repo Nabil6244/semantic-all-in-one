@@ -35,7 +35,7 @@ async function init() {
   camera = new THREE.PerspectiveCamera(40, W / H, 0.3, 5000);
   plan.hud.credit = plan.hud.credit || null;
   hud = makeHud(document.getElementById('hud'), plan.hud, { duration: plan.duration });
-  for (const s of plan.scenes) if (s.env === 'map') { const v = mapView(s); s.mapView = v; for (const sh of s.shots) sh.height = v.h; }
+  for (const s of plan.scenes) if (s.env === 'map') { const v = mapView(s); s.mapView = v; for (const sh of s.shots) sh.height = v.h * (sh.zoom || 1); }
   await document.fonts.ready;
   try { await document.fonts.load('700 40px Outfit'); await document.fonts.load('700 40px Inter'); } catch { /* fallback font */ }
 }

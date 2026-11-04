@@ -38,3 +38,27 @@ test('voice timing: words are matched in order, misheard words are interpolated,
   const ts = r.sentences.flatMap((s) => s.words.map((w) => w.start)); for (let i = 1; i < ts.length; i++) assert.ok(ts[i] >= ts[i - 1] - 1e-9);
   assert.ok(estimateTiming(beats).end > 3);
 });
+
+test('back-to-back beats on the same map are one continuous map scene, not the map re-opening per beat', async () => {
+  const { direct } = await import('../lib/director.mjs');
+  const m = '"{""map"": {""pins"": [""Rome"", ""Carthage""]}}"';
+  const csv = `row,id,chapter,text,location,event,environment,extra
+chapter,,One,,,,,
+beat,b1,,Rome was founded on a river. That story is a legend. What is real is weirder.,Mediterranean Sea,map,map,${m}
+beat,b2,,A muddy village grew into an empire that lasted a thousand years.,Mediterranean Sea,map,map,${m}
+beat,b3,,So we cover about 1200 years of history and it is a mess.,Mediterranean Sea,map,map,
+beat,b4,,The twins Romulus and Remus were raised by a wolf by the river.,Tiber River,establishing,river,
+beat,b5,,Rome fought Carthage across the sea.,Mediterranean Sea,map,map,"{""map"": {""pins"": [""Rome"", ""Carthage""], ""arrows"": [[""Rome"", ""Carthage""]]}}"`;
+  const p = direct(parseStory(csv));
+  const maps = p.scenes.filter((s) => s.env === 'map');
+  assert.equal(p.scenes[0].env, 'map'); assert.equal(p.scenes[1].env, 'river', 'the three opening map beats are one scene');
+  assert.equal(maps.length, 2, 'a map with new arrows later is still its own scene');
+  const s1 = p.scenes[0];
+  assert.equal(s1.sentences.length, 5); const names = s1.map.pins.map((q) => q.name); assert.ok(names.length >= 1 && new Set(names).size === names.length, 'pins appear once');
+  assert.ok(s1.shots.length >= 2 && s1.shots.slice(1).every((sh) => sh.transition === 'continuous' && sh.zoom < 1), 'a long map keeps moving in one unbroken descent');
+  assert.equal(p.audio.cues.filter((c) => c.t < s1.t1 && /whoosh/.test(c.name || c.cue || c.type || '')).length <= 1, true);
+});
+test('"1200 years" is a length of time, not the year 1200', () => {
+  assert.equal(extractDates('We cover about 1200 years of history.').length, 0);
+  assert.equal(extractDates('By 1453 the city had fallen.')[0].year, 1453);
+});

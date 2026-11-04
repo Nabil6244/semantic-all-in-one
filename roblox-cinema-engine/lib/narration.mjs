@@ -90,7 +90,8 @@ export function extractDates(text, contextYear = null) {
   const r5 = /\b(?:in\s+)?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/gi;
   while ((m = r5.exec(t))) if (!out.some((d) => Math.abs(d.index - m.index) < 12)) out.push({ month: mi(m[1]) + 1, year: +m[2], index: m.index });
   const r6 = /\b(1[0-9]{3}|20[0-9]{2})\b/g;
-  while ((m = r6.exec(t))) if (!out.some((d) => d.year === +m[1])) out.push({ year: +m[1], index: m.index });
+  // a bare four-digit number followed by a unit ("1200 years", "1500 men", "2000 miles") is an amount, not a year
+  while ((m = r6.exec(t))) if (!/^\s*(?:years?|men|soldiers|people|ships|miles|km|kilometres|kilometers|troops|dead|killed)\b/i.test(t.slice(m.index + m[0].length)) && !out.some((d) => d.year === +m[1])) out.push({ year: +m[1], index: m.index });
   return out.sort((a, b) => a.index - b.index).map((d) => ({ ...d, label: dateLabel(d) }));
 }
 

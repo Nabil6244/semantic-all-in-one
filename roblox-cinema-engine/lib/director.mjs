@@ -114,6 +114,13 @@ export function direct(story, opts = {}) {
       seed: b.extra?.seed ?? hash(`${b.id}:${place ? place.name : ''}:${event}`) % 100000, culture: place ? place.culture : 'european', why,
     };
     if (env === 'map' || event === 'map') scene.env = 'map';
+    // the same map again (same place, same pins/arrows, same chapter and date) is one map scene, not the map re-opening per beat
+    if (lastScene && sameMapMoment(lastScene, scene, b)) {
+      lastScene.text += ` ${text}`; lastScene.sentences.push(...ss); lastScene.analysis.push(...A); lastScene.mergedBeats = [...(lastScene.mergedBeats || [lastScene.beatId]), b.id];
+      for (const k of ['stats', 'stat', 'label']) if (b.extra && b.extra[k] != null && lastScene.extra[k] == null) lastScene.extra = { ...lastScene.extra, [k]: b.extra[k] };
+      report.push({ beat: b.id, event, env: 'map', place: place ? place.name : null, time, weather, date, intent: R.intent, why: { ...why, merged: `same map as ${lastScene.id}: continues it instead of re-opening the map` } });
+      carryPlace = place; return;
+    }
     // continuity: the same place and set as the scene before keeps its layout and its people
     if (lastScene && lastScene.env === scene.env && scene.env !== 'map' && lastScene.place && scene.place && lastScene.place.name === scene.place.name) {
       if (b.extra?.seed == null) scene.seed = lastScene.seed;
@@ -160,6 +167,8 @@ export function direct(story, opts = {}) {
     if (s.env !== 'map') for (let k = 1; k < s.sentences.length; k++) { const c = (s.sentences[k - 1].end + s.sentences[k].start) / 2; if (c - cuts[cuts.length - 1] >= 3.6 && s.t1 - c >= 3.6) cuts.push(+c.toFixed(3)); }
     // a very long sentence still gets a second shot half-way (camera never parks for more than ~9 s)
     for (let k = 0; k < cuts.length; k++) { const end = cuts[k + 1] ?? s.t1; if (end - cuts[k] > 9.5 && s.env !== 'map') cuts.splice(k + 1, 0, +(cuts[k] + (end - cuts[k]) / 2).toFixed(3)); }
+    // a long map keeps moving: up to 3 continuous shots at sentence pauses, each one sinking a little lower
+    if (s.env === 'map') for (let k = 1; k < s.sentences.length && cuts.length < 3; k++) { const c = (s.sentences[k - 1].end + s.sentences[k].start) / 2; if (c - cuts[cuts.length - 1] >= 6 && s.t1 - c >= 4) cuts.push(+c.toFixed(3)); }
     const requested = s.camera ? s.camera.split('>').map((x) => x.trim()) : [];
     const prefs = s.env === 'map' ? ['map_overview'] : [...R.shots];
     s.shots = cuts.map((c0, k) => {
@@ -183,7 +192,10 @@ export function direct(story, opts = {}) {
       prev2 = prevB; prevB = beh;
       const subject = subjectFor(beh, s);
       const yaw = (s.heading ?? 0) + sideYaw + rng.range(-0.45, 0.45) + (beh === 'over_shoulder' ? 0 : 0);
-      return { behaviour: beh, t0: c0, t1: c1, yaw, subject, reason, scale: 1 };
+      const shot = { behaviour: beh, t0: c0, t1: c1, yaw, subject, reason, scale: 1 };
+      // map_overview sinks to 0.9 of its height over a shot; the next one starts there, so the move is one unbroken descent
+      if (s.env === 'map' && k > 0) shot.zoom = +Math.pow(0.9, k).toFixed(4);
+      return shot;
     });
     // within a scene: aerial-to-aerial changes are one continuous move, others are cuts
     s.shots.forEach((sh, k) => { sh.transition = k === 0 ? null : AERIAL.has(sh.behaviour) && AERIAL.has(s.shots[k - 1].behaviour) ? 'continuous' : 'cut'; });
@@ -241,6 +253,13 @@ export function direct(story, opts = {}) {
     sentences: sentences.map(({ beat, text, start, end, words }) => ({ beat, text, start, end, words })), scenes: scenes.map(stripScene), hud, audio, warnings, report, voiceTimed: !!(opts.words && opts.words.length) };
 }
 
+/** a map beat that shows exactly the map already on screen: same place, same pins/arrows/regions, same chapter and date, no own camera or transition */
+function sameMapMoment(prev, scene, b) {
+  if (prev.env !== 'map' || scene.env !== 'map' || prev.chapter !== scene.chapter || prev.date !== scene.date) return false;
+  if (!prev.place || !scene.place || prev.place.name !== scene.place.name || b.camera || b.transition) return false;
+  const key = (m) => JSON.stringify({ pins: m?.pins || [], arrows: m?.arrows || [], regions: m?.regions || [], bbox: m?.bbox || null, dive: m?.dive || null });
+  return !(b.extra && b.extra.map) || key(b.extra.map) === key(prev.extra.map);
+}
 function stripScene(s) { const { analysis, ...rest } = s; return { ...rest, numbers: analysis.flatMap((a) => a.numbers), people: analysis.flatMap((a) => a.people) }; }
 
 function defaultFormation(role, R) { const g = R.cast.find((c) => c.role === role); return g ? g.formation : role === 'crowd' ? 'crowd' : role === 'commander' || role === 'leader' ? 'head' : 'scatter'; }
