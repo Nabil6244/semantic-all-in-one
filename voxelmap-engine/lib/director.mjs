@@ -23,6 +23,12 @@ const GROUND_ALT = { orbit: 0.16, low_track: 0.09, flyover: 0.12 }; // km above 
 // camera and a shorter orbit so the fighting fills the frame the whole time.
 const BATTLE_ALT = { orbit: 0.085, low_track: 0.06, flyover: 0.06 };
 const BATTLE_SPAN = { flyover: 0.26, low_track: 0.2 };
+// Indoor rooms are ~40 units across: the camera comes in close and slow over the cut-away walls. A landmark is framed whole: a
+// slow orbit around it at a height that fits its size.
+const INDOOR_ALT = { orbit: 0.075, low_track: 0.065, flyover: 0.07 };
+const INDOOR_SPAN = { flyover: 0.1, low_track: 0.08 };
+const LANDMARK_ALT = { orbit: 0.22, low_track: 0.19, flyover: 0.2 };
+const LANDMARK_SIZE = { palace: 2.3, wall: 1.5, cathedral: 1.15, pyramid: 1.1, castle: 1.0, colosseum: 1.0, domed: 1.0, mosque: 1.0, pantheon: 0.9, temple: 0.85, arch: 0.6, column: 0.6 };   // camera height per landmark size
 const OUTCOME = /\b(falls?|fell|ends?|ended|lost|defeat|beginning|over|surrender|withdraw)/i;
 const hash = (s) => { let h = 2166136261; for (const ch of String(s)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h; };
 
@@ -46,18 +52,29 @@ export function chooseShot(spec, i, prevShot) {
   else if (b.rung === 'oblique') { pick = 'aerial_track'; alts = ['aerial_track', 'establishing']; }
   else {
     const r = b.site || '';
-    if (/battle|fortress|trail|jungle/.test(r)) { pick = hash(b.id + b.place) % 2 ? 'flyover' : 'orbit'; alts = ['flyover', 'orbit', 'low_track']; }
+    if (/^(hall|office)$/.test(r)) { pick = 'orbit'; alts = ['orbit', 'low_track']; }
+    else if (b.landmark) { pick = 'orbit'; alts = ['orbit', 'low_track', 'flyover']; }
+    else if (/battle|fortress|trail|jungle/.test(r)) { pick = hash(b.id + b.place) % 2 ? 'flyover' : 'orbit'; alts = ['flyover', 'orbit', 'low_track']; }
     else { pick = 'low_track'; alts = ['low_track', 'orbit']; }
   }
   if (pick === prevShot) pick = alts.find((x) => x !== prevShot) || pick;
   return pick;
 }
 
+export const MAX_SHOT = 11;   // seconds one framing may hold before the camera moves on to another view of the same place
+/** The other framings of a beat's place, used to keep a long hold moving. */
+export function altShots(b) {
+  if (b.rung === 'map') return ['establishing', 'aerial_track', 'pullback'];
+  if (b.rung === 'oblique') return ['aerial_track', 'establishing'];
+  if (b.rung === 'ground') return /^(hall|office)$/.test(b.site || '') || b.landmark ? ['orbit', 'low_track'] : /battle|fortress|trail|jungle/.test(b.site || '') ? ['flyover', 'orbit', 'low_track'] : ['low_track', 'orbit'];
+  return ['globe_spin'];
+}
+
 /** Start and end framing of a held shot. */
 export function shotFrames(b, shot, seed) {
   const base = { lon: b.lon, lat: b.lat, tilt: null };
-  const battle = b.rung === 'ground' && b.site === 'battle';
-  const alt0 = b.alt ?? (b.rung === 'ground' ? (battle ? BATTLE_ALT[shot] : null) ?? GROUND_ALT[shot] ?? RUNG.ground.alt : RUNG[b.rung].alt);
+  const battle = b.rung === 'ground' && b.site === 'battle', indoor = b.rung === 'ground' && /^(hall|office)$/.test(b.site || ''), lm = b.rung === 'ground' && !indoor && !!b.landmark;
+  const alt0 = b.alt ?? (b.rung === 'ground' ? (indoor ? INDOOR_ALT[shot] : lm ? LANDMARK_ALT[shot] * (LANDMARK_SIZE[b.landmark] ?? 1) : battle ? BATTLE_ALT[shot] : null) ?? GROUND_ALT[shot] ?? RUNG.ground.alt : RUNG[b.rung].alt);
   const h = b.heading ?? (b.rung === 'ground' ? (seed % 8) * 45 + 10 : 0);
   if (shot === 'globe_spin') return { start: { ...base, lon: b.lon - 75, lat: b.lat * 0.55, alt: alt0 * 1.2, heading: 0 }, end: { ...base, alt: alt0, heading: 0 }, ease: 'inout' };
   if (shot === 'establishing') return { start: { ...base, alt: alt0 * 1.18, heading: h - 3 }, end: { ...base, alt: alt0, heading: h + 3 }, ease: 'inout' };
@@ -72,10 +89,10 @@ export function shotFrames(b, shot, seed) {
     return { start: { ...offset(base, h - 90, span / 2), alt: alt0, heading: h, tilt: null }, end: { ...offset(base, h + 90, span / 2), alt: alt0, heading: h, tilt: null }, ease: 'linear' };
   }
   if (shot === 'flyover') {
-    const span = battle ? BATTLE_SPAN.flyover : 0.8; // km: a pass from one side of the set to the other (battle: only its action)
+    const span = indoor ? INDOOR_SPAN.flyover : battle ? BATTLE_SPAN.flyover : lm ? 0.3 : 0.8; // km: a pass from one side of the set to the other (battle: only its action)
     return { start: { ...offset(base, h + 180, span / 2), alt: alt0, heading: h, tilt: 52 }, end: { ...offset(base, h, span / 2), alt: alt0 * 1.12, heading: h + 4, tilt: 50 }, ease: 'linear' };
   }
-  const span = battle ? BATTLE_SPAN.low_track : 0.5; // low_track: a lateral dolly across the set
+  const span = indoor ? INDOOR_SPAN.low_track : battle ? BATTLE_SPAN.low_track : lm ? 0.25 : 0.5; // low_track: a lateral dolly across the set
   return { start: { ...offset(base, h - 90, span / 2), alt: alt0, heading: h, tilt: 60 }, end: { ...offset(base, h + 90, span / 2), alt: alt0, heading: h, tilt: 60 }, ease: 'linear' };
 }
 
@@ -102,10 +119,20 @@ export function direct(spec, timed, end) {
       camera.push({ type: 'hold', t0: prevEnd, t1: tb.travelT0, from: prev });
       camera.push({ type: 'fly', t0: tb.travelT0, t1: tb.travelT1, from: prev, to: fr.start });
     }
-    const holdEnd = Math.max(tb.speakT1, tb.travelT1 + 0.5);
-    camera.push({ type: 'move', t0: tb.travelT1, t1: holdEnd, from: fr.start, to: fr.end, ease: fr.ease });
-    shots.push({ beat: b.id, shot, move: prev ? moveKind(prev, fr.start) : 'open' });
-    prev = fr.end; prevEnd = holdEnd; prevShot = shot;
+    const holdEnd = tb.holdT1 ?? Math.max(tb.speakT1, tb.travelT1 + 0.5);
+    // a long read never sits on one framing: past MAX_SHOT the hold continues as connected moves through other framings of the
+    // same place (each starts where the last ended, so there is never a jump)
+    const dur = holdEnd - tb.travelT1, k = b.rung === 'globe' ? 1 : Math.max(1, Math.ceil(dur / MAX_SHOT));
+    let from = fr.start, end = fr.end;
+    for (let s = 0; s < k; s++) {
+      const t0 = tb.travelT1 + (dur * s) / k, t1 = tb.travelT1 + (dur * (s + 1)) / k;
+      const alts = altShots(b).filter((x) => x !== shot), sh = s === 0 ? shot : alts[(s - 1) % alts.length] || shot;
+      end = s === 0 ? fr.end : shotFrames(b, sh, (b.seed ?? tb.i) + s * 3).end;
+      camera.push({ type: 'move', t0, t1, from, to: end, ease: s === 0 && k === 1 ? fr.ease : 'inout' });
+      from = end;
+    }
+    shots.push({ beat: b.id, shot, move: prev ? moveKind(prev, fr.start) : 'open', parts: k });
+    prev = end; prevEnd = holdEnd; prevShot = shot;
   }
   camera.push({ type: 'hold', t0: prevEnd, t1: end, from: prev });
   return { camera, shots };

@@ -20,6 +20,7 @@ import gzip
 import io
 import json
 import math
+import os
 import sys
 import time
 import urllib.request
@@ -55,7 +56,9 @@ def fetch_tile(z: int, x: int, y: int, cache: Path) -> np.ndarray:
         for attempt in range(3):
             try:
                 with urllib.request.urlopen(req, timeout=30) as r:
-                    path.write_bytes(r.read())
+                    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")   # atomic: parallel tile builders share this cache
+                    tmp.write_bytes(r.read())
+                    os.replace(tmp, path)
                 break
             except Exception:
                 if attempt == 2:

@@ -12,6 +12,7 @@
 //              extra = {territory, seed, shot (see lib/director.mjs), path: [[lon, lat], ...] for an aerial track,
 //                       factions: [..] (lib/figures.mjs), names: ["Gen. X"], signs: ["WELCOME"], light: day|sunset|night|fog|dawn,
 //                       effects: [{kind: blasts|smoke|fires|planes, at: [lon, lat], to?: [lon, lat]}], museum: {item, name, note}}
+import { landmarkFor } from './landmarks.mjs';
 
 export function parseCsv(text) {
   const rows = []; let row = [], cell = '', q = false;
@@ -35,6 +36,7 @@ export const seedOf = (...parts) => { let h = 2166136261; for (const ch of parts
 export const splitSentences =(s) => (s.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) || []).map((x) => x.trim()).filter(Boolean);
 
 /** CSV text -> story spec. Throws with the row number on anything that would make a wrong video. */
+
 export function parseStory(text) {
   const spec = { title: '', world: '', width: 1280, height: 720, fps: 30, wpm: 140, chapters: [], territories: [], labels: [], beats: [] };
   let chapter = null;
@@ -42,20 +44,23 @@ export function parseStory(text) {
     const at = `row ${n + 2} (${r.row})`, x = json(r.extra, at);
     if (r.row === 'plan') Object.assign(spec, { title: r.id, ...x });
     else if (r.row === 'chapter') { chapter = { id: r.id, title: r.text }; spec.chapters.push(chapter); }
-    else if (r.row === 'territory') { if (!/^\d{4}-\d{2}$/.test(r.date)) throw new Error(`${at}: date must be YYYY-MM`); spec.territories.push({ key: r.id, date: r.date, legend: x.legend || [], rules: x.rules || [] }); }
+    else if (r.row === 'territory') { if (r.date && !/^-?\d{4}-\d{2}$/.test(r.date)) throw new Error(`${at}: date must be YYYY-MM (or empty: the territory then starts with the first beat)`); spec.territories.push({ key: r.id, date: r.date || null, legend: x.legend || [], rules: x.rules || [] }); }
     else if (r.row === 'label') spec.labels.push({ name: r.text, lon: num(r.lon), lat: num(r.lat), kind: x.kind || 'city', min_alt: x.min_alt ?? 40, max_alt: x.max_alt ?? 3000 });
     else if (r.row === 'beat') {
       if (!chapter) throw new Error(`${at}: a beat needs a chapter row before it`);
-      if (!/^\d{4}-\d{2}$/.test(r.date)) throw new Error(`${at}: date must be YYYY-MM`);
+      if (!/^-?\d{4}-\d{2}$/.test(r.date)) throw new Error(`${at}: date must be YYYY-MM`);
       if (num(r.lon) == null || num(r.lat) == null) throw new Error(`${at}: beat needs lon and lat`);
       const rung = r.rung || 'map';
       if (!['globe', 'map', 'oblique', 'ground'].includes(rung)) throw new Error(`${at}: rung must be globe, map, oblique or ground`);
       spec.beats.push({ id: r.id || `b${spec.beats.length + 1}`, chapter: chapter.id, date: r.date, place: r.place, lon: num(r.lon), lat: num(r.lat), rung,
         alt: num(r.alt), heading: num(r.heading), site: r.site || null, gap: num(r.gap), sentences: splitSentences(r.text), territory: x.territory || null,
         orbit: x.orbit ?? null, seed: x.seed ?? seedOf(r.id, r.place, r.date), shot: x.shot ?? null, path: x.path ?? null,
-        factions: x.factions ?? null, names: x.names ?? null, signs: x.signs ?? null, light: x.light ?? null, effects: x.effects ?? null, museum: x.museum ?? null });
+        landmark: null, landmarkAsked: x.landmark ?? null, factions: x.factions ?? null, names: x.names ?? null, signs: x.signs ?? null, light: x.light ?? null, effects: x.effects ?? null, museum: x.museum ?? null });
     } else if (r.row) throw new Error(`${at}: unknown row type`);
   });
   if (!spec.beats.length) throw new Error('the story has no beat rows');
+  for (const t of spec.territories) if (!t.date) t.date = spec.beats[0].date;
+  // a territory row with no date starts with the story; a ground scene gets its real place (lib/landmarks.mjs)
+  for (const bt of spec.beats) bt.landmark = landmarkFor(bt, { landmark: bt.landmarkAsked });
   return spec;
 }

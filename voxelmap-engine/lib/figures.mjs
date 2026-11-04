@@ -14,7 +14,7 @@ function mulberry32(seed) {
 }
 
 export const KINDS = ['soldier', 'officer', 'civilian', 'sailor', 'pilot'];
-export const POSES = ['standing', 'walking', 'kneeling', 'aiming', 'prone'];
+export const POSES = ['standing', 'walking', 'kneeling', 'aiming', 'prone', 'sitting'];
 
 /** Skin tones, light to dark. */
 export const SKINS = [[228, 188, 156], [214, 168, 124], [192, 142, 102], [150, 104, 72], [104, 70, 50]];
@@ -34,7 +34,18 @@ export const FACTIONS = {
   pla: { shirt: [84, 108, 66], pants: [70, 94, 72], hat: 'cap', hatC: [78, 102, 62], officer: [96, 120, 74], skins: [1, 1, 2], pack: true, star: true },
   civilian: { shirt: null, pants: null, hat: 'none', hatC: [200, 176, 116], officer: [60, 64, 90], skins: [1, 1, 2, 2, 0, 3], pack: false },
   sailor: { shirt: [34, 44, 82], pants: [34, 44, 82], hat: 'sailor', hatC: WHITE, officer: [236, 236, 232], skins: [0, 0, 1, 2, 3, 4], pack: false },
+  // ---- before firearms: spear and shield instead of a rifle (ancient: true); shield 'scutum' (tall rectangle) or 'round'
+  roman: { shirt: [168, 44, 38], pants: [118, 86, 58], hat: 'galea', hatC: [168, 168, 172], officer: [196, 60, 50], skins: [0, 1, 1, 2], pack: false, ancient: true, shield: 'scutum', shieldC: [176, 40, 34], armor: [150, 150, 156] },
+  carthaginian: { shirt: [226, 218, 196], pants: [150, 120, 84], hat: 'bronze', hatC: [180, 142, 70], officer: [110, 52, 120], skins: [1, 2, 3, 4], pack: false, ancient: true, shield: 'round', shieldC: [170, 136, 64] },
+  gaul: { shirt: [70, 112, 62], pants: [136, 70, 44], hat: 'hair', hatC: [168, 104, 48], officer: [176, 140, 50], skins: [0, 0, 1], pack: false, ancient: true, shield: 'long', shieldC: [86, 120, 150] },
+  germanic: { shirt: [112, 98, 80], pants: [76, 68, 58], hat: 'hair', hatC: [204, 176, 104], officer: [90, 60, 40], skins: [0, 0, 1], pack: false, ancient: true, shield: 'round', shieldC: [120, 84, 52] },
+  greek: { shirt: [200, 186, 150], pants: [168, 128, 70], hat: 'crest', hatC: [184, 146, 72], officer: [60, 80, 150], skins: [0, 1, 1, 2], pack: false, ancient: true, shield: 'round', shieldC: [184, 146, 72] },
+  byzantine: { shirt: [104, 40, 96], pants: [70, 60, 56], hat: 'cone', hatC: [156, 156, 162], officer: [170, 140, 50], skins: [0, 1, 1, 2], pack: false, ancient: true, shield: 'round', shieldC: [150, 30, 30], armor: [140, 140, 146] },
+  senator: { shirt: [236, 232, 220], pants: [236, 232, 220], hat: 'none', hatC: [200, 176, 116], officer: [236, 232, 220], skins: [0, 1, 1, 2], pack: false, sash: [150, 40, 50] },   // toga, purple-red stripe
+  ottoman: { shirt: [176, 40, 36], pants: [70, 70, 110], hat: 'turban', hatC: [238, 234, 222], officer: [40, 110, 70], skins: [1, 1, 2, 2], pack: false, ancient: true, shield: 'round', shieldC: [150, 110, 50] },
 };
+/** Factions from before firearms. */
+export const ANCIENT_FACTIONS = Object.keys(FACTIONS).filter((k) => FACTIONS[k].ancient);
 export const FACTION_NAMES = Object.keys(FACTIONS);
 
 /** The faction a kind wears when none is asked for. */
@@ -69,7 +80,10 @@ export function figure(kind = 'soldier', opts = {}) {
   const sk = opts.skin ?? F.skins[Math.floor(rng() * F.skins.length)];
   const skin = Array.isArray(sk) ? sk : SKINS[Math.max(0, Math.min(SKINS.length - 1, sk | 0))];
   const armed = kind === 'soldier' || (kind === 'officer' && opts.rifle === true);
-  const rifle = opts.rifle ?? (armed && (pose === 'aiming' || pose === 'kneeling' || pose === 'prone'));
+  const ancient = !!F.ancient;
+  // an ancient soldier always carries his spear and shield (a rifle only shows when aiming/kneeling/prone)
+  const rifle = !ancient && (opts.rifle ?? (armed && (pose === 'aiming' || pose === 'kneeling' || pose === 'prone')));
+  const spear = ancient && (kind === 'soldier' || opts.rifle === true);
   const parts = [];
 
   if (pose === 'prone') {
@@ -83,13 +97,17 @@ export function figure(kind = 'soldier', opts = {}) {
   }
 
   const kneel = pose === 'kneeling', walk = pose === 'walking', aim = pose === 'aiming' || (kneel && rifle);
-  const drop = kneel ? 0.4 : 0;
+  const sit = pose === 'sitting';
+  const drop = kneel ? 0.4 : sit ? 0.42 : 0;
   const hipY = 0.9 - drop;
   const sw = walk ? Math.sin(opts.phase ?? 0) : 0, sw2 = walk ? Math.sin((opts.phase ?? 0) + PI) : 0;
   const lift = (ph) => (walk ? 0.1 * Math.max(0, Math.cos(ph)) : 0);
 
   // legs
-  if (kneel) {
+  if (sit) {   // on a chair or bench: thighs forward, shins down
+    parts.push(B(0.26, hipY - 0.04, 0, 0.6, 0.26, 0.58, pants));
+    parts.push(B(0.52, 0, 0, 0.26, hipY - 0.04, 0.56, pants));
+  } else if (kneel) {
     parts.push(B(0.3, 0, 0.15, 0.3, 0.5, 0.28, pants));                 // front leg, knee up
     parts.push(B(-0.25, 0, -0.15, 0.72, 0.2, 0.28, pants));             // back leg along the ground
   } else {
@@ -103,6 +121,7 @@ export function figure(kind = 'soldier', opts = {}) {
   // belt, sash or collar
   if (kind === 'officer') parts.push(B(0, hipY, 0, 0.37, 0.1, 0.65, DARK));
   else if (kind === 'sailor') parts.push(B(0.18, hipY + 0.5, 0, 0.04, 0.22, 0.4, WHITE));
+  else if (F.sash) parts.push(B(0.18, hipY + 0.1, 0.12, 0.04, 0.62, 0.14, F.sash));
   // arms
   if (aim) {
     parts.push(B(0.42, hipY + 0.5, 0.2, 0.7, 0.2, 0.2, shirt), B(0.42, hipY + 0.5, -0.2, 0.7, 0.2, 0.2, shirt));
@@ -112,6 +131,18 @@ export function figure(kind = 'soldier', opts = {}) {
     if (rifle) parts.push(B(0, hipY + 0.2, -0.38, 0.12, 0.12, 0.9, RIFLE));
   }
   if (F.pack && kind === 'soldier') parts.push(B(-0.26, hipY + 0.1, 0, 0.2, 0.5, 0.42, mul(shirt, 0.8)));
+  if (ancient && F.armor && kind !== 'civilian') parts.push(B(0, hipY + 0.36, 0, 0.38, 0.34, 0.66, mul(F.armor, tone)));   // breastplate / mail
+  if (ancient && kind === 'soldier') {
+    // spear: upright at rest, levelled forward when 'aiming' (the front rank of a clash)
+    const wood = [112, 84, 52];
+    if (aim) parts.push(B(1.0, hipY + 0.55, -0.22, 2.6, 0.09, 0.09, wood));
+    else parts.push(B(0.12, 0, -0.5, 0.09, 2.8, 0.09, wood));
+    // shield on the left arm, facing forward
+    const sc = mul(F.shieldC || shirt, tone);
+    if (F.shield === 'scutum') parts.push(B(0.3, hipY - 0.35, 0.36, 0.1, 1.2, 0.62, sc));
+    else if (F.shield === 'long') parts.push(B(0.3, hipY - 0.3, 0.36, 0.1, 1.1, 0.48, sc));
+    else parts.push(B(0.3, hipY - 0.1, 0.36, 0.1, 0.8, 0.8, sc));
+  }
   // hats
   const hy = top - 0.12;
   if (hat === 'helmet') parts.push(B(0, hy, 0, 0.5, 0.22, 0.5, hatC));
@@ -120,6 +151,12 @@ export function figure(kind = 'soldier', opts = {}) {
   else if (hat === 'conical') parts.push(B(0, hy + 0.02, 0, 0.7, 0.06, 0.7, hatC), B(0, hy + 0.08, 0, 0.42, 0.1, 0.42, hatC), B(0, hy + 0.18, 0, 0.16, 0.08, 0.16, hatC));
   else if (hat === 'beret') parts.push(B(0, hy + 0.04, 0.03, 0.5, 0.1, 0.46, hatC));
   else if (hat === 'sailor') parts.push(B(0, hy + 0.02, 0, 0.5, 0.14, 0.5, hatC));
+  else if (hat === 'galea') parts.push(B(0, hy, 0, 0.48, 0.24, 0.48, hatC), B(0, hy + 0.24, 0, 0.5, 0.12, 0.08, [196, 40, 34]));   // Roman helmet, red crest
+  else if (hat === 'bronze') parts.push(B(0, hy, 0, 0.48, 0.26, 0.48, hatC), B(0, hy + 0.26, 0, 0.2, 0.08, 0.2, hatC));
+  else if (hat === 'crest') parts.push(B(0, hy, 0, 0.48, 0.26, 0.48, hatC), B(0, hy + 0.26, 0, 0.12, 0.18, 0.52, [170, 40, 34]));   // Greek, crest front to back
+  else if (hat === 'cone') parts.push(B(0, hy, 0, 0.48, 0.18, 0.48, hatC), B(0, hy + 0.18, 0, 0.28, 0.18, 0.28, hatC));
+  else if (hat === 'turban') parts.push(B(0, hy, 0, 0.52, 0.22, 0.52, hatC), B(0, hy + 0.22, 0, 0.36, 0.16, 0.36, hatC));
+  else if (hat === 'hair') parts.push(B(-0.04, hy + 0.02, 0, 0.46, 0.14, 0.46, hatC), B(-0.2, hy - 0.3, 0, 0.1, 0.36, 0.44, hatC));   // long hair, no helmet
   else if (hat === 'straw') parts.push(B(0, hy + 0.02, 0, 0.66, 0.05, 0.66, [204, 180, 118]), B(0, hy + 0.07, 0, 0.36, 0.1, 0.36, [204, 180, 118]));
   return parts;
 }

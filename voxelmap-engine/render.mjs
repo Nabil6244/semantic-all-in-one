@@ -12,7 +12,8 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseStory } from './lib/beats_csv.mjs';
-import { buildTimeline } from './lib/timeline.mjs';
+import { buildTimeline, monthIndex } from './lib/timeline.mjs';
+import { LANDMARKS } from './lib/landmarks.mjs';
 import { cameraAt, placeCamera } from './lib/camera3d.mjs';
 import { makeGeo } from './lib/geo.mjs';
 import { wantedTiles, parentKey, sampleHeight, maxHeightNear, sampleLand, LEVELS, tileKey } from './lib/lod.mjs';
@@ -181,8 +182,9 @@ async function checkStory(story, tl, storyPath) {
     if (b.light && !LIGHTS.includes(b.light)) errors.push(`${at}: light "${b.light}" (use ${LIGHTS.join(', ')})`);
     for (const f of b.factions || []) if (!FACTION_NAMES.includes(f)) errors.push(`${at}: faction "${f}" (use ${FACTION_NAMES.join(', ')})`);
     for (const e of b.effects || []) { if (!['blasts', 'smoke', 'fires', 'planes'].includes(e.kind)) errors.push(`${at}: effect kind "${e.kind}"`); if (!e.at || !inside(e.at[0], e.at[1])) errors.push(`${at}: effect needs "at" inside the world`); }
+    if (b.landmarkAsked && b.landmarkAsked !== 'none' && !LANDMARKS.includes(b.landmarkAsked)) errors.push(`${at}: landmark "${b.landmarkAsked}" (use ${LANDMARKS.join(', ')} or none)`);
     if (b.museum && !MUSEUM_ITEMS.includes(b.museum.item)) errors.push(`${at}: museum item "${b.museum.item}" (use ${MUSEUM_ITEMS.join(', ')})`);
-    if (b.date < prev) warnings.push(`${at}: date ${b.date} goes back from ${prev}`);
+    if (prev && monthIndex(b.date) < monthIndex(prev)) warnings.push(`${at}: date ${b.date} goes back from ${prev}`);
     prev = b.date;
     if (!b.sentences.length) errors.push(`${at}: no narration`);
   });

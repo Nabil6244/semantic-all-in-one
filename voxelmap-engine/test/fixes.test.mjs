@@ -46,3 +46,23 @@ test('a tight real pause: margins shrink, then the move speeds up a little, and 
   const short = shift(need * 0.5);
   assert.ok(short.warnings.some((w) => /runs into the narration/.test(w)));
 });
+
+import { parseStory as _parseStory } from '../lib/beats_csv.mjs';
+test('a territory row without a date starts with the first beat; a malformed date still fails', () => {
+  const head = 'row,id,date,place,lon,lat,rung,alt,heading,site,gap,text,extra\n';
+  const body = 'chapter,c1,,,,,,,,,,One,\nbeat,b1,1965-09,X,74.5,31.2,map,,,,,"Hello there.",\n';
+  const ok = _parseStory(head + 'territory,t,,,,,,,,,,,"{""rules"":[]}"\n' + body);
+  assert.equal(ok.territories[0].date, '1965-09');
+  assert.throws(() => _parseStory(head + 'territory,t,1965,,,,,,,,,,"{}"\n' + body), /YYYY-MM/);
+});
+
+import { monthLabel as _ml, monthIndex as _mi } from '../lib/timeline.mjs';
+test('BC dates parse, order and label correctly', () => {
+  assert.equal(_ml('-0753-04'), 'APR 753 BC');
+  assert.equal(_ml('1965-09'), 'SEP 1965');
+  assert.equal(_ml('0080-01'), 'JAN 80 AD');
+  assert.ok(_mi('-0753-04') < _mi('-0616-01') && _mi('-0616-01') < _mi('0117-01'));
+  const head = 'row,id,date,place,lon,lat,rung,alt,heading,site,gap,text,extra\n';
+  const s = _parseStory(head + 'chapter,c,,,,,,,,,,T,\nbeat,b,-0753-04,X,12.5,41.9,map,,,,,"Hi there.",\n');
+  assert.equal(s.beats[0].date, '-0753-04');
+});

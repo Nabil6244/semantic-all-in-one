@@ -10,10 +10,11 @@
 // buildSet(recipe, seed, n, ctx) reads optional ctx.factions (['us_marine', ...]), ctx.names (['Gen. Karch']) and ctx.signs
 // (['WELCOME']) and returns { labels: [{x,y,z,text}], signs: [{x,y,z,w,h,rot,text}] } (sign face normal = (sin rot, cos rot)).
 
-import { figure, formation, figureHeight } from './figures.mjs';
+import { figure, formation, figureHeight, FACTIONS } from './figures.mjs';
 
 export const FINE = 48;          // set units per world cell (1 unit ~ 58 m)
-export const RECIPES = ['village', 'city', 'airfield', 'lz', 'battle', 'fortress', 'beach_landing', 'jungle', 'trail', 'delta'];
+export const RECIPES = ['village', 'city', 'airfield', 'lz', 'battle', 'fortress', 'beach_landing', 'jungle', 'trail', 'delta', 'hall', 'office'];
+export const INDOOR_RECIPES = ['hall', 'office'];
 
 export const FLAT = { ground: () => ({ y: 0, water: 0, forest: false, color: [84, 138, 56] }) };
 
@@ -45,6 +46,7 @@ function makeEnv(recipe, seed, n, ctx) {
   const boxes = [], emitters = [];
   const occ = new Uint8Array(n * n);
   const E = { r, n, ctx, boxes, emitters, marches: [], A: r() * PI * 2, cu: n / 2, cv: n / 2, focus: [n / 2, n / 2], kA: (n * n) / OLD_AREA };
+  E.ancient = isAncient(ctx);   // before firearms: no engines, guns or concrete anywhere in the set
   E.rr = (a, b) => a + r() * (b - a);
   E.ri = (a, b) => a + Math.floor(r() * (b - a + 1));
   E.pick = (arr) => arr[Math.floor(r() * arr.length)];
@@ -314,13 +316,54 @@ const D = {
   },
 };
 
+
+// ---- before firearms (ctx.era === 'ancient', or ancient factions): what replaces engines, guns and concrete
+Object.assign(D, {
+  oxcart(E) {
+    const w = E.pick([C.wood, [120, 90, 58]]), ox = E.pick([[120, 92, 64], [90, 70, 52], [160, 140, 110]]), load = E.pick([[176, 150, 100], C.thatch, [140, 120, 86]]);
+    return { kind: 'veh', w: 3.4, d: 1.4, h: 1.4, parts: [P(1.15, 0.45, 0, 1.0, 0.55, 0.5, ox), P(1.75, 0.65, 0, 0.3, 0.3, 0.3, ox), P(1.15, 0, 0.18, 0.12, 0.45, 0.12, ox), P(1.15, 0, -0.18, 0.12, 0.45, 0.12, ox),
+      P(0.45, 0.6, 0, 0.9, 0.08, 0.08, w), P(-0.5, 0.45, 0, 1.4, 0.15, 1.0, w), P(-0.5, 0.6, 0, 1.2, 0.5, 0.9, load), P(-0.5, 0, 0.56, 0.6, 0.6, 0.1, w), P(-0.5, 0, -0.56, 0.6, 0.6, 0.1, w)] };
+  },
+  catapult(E) {
+    const w = E.pick([C.wood, [128, 96, 60]]), dk = mul(w, 0.7);
+    return { kind: 'veh', w: 2.6, d: 1.6, h: 1.8, parts: [P(0, 0, 0.6, 2.4, 0.2, 0.2, w), P(0, 0, -0.6, 2.4, 0.2, 0.2, w), P(-0.9, 0.2, 0, 0.2, 0.2, 1.4, w), P(0.9, 0.2, 0, 0.2, 0.2, 1.4, w),
+      P(0.1, 0.2, 0.6, 0.2, 1.1, 0.2, dk), P(0.1, 0.2, -0.6, 0.2, 1.1, 0.2, dk), P(0.1, 1.2, 0, 0.2, 0.2, 1.3, dk), P(-0.4, 0.4, 0, 1.6, 0.14, 0.14, w, 0), P(-1.15, 0.45, 0, 0.36, 0.2, 0.36, [90, 90, 90])] };
+  },
+  galley(E) {
+    const h = E.pick([[120, 84, 52], [96, 70, 46]]), sail = E.pick([[226, 216, 190], [196, 70, 56], [220, 200, 150]]), parts = [P(0, 0, 0, 7.4, 0.7, 1.6, h), P(3.9, 0.2, 0, 0.8, 0.5, 0.8, mul(h, 0.8)), P(-3.7, 0.4, 0, 0.7, 0.9, 1.2, h), P(0, 0.7, 0, 0.12, 3.2, 0.12, C.wood), P(0, 1.6, 0, 0.12, 1.8, 2.6, sail)];
+    for (let i = -3; i <= 3; i++) parts.push(P(i * 0.9, 0.3, 1.2, 0.08, 0.06, 1.0, C.wood, 0), P(i * 0.9, 0.3, -1.2, 0.08, 0.06, 1.0, C.wood, 0));
+    return { kind: 'veh', mode: 'water', w: 8.6, d: 3.2, h: 3.6, parts };
+  },
+  horse(E, faction) {
+    const coat = E.pick([[120, 84, 54], [80, 58, 40], [160, 140, 110], [60, 50, 44], [200, 190, 170]]), F = FACTIONS[faction] || FACTIONS.roman;
+    return { kind: 'veh', w: 2.4, d: 0.8, h: 2.6, parts: [P(0, 0.9, 0, 1.5, 0.6, 0.55, coat), P(0.9, 1.3, 0, 0.35, 0.6, 0.3, coat), P(1.15, 1.7, 0, 0.5, 0.3, 0.28, coat),
+      P(0.55, 0, 0.18, 0.14, 0.9, 0.14, coat), P(0.55, 0, -0.18, 0.14, 0.9, 0.14, coat), P(-0.55, 0, 0.18, 0.14, 0.9, 0.14, coat), P(-0.55, 0, -0.18, 0.14, 0.9, 0.14, coat), P(-0.85, 1.0, 0, 0.3, 0.6, 0.12, mul(coat, 0.7)),
+      P(-0.05, 1.5, 0, 0.34, 0.66, 0.5, F.shirt), P(-0.05, 2.16, 0, 0.32, 0.32, 0.32, [214, 168, 124]), P(-0.05, 2.44, 0, 0.36, 0.16, 0.36, F.hatC), P(0.4, 1.9, -0.32, 0.08, 1.6, 0.08, [112, 84, 52])] };
+  },
+  elephant(E) {
+    const g = [128, 124, 120];
+    return { kind: 'veh', w: 3.6, d: 1.6, h: 3.4, parts: [P(0, 1.1, 0, 2.6, 1.5, 1.5, g), P(1.5, 1.6, 0, 0.8, 0.9, 1.0, g), P(1.95, 0.6, 0, 0.3, 1.2, 0.3, g), P(1.8, 1.8, 0.62, 0.4, 0.8, 0.12, mul(g, 0.9)), P(1.8, 1.8, -0.62, 0.4, 0.8, 0.12, mul(g, 0.9)),
+      P(0.85, 0, 0.45, 0.4, 1.1, 0.4, g), P(0.85, 0, -0.45, 0.4, 1.1, 0.4, g), P(-0.85, 0, 0.45, 0.4, 1.1, 0.4, g), P(-0.85, 0, -0.45, 0.4, 1.1, 0.4, g), P(-0.1, 2.6, 0, 1.2, 0.6, 1.0, [150, 110, 60]), P(2.2, 1.0, 0.3, 0.6, 0.08, 0.08, [236, 232, 220]), P(2.2, 1.0, -0.3, 0.6, 0.08, 0.08, [236, 232, 220])] };
+  },
+  palisade(E, rad = 1.5) {
+    const parts = [], k = Math.max(8, Math.round(rad * 8));
+    for (let i = 0; i < k; i++) { const a = (i / k) * PI * 2; parts.push(P(Math.cos(a) * rad, 0, Math.sin(a) * rad, 0.22, E.rr(1.1, 1.5), 0.22, E.vary(C.wood, 0.1))); }
+    return { w: rad * 2 + 1, d: rad * 2 + 1, h: 1.5, parts, noShadow: true };
+  },
+});
+const MODERN = { tank: 'catapult', apc: 'catapult', howitzer: 'catapult', truck: 'oxcart', jeep: 'oxcart', bicycle: 'oxcart', helicopter: 'oxcart', jet: 'oxcart', cargoPlane: 'oxcart',
+  parachuteGround: 'oxcart', landingCraft: 'galley', patrolBoat: 'galley', ship: 'galley', bunker: 'tent', revetment: 'palisade', sandbagRing: 'palisade', fuelTank: 'groundHut', hangar: 'groundHut', tower: 'watchtower' };
+for (const [name, alt] of Object.entries(MODERN)) { const f = D[name]; D[name] = (E, ...a) => (E.ancient ? D[alt](E, ...(alt === 'palisade' ? a : [])) : f(E, ...a)); }
+{ const f = D.tent; D.tent = (E) => { const d = f(E); if (!E.ancient) return d; const c = E.pick([[210, 196, 160], [180, 160, 120], [196, 180, 140]]); return { ...d, parts: d.parts.map((p) => [...p.slice(0, 6), c, p[7]]) }; }; }
+{ const f = D.building; D.building = (E, o = {}) => (E.ancient ? f(E, { ...o, floors: Math.min(o.floors || 2, 3), roof: true, c: o.c || E.vary(E.pick([[222, 206, 170], [206, 178, 136], [230, 220, 196], [196, 160, 120]]), 0.06) }) : f(E, o)); }
+
 // Human scale: a person is 2 units tall, so most things were redrawn bigger. scaleDef grows a whole definition about its centre.
 function scaleDef(def, k) {
   const out = { ...def, w: def.w * k, d: def.d * k, h: def.h * k, parts: def.parts.map((p) => [p[0] * k, p[1] * k, p[2] * k, p[3] * k, p[4] * k, p[5] * k, p[6], p[7]]) };
   if (def.rotorY) { out.rotorY = def.rotorY * k; out.rotorLen = def.rotorLen * k; }
   return out;
 }
-const SCALE = { stiltHut: 1.5, groundHut: 1.6, villa: 1.15, tent: 1.5, watchtower: 1.4, bunker: 1.5, revetment: 1.3, sandbagRing: 1.4, supply: 1.5, fuelTank: 1.4,
+const SCALE = { oxcart: 1.6, catapult: 1.7, galley: 1.3, horse: 1.15, elephant: 1.3, palisade: 1.4, stiltHut: 1.5, groundHut: 1.6, villa: 1.15, tent: 1.5, watchtower: 1.4, bunker: 1.5, revetment: 1.3, sandbagRing: 1.4, supply: 1.5, fuelTank: 1.4,
   market: 1.25, hangar: 1.5, tank: 1.8, apc: 1.8, truck: 1.7, jeep: 1.9, howitzer: 1.7, helicopter: 1.7, jet: 1.4, cargoPlane: 1.2, landingCraft: 1.6, patrolBoat: 1.5, sampan: 1.4, ship: 1.2, bicycle: 1.6 };
 for (const [name, k] of Object.entries(SCALE)) { const f = D[name]; D[name] = (...a) => scaleDef(f(...a), k); }
 
@@ -354,10 +397,25 @@ function group(E, cu, cv, type, count, o = {}) {
   for (const p of placed) E.take(p.x, p.z, 0.5);
   return placed;
 }
-const fac = (E, i, def) => (Array.isArray(E.ctx.factions) && E.ctx.factions[i]) || def;
+const MODERN_ARMY = new Set(['us_marine', 'us_army', 'arvn', 'pavn', 'viet_cong', 'french', 'pla']);
+const soldierFactions = (E) => (Array.isArray(E.ctx.factions) ? E.ctx.factions : []).filter((f) => f && f !== 'civilian' && f !== 'sailor');
+/** The set's i-th side; a civilian-only list never stands in for an army; before firearms a modern default becomes Roman. */
+const fac = (E, i, def) => soldierFactions(E)[i] || (E.ancient && MODERN_ARMY.has(def) ? (E.ctx.sides?.[i] || 'roman') : def);
+const SIDE_HINTS = [
+  [/carthag|hannibal|cannae|zama|punic|trebia|trasimene|scipio/i, ['roman', 'carthaginian']],
+  [/constantinople|ottoman|mehmed|byzant|1453/i, ['byzantine', 'ottoman']],
+  [/gaul|alesia|vercinget|celt|brennus|allia/i, ['roman', 'gaul']],
+  [/pyrrh|greek|macedon|hoplite|sparta|athen/i, ['roman', 'greek']],
+  [/german|teutoburg|goth|vandal|visigoth|odoacer|adrianople|hun|barbarian|frank/i, ['roman', 'germanic']],
+];
+/** The two armies a battle before firearms most likely shows, from the beat's place and narration. */
+export function sidesFromText(text) { for (const [re, sides] of SIDE_HINTS) if (re.test(text || '')) return sides; return null; }
+/** Ancient when the story says so (ctx.era) or any faction asked for is from before firearms. */
+export function isAncient(ctx) { return ctx?.era === 'ancient' || (Array.isArray(ctx?.factions) && ctx.factions.some((f) => FACTIONS[f]?.ancient)); }
 /** The two sides of a battle: ctx.factions when given, else a plausible pair. */
 function battleSides(E) {
-  const f = Array.isArray(E.ctx.factions) ? E.ctx.factions : [], pairs = [['french', 'pavn'], ['us_army', 'pavn'], ['us_marine', 'viet_cong'], ['arvn', 'viet_cong']];
+  const f = soldierFactions(E).length ? soldierFactions(E) : (E.ctx.sides || []);
+  const pairs = E.ancient ? [['roman', 'carthaginian'], ['roman', 'gaul'], ['roman', 'germanic']] : [['french', 'pavn'], ['us_army', 'pavn'], ['us_marine', 'viet_cong'], ['arvn', 'viet_cong']];
   const d = E.pick(pairs);
   return [f[0] || d[0], f[1] || (f[0] && f[0] === d[1] ? d[0] : d[1])];
 }
@@ -696,6 +754,7 @@ const BUILD = {
   },
 
   battle(E) {
+    if (E.ancient) return ancientBattle(E);
     const { r, n } = E, R = n * 0.36, gap = E.rr(14, 22), ax = E.rr(-6, 6), aggressor = E.pick([[86, 96, 60], [100, 92, 62]]), defender = E.pick([[116, 106, 78], [96, 82, 58]]);
     const sides = battleSides(E);
     // no man's land craters
@@ -909,11 +968,247 @@ function placeSigns(E, texts) {
 
 /** Build a set. Unknown recipes become 'village' (a set never stops a render). `ctx` also carries optional story data:
  *  factions (['us_marine', 'pavn']), names (['Gen. Karch']), signs (['WELCOME']). */
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Landmarks: real places as block models (lib/landmarks.mjs names them). Each returns a definition centred on (0, 0), built
+// up from y = 0; buildSet places it at the set's centre before the recipe so streets and crowds fill in around it.
+// ---------------------------------------------------------------------------------------------------------------------
+const STONE = [214, 204, 180], MARBLE = [236, 232, 222], TRAVERTINE = [206, 186, 150];
+function ringParts(parts, rx, rz, y, h, k, sz, c, gapEvery = 0) {
+  for (let i = 0; i < k; i++) {
+    if (gapEvery && i % gapEvery === 1) continue;
+    const a = (i / k) * PI * 2, x = Math.cos(a) * rx, z = Math.sin(a) * rz;
+    const seg = (2 * PI * Math.sqrt((rx * rx + rz * rz) / 2)) / k + 0.05;
+    parts.push(P(x, y, z, sz, h, seg, c, -a));
+  }
+}
+function columnsRow(parts, x0, x1, z, n, y, h, c, along = 'x') {
+  for (let i = 0; i < n; i++) { const t = n === 1 ? 0.5 : i / (n - 1), u = x0 + (x1 - x0) * t; parts.push(along === 'x' ? P(u, y, z, 0.9, h, 0.9, c) : P(z, y, u, 0.9, h, 0.9, c)); }
+}
+function pediment(parts, x, y, w, d, c, along = 'z') {   // stepped triangle roof over a portico
+  for (let k = 0; k < 4; k++) parts.push(along === 'z' ? P(x, y + k * 0.5, 0, d, 0.5, w - k * (w / 4.5), c) : P(0, y + k * 0.5, x, w - k * (w / 4.5), 0.5, d, c));
+}
+const LM = {
+  colosseum(E) {
+    const parts = [], rx = 26, rz = 21, k = 64, tier = 3.2;
+    for (let t = 0; t < 4; t++) {   // three arcaded tiers and a solid attic; arches = gaps between piers
+      const y = t * tier, h = t === 3 ? 2.2 : tier - 0.5, c = E.vary(TRAVERTINE, 0.04);
+      if (t < 3) { for (let i = 0; i < k; i++) { const a = (i / k) * PI * 2; parts.push(P(Math.cos(a) * rx, y, Math.sin(a) * rz, 1.4, h, 1.0, c, -a)); } ringParts(parts, rx, rz, y + h, 0.5, k, 1.5, mul(c, 0.92)); }
+      else ringParts(parts, rx, rz, y, h, k, 1.4, c);
+    }
+    for (let s = 0; s < 6; s++) ringParts(parts, rx - 2 - s * 1.6, rz - 2 - s * 1.6, 0, 9 - s * 1.4, 56, 1.7, s % 2 ? [176, 160, 132] : [190, 174, 146]);   // seating steps
+    parts.push(P(0, 0, 0, (rx - 12) * 2, 0.2, (rz - 12) * 2, C.sand));   // arena
+    return { w: rx * 2 + 2, d: rz * 2 + 2, h: 13, parts, landmark: true };
+  },
+  temple(E) {
+    const parts = [], w = 14, d = 24, ph = 2.4, ch = 7, c = MARBLE;
+    parts.push(P(0, 0, 0, d, ph, w, mul(c, 0.9)));
+    for (let s = 0; s < 4; s++) parts.push(P(d / 2 + 0.6 + s * 0.6, 0, 0, 1.2, ph - s * 0.6, w * 0.7, mul(c, 0.95)));   // front steps
+    columnsRow(parts, -d / 2 + 1, d / 2 - 1, w / 2 - 1, 10, ph, ch, c); columnsRow(parts, -d / 2 + 1, d / 2 - 1, -w / 2 + 1, 10, ph, ch, c);
+    columnsRow(parts, -w / 2 + 3, w / 2 - 3, d / 2 - 1, 4, ph, ch, c, 'z'); columnsRow(parts, -w / 2 + 3, w / 2 - 3, -d / 2 + 1, 4, ph, ch, c, 'z');
+    parts.push(P(-1.5, ph, 0, d - 7, ch, w - 5, [210, 196, 170]));   // cella
+    parts.push(P(0, ph + ch, 0, d + 0.4, 1.2, w + 0.4, c));
+    for (let k = 0; k < 4; k++) parts.push(P(0, ph + ch + 1.2 + k * 0.55, 0, d + 0.2, 0.55, w - k * 3.1, C.roof));
+    return { w: d + 5, d: w + 1, h: ph + ch + 3.5, parts, landmark: true };
+  },
+  pantheon(E) {
+    const parts = [], R = 11, c = [214, 200, 170];
+    ringParts(parts, R, R, 0, 9, 40, 1.6, c);
+    for (let k = 0; k < 6; k++) { const r = R - 0.5 - k * 1.7; ringParts(parts, r, r, 9 + k * 1.1, 1.1, 36, 2.2, [176, 176, 172]); }
+    parts.push(P(0, 9 + 6 * 1.1, 0, 2.5, 0.4, 2.5, [176, 176, 172]));
+    const px = R + 4;   // portico: three rows of eight columns and a pediment
+    for (let r = 0; r < 3; r++) columnsRow(parts, -7, 7, px + r * 2.2 - 2.2, 8, 0, 8, MARBLE, 'z');
+    parts.push(P(px - 0.6, 8, 0, 7.6, 1.0, 16, MARBLE)); pediment(parts, px - 0.6, 9, 16, 7.4, C.roof);
+    return { w: (R + px) + 6, d: R * 2 + 2, h: 16, parts, landmark: true };
+  },
+  palace(E, o = {}) {
+    const parts = [], L = 70, D = 16, fl = 3, H = fl * 3.4, wall = o.c || E.pick([[118, 160, 128], [226, 206, 160], [214, 196, 170], [230, 220, 200]]), trim = MARBLE;
+    parts.push(P(0, 0, 0, D, H, L, wall), P(0, H, 0, D + 0.6, 0.7, L + 0.6, trim), P(0, H + 0.7, 0, D - 2, 1.4, L - 2, [110, 120, 110]));
+    for (const sd of [1, -1]) {   // a dressed front on both long sides: the camera may come from either
+      for (let f = 0; f < fl; f++) for (let i = 0; i < 22; i++) parts.push(P(sd * (D / 2 + 0.05), f * 3.4 + 1.1, -L / 2 + 2 + i * ((L - 4) / 21), 0.1, 1.6, 1.0, [80, 100, 120]));   // windows
+      for (let i = 0; i < 26; i++) parts.push(P(sd * (D / 2 + 0.5), 0, -L / 2 + 1.4 + i * ((L - 2.8) / 25), 0.6, H, 0.6, trim));   // pilasters
+      parts.push(P(sd * (D / 2 + 3), 0, 0, 6, H + 1, 14, wall)); columnsRow(parts, -6, 6, sd * (D / 2 + 5.6), 6, 0, H, trim, 'z'); pediment(parts, sd * (D / 2 + 3), H + 1, 14, 6.2, trim);
+    }
+    for (const z of [-L / 2 - 6, L / 2 + 6]) parts.push(P(0, 0, z, D + 12, H, 12, wall), P(0, H, z, D + 12.6, 0.7, 12.6, trim));   // wings
+    for (let i = 0; i < 12; i++) parts.push(P(-D / 2 - 0.3, H + 0.7, -L / 2 + 3 + i * 5.8, 0.5, 1.2, 0.5, trim));   // roof statues
+    return { w: D + 26, d: L + 26, h: H + 4, parts, landmark: true };
+  },
+  domed(E, o = {}) {
+    const parts = [], B = 30, H = 10, c = o.c || [200, 150, 120], dome = [150, 156, 160];
+    parts.push(P(0, 0, 0, B, H, B, c), P(0, H, 0, B + 0.6, 0.8, B + 0.6, mul(c, 0.9)));
+    for (const [x, z] of [[B / 2 - 3, 0], [-B / 2 + 3, 0]]) for (let k = 0; k < 3; k++) parts.push(P(x, H + 0.8 + k * 1.1, z, 7 - k * 2, 1.1, 12 - k * 3, dome));   // semi-domes
+    for (let k = 0; k < 7; k++) { const r = 11 - k * 1.55; ringParts(parts, r, r, H + 0.8 + k * 1.3, 1.3, 32, 2.0, k === 0 ? mul(c, 0.95) : dome); }
+    parts.push(P(0, H + 0.8 + 7 * 1.3, 0, 2, 1.4, 2, [200, 170, 70]));
+    if (o.minarets !== false) for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const mx = x * (B / 2 + 3), mz = z * (B / 2 + 3); parts.push(P(mx, 0, mz, 1.6, 22, 1.6, MARBLE), P(mx, 15, mz, 2.4, 0.6, 2.4, MARBLE), P(mx, 22, mz, 1.0, 3, 1.0, dome)); }
+    return { w: B + 9, d: B + 9, h: 26, parts, landmark: true };
+  },
+  cathedral(E) {
+    const parts = [], L = 44, W = 14, H = 13, c = E.pick([[196, 186, 160], [176, 170, 156], [210, 200, 176]]), roof = [96, 110, 116];
+    parts.push(P(-2, 0, 0, L, H, W, c));
+    for (let k = 0; k < 5; k++) parts.push(P(-2, H + k * 1.2, 0, L, 1.2, W - k * 2.8, roof));   // pitched roof
+    parts.push(P(2, 0, 0, 12, H * 0.9, W + 16, c)); for (let k = 0; k < 4; k++) parts.push(P(2, H * 0.9 + k * 1.2, 0, 12 - k * 2.8, 1.2, W + 16, roof));   // transept
+    for (const z of [W / 2 - 2.5, -W / 2 + 2.5]) { parts.push(P(L / 2 - 2, 0, z, 6, 26, 6, c)); for (let k = 0; k < 4; k++) parts.push(P(L / 2 - 2, 26 + k * 2, z, 4.4 - k, 2, 4.4 - k, roof)); }   // towers and spires
+    for (let i = 0; i < 9; i++) for (const z of [W / 2 + 1.2, -W / 2 - 1.2]) parts.push(P(-L / 2 + 4 + i * 4.4, 0, z, 1.2, H * 0.8, 1.6, mul(c, 0.9)));   // buttresses
+    parts.push(P(L / 2 + 1.05, H * 0.55, 0, 0.1, 3.6, 3.6, [150, 60, 110]));   // rose window
+    return { w: L + 6, d: W + 18, h: 34, parts, landmark: true };
+  },
+  castle(E) {
+    const parts = [], S = 34, wh = 6, c = E.pick([[150, 146, 138], [176, 166, 146]]);
+    for (const [x, z, sx, sz] of [[S / 2, 0, 1.6, S], [-S / 2, 0, 1.6, S], [0, S / 2, S, 1.6], [0, -S / 2, S, 1.6]]) {
+      parts.push(P(x, 0, z, sx, wh, sz, c));
+      const n = 12; for (let i = 0; i < n; i++) { const t = -0.5 + (i + 0.5) / n; parts.push(P(x + (sx > 2 ? t * sx : 0), wh, z + (sz > 2 ? t * sz : 0), sx > 2 ? 1.2 : 1.8, 0.9, sz > 2 ? 1.2 : 1.8, c)); }
+    }
+    for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) parts.push(P(x * S / 2, 0, z * S / 2, 4.6, wh + 3.5, 4.6, mul(c, 1.04)), P(x * S / 2, wh + 3.5, z * S / 2, 5.2, 0.9, 5.2, c));
+    parts.push(P(-3, 0, 0, 11, 15, 11, mul(c, 1.06)), P(-3, 15, 0, 12, 1, 12, c), P(S / 2 + 0.2, 0, 0, 0.4, 3.6, 3.4, C.wood));
+    return { w: S + 6, d: S + 6, h: 16, parts, landmark: true };
+  },
+  wall(E) {
+    const parts = [], L = 150, c = [168, 160, 142];
+    parts.push(P(0, 0, 0, 2.2, 3.4, L, c));
+    for (let i = 0; i < 40; i++) parts.push(P(0, 3.4, -L / 2 + 1.8 + i * (L - 3.6) / 39, 2.4, 0.7, 1.2, c));
+    parts.push(P(-3.5, 0, 0, 9, 4.2, 9, mul(c, 1.05)), P(-3.5, 4.2, 0, 9.4, 0.5, 9.4, c), P(1.6, 0, 0, 1, 2.6, 2.4, C.wood));   // milecastle and gate
+    parts.push(P(-9, 0.02, 0, 3, 0.4, L, [110, 92, 70]));   // the ditch line
+    return { w: 14, d: L, h: 5, parts, landmark: true };
+  },
+  arch(E) {
+    const parts = [], W = 13, D = 5, H = 11, c = MARBLE;
+    parts.push(P(0, 0, W / 2 - 1.8, D, 7, 3.6, c), P(0, 0, -W / 2 + 1.8, D, 7, 3.6, c), P(0, 7, 0, D, 2.4, W, c), P(0, 9.4, 0, D + 0.4, 1.6, W + 0.4, mul(c, 0.94)));
+    for (const z of [W / 2 - 0.4, W / 2 - 3.2, -W / 2 + 0.4, -W / 2 + 3.2]) parts.push(P(D / 2 + 0.4, 0, z, 0.8, 7, 0.8, mul(c, 0.96)));
+    parts.push(P(0, H, 0, 2, 1.2, 4, [176, 150, 80]));
+    return { w: D + 4, d: W + 4, h: H + 1.5, parts, landmark: true };
+  },
+  pyramid(E) {
+    const parts = [], B = 46, steps = 18, c = [216, 190, 134];
+    for (let k = 0; k < steps; k++) { const s = B * (1 - k / steps); parts.push(P(0, k * 1.35, 0, s, 1.35, s, E.vary(c, 0.03))); }
+    return { w: B + 2, d: B + 2, h: steps * 1.35, parts, landmark: true };
+  },
+  column(E) {
+    const parts = [P(0, 0, 0, 5, 3, 5, MARBLE)];
+    for (let k = 0; k < 12; k++) parts.push(P(0, 3 + k * 1.6, 0, 2.2, 1.6, 2.2, k % 2 ? [226, 220, 206] : MARBLE));
+    parts.push(P(0, 22.2, 0, 3, 0.8, 3, MARBLE), P(0, 23, 0, 0.9, 2.2, 0.9, [176, 150, 80]));
+    return { w: 7, d: 7, h: 25.5, parts, landmark: true };
+  },
+};
+LM.mosque = (E) => LM.domed(E, { c: [226, 220, 206], minarets: true });
+/** The flattest spot near the set's centre for a footprint w x d (layout offsets tried outward); the centre when none is flat. */
+function flatSpot(E, w, d) {
+  const steps = [0, 0.08, -0.08, 0.16, -0.16, 0.24, -0.24];
+  for (const a of steps) for (const b of steps) { const [x, z] = E.toW(a * E.n, b * E.n), f = E.fp(x, z, w, d, E.A, { slope: 2.5, noocc: true }); if (f) return [a * E.n, b * E.n]; }
+  return [0, 0];
+}
+/** Place a landmark at the set's centre, levelled on a plinth whatever the slope, and make it the set's focus. */
+function placeLandmark(E, name) {
+  const def = (LM[name] || LM.temple)(E), hd = name === 'wall' ? 0 : E.pick([0, PI / 2, PI, -PI / 2]) * 0;
+  const [lu, lv] = flatSpot(E, def.w * 0.9, def.d * 0.9), [x, z] = E.toW(lu, lv), f = E.fp(x, z, def.w * 0.9, def.d * 0.9, E.A + hd, { slope: 1e9, noocc: true });
+  if (!f) return false;
+  E.compose([[0, -(f.hi - f.lo) - 0.2, 0, def.w * 0.9, f.hi - f.lo + 0.3, def.d * 0.9, [190, 180, 160], 0], ...def.parts], x, z, f.hi, E.A + hd);   // plinth, then the model
+  E.take(x, z, Math.hypot(def.w, def.d) * 0.48);
+  E.landmarkAt = [x, z];
+  return true;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Indoor scenes: a room seen from above with low cut-away walls (a doll's house), people sitting and standing in it.
+// ---------------------------------------------------------------------------------------------------------------------
+function room(E, W, D, floorA, floorB, wallC, o = {}) {
+  [E.ru, E.rv] = flatSpot(E, W + 4, D + 4);
+  const [cx, cz] = E.toW(E.ru, E.rv), f = E.fp(cx, cz, W + 4, D + 4, E.A, { slope: 1e9, noocc: true });
+  const y0 = f ? f.hi + 0.4 : E.G(cx, cz).y + 0.4, parts = [];
+  parts.push([0, -(f ? f.hi - f.lo : 0) - 0.4, 0, W + 4, (f ? f.hi - f.lo : 0) + 0.4, D + 4, mul(wallC, 0.8), 0]);   // the building's footing
+  for (let i = 0; i < W / 2; i++) for (let j = 0; j < D / 2; j++) parts.push([-W / 2 + 1 + i * 2, 0, -D / 2 + 1 + j * 2, 2, 0.12, 2, (i + j) % 2 ? floorA : floorB, 0]);   // tiled floor
+  const wh = o.wallH ?? 2.6;
+  for (const [x, z, sx, sz] of [[0, D / 2 + 0.5, W + 2, 1], [0, -D / 2 - 0.5, W + 2, 1], [W / 2 + 0.5, 0, 1, D], [-W / 2 - 0.5, 0, 1, D]]) parts.push([x, 0, z, sx, wh, sz, wallC, 0]);
+  for (let i = 0; i < Math.floor(W / 4); i++) for (const z of [D / 2 + 0.5, -D / 2 - 0.5]) parts.push([-W / 2 + 2 + i * 4, 0, z, 0.9, wh + 0.4, 1.3, mul(wallC, 1.08), 0]);   // pilasters
+  for (let i = 0; i < Math.floor(W / 4) - 1; i++) parts.push([-W / 2 + 4 + i * 4, wh * 0.35, D / 2 + 0.02, 1.6, wh * 0.55, 0.1, o.windows || [120, 150, 180], 0]);   // windows / paintings on the far wall
+  E.compose(parts, cx, cz, y0, E.A);
+  E.take(cx, cz, Math.hypot(W, D) * 0.5 + 1);
+  E.focus = [cx, cz];
+  return y0;
+}
+/** People inside a room (layout coords relative to the room centre), at floor height y0. */
+function indoorPerson(E, u, v, th, kind, faction, pose, y0) {
+  const [x, z] = E.toW(u + (E.ru || 0), v + (E.rv || 0)), parts = figure(kind, { faction, pose, seed: Math.floor(E.r() * 1e9) });
+  E.compose(toBoxParts(parts), x, z, y0 + 0.12, E.A + th);
+}
+function furniture(E, u, v, th, parts, y0) { const [x, z] = E.toW(u + (E.ru || 0), v + (E.rv || 0)); E.compose(parts, x, z, y0 + 0.12, E.A + th); }
+const INDOOR = {
+  hall(E) {
+    if (E.ancient) {   // a senate: stone floor, tiers of benches down both long sides full of senators, the consuls' chairs at the end
+      const W = 40, D = 28, y0 = room(E, W, D, [214, 206, 188], [190, 180, 160], [206, 196, 172], { windows: [170, 150, 120] });
+      for (const side of [-1, 1]) for (let t = 0; t < 3; t++) {
+        const v = side * (D / 2 - 2 - t * 2.4);
+        furniture(E, 0, v, 0, [[0, 0, 0, W - 8, 0.5 + t * 0.4, 1.6, [176, 160, 132], 0]], y0);
+        for (let i = 0; i < 14; i++) indoorPerson(E, -W / 2 + 6 + i * ((W - 12) / 13) + E.rr(-0.3, 0.3), v - side * 0.2, side > 0 ? PI / 2 : -PI / 2, 'civilian', 'senator', 'sitting', y0 + 0.5 + t * 0.4);
+      }
+      furniture(E, -W / 2 + 3, 0, 0, [[0, 0, 0, 3, 0.8, 6, [150, 120, 80], 0], [0, 0.8, -1.2, 1, 1.2, 1, [196, 170, 80], 0], [0, 0.8, 1.2, 1, 1.2, 1, [196, 170, 80], 0]], y0);
+      indoorPerson(E, -W / 2 + 3, -1.2, 0, 'civilian', 'senator', 'sitting', y0 + 0.8); indoorPerson(E, -W / 2 + 3, 1.2, 0, 'civilian', 'senator', 'sitting', y0 + 0.8);
+      for (let i = 0; i < 3; i++) indoorPerson(E, -2 + i * 2, E.rr(-2, 2), PI, 'civilian', 'senator', 'standing', y0);   // a speaker and two listeners on the floor
+    } else {           // a treaty hall: a long table under the windows, delegates seated both sides, witnesses standing along the walls
+      const W = 44, D = 30, y0 = room(E, W, D, [150, 40, 40], [130, 32, 34], [226, 214, 186], { windows: [196, 176, 110] });
+      furniture(E, 0, 0, 0, [[0, 0, 0, 24, 0.9, 3, [70, 110, 70], 0], [0, 0.9, 0, 24.2, 0.08, 3.2, [60, 96, 60], 0]], y0);
+      for (let i = 0; i < 10; i++) for (const side of [-1, 1]) {
+        const u = -10.8 + i * 2.4, v = side * 2.2;
+        furniture(E, u, v + side * 0.3, 0, [[0, 0, 0, 0.8, 0.5, 0.8, [110, 70, 44], 0], [side > 0 ? 0 : 0, 0.5, side * 0.35, 0.8, 0.9, 0.12, [110, 70, 44], 0]], y0);
+        indoorPerson(E, u, v, side > 0 ? PI / 2 : -PI / 2, 'officer', 'civilian', 'sitting', y0 + 0.08);
+      }
+      for (let i = 0; i < 26; i++) { const along = E.chance(0.5); indoorPerson(E, along ? E.rr(-W / 2 + 2, W / 2 - 2) : E.pick([-1, 1]) * (W / 2 - 2), along ? E.pick([-1, 1]) * (D / 2 - 2) : E.rr(-D / 2 + 3, D / 2 - 3), E.rr(0, PI * 2), E.chance(0.6) ? 'officer' : 'civilian', 'civilian', 'standing', y0); }
+      furniture(E, W / 2 - 4, 0, 0, [[0, 0, 0, 6, 0.04, 2.4, [200, 40, 40], 0]], y0);   // carpet to the door
+      for (const v of [-4, 4]) furniture(E, -W / 2 + 1.6, v, 0, [[0, 0, 0, 0.15, 4, 0.15, [200, 180, 80], 0], [0, 2.6, 0.6, 0.06, 1.2, 1.2, E.pick([[40, 70, 160], [190, 40, 40], [240, 240, 240]]), 0]], y0);
+    }
+    scatterTrees(E, 120, { broad: 3, shrub: 2 }, 0.2, { size: 1 });
+  },
+  office(E) {   // a head of state's office: desk, chair, the leader seated, aides standing, bookshelves, a flag and a rug
+    const W = 26, D = 20, y0 = room(E, W, D, [120, 84, 56], [104, 72, 48], [150, 50, 50], { windows: [150, 170, 190] });
+    furniture(E, 0, 0, 0, [[0, 0, 0, 12, 0.05, 9, [170, 40, 44], 0]], y0);   // rug
+    furniture(E, -4, 0, 0, [[0, 0, 0, 2.4, 0.9, 5, [80, 50, 30], 0], [0, 0.9, 0, 2.6, 0.08, 5.2, [60, 36, 22], 0], [0.2, 0.98, -1.2, 0.7, 0.04, 0.9, [236, 236, 230], 0], [0.1, 0.98, 1.4, 0.3, 0.4, 0.3, [40, 40, 40], 0]], y0);
+    furniture(E, -6.2, 0, 0, [[0, 0, 0, 1, 0.5, 1, [60, 40, 30], 0], [-0.45, 0.5, 0, 0.1, 1.2, 1, [60, 40, 30], 0]], y0);
+    indoorPerson(E, -6.0, 0, 0, E.ancient ? 'civilian' : 'officer', E.ancient ? 'senator' : 'civilian', 'sitting', y0 + 0.08);
+    for (let i = 0; i < E.ri(2, 4); i++) indoorPerson(E, E.rr(-1, 3), E.rr(-3.5, 3.5), PI + E.rr(-0.4, 0.4), E.ancient ? 'civilian' : E.chance(0.5) ? 'officer' : 'soldier', E.ancient ? 'senator' : 'civilian', 'standing', y0);
+    for (let i = 0; i < 5; i++) { const parts = [[0, 0, 0, 0.8, 3, 2.6, [96, 64, 40], 0]]; for (let s = 0; s < 4; s++) for (let b = 0; b < 4; b++) parts.push([0.42, 0.3 + s * 0.7, -0.9 + b * 0.6, 0.06, 0.5, 0.45, E.pick([[150, 40, 40], [40, 70, 120], [60, 110, 60], [190, 160, 90]]), 0]); furniture(E, -W / 2 + 0.6, -D / 2 + 3 + i * 3.4, 0, parts, y0); }
+    furniture(E, -W / 2 + 1.2, D / 2 - 2, 0, [[0, 0, 0, 0.15, 3.6, 0.15, [200, 180, 80], 0], [0, 2.4, 0.6, 0.06, 1.2, 1.2, E.pick([[40, 70, 160], [190, 40, 40], [40, 120, 60]]), 0]], y0);
+    furniture(E, 6, 0, 0, [[0, 0, 0, 2, 0.6, 5, [110, 90, 70], 0], [0.8, 0.6, 0, 0.4, 0.6, 5, [110, 90, 70], 0]], y0);   // sofa
+    scatterTrees(E, 120, { broad: 3, shrub: 2 }, 0.2, { size: 1 });
+  },
+};
+
+/** A battle before firearms: two armies in close order facing each other across a narrow gap, front ranks clashing with levelled
+ *  spears, reserves in blocks behind, cavalry on the wings, standards, catapults and a camp at the rear, war elephants for Carthage,
+ *  dust and burning carts instead of shell blasts. The camera's focus is the clash. */
+function ancientBattle(E) {
+  const { n } = E, R = n * 0.3, gap = E.rr(5, 8), sides = battleSides(E);
+  E.focus = E.toW(0, 0);
+  // trampled ground in the middle
+  for (let i = 0; i < E.ri(30, 50); i++) { const [x, z] = E.toW(E.rr(-R, R), E.rr(-gap * 1.6, gap * 1.6)); crater(E, x, z, E.rr(0.6, 1.4)); }
+  [{ v: -gap, dir: -1, fac: sides[0] }, { v: gap, dir: 1, fac: sides[1] }].forEach((s, k) => {
+    const face = -s.dir * PI / 2, per = Math.floor(R * 1.6 / 1.0);
+    // the clash: front ranks with levelled spears, a second line close behind
+    group(E, 0, s.v + s.dir * 1.2, 'line', KA(E, 40, 60), { faction: s.fac, th: face, maxLine: per, poses: { aiming: 4, standing: 1, walking: 1 }, spacing: 1.0 });
+    group(E, 0, s.v + s.dir * 4.2, 'line', KA(E, 30, 46), { faction: s.fac, th: face, maxLine: per, poses: { standing: 3, walking: 1 }, officers: 0.04, spacing: 1.0 });
+    // reserve blocks (maniples / warbands) in a chequer behind the line
+    for (let b = -2; b <= 2; b++) group(E, b * R * 0.36 + (k ? 3 : -3), s.v + s.dir * E.rr(11, 15), 'ranks', KA(E, 14, 22), { faction: s.fac, th: face, officers: 0.06, spacing: 1.0 });
+    // fallen
+    group(E, E.rr(-R * 0.5, R * 0.5), s.v * 0.3, 'scatter', KA(E, 4, 8), { faction: s.fac, th: face, poses: { prone: 1 } });
+    // cavalry on both wings, standards, siege engines and a camp behind
+    for (const side of [-1, 1]) for (let i = 0; i < E.ri(4, 7); i++) E.putL(D.horse(E, s.fac), side * (R * 0.95 + E.rr(-4, 6)), s.v + s.dir * E.rr(2, 12), face + E.rr(-0.3, 0.3), {});
+    for (let i = 0; i < 4; i++) E.putL({ w: 0.6, d: 0.6, h: 4.2, parts: [P(0, 0, 0, 0.12, 3.6, 0.12, C.wood), P(0, 3.4, 0, 0.1, 0.6, 0.7, FACTIONS[s.fac]?.shieldC || C.olive), P(0, 4.0, 0, 0.3, 0.3, 0.3, [200, 170, 70])] }, (i - 1.5) * R * 0.4, s.v + s.dir * 8, 0, {});
+    for (let i = 0; i < E.ri(1, 3); i++) E.putL(D.catapult(E), E.rr(-R * 0.6, R * 0.6), s.v + s.dir * E.rr(20, 26), face, {});
+    if (s.fac === 'carthaginian') for (let i = 0; i < E.ri(3, 5); i++) E.putL(D.elephant(E), E.rr(-R * 0.7, R * 0.7), s.v + s.dir * E.rr(5, 9), face, {});
+    for (let i = 0; i < E.ri(4, 8); i++) E.putL(D.tent(E), E.rr(-R, R), s.v + s.dir * E.rr(30, 40), E.rr(0, PI), {});
+    marchRoute(E, E.rr(-R * 0.3, R * 0.3), s.v + s.dir * E.rr(17, 22), s.dir > 0 ? 0 : PI, KA(E, 6, 10), s.fac, { officer: true });
+  });
+  // dust and burning carts: always moving, no gunpowder
+  for (let i = 0; i < E.ri(3, 5); i++) { const [x, z] = E.toW(E.rr(-R, R), E.rr(-gap * 2, gap * 2)); smoke(E, x, z, E.rr(0.4, 0.9), { big: E.rr(0.8, 1.3) }); if (i < 2) { const g = E.G(x, z); E.emitters.push({ kind: 'fire', x, y: g.y + 0.1, z }); } }
+  scatterTrees(E, 100, { broad: 2, shrub: 3 }, 0.1, { size: 0.9 });
+}
+
 export function buildSet(recipe, seed = 1, n = 240, ctx = FLAT) {
-  const name = BUILD[recipe] ? recipe : 'village';
+  const name = BUILD[recipe] || INDOOR[recipe] ? recipe : 'village';
   ctx = ctx || FLAT;
   const E = makeEnv(name, seed, n, ctx);
-  BUILD[name](E);
+  // a real place first (its ground is reserved), then the recipe fills in around it; rooms have no landmark
+  const lm = !INDOOR.hasOwnProperty(name) && ctx.landmark && LM[ctx.landmark] ? placeLandmark(E, ctx.landmark) : false;
+  (BUILD[name] || INDOOR[name])(E);
+  if (lm) E.focus = E.landmarkAt;
   // a set is never empty (guards a fully-blocked ctx): scatter low scrub as filler
   if (E.boxes.length < 100) scatterTrees(E, 4000, { shrub: 3, broad: 1 }, 1);
   if (E.boxes.length < 100) for (let i = 0; i < 100 - E.boxes.length + 20; i++) { const x = E.rr(1, n - 1), z = E.rr(1, n - 1); E.box(x, z, E.G(x, z).y, 0.6, 0.4, 0.6, C.leaf); }
@@ -922,7 +1217,7 @@ export function buildSet(recipe, seed = 1, n = 240, ctx = FLAT) {
   // walking columns last, so they never push another emitter out of the 600-particle budget; trimmed to fit what is left
   let used = E.emitters.reduce((a, em) => a + maxOf(em), 0);
   for (const m of E.marches) { const room = Math.floor((600 - used) / PART_MAX); if (room < 3) break; m.count = Math.min(m.count, room); m.kinds.length = m.count; used += maxOf(m); E.emitters.push(m); }
-  return { recipe: name, n, boxes: E.boxes, emitters: E.emitters, labels, signs };
+  return { recipe: name, n, boxes: E.boxes, emitters: E.emitters, labels, signs, focus: E.focus, landmark: lm ? ctx.landmark : null };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

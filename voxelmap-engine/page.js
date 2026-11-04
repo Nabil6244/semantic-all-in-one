@@ -11,7 +11,7 @@ import { makeGeo } from '/lib/geo.mjs';
 import { buildCells, buildChunk, SUN } from '/lib/terrain_mesh.mjs';
 import { cameraAt, placeCamera } from '/lib/camera3d.mjs';
 import { tintTable, blendTables, TINT_SIZE } from '/lib/territory.mjs';
-import { buildSet, particlesAt, FINE, equipmentModel } from '/lib/props.mjs';
+import { buildSet, particlesAt, FINE, equipmentModel, sidesFromText } from '/lib/props.mjs';
 import { at } from '/lib/timeline.mjs';
 import { drawHud } from '/lib/hud.mjs';
 import { LEVELS, TILE_BLOCKS, wantedTiles, parentKey, sampleHeight, tileKey } from '/lib/lod.mjs';
@@ -321,7 +321,10 @@ async function main() {
     const oc = buildChunk(outer.cells, new Uint16Array(outer.N * outer.N), outer.N, outer.N, 0, 0, outer.N, outer.N, outer.edgeFloor);
     const og = geometryOf(oc); og.boundingSphere = new THREE.Sphere(new THREE.Vector3(outer.N / 2, 0, outer.N / 2), outer.N * 4);
     const omesh = new THREE.Mesh(og, terrainMat(OU, 3)); omesh.scale.set(1 / OU, 1 / DIO, 1 / OU); omesh.position.set(outer.x0, outer.meshY, outer.z0); omesh.visible = false; scene.add(omesh);
-    const ctx = { ground: dio.ground, factions: sb.factions || undefined, names: sb.names || [], signs: sb.signs || [] };
+    // before firearms (a story year before 1800): Roman-era armies and kit; the two sides from the place and narration
+    const year = Number(String(sb.date || '').slice(0, -3)), era = Number.isFinite(year) && year < 1800 ? 'ancient' : undefined;
+    const ctx = { ground: dio.ground, factions: sb.factions || undefined, names: sb.names || [], signs: sb.signs || [], era, landmark: sb.landmark || undefined,
+      sides: era ? sidesFromText(`${sb.place || ''} ${(sb.sentences || []).join(' ')}`) || undefined : undefined };
     const set = buildSet(b.site, b.seed, DIO_SET_N, ctx);
     const smat = blockTextured(new THREE.MeshLambertMaterial(), DIO);
     const mesh = new THREE.InstancedMesh(unit, smat, Math.max(1, set.boxes.length));
@@ -351,7 +354,9 @@ async function main() {
       const i = Math.floor((x - dio.x0) * DIO), j = Math.floor((z - dio.z0) * DIO), tp = tops[j * dio.N + i];
       return tp > -1e8 ? Math.max(hgt, dio.meshY + tp / DIO) : hgt;
     };
-    sites.push({ beat: b, set, dio, outer, dmesh, omesh, mesh, smat, signs, clearAt, labels: set.labels || [], center: new THREE.Vector3(p.x, ch, p.z), dk: 0 });
+    // where the set's action is (its focus: the clash, the market, the landmark, the room), as an offset from the diorama centre
+    const fw = set.focus ? dio.toWorld(set.focus[0], 0, set.focus[1]) : null, focusOff = fw ? { x: fw.x - p.x, z: fw.z - p.z } : { x: 0, z: 0 };
+    sites.push({ beat: b, set, dio, outer, dmesh, omesh, mesh, smat, signs, clearAt, labels: set.labels || [], center: new THREE.Vector3(p.x, ch, p.z), dk: 0, focusOff });
   }
   stats.dioramas = sites.length;
   window.__stage = 'sets built';
@@ -419,8 +424,8 @@ async function main() {
   // place tags: story labels plus set names
   const tagPts = story.labels.map((l) => { const p = geo.toWorld(l.lon, l.lat); return { ...l, v: new THREE.Vector3(p.x, ground(p.x, p.z) + 0.6, p.z) }; });
   for (const s of sites) {
-    tagPts.push({ name: story.beats[s.beat.i].place, kind: 'site', min_alt: 0, max_alt: 40, v: new THREE.Vector3(s.center.x, s.center.y + 40 / DIO, s.center.z - 60 / DIO) });
-    for (const l of s.labels) { const wp = s.dio.toWorld(l.x, l.y, l.z); tagPts.push({ name: l.text, kind: 'person', min_alt: 0, max_alt: 0.6, v: new THREE.Vector3(wp.x, wp.y, wp.z) }); }
+    tagPts.push({ site: s, name: story.beats[s.beat.i].place, kind: 'site', min_alt: 0, max_alt: 40, v: new THREE.Vector3(s.center.x, s.center.y + 40 / DIO, s.center.z - 60 / DIO) });
+    for (const l of s.labels) { const wp = s.dio.toWorld(l.x, l.y, l.z); tagPts.push({ site: s, name: l.text, kind: 'person', min_alt: 0, max_alt: 0.6, v: new THREE.Vector3(wp.x, wp.y, wp.z) }); }
   }
 
   const legendAt = (t) => { const s = at(tl.territory, t); const st = s && story.territories.find((x) => x.key === s.key); return st ? st.legend : []; };
@@ -438,22 +443,33 @@ async function main() {
   const aim = cfg.aimGround;
   const aimAt = (t) => { if (!aim) return null; const f = clamp(t / aim.dt, 0, aim.values.length - 1), i = Math.floor(f), j = Math.min(i + 1, aim.values.length - 1); return aim.values[i] + (aim.values[j] - aim.values[i]) * (f - i); };
   /** The diorama a camera state is over, and how far it has taken over (0..1). */
-  function dioramaAt(c) {
+  function currentBeat(t) { let cur = -1; for (const b of tl.beats) if ((b.travelT0 + b.travelT1) / 2 <= t) cur = b.i; else break; return cur; }
+  function dioramaAt(c, t) {
     const tw = geo.toWorld(c.lon, c.lat);
-    let best = null, k = 0;
+    // several scenes can stand on one spot (a story set in one city): the story's current beat decides which one shows. It changes
+    // half-way through the move into a beat, at the top of the arc, where no diorama is drawn.
+    const cur = currentBeat(t);
+    let best = null, k = 0, bestRank = -1e9;
     for (const s of sites) {
       const d = Math.hypot(s.center.x - tw.x, s.center.z - tw.z), kk = dioramaWeight(c.alt) * (1 - smooth(0.45, 1.4, d));
-      if (kk > k) { k = kk; best = s; }
+      if (kk <= 0) continue;
+      // the current beat's own set first; then the latest one already passed; then the next ones in order
+      const rank = s.beat.i === cur ? 1e6 : s.beat.i < cur ? s.beat.i : -s.beat.i;
+      if (rank > bestRank) { bestRank = rank; k = kk; best = s; }
     }
     return { site: best, k };
   }
   function placeAt(t) {
     // the camera aims at the smoothed ground of render.mjs's table (never at a raw block height, which steps); over a
     // diorama it aims at, and keeps clear of, the diorama's own surface
-    const c = cameraAt(tl.camera, t), dz0 = dioramaAt(c), g = aimAt(t);
-    const tw = geo.toWorld(c.lon, c.lat), dioH = dz0.site ? dz0.site.dio.heightAt(tw.x, tw.z) : null;
+    const c = cameraAt(tl.camera, t), dz0 = dioramaAt(c, t), g = aimAt(t);
+    // over a diorama the whole framing slides onto the set's focus, as far as the diorama has taken over (the director only
+    // knows the beat's point; the set decides where its action stands)
+    const fo = dz0.site ? dz0.site.focusOff : { x: 0, z: 0 }, ox = fo.x * dz0.k, oz = fo.z * dz0.k;
+    const tw0 = geo.toWorld(c.lon, c.lat), tw = { x: tw0.x + ox, z: tw0.z + oz }, dioH = dz0.site ? dz0.site.dio.heightAt(tw.x, tw.z) : null;
     const aimY = (g == null ? ground(tw.x, tw.z) : g) * (1 - dz0.k) + (dioH ?? g ?? 0) * dz0.k;
     const pl = placeCamera(c, geo, () => aimY);
+    pl.pos.x += ox; pl.pos.z += oz; pl.target.x += ox; pl.target.z += oz;
     let near = 0;
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) near = Math.max(near, ground(pl.pos.x + dx * 0.15, pl.pos.z + dz * 0.15));
     // the coarse terrain's own floor fades out as a diorama takes over (render.mjs's table already does the same)
@@ -584,10 +600,13 @@ async function main() {
     if (S !== 1) { camera.position.set(pl.pos.x, pl.pos.y, pl.pos.z); camera.up.set(pl.up.x, pl.up.y, pl.up.z); camera.updateProjectionMatrix(); camera.lookAt(pl.target.x, pl.target.y, pl.target.z); camera.updateMatrixWorld(); }
     g2.drawImage(glc, 0, 0);
     const v = new THREE.Vector3();
+    const curB = currentBeat(t);
     const tags = tagPts.map((l) => {
       v.copy(l.v).project(camera);
       const inView = v.z < 1 && Math.abs(v.x) < 1.05 && Math.abs(v.y) < 1.05;
-      const a = inView ? smooth(l.min_alt * 0.7, l.min_alt, c.alt) * (1 - smooth(l.max_alt, l.max_alt * 1.4, c.alt)) : 0;
+      // scenes sharing a spot share a name tag's place: only the current beat's name shows
+      const hidden = l.site && l.site.beat.i !== curB && sites.some((o) => o !== l.site && Math.hypot(o.center.x - l.site.center.x, o.center.z - l.site.center.z) < 1.4);
+      const a = inView && !hidden ? smooth(l.min_alt * 0.7, l.min_alt, c.alt) * (1 - smooth(l.max_alt, l.max_alt * 1.4, c.alt)) : 0;
       return { name: l.name, kind: l.kind, x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H, a };
     });
     // museum inset: the object turns slowly while its beat is spoken

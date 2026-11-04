@@ -68,6 +68,11 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                   placeholder_text="Choose the story CSV (format: voxelmap-engine/tools/story_prompt.md)")
     app._path_row(1, "Voice-over", app._vm_voice_var, lambda: _browse(app, "voice"), parent=body,
                   placeholder_text="Your narration (the camera moves fit its pauses). Without it the video has no sound.")
+    tools = ctk.CTkFrame(body, fg_color="transparent")
+    tools.grid(row=3, column=0, sticky="w", pady=(6, 0))
+    app._vm_prompt_status = ctk.StringVar(value="")
+    make_button(tools, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=0, padx=(0, 10))
+    ctk.CTkLabel(tools, textvariable=app._vm_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=1, sticky="w")
     ctk.CTkLabel(body, text="Block-world map of real terrain, globe to ground. Samples: voxelmap-engine/samples/. "
                             "Close-up terrain needs a one-time elevation download: Generate shows its size and asks first.",
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(4, 0))
@@ -108,6 +113,24 @@ def _browse(app: Any, kind: str) -> None:
         var.set(path)   # remembered only: nothing is read or planned until Generate
         app._vm_planned = None
         _sync_buttons(app)
+
+
+
+def copy_csv_prompt(app: Any) -> None:
+    """Put the story-CSV writing prompt on the clipboard (paste it into any AI chat with your topic)."""
+    p = _engine_dir().joinpath(*('tools', 'story_prompt.md'))
+    status = app._vm_prompt_status
+    try:
+        text = p.read_text(encoding="utf-8")
+    except Exception:
+        status.set(f"The CSV prompt is not there yet ({p.name}).")
+        return
+    try:
+        app.clipboard_clear()
+        app.clipboard_append(text)
+        status.set("Copied. Paste it into your AI chat with your topic.")
+    except Exception as exc:  # noqa: BLE001
+        status.set(f"Could not copy: {exc}")
 
 
 def activate(app: Any) -> None:

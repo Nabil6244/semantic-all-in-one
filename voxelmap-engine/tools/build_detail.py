@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -77,17 +78,29 @@ def build_tile(world: dict, level: int, tx: int, tz: int, features) -> Path:
     elev = np.where(land >= 1, np.maximum(elev, 1.0), np.minimum(elev, -1.0))
     c = slice(PAD, PAD + TILE)
     out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "wb") as fh:
+    tmp = out.with_name(out.name + f".{os.getpid()}.tmp")
+    with open(tmp, "wb") as fh:
         fh.write(elev[c, c].astype("<i2").tobytes())
         fh.write(land[c, c].astype(np.uint8).tobytes())
         fh.write(region[c, c].astype("<u2").tobytes())
+    os.replace(tmp, out)
     return out
+
+
+_JOB = None
+
+
+def _build_one(args):
+    world, feats = _JOB
+    build_tile(world, args[0], args[1], args[2], feats)
+    return args
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--world", required=True)
     p.add_argument("--needs", required=True, help="JSON from render.mjs --prepare: {tiles: [{level, tx, tz}]}")
+    p.add_argument("--workers", type=int, default=min(4, os.cpu_count() or 1), help="tiles built at once (default up to 4)")
     a = p.parse_args(argv)
     world = json.loads((HERE / "worlds" / a.world / "meta.json").read_text(encoding="utf-8"))
     needs = json.loads(Path(a.needs).read_text(encoding="utf-8"))["tiles"]
@@ -95,13 +108,29 @@ def main(argv=None) -> int:
     land_f = [f for f in json.load(gzip.open(DATA / "land.json.gz"))["features"] if overlaps(f, wb)]
     adm = [f for f in json.load(gzip.open(DATA / "admin1.json.gz"))["features"] if overlaps(f, wb)]
     index = {id(f): i for i, f in enumerate(adm, start=1)}  # the world's numbering (tools/build_world.py)
+    feats = (land_f, adm, index)
+    todo = [t for t in needs if not (HERE / "worlds" / a.world / f"L{t['level']}" / f"{t['tx']}_{t['tz']}.bin").exists()]
     built = 0
-    for k, t in enumerate(needs):
-        path = HERE / "worlds" / a.world / f"L{t['level']}" / f"{t['tx']}_{t['tz']}.bin"
-        if not path.exists():
-            build_tile(world, t["level"], t["tx"], t["tz"], (land_f, adm, index))
-            built += 1
-        print(json.dumps({"event": "tile", "done": k + 1, "total": len(needs)}), flush=True)
+    workers = max(1, min(a.workers, len(todo)))
+    ctx = None
+    if workers > 1:
+        try:
+            import multiprocessing as mp
+            ctx = mp.get_context("fork")   # workers inherit the loaded shapes; no fork (Windows) -> sequential below
+        except ValueError:
+            ctx = None
+    done_n = len(needs) - len(todo)
+    if ctx is None:
+        for t in todo:
+            build_tile(world, t["level"], t["tx"], t["tz"], feats); built += 1; done_n += 1
+            print(json.dumps({"event": "tile", "done": done_n, "total": len(needs)}), flush=True)
+    else:
+        global _JOB
+        _JOB = (world, feats)
+        with ctx.Pool(workers) as pool:
+            for _ in pool.imap_unordered(_build_one, [(t["level"], t["tx"], t["tz"]) for t in todo]):
+                built += 1; done_n += 1
+                print(json.dumps({"event": "tile", "done": done_n, "total": len(needs)}), flush=True)
     print(json.dumps({"event": "done", "built": built, "total": len(needs)}), flush=True)
     return 0
 

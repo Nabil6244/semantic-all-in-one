@@ -9,9 +9,11 @@ import { chooseShot, shotFrames, direct, RUNG } from './director.mjs';
 
 export { RUNG };
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-export const monthLabel = (d) => `${MON[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}`;
-const monthIndex = (d) => Number(d.slice(0, 4)) * 12 + Number(d.slice(5, 7)) - 1;
-const fromIndex = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
+// Dates are YYYY-MM; a leading minus is a year before the common era ("-0753-04" = APR 753 BC).
+const yearOf = (d) => Number(d.slice(0, d.length - 3)), monthOf = (d) => Number(d.slice(-2));
+export const monthLabel = (d) => { const y = yearOf(d); return `${MON[monthOf(d) - 1]} ${y < 0 ? `${-y} BC` : y < 1000 ? `${y} AD` : y}`; };
+export const monthIndex = (d) => yearOf(d) * 12 + monthOf(d) - 1;
+const fromIndex = (i) => { const y = Math.floor(i / 12); return `${y < 0 ? '-' : ''}${String(Math.abs(y)).padStart(4, '0')}-${String((i % 12 + 12) % 12 + 1).padStart(2, '0')}`; };
 const words = (s) => s.split(/\s+/).filter(Boolean).length;
 
 export const CAPTION_CLEAR_GAP = 8;   // a silence longer than this empties the caption log...
@@ -19,7 +21,10 @@ export const CAPTION_LINGER = 3;      // ...this long after the last word
 export const CARD_HOLD = 4.2;
 export const LIGHTS = ['day', 'dawn', 'sunset', 'night', 'fog'];
 export const DEFAULT_CREDITS = ['Elevation: Terrain Tiles on AWS Open Data (Mapzen Terrarium)', 'Coastlines, countries and provinces: Natural Earth', 'Font: Monocraft by Idrees Hassan (SIL OFL 1.1)'];
-export const MAX_SQUEEZE = 0.15;      // a move may run this much faster than its natural time to fit a real pause
+export const MAX_SQUEEZE = 0.15;
+// A globe beat with a long read leaves after this many seconds (its words go on over the descent): the opening never sits on a
+// spinning planet for 10 s while the narrator tells the legend.
+export const GLOBE_HOLD = 5.0;      // a move may run this much faster than its natural time to fit a real pause
 
 /** Every beat's shot and framings, in story order (the director's choices, which depend on the shot before). */
 export function framesFor(spec) {
@@ -47,11 +52,42 @@ export function planNarration(spec, lead = 3.2) {
   return out;
 }
 
-/** Assign real voiceover sentences to beats in order (beat i takes as many sentences as its text has). */
+const STOP = new Set('a an and are as at be but by for from had has have he her his i in into is it its of on or our she so that the their them then there they this to was we were what when which who will with you your yes also just like about because been than very'.split(' '));
+const tokens = (s) => new Set(String(s).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/(ies|es|s)$/, '')));
+function overlap(a, b) { if (!a.size || !b.size) return 0; let n = 0; for (const w of a) if (b.has(w)) n++; return n / Math.sqrt(a.size * b.size); }
+
+/**
+ * Assign real voiceover sentences to beats by what they SAY, not by count. A voiceover is often the full script while the CSV
+ * carries a shorter line per beat (Rome: 236 spoken sentences, 105 CSV sentences): pairing them one-to-one drifted every scene
+ * away from its words and cut the film off where the CSV ran out. Every spoken sentence goes to one beat, in order (a beat
+ * never comes back), each beat gets at least one, and the split maximises word overlap between each sentence and its beat's text,
+ * with a small pull toward an even pace where the words say nothing. Captions show what is actually said.
+ * When there are fewer spoken sentences than beats, the old one-to-one pairing is kept.
+ */
 export function attachNarration(spec, sentences) {
-  const out = []; let j = 0;
-  spec.beats.forEach((b, i) => { for (let k = 0; k < b.sentences.length && j < sentences.length; k++, j++) out.push({ ...sentences[j], beat: i, text: b.sentences[k] }); });
-  return out;
+  const B = spec.beats.length, N = sentences.length;
+  if (!N) return [];
+  if (N < B) {
+    const out = []; let j = 0;
+    spec.beats.forEach((b, i) => { for (let k = 0; k < b.sentences.length && j < N; k++, j++) out.push({ ...sentences[j], beat: i, text: b.sentences[k] }); });
+    return out;
+  }
+  const bt = spec.beats.map((b) => tokens([b.place, ...b.sentences].join(' ')));
+  const st = sentences.map((x) => tokens(x.text || ''));
+  const score = (j, i) => overlap(st[j], bt[i]) - 0.35 * Math.abs((j + 0.5) / N - (i + 0.5) / B);
+  // dp[j][i]: best total with sentence j on beat i; from (j-1, i) stay or (j-1, i-1) advance
+  const NEG = -1e9, dp = Array.from({ length: N }, () => new Float64Array(B).fill(NEG)), from = Array.from({ length: N }, () => new Int8Array(B));
+  dp[0][0] = score(0, 0);
+  for (let j = 1; j < N; j++) {
+    const lo = Math.max(0, B - (N - j)), hi = Math.min(B - 1, j);
+    for (let i = lo; i <= hi; i++) {
+      const stay = dp[j - 1][i], adv = i ? dp[j - 1][i - 1] : NEG;
+      if (stay >= adv) { dp[j][i] = stay + score(j, i); from[j][i] = 0; } else { dp[j][i] = adv + score(j, i); from[j][i] = 1; }
+    }
+  }
+  const beatOf = new Array(N); let i = B - 1;
+  for (let j = N - 1; j >= 0; j--) { beatOf[j] = i; if (j && from[j][i]) i--; }
+  return sentences.map((x, j) => ({ ...x, beat: beatOf[j], text: x.text || spec.beats[beatOf[j]].sentences[0] || '' }));
 }
 
 export function buildTimeline(spec, narration = null) {
@@ -62,7 +98,7 @@ export function buildTimeline(spec, narration = null) {
 
   // camera: every move flies inside the silence before its beat; the director's shot runs through the beat's speech
   const frames = framesFor(spec), beats = [], notes = [];
-  let prevEnd = 0, prevFrame = null;
+  let prevEnd = 0, prevFrame = null, leftEarly = false;
   spec.beats.forEach((b, i) => {
     const f = firstOf(i), l = lastOf(i);
     if (!f) { warnings.push(`beat ${b.id} has no narration`); return; }
@@ -74,14 +110,16 @@ export function buildTimeline(spec, narration = null) {
       const [lead, land] = silence - 0.6 >= need ? [0.2, 0.4] : [0.1, 0.2];
       travelT1 = Math.max(prevEnd + lead + 0.1, f.start - land);
       travelT0 = Math.max(prevEnd + lead, travelT1 - need);
+      if (leftEarly) { travelT0 = prevEnd; travelT1 = prevEnd + need; }   // the globe let go mid-speech: fly at the move's own pace
       const fit = travelT1 - travelT0;
-      if (fit < need - 0.01) {
+      if (!leftEarly && fit < need - 0.01) {
         if (fit >= need * (1 - MAX_SQUEEZE)) notes.push(`beat ${b.id}: move squeezed to ${fit.toFixed(2)} s from ${need.toFixed(2)} s to fit the silence`);
         else { travelT1 = travelT0 + need * (1 - MAX_SQUEEZE); warnings.push(`beat ${b.id}: the silence before it is ${silence.toFixed(1)} s, the move needs at least ${(need * (1 - MAX_SQUEEZE)).toFixed(1)} s; the move runs into the narration`); }
       }
     }
-    prevEnd = Math.max(l.end, travelT1 + 0.5); prevFrame = frames[i].end;
-    beats.push({ i, id: b.id, date: b.date, rung: b.rung, shot: frames[i].shot, travelT0, travelT1, speakT0: f.start, speakT1: l.end, site: b.site, lon: b.lon, lat: b.lat, seed: b.seed, chapter: b.chapter, territory: b.territory, place: b.place });
+    const longGlobe = b.rung === 'globe' && i < spec.beats.length - 1 && l.end - Math.max(f.start, travelT1) > GLOBE_HOLD + 1;
+    prevEnd = longGlobe ? Math.max(f.start, travelT1) + GLOBE_HOLD : Math.max(l.end, travelT1 + 0.5); prevFrame = frames[i].end; leftEarly = longGlobe;
+    beats.push({ i, holdT1: prevEnd, id: b.id, date: b.date, rung: b.rung, shot: frames[i].shot, travelT0, travelT1, speakT0: f.start, speakT1: l.end, site: b.site, lon: b.lon, lat: b.lat, seed: b.seed, chapter: b.chapter, territory: b.territory, place: b.place });
   });
   const { camera, shots } = direct(spec, beats, end);
 

@@ -49,6 +49,12 @@ class VoxelMapRunner(unittest.TestCase):
     def test_check_and_plan_sample_without_a_gpu(self):
         r = _runner()
         c = r.check(str(SAMPLE))
+        unbuilt = [e for e in c["errors"] if "is not built" in e]
+        if unbuilt and len(unbuilt) == len(c["errors"]):
+            # Built worlds are generated data (voxelmap-engine/worlds/ is git-ignored, ~80 MB), so a fresh checkout such as CI
+            # has none: the check must say so clearly, and planning needs one.
+            self.assertTrue(all("tools/build_world.py" in e for e in unbuilt), unbuilt)
+            self.skipTest(f"no built voxel world on this machine: {unbuilt[0]}")
         self.assertEqual(c["errors"], [])
         self.assertGreater(c["duration_s"], 10)
         with tempfile.TemporaryDirectory() as d:

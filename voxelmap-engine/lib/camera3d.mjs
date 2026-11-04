@@ -18,10 +18,15 @@ export function autoTilt(altKm) {
   return 58 * ease(k);
 }
 
+// Two ground scenes on (nearly) the same spot: the move rises above the height where dioramas exist (lib/diorama.mjs, 3 km), so one
+// set leaves and the next arrives with nothing popping, then comes down into the new scene.
+export const HOP_PEAK = 3.2;
+const hopFloor = (a, b, d) => (a.alt < 1.5 && b.alt < 1.5 && d < 3.2 ? HOP_PEAK : 0);
+
 /** Seconds a move needs: longer for distance and for a big change of altitude. */
 export function travelSeconds(from, to) {
   // the climb counts both ways: a hop between two ground sets rises to the arc's peak and comes back down
-  const d = distanceKm(from, to), peak = Math.max(from.alt, to.alt, d * 0.85);
+  const d = distanceKm(from, to), peak = Math.max(from.alt, to.alt, d * 0.85, hopFloor(from, to, d));
   const za = Math.log2(peak / from.alt) + Math.log2(peak / to.alt);
   return clamp(1.6 + 0.7 * Math.log2(1 + d / 80) + 0.3 * za, 2, 12);
 }
@@ -29,8 +34,10 @@ export function travelSeconds(from, to) {
 /** Altitude (km) along a fly-to at eased progress e: log space, with an arc that rises for long hops. */
 function flyAlt(a, b, d, e) {
   const la = Math.log(a.alt), lb = Math.log(b.alt), top = Math.max(la, lb);
-  const peak = Math.log(Math.max(a.alt, b.alt, d * 0.85));
-  return Math.exp(lerp(la, lb, e) + (peak > top ? (peak - top) * Math.sin(Math.PI * e) : 0));
+  const hop = hopFloor(a, b, d), peak = Math.log(Math.max(a.alt, b.alt, d * 0.85, hop));
+  // a same-spot hop must really reach its peak at the half-way point, where the scene changes: measured from the mid height
+  const base = hop ? (la + lb) / 2 : top;
+  return Math.exp(lerp(la, lb, e) + (peak > base ? (peak - base) * Math.sin(Math.PI * e) : 0));
 }
 
 /** A fly-to between two states. Ground speed is proportional to altitude (the screen moves at a steady rate): the ground
