@@ -8,6 +8,7 @@ from pathlib import Path
 
 from providers.base import AssetResult, AssetSource, MediaType, SceneRow, SceneStatus
 from scene_qa import (
+    RENDER_OK,
     SceneQAState,
     format_header,
     load_qa_file,
@@ -374,6 +375,31 @@ class TestHeaderNeverFromLog(unittest.TestCase):
         self.assertNotEqual(header.upper(), "ALL READY")
         self.assertNotIn("ALL READY", header)
 
+
+
+class ContinuationRowTests(unittest.TestCase):
+    """A plan row carried by the previous scene's shot needs no asset and never blocks Render."""
+
+    def test_continuation_rows_reach_all_ready(self):
+        scenes = [_scene(i) for i in range(1, 7)]
+        for i in (3, 5):   # "[continues previous] ..." rows: no source, no result
+            scenes[i - 1] = SceneRow(scene_number=str(i), script_segment="[continues previous] more words")
+            scenes[i - 1].continues_previous = True
+        results = {scene_key(i): _ready(i) for i in (1, 2, 4, 6)}
+        qa = SceneQAState()
+        snap = qa.snapshot(scenes, results, set())
+        self.assertEqual(snap.needs_action, 0)
+        self.assertEqual(snap.waiting, 0)
+        self.assertTrue(snap.allow_render)
+        self.assertTrue(all(qa.row_status(s, results, set()) in RENDER_OK for s in scenes))
+        self.assertEqual(qa.row_status(scenes[2], results, set()), "continues")
+
+    def test_unflagged_row_without_source_still_waits(self):
+        scenes = [_scene(1), SceneRow(scene_number="2", script_segment="no source")]
+        results = {scene_key(1): _ready(1)}
+        snap = SceneQAState().snapshot(scenes, results, set())
+        self.assertEqual(snap.waiting, 1)
+        self.assertFalse(snap.allow_render)
 
 if __name__ == "__main__":
     unittest.main()

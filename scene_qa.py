@@ -30,6 +30,15 @@ UNRESOLVED = frozenset({
     "needs_action", "failed", "timeout", "cancelled",
 })
 READY = frozenset({"ready", "success"})
+# A row whose narration is covered by the previous scene's shot (see
+# SceneRow.continues_previous): needs no file of its own, counts as resolved.
+CONTINUES = "continues"
+# Every status that lets Render go ahead for that row.
+RENDER_OK = frozenset({"ready", "success", "skipped", CONTINUES})
+
+
+def is_continuation(scene) -> bool:
+    return bool(getattr(scene, "continues_previous", False))
 
 PROVIDER_LABELS = {
     "youtube_video": "YouTube Video",
@@ -252,6 +261,8 @@ class SceneQAState:
         key = scene_key(scene.scene_number)
         if key in self.busy:
             return self.busy[key]
+        if is_continuation(scene):
+            return CONTINUES
         if key in skipped:
             return "skipped"
         result = results.get(key)
@@ -288,7 +299,7 @@ class SceneQAState:
             statuses[key] = status
             if status in PROCESSING:
                 processing += 1
-            elif status == "skipped":
+            elif status in ("skipped", CONTINUES):
                 skipped_n += 1
             elif status in READY:
                 ready += 1
@@ -323,7 +334,7 @@ class SceneQAState:
         stats = summarize_assets(
             [s.scene_number for s in scenes],
             results,
-            skipped,
+            skipped | {scene_key(s.scene_number) for s in scenes if is_continuation(s)},
         )
         snap.allow_render = bool(stats["allow_render"]) and processing == 0
         snap.header = format_header(snap)

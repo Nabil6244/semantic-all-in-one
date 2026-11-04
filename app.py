@@ -60,7 +60,7 @@ from asset_manager import AssetManager
 from providers.base import AssetResult, AssetSource, MediaType, SceneRow, SceneStatus
 from providers.router import SceneAssetRouter
 from scene_recovery import SceneRecoveryTracker, summarize_assets
-from scene_qa import SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error
+from scene_qa import RENDER_OK as _QA_RENDER_OK, SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error
 from manual_clip import FILE_DIALOG_TYPES, ManualClipError, validate_local_media
 from project_picker import ProjectPickerDialog, project_dicts_from_workspaces
 from project_workspace import (
@@ -676,6 +676,7 @@ def _status_display(status: str) -> tuple[str, str]:
         "failed": ("⚠ NEEDS ACTION", _WARNING),
         "timeout": ("⚠ NEEDS ACTION", _WARNING),
         "skipped": ("— SKIPPED", _SKIPPED),
+        "continues": ("↳ CONTINUES SHOT", _SKIPPED),
         "cancelled": ("⊘ CANCELLED", _SKIPPED),
     }
     if status in mapping:
@@ -2547,6 +2548,10 @@ class VideoGeneratorApp(ctk.CTk):
             if node is None:
                 if scene_row.script_segment:
                     scene_row.script_segment = f"[continues previous] {scene_row.script_segment}"
+                # Its narration plays over the previous scene's shot (the
+                # compiled graph has no node, so Generate fetches nothing for
+                # it): it needs no asset and must never hold up Render.
+                scene_row.continues_previous = True
                 if planner_is_authoritative:
                     # No node -> Generate requests no media for this row.
                     scene_row.asset_type = scene_row.prompt = scene_row.stock = ""
@@ -2948,7 +2953,7 @@ class VideoGeneratorApp(ctk.CTk):
                     self._append_log("[OVERSCALED] Every scene is ready. Nothing was rendered yet: click Render to draw the video.\n")
                     self._notify("Scenes ready. Click Render to draw the video.", tone="success")
                 else:
-                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in _QA_RENDER_OK)
                     self._overscaled_status_var.set(f"{n} scene(s) need attention: Retry, Change source or Skip them, then click Generate scenes.")
                     self._append_log(f"[OVERSCALED] {n} scene(s) need attention before Render. Fix or skip them in the Visual Plan, then click Generate scenes again.\n")
                 self._sync_primary_cta()
@@ -4630,7 +4635,7 @@ class VideoGeneratorApp(ctk.CTk):
         if plan is None or self._hybrid_table_is_stale(plan):
             return False
         try:
-            return all(self._row_status_from_result(r) in ("ready", "success", "skipped") for r in self._scene_rows)
+            return all(self._row_status_from_result(r) in _QA_RENDER_OK for r in self._scene_rows)
         except Exception:
             return False
 
@@ -4640,7 +4645,7 @@ class VideoGeneratorApp(ctk.CTk):
         if (owner is not None and getattr(self, "_scene_rows_owner", None) != owner) or not self._scene_rows:
             return False
         try:
-            return all(self._row_status_from_result(r) in ("ready", "success", "skipped") for r in self._scene_rows)
+            return all(self._row_status_from_result(r) in _QA_RENDER_OK for r in self._scene_rows)
         except Exception:
             return False
 
@@ -5971,7 +5976,7 @@ class VideoGeneratorApp(ctk.CTk):
                     self._append_log("[STARMAP] Every scene is ready. Nothing was rendered yet: click Render to draw the video.\n")
                     self._notify("Scenes ready. Click Render to draw the video.", tone="success")
                 else:
-                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                    n = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in _QA_RENDER_OK)
                     self._starmap_status_var.set(f"{n} scene(s) need attention: Retry, Change source or Skip them in the Visual Plan, then click Generate scenes.")
                     self._append_log(f"[STARMAP] {n} scene(s) need attention before Render. Fix or skip them in the Visual Plan, then click Generate scenes again.\n")
                     self._goto_workflow_view("visual_plan")
@@ -6655,7 +6660,7 @@ class VideoGeneratorApp(ctk.CTk):
                     self._append_log(f"[PAKMAP] All {n} scene(s) are ready. Nothing was rendered yet: click Render to draw the video.\n")
                     self._notify("Scenes ready. Click Render to draw the video.", tone="success")
                 else:
-                    bad = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in ("ready", "success", "skipped"))
+                    bad = sum(1 for r in self._scene_rows if self._row_status_from_result(r) not in _QA_RENDER_OK)
                     self._pakmap_status_var.set(f"{bad} scene(s) need attention — fix them in the Visual Plan tab, then Generate scenes again")
                     self._append_log(f"[PAKMAP] {bad} scene(s) are not ready: Retry, Change source or Skip them in the Visual Plan, then Generate scenes again.\n")
                     self._goto_workflow_view("visual_plan")

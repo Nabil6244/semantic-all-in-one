@@ -127,6 +127,30 @@ emit(
     repr(SceneAssetRouter.classify(row3) if row3 else None),
 )
 
+# 3b) ...and it never blocks Render: once the scenes that DO own a shot are
+#     ready, the plan is "all ready" (no "need attention" loop).
+from providers.base import AssetResult as _AR, AssetSource as _AS, MediaType as _MT, SceneStatus as _SS
+from scene_recovery import scene_key as _sk
+_saved_results = dict(instance._asset_results)
+for _r in instance._scene_rows:
+    if not getattr(_r, "continues_previous", False):
+        instance._asset_results[_sk(_r.scene_number)] = _AR(
+            _r.scene_number, Path(f"{int(_r.scene_number):03d}.png"), _MT.IMAGE, _AS.FLOW_IMAGE, _SS.READY)
+emit("planner_continuation_row_flagged", bool(row3 and getattr(row3, "continues_previous", False)), repr(row3))
+emit(
+    "planner_continuation_row_not_queued",
+    row3 is not None and instance._row_status_from_result(row3) == "continues",
+    repr(instance._row_status_from_result(row3) if row3 else None),
+)
+_snap = instance._qa_snapshot()
+emit(
+    "planner_continuation_rows_reach_all_ready",
+    instance._scenes_all_ready(None) and _snap.allow_render and _snap.needs_action == 0 and _snap.waiting == 0,
+    f"all_ready={instance._scenes_all_ready(None)} allow={_snap.allow_render} header={_snap.header!r}",
+)
+instance._asset_results.clear()
+instance._asset_results.update(_saved_results)
+
 # --- 4) Local Visual Planner OFF: the existing dedicated Overscaled CSV
 #        path is unaffected — still preview-only, still no premature
 #        resolution/generation.
@@ -245,6 +269,11 @@ class TestOverscaledPreviewWorkflowLive(unittest.TestCase):
     def test_planner_on_labels_continuation_rows(self):
         self._assert_check("planner_continuation_row_labeled")
         self._assert_check("planner_continuation_row_has_no_asset")
+
+    def test_continuation_rows_never_block_render(self):
+        self._assert_check("planner_continuation_row_flagged")
+        self._assert_check("planner_continuation_row_not_queued")
+        self._assert_check("planner_continuation_rows_reach_all_ready")
 
     def test_planner_off_still_preview_only(self):
         self._assert_check("planner_off_no_media_resolution_during_import")
