@@ -83,6 +83,18 @@ function placeExisting(src, dest) {
  * Scenes inside an agent request that has not returned yet (ledger key -> who is making it). A Retry of one of these
  * scenes must not send a second request while the first may still produce its image (orchestrator.js checks this).
  */
+
+/**
+ * True only when a UI agent request left no picture anywhere: no new gallery tile, not refused, and the page-wide image count
+ * (read at the end of the wait) has no Flow image at all, chat copies included. A missing count is never taken for "none".
+ */
+export function noPictureAnywhere(diag) {
+  if (!diag || diag.refused || diag.rawTileCount !== 0) return false;
+  const inv = diag.mediaInventory;
+  if (!inv || typeof inv !== "object") return false;
+  return !Object.keys(inv).some((k) => /\/(asb|image|video)\b|flow-content|^video /.test(k));
+}
+
 export const activeAgentScenes = new Map();
 
 /** The ledger key of a scene on the agent path (the standard path's identity: generationMode is not part of it). */
@@ -294,7 +306,7 @@ export async function runAgentSlice(params) {
         ledger.put(it.key, {
           state: LedgerState.SUBMITTING, accountId: owner, accountLabel: label, mediaKind: "image", slot: 0, runId, projectId,
           prompt: String(it.prompt).slice(0, 200), workflowId: null, mediaId: null, fifeUrl: null, dest: null, savedPath: null,
-          failedStage: null, confirmedResumeFailedRunId: null, error: null, via: "agent", agentRequestId, agentChatId: null,
+          failedStage: null, confirmedResumeFailedRunId: null, error: null, noMediaSeen: null, via: "agent", agentRequestId, agentChatId: null,
           sceneText: String(it.text || "").slice(0, 200),
         });
         emit("BATCH_PROGRESS", { index: it.abs, total: totalAbsolute, status: "running", message: `${useUiAgent ? "UI Agent" : "Agent"} generating (batch ${b + 1}/${batches.length}, ${batch.length} scenes)…` });
@@ -349,6 +361,18 @@ export async function runAgentSlice(params) {
           for (const it of batch) it.refused = true;
           emit("status", { message: `Flow agent refused this request of ${batch.length} scene(s): making each one on its own instead` });
           return notCreated(batch, LedgerState.REJECTED, "Flow agent refused the request (might violate its policies); nothing was made");
+        }
+        if (!images.length && noPictureAnywhere(uiResult?.diag) && !shouldStop?.()) {
+          // The whole gallery was scanned to the end and no picture appeared anywhere for the full wait (live 2026-11-04,
+          // Account 7: 12 scenes, 0 tiles after 5 min). Nothing to download exists, so these stills are made again (the
+          // standard path now, any later Generate too: see GenerationLedger.decide, noMediaSeen). Owner-approved for images.
+          for (const it of batch) {
+            ledger.put(it.key, { state: LedgerState.SUBMITTED_UNKNOWN, error: `UI agent ${uiResult?.diag?.outcome || "no images"}`, noMediaSeen: true });
+            it.stalled = true;      // a pool run hands these to another, free account (agent-pool.js)
+            fallback.push(it);
+          }
+          emit("status", { message: `UI Agent made no picture for ${batch.length} scene(s) in the whole wait: making them again` });
+          return;
         }
         if (!images.length) {
           // Click happened (or we would have thrown NOT_SUBMITTED): outcome unknown — do not auto-resend.
@@ -585,7 +609,7 @@ export async function runAgentSlice(params) {
     emit("BATCH_DONE", { completed, failed, total: totalAbsolute, sliceTotal: prompts.length, folder: outDir, reassign });
     return {
       completed, failed, folder: outDir, reassign, authExpired: false, restricted, coolDown,
-      fallback: back.map((it) => ({ index: it.abs, prompt: it.prompt, promptKey: it.promptKey, refused: !!it.refused })),
+      fallback: back.map((it) => ({ index: it.abs, prompt: it.prompt, promptKey: it.promptKey, refused: !!it.refused, stalled: !!it.stalled })),
     };
   }
   if (fallback.length && !shouldStop?.() && !restricted && standardSettings.agentFallback !== false) {

@@ -329,7 +329,7 @@ export async function runBatchSlice({
       ledger.put(key, {
         state: LedgerState.SUBMITTING, accountId: owner, accountLabel: life.label, mediaKind, slot, runId, projectId,
         prompt: String(prompt).slice(0, 200), workflowId: null, mediaId: null, fifeUrl: null, dest: null, savedPath: null,
-        failedStage: null, confirmedResumeFailedRunId: null, error: null,
+        failedStage: null, confirmedResumeFailedRunId: null, error: null, noMediaSeen: null,
       });
       if (uiPageTainted && resolveGenerationMode(settingsLocal) !== "rpc") {
         try {

@@ -32,6 +32,8 @@ export function sceneStanding(entry, { confirmed = false } = {}) {
   if (!entry || NOTHING_CREATED.has(entry.state)) return "new";
   if (RESUMABLE.has(entry.state)) return "download";
   if (entry.state === LedgerState.COMPLETED_LOCAL) return confirmed ? "new" : "other";
+  // A still request after which no picture appeared anywhere: nothing exists on Flow, so it is new (GenerationLedger.decide).
+  if (entry.state === LedgerState.SUBMITTED_UNKNOWN && entry.noMediaSeen && entry.mediaKind === "image" && !entry.mediaId) return "new";
   return confirmed ? "new" : "other";
 }
 
@@ -123,7 +125,10 @@ export async function runAgentPool({
     const nextJob = (a) => {
       const own = ownQueues.get(a.id);
       if (own?.length) return own.shift();
-      return queue.length ? queue.shift() : null;
+      // A batch Flow refused on one account goes to another one; it comes back to the same account only when no other account can take it.
+      const k = queue.findIndex((job) => job.avoid !== a.id);
+      if (k >= 0) return queue.splice(k, 1)[0];
+      return queue.length && !accounts.some((x) => x.id !== a.id && usable(x) && !cooling(x)) ? queue.shift() : null;
     };
     const workLeft = () => queue.length > 0 || [...ownQueues.values()].some((q) => q.length);
 
@@ -189,7 +194,30 @@ export async function runAgentPool({
           const back = result.reassign.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, noConfirm: !!r.noConfirm }));
           for (const b of planPoolBatches(back, { maxBatch, maxChars, ui })) queue.push(b);
         }
-        if (result?.fallback?.length) fallback.push(...result.fallback.map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, refused: !!r.refused })));
+        // Flow's agent refused the whole paste (an AI judges the message, so the same batch often passes the next time, live 2026-11-02):
+        // 1st refusal -> the same batch once more on another account; 2nd -> two halves, so one borderline scene cannot block the rest;
+        // 3rd -> those scenes one by one (the standard path, below).
+        const refusedAt = new Set((result?.fallback || []).filter((r) => r.refused).map((r) => r.index));
+        if (refusedAt.size && !isStopped()) {
+          const back = job.filter((it) => refusedAt.has(it.index)); const tries = job.refuseTries || 0;
+          const again = (items, n) => Object.assign(items.map((it) => ({ ...it })), { refuseTries: n, avoid: a.id });
+          if (tries === 0) queue.unshift(again(back, 1));
+          else if (tries === 1 && back.length > 1) { const h = Math.ceil(back.length / 2); queue.unshift(again(back.slice(0, h), 2), again(back.slice(h), 2)); }
+          else fallback.push(...back.map((it) => ({ index: it.index, prompt: it.prompt, promptKey: it.promptKey ?? null, refused: true })));
+        }
+        // The agent never started on this account (no picture anywhere): the same scenes go straight to another account that can
+        // work, in this round, instead of waiting for the round to end and maybe landing on this account again (live 2026-11-04,
+        // Account 6 stalled while Account 8 sat idle). Once only; a second stall goes the normal way below.
+        const stalledAt = new Set((result?.fallback || []).filter((r) => r.stalled && !r.refused).map((r) => r.index));
+        const elsewhere = accounts.some((x) => x.id !== a.id && usable(x) && !cooling(x));
+        if (stalledAt.size && !isStopped() && !job.stallTries && elsewhere) {
+          const back = job.filter((it) => stalledAt.has(it.index)).map((it) => ({ ...it }));
+          if (back.length) queue.unshift(Object.assign(back, { stallTries: 1, avoid: a.id }));
+          onAccountState(a, "waiting", `Flow's agent did not start on this account: ${back.length} scene(s) handed to another account`);
+        } else {
+          stalledAt.clear();
+        }
+        if (result?.fallback?.length) fallback.push(...result.fallback.filter((r) => (!refusedAt.has(r.index) && !stalledAt.has(r.index)) || isStopped()).map((r) => ({ index: r.index, prompt: r.prompt, promptKey: r.promptKey ?? null, refused: !!r.refused })));
       }
     }
 

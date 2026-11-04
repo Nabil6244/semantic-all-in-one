@@ -78,10 +78,12 @@ export async function collectStillUrls(page) {
         seen.add(src);
         out.push(src);
       };
-      // Gallery tiles only when the page has them: the chat-panel layout also shows small copies of each image in the
-      // agent's replies (live 2026-10-21, Accounts 6 and 9), which are not tiles and must not count as new stills.
+      // Gallery tiles only. The agent's chat shows copies of its images ("Option 1".."Option 6", live 2026-10-21 and
+      // 2026-11-04): counting them whenever no tile was in the DOM filled the expected count, ended the wait while the agent
+      // was still painting, and every copy then failed as tile_not_found (a prompt is only read from a gallery tile), so 7 of
+      // 12 and 10 of 11 scenes were made again. An image outside the gallery can never be placed, so it is never counted.
       const tiles = document.querySelectorAll("flow-grid-tile-container img, flow-grid-tile-container video");
-      for (const el of tiles.length ? tiles : document.querySelectorAll("img, video")) {
+      for (const el of tiles) {
         const src = el.currentSrc || el.src || "";
         if (!src) continue;
         const alt = (el.alt || "").trim();
@@ -351,16 +353,30 @@ async function mediaInventory(page) {
 
 /**
  * Flow's agent refuses a whole request in its chat ("This generation might violate our policies. Please try a different
- * prompt ...", live 2026-11-02): no image is made for any scene of that paste. Counted before and after the click, so an old
- * refusal still in the chat is not taken for this one.
+ * prompt ...", live 2026-11-02): no image is made for any scene of that paste. Only the chat AFTER this paste is read: an account
+ * whose chat still showed old refusals (earlier projects) had its batches taken for refused within seconds, and 51 scenes went
+ * one by one (live 2026-11-02, Accounts 6, 7 and 9), so the count before the click was not enough.
  */
 export const REFUSAL_PATTERNS = [/might violate our polic/gi, /violates? (?:our|google'?s) (?:usage )?polic/gi, /try a different prompt/gi, /can(?:'|no)t (?:help with|generate|create) (?:that|this)/gi, /unable to (?:generate|create) (?:that|this|an image)/gi];
 export function countRefusals(text) {
   const t = String(text || "");
   return REFUSAL_PATTERNS.reduce((n, rx) => n + (t.match(new RegExp(rx.source, "gi")) || []).length, 0);
 }
-async function agentRefusals(page) {
-  return countRefusals(await bounded(page.evaluate(() => document.body?.innerText || ""), PAGE_CALL_TIMEOUT_MS, ""));
+/** The refusals in `text` after the last place this paste (`marker`, a line of it) appears; 0 when the paste is not found. */
+export function refusalsAfter(text, marker) {
+  const t = String(text || ""); const m = String(marker || "").trim();
+  if (!m) return 0;
+  const at = t.lastIndexOf(m);
+  return at < 0 ? 0 : countRefusals(t.slice(at + m.length));
+}
+/** A line of the pasted message distinctive enough to find it in the chat (the first scene line, cut short so wrapping cannot split it). */
+export function pasteMarker(message) {
+  const line = String(message || "").split("\n").map((l) => l.trim()).find((l) => l.length >= 24) || "";
+  return line.slice(0, 32);
+}
+export const REFUSAL_GRACE_MS = 20000;      // a refusal ends the wait only when no picture came in this long after the click
+async function agentRefusals(page, marker) {
+  return refusalsAfter(await bounded(page.evaluate(() => document.body?.innerText || ""), PAGE_CALL_TIMEOUT_MS, ""), marker);
 }
 
 async function agentStillBusy(page) {
@@ -369,6 +385,58 @@ async function agentStillBusy(page) {
   return bounded(
     page.evaluate(() => /\bThinking\b|\bGenerating\b/i.test((document.body?.innerText || "").slice(0, 20000))),
     PAGE_CALL_TIMEOUT_MS, true);
+}
+
+/**
+ * A request whose agent shows no sign of life is over early instead of after the whole wait (live 2026-11-04: Accounts 6 and 7
+ * sat 195 s and 5 min on requests Flow never started, while other accounts were idle). Signs of life: the busy text
+ * ("Thinking"/"Generating") seen once, a new tile, or the chat growing after our message. Anything uncertain counts as life
+ * (a page call that times out is "busy"), so a slow but working request always keeps its full wait.
+ */
+export const NO_ACTIVITY_MS = 90000;
+export const REPLY_GROWTH_CHARS = 40;
+export function agentLooksDead({ sinceClickMs, everBusy, tiles, replyGrowth, noActivityMs = NO_ACTIVITY_MS }) {
+  if (everBusy || tiles > 0) return false;
+  if (replyGrowth == null || replyGrowth >= REPLY_GROWTH_CHARS) return false;
+  return sinceClickMs >= noActivityMs;
+}
+
+/** Characters of page text after the last place our message (`marker`) appears; null when unreadable or not found. */
+async function textAfterMarker(page, marker) {
+  const t = await bounded(page.evaluate(() => document.body?.innerText || ""), PAGE_CALL_TIMEOUT_MS, null);
+  if (t == null || !marker) return null;
+  const at = t.lastIndexOf(marker);
+  return at < 0 ? null : t.length - at - marker.length;
+}
+
+/**
+ * What the account's page shows when its agent never started: a screenshot and the text after our message, next to the
+ * diagnostic log, so the real cause (a dialog, a limit message, a paste never sent) can be read afterwards.
+ */
+export async function saveStallEvidence(page, outputDir, marker) {
+  if (!outputDir) return null;
+  try {
+    const dir = path.join(outputDir, "agent");
+    fs.mkdirSync(dir, { recursive: true });
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const png = path.join(dir, `stall-${stamp}.png`);
+    const txt = path.join(dir, `stall-${stamp}.txt`);
+    await bounded(page.screenshot({ path: png, fullPage: false }), PAGE_CALL_TIMEOUT_MS, null);
+    const body = await bounded(page.evaluate(() => document.body?.innerText || ""), PAGE_CALL_TIMEOUT_MS, "");
+    const editor = await bounded(page.evaluate(() => document.querySelector("div.ProseMirror")?.innerText || ""), PAGE_CALL_TIMEOUT_MS, "");
+    const at = marker ? body.lastIndexOf(marker) : -1;
+    fs.writeFileSync(txt, [
+      `url: ${typeof page.url === "function" ? page.url() : ""}`,
+      `message still in the editor: ${Boolean(marker && editor.includes(marker))}`,
+      "--- page text after our message ---",
+      at >= 0 ? body.slice(at, at + 6000) : "(our message was not found on the page)",
+      "--- end of page text ---",
+      body.slice(-3000),
+    ].join("\n"));
+    return { screenshot: fs.existsSync(png) ? path.basename(png) : null, text: path.basename(txt) };
+  } catch {
+    return null;
+  }
 }
 
 /** Bottom-bar Agent toggle (aria-pressed true when Agent mode is on). */
@@ -447,6 +515,7 @@ export async function generateAgentBatchViaUI(page, {
   shouldStop = null,
   outputDir = null,
   referenceImages = [],
+  noActivityMs = NO_ACTIVITY_MS,
 } = {}) {
   const startedAt = Date.now();
   const diag = {
@@ -541,7 +610,7 @@ export async function generateAgentBatchViaUI(page, {
     }
 
     diag.stage = "clicking_generate";
-    const refusalsBefore = await agentRefusals(page);
+    const marker = pasteMarker(message);
     diag.generationClickedAt = Date.now();
     await genBtn.click();
 
@@ -550,6 +619,9 @@ export async function generateAgentBatchViaUI(page, {
     const seen = new Set();
     const deadline = Date.now() + timeoutMs;
     let lastNewAt = Date.now();
+    let everBusy = false;
+    let replyBase = null;
+    let replyGrowth = null;
     while (Date.now() < deadline && !shouldStop?.()) {
       // The whole gallery, not just the rendered window: new tiles below it were invisible and the wait ended early.
       const urls = await collectAllStillUrls(page);
@@ -562,10 +634,22 @@ export async function generateAgentBatchViaUI(page, {
       }
       const busy = await agentStillBusy(page);
       diag.agentBusy = busy;
+      if (busy) everBusy = true;
+      if (!everBusy && !ordered.length) {
+        const after = await textAfterMarker(page, marker);
+        if (after != null) {
+          if (replyBase == null) replyBase = after;
+          replyGrowth = after - replyBase;
+        }
+        if (agentLooksDead({ sinceClickMs: Date.now() - diag.generationClickedAt, everBusy, tiles: ordered.length, replyGrowth, noActivityMs })) {
+          diag.noActivity = true;      // never started: its scenes go on now (see agent-runner noPictureAnywhere)
+          break;
+        }
+      }
       if (ordered.length >= n && !busy) break;
-      if (!busy && ordered.length < n && (await agentRefusals(page)) > refusalsBefore) {      // refused: stop now, not after the whole timeout
-        diag.refused = true;
-        if (!ordered.length || Date.now() - lastNewAt > 8000) break;
+      if (!busy && !ordered.length && Date.now() - diag.generationClickedAt > REFUSAL_GRACE_MS && (await agentRefusals(page, marker)) > 0) {
+        diag.refused = true;      // refused in reply to THIS paste and nothing made: stop now, not after the whole timeout
+        break;
       }
       if (ordered.length >= n && Date.now() - lastNewAt > 8000) break;
       // Some stills but not all: the agent paints in bursts and its busy text is not reliable, so allow a long quiet gap.
@@ -597,7 +681,12 @@ export async function generateAgentBatchViaUI(page, {
             ? "refused"
             : shouldStop?.()
               ? "stopped"
-              : "timeout_no_media";
+              : diag.noActivity
+                ? "no_activity"
+                : "timeout_no_media";
+    diag.everBusy = everBusy;
+    diag.replyGrowth = replyGrowth;
+    if (!images.length && !diag.refused && !shouldStop?.()) diag.stallEvidence = await saveStallEvidence(page, outputDir, marker);
 
     return { clicked: true, images, diag };
   } catch (e) {

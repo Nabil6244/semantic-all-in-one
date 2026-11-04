@@ -215,18 +215,43 @@ test("54 scenes on 6 accounts: six requests of 9, every account working at once"
   assert.equal(h.log.reduce((n, x) => n + x.size, 0), 54);
 });
 
-test("a request the agent refused is not sent to the agent again: each scene goes through the standard path, shared out", async () => {
-  const h = harness({
-    plan: ({ items: its, call }) => (call === 1
-      ? { completed: 0, fallback: its.map((x) => ({ index: x.index, prompt: x.prompt, promptKey: x.promptKey, refused: true })) }
-      : {}),
-  });
-  const res = await runAgentPool({ items: items(12), accounts: accounts(2), prepare: h.prepare, runSlice: h.runSlice,
-    runStandard: h.runStandard, sleep: h.sleep, now: h.now, batchGapMs: 0 });
-  const agentCalls = h.log.filter((x) => !x.standard);
+test("a request the agent refused three times (once, again elsewhere, then as halves) goes one by one, shared out", async () => {
+  const h = harness({ plan: ({ items: its }) => ({ completed: 0, fallback: its.map((x) => ({ index: x.index, prompt: x.prompt, promptKey: x.promptKey, refused: true })) }) });
+  const res = await runAgentPool({ items: items(6), accounts: accounts(2), prepare: h.prepare, runSlice: h.runSlice,
+    runStandard: h.runStandard, sleep: h.sleep, now: h.now, batchGapMs: 0, minScenes: 6 });
   const standard = h.log.filter((x) => x.standard);
-  assert.equal(agentCalls.length, 2, "the two first requests only; no extra agent round for the refused one");
-  assert.equal(standard.reduce((n, x) => n + x.size, 0), 6, "the refused request's six scenes, one by one on the standard path");
-  assert.equal(standard.length, 2, "shared across both accounts");
+  assert.equal(standard.reduce((n, x) => n + x.size, 0), 6, "every scene once on the standard path");
   assert.deepEqual(res.unrun, []);
+});
+
+// 2026-11-02: Flow's agent refuses a whole paste now and then, and the same batch often passes the next time.
+function refusingPool(refuseCalls) {
+  const log = [];
+  const runSlice = async ({ account, items }) => {
+    const call = log.push({ account: account.id, size: items.length, indices: items.map((x) => x.index) });
+    if (refuseCalls(call, items)) return { completed: 0, fallback: items.map((x) => ({ index: x.index, prompt: x.prompt, promptKey: x.promptKey, refused: true })) };
+    return { completed: items.length, fallback: [] };
+  };
+  const standard = [];
+  return { log, standard, args: { accounts: accounts(3), prepare: async (a) => ({ page: a.id }), sleep: async () => {}, now: () => 0, batchGapMs: 0, runSlice,
+    runStandard: async ({ items }) => { standard.push(...items.map((x) => x.index)); return {}; } } };
+}
+
+test("a refused batch is sent once more as it is, on another account", async () => {
+  const p = refusingPool((call) => call === 1);
+  const res = await runAgentPool({ items: items(10), maxBatch: 10, minScenes: 10, ...p.args });
+  assert.equal(p.log.length, 2); assert.notEqual(p.log[1].account, p.log[0].account); assert.equal(p.log[1].size, 10);
+  assert.deepEqual(p.standard, []); assert.deepEqual(res.unrun, []);
+});
+
+test("refused twice: split in two halves, so one scene cannot block the rest", async () => {
+  const p = refusingPool((call) => call <= 2);
+  await runAgentPool({ items: items(10), maxBatch: 10, minScenes: 10, ...p.args });
+  assert.deepEqual(p.log.slice(2).map((x) => x.size).sort(), [5, 5]); assert.deepEqual(p.standard, []);
+});
+
+test("a half refused a third time goes one by one; the other half is made as a batch", async () => {
+  const p = refusingPool((call, its) => call <= 2 || its.some((x) => x.index === 0));
+  const res = await runAgentPool({ items: items(10), maxBatch: 10, minScenes: 10, ...p.args });
+  assert.deepEqual(p.standard.sort((a, b) => a - b), [0, 1, 2, 3, 4]); assert.deepEqual(res.unrun, []);
 });

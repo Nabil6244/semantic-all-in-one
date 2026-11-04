@@ -163,6 +163,10 @@ export class GenerationLedger {
       };
     }
     if (confirmed) return { action: "submit" };
+    // A still request after which the whole gallery showed no picture at all (noMediaSeen, set by the UI agent runner): there
+    // is nothing on Flow to download, so it may be made again without a Retry (owner's decision, 2026-11-04). Videos and any
+    // request where Flow did show media keep the Retry-only rule.
+    if (e.state === LedgerState.SUBMITTED_UNKNOWN && e.noMediaSeen && e.mediaKind === "image" && !e.mediaId) return { action: "submit" };
     if (e.state === LedgerState.FAILED_ON_FLOW) {
       return { action: "block", entry: e, reason: "Flow reported this generation as failed. Click Retry on this scene to generate it again" };
     }
