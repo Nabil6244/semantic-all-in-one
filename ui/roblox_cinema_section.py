@@ -1,0 +1,333 @@
+"""Roblox Cinema: its own style page (story CSV or pasted narration, optional voice-over, resolution) with a Generate step that plans the
+film and a Render step that renders it (3D block-world scenes on the GPU, music, sound, voice). All the work lives in
+roblox-cinema-engine/ (runner.py), imported only inside the button handlers. Nothing starts until Generate: picking files or options only
+remembers them.
+
+app.py only calls in here: activate / deactivate / sync_cta / cta, and reads `_rc_block` / `_rc_running` / `_rc_active`."""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+import threading
+from pathlib import Path
+from typing import Any, Optional
+
+import customtkinter as ctk
+
+from . import theme as T
+from .style_kit import render_panel, section
+from .widgets import make_button
+
+STYLE = "Roblox Cinema"
+TAG = "[ROBLOX CINEMA]"
+RESOLUTIONS = {"720p preview (1280x720)": 720, "1080p final (1920x1080)": 1080}
+_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _engine_dir() -> Path:
+    base = Path(getattr(sys, "_MEIPASS", _ROOT)) if getattr(sys, "frozen", False) else _ROOT
+    return base / "roblox-cinema-engine"
+
+
+def _runner():
+    """roblox-cinema-engine/runner.py (a folder name Python cannot import), loaded once; None with a message when it is missing."""
+    mod = sys.modules.get("rce_runner")
+    if mod is not None:
+        return mod
+    try:
+        spec = importlib.util.spec_from_file_location("rce_runner", _engine_dir() / "runner.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["rce_runner"] = mod
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception as exc:  # noqa: BLE001
+        from tkinter import messagebox
+
+        sys.modules.pop("rce_runner", None)
+        messagebox.showerror("Roblox Cinema is not installed", f"The roblox-cinema-engine folder could not be loaded:\n{type(exc).__name__}: {exc}")
+        return None
+
+
+def build(app: Any, parent: Any, *, row: int = 9) -> None:
+    app._rc_csv_var = ctk.StringVar(value="")
+    app._rc_voice_var = ctk.StringVar(value="")
+    app._rc_res_var = ctk.StringVar(value=next(iter(RESOLUTIONS)))
+    app._rc_music_var = ctk.BooleanVar(value=True)
+    app._rc_status_var = ctk.StringVar(value="")
+    app._rc_cancel = threading.Event()
+    app._rc_running = getattr(app, "_rc_running", False)
+    app._rc_planned = None   # {"csv", "text_file", "voice", "res"} of the last Generate
+
+    block = ctk.CTkFrame(parent, fg_color="transparent")
+    block.grid(row=row, column=0, sticky="ew", pady=(0, 12))
+    block.grid_columnconfigure(0, weight=1)
+    app._rc_block = block
+
+    body = section(block, 0, 1, "Story", "a story CSV, or paste plain narration (# lines start chapters)")
+    app._path_row(0, "Story CSV", app._rc_csv_var, lambda: _browse(app, "csv"), parent=body,
+                  placeholder_text="Choose the story CSV (plan / chapter / beat rows), or paste narration below")
+    app._path_row(1, "Voice-over", app._rc_voice_var, lambda: _browse(app, "voice"), parent=body,
+                  placeholder_text="Optional: your narration (the film is timed to its words; without it a planned read is used)")
+    app._rc_text_box = ctk.CTkTextbox(body, height=120, font=ctk.CTkFont(size=12), wrap="word")
+    app._rc_text_box.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+    ctk.CTkLabel(body, text="Maps show present-day borders and approximate positions (the film says so on screen). "
+                            "Sample: roblox-cinema-engine/samples/dday_1944.csv.", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
+                 justify="left", wraplength=600).grid(row=3, column=0, sticky="w", pady=(4, 0))
+
+    body = section(block, 1, 2, "Output")
+    out = ctk.CTkFrame(body, fg_color="transparent")
+    out.grid(row=0, column=0, sticky="ew")
+    ctk.CTkLabel(out, text="Resolution", font=ctk.CTkFont(size=12), text_color=T.MUTED).grid(row=0, column=0, padx=(0, 8))
+    ctk.CTkOptionMenu(out, values=list(RESOLUTIONS), variable=app._rc_res_var, width=220).grid(row=0, column=1, padx=(0, 16))
+    ctk.CTkCheckBox(out, text="Music bed (Kevin MacLeod, CC BY 4.0, credited on screen)", variable=app._rc_music_var).grid(row=0, column=2)
+
+    body = section(block, 2, 3, "Generate, then Render", "Generate plans the film; Render makes the video")
+    go = ctk.CTkFrame(body, fg_color="transparent")
+    go.grid(row=0, column=0, sticky="w")
+    app._rc_generate_btn = ctk.CTkButton(go, text="Generate", width=170, height=40, corner_radius=6, fg_color=T.ACCENT, hover_color=T.ACCENT_HOV,
+                                         text_color=T.ACCENT_DARK, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: on_generate(app))
+    app._rc_generate_btn.grid(row=0, column=0, padx=(0, 10))
+    app._rc_render_btn = ctk.CTkButton(go, text="Render", width=170, height=40, corner_radius=6, fg_color=T.ACCENT, hover_color=T.ACCENT_HOV,
+                                       text_color=T.ACCENT_DARK, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: on_render(app), state="disabled")
+    app._rc_render_btn.grid(row=0, column=1, padx=(0, 10))
+    app._rc_stop_btn = make_button(go, "Stop", lambda: cancel(app), size="sm", width=90, state="disabled")
+    app._rc_stop_btn.grid(row=0, column=2)
+    ctk.CTkLabel(body, textvariable=app._rc_status_var, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left",
+                 wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
+    render_panel(app, body, row=2)
+    block.grid_remove()
+
+
+def _browse(app: Any, kind: str) -> None:
+    from tkinter import filedialog
+
+    if kind == "csv":
+        path = filedialog.askopenfilename(title="Choose the story CSV", filetypes=[("CSV", "*.csv"), ("All files", "*.*")])
+        var = app._rc_csv_var
+    else:
+        path = filedialog.askopenfilename(title="Choose the voice-over", filetypes=[("Audio", "*.mp3 *.wav *.m4a *.aac *.flac *.ogg"), ("All files", "*.*")])
+        var = app._rc_voice_var
+    if path:
+        var.set(path)   # remembered only: nothing is read or planned until Generate
+        app._rc_planned = None
+        _sync_buttons(app)
+
+
+def activate(app: Any) -> None:
+    if getattr(app, "_rc_running", False):
+        return
+    app._war_deactivate()
+    app._health_deactivate()
+    app._pakmap_deactivate()          # also steps Hybrid and StarMap aside, like Health Cinema and Product Trailer
+    if hasattr(app, "_overscaled_enabled_var") and app._overscaled_enabled_var.get():
+        app._overscaled_enabled_var.set(False)
+        app._overscaled_controls.grid_remove()
+    app.generation_mode = "normal"
+    if getattr(app, "_rc_block", None) is None:
+        build(app, app._view_visual_director.content, row=9)
+    app._rc_active = True
+    from .voiceover_view import adopt_project_voiceover
+    adopt_project_voiceover(app, app._rc_voice_var)   # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
+    app._rc_block.grid()
+    _sync_buttons(app)
+
+
+def deactivate(app: Any) -> None:
+    if getattr(app, "_rc_active", False):
+        app._rc_active = False
+        block = getattr(app, "_rc_block", None)
+        if block is not None:
+            block.grid_remove()
+
+
+def _sync_buttons(app: Any) -> None:
+    if getattr(app, "_rc_generate_btn", None) is None:
+        return
+    running = getattr(app, "_rc_running", False)
+    app._rc_generate_btn.configure(state="disabled" if running else "normal")
+    app._rc_render_btn.configure(state="normal" if (app._rc_planned and not running) else "disabled")
+    app._rc_stop_btn.configure(state="normal" if running and not app._rc_cancel.is_set() else "disabled")
+
+
+def sync_cta(app: Any) -> None:
+    _sync_buttons(app)
+    if getattr(app, "_rc_running", False):
+        app._cta_action = "rc_cancel"
+        app.stage_var.set("GENERATING")
+        stopping = app._rc_cancel.is_set()
+        app.hint_var.set("Stopping…" if stopping else "Working — click Stop to cancel.")
+        app._set_generate_btn(state="disabled" if stopping else "normal", text="Stopping…" if stopping else "Stop")
+        return
+    if app._workspace is None:
+        app._cta_action = "picker"
+        app.stage_var.set("SETUP")
+        app.hint_var.set("Choose a project to get started.")
+        app._set_generate_btn(state="normal", text="Choose project")
+        return
+    if app._rc_planned:
+        app._cta_action = "rc_render"
+        app.stage_var.set("RENDER")
+        app.hint_var.set("The film is planned. Click Render to make the video.")
+        app._set_generate_btn(state="normal", text="Render")
+        return
+    app._cta_action = "rc_generate"
+    app.stage_var.set("PLAN")
+    app.hint_var.set("Choose a story CSV (or paste narration), then click Generate.")
+    app._set_generate_btn(state="normal", text="Generate")
+
+
+def cta(app: Any, action: str) -> None:
+    if action == "rc_cancel":
+        cancel(app)
+    elif action == "rc_render":
+        on_render(app)
+    else:
+        on_generate(app)
+
+
+def cancel(app: Any) -> None:
+    if not getattr(app, "_rc_running", False) or app._rc_cancel.is_set():
+        return
+    app._rc_cancel.set()
+    app._append_log(f"{TAG} Stop requested.\n")
+    app._sync_primary_cta()
+
+
+def _work_dir(app: Any) -> Path:
+    d = Path(app._workspace.state_dir) / "roblox_cinema"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def options(app: Any) -> dict:
+    return {"csv": app._rc_csv_var.get().strip(), "voice": app._rc_voice_var.get().strip(), "text": app._rc_text_box.get("1.0", "end-1c").strip(),
+            "res": RESOLUTIONS.get(app._rc_res_var.get(), 720), "music": bool(app._rc_music_var.get())}
+
+
+def _source(app: Any, o: dict) -> dict:
+    """{csv | text_file} for the runner: a CSV that exists, or the pasted narration saved to the project's folder."""
+    if o["csv"]:
+        if not Path(o["csv"]).is_file():
+            raise FileNotFoundError(f"The story CSV is not there: {o['csv']}")
+        return {"csv": o["csv"]}
+    if o["text"]:
+        f = _work_dir(app) / "narration.txt"
+        f.write_text(o["text"], encoding="utf-8")
+        return {"text_file": str(f)}
+    raise ValueError("Choose a story CSV or paste the narration first.")
+
+
+def _progress(app: Any):
+    def cb(frac: float, msg: str = "") -> None:
+        app.after(0, lambda: (app._rc_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
+                              app._export_progress(max(0.0, min(1.0, frac)), msg or "")))
+    return cb
+
+
+def _start(app: Any, name: str, job, done, end=None) -> None:
+    app._rc_cancel.clear()
+    app._rc_running = True
+    app._sync_primary_cta()
+
+    def worker() -> None:
+        result, error = None, ""
+        try:
+            result = job()
+        except Exception as exc:  # noqa: BLE001 - shown to the user, never silent
+            error = "Stopped." if app._rc_cancel.is_set() else f"{type(exc).__name__}: {exc}"
+
+        def finish() -> None:
+            app._rc_running = False
+            if error:
+                app._rc_status_var.set(error)
+                app._append_log(f"{TAG} {error}\n")
+            else:
+                try:
+                    done(result)
+                except Exception as exc:  # noqa: BLE001
+                    app._rc_status_var.set(f"{type(exc).__name__}: {exc}")
+            if end is not None:
+                end(error)
+            app._sync_primary_cta()
+
+        app.after(0, finish)
+
+    threading.Thread(target=worker, name=name, daemon=True).start()
+
+
+def on_generate(app: Any) -> None:
+    from tkinter import messagebox
+
+    if getattr(app, "_rc_running", False):
+        return
+    if app._workspace is None:
+        messagebox.showerror("Cannot start", "Create or choose a project first.")
+        return
+    rc = _runner()
+    if rc is None:
+        return
+    o = options(app)
+    try:
+        src = _source(app, o)
+    except Exception as exc:  # noqa: BLE001
+        messagebox.showerror("Cannot start", str(exc))
+        return
+    base = str(_work_dir(app) / "film")
+    app._rc_status_var.set("Planning…")
+    app._append_log(f"{TAG} Generate: planning the film\n")
+
+    def job():
+        return rc.plan(base, voiceover=o["voice"] or None, resolution=o["res"], progress=_progress(app), cancel=app._rc_cancel.is_set,
+                       log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **src)
+
+    def done(r) -> None:
+        app._rc_planned = {"src": src, "voice": o["voice"], "res": o["res"], "music": o["music"], "base": base}
+        warn = f"  {len(r['warnings'])} notes (see the log)." if r["warnings"] else ""
+        msg = f"Planned {r['scenes']} scenes, {r['duration']:.0f} s ({'timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over'}).{warn}"
+        app._rc_status_var.set(msg)
+        app._append_log(f"{TAG} {msg}\n")
+
+    _start(app, "roblox-cinema-plan", job, done)
+
+
+def on_render(app: Any) -> None:
+    from tkinter import messagebox
+
+    if getattr(app, "_rc_running", False):
+        return
+    ws, plan = app._workspace, app._rc_planned
+    if ws is None or not plan:
+        messagebox.showerror("Cannot start", "Click Generate first: Render needs the planned film.")
+        return
+    rc = _runner()
+    if rc is None:
+        return
+    o = options(app)
+    if (o["csv"], o["voice"], o["res"], o["music"]) != (plan["src"].get("csv", ""), plan["voice"], plan["res"], plan["music"]) and o["csv"]:
+        messagebox.showinfo("Click Generate first", "You changed the story or options after Generate. Click Generate again, then Render.")
+        return
+    out_path = ws.next_final_path()
+    app.output_var.set(str(out_path))
+    app._rc_status_var.set("Rendering…")
+    app._append_log(f"{TAG} Render -> {out_path.name}\n")
+    run = app._track_generation_start("roblox_cinema")
+
+    def end(error: str) -> None:
+        from export_state import run_outcome
+
+        done = run_outcome(error, out_path if Path(out_path).is_file() else None, stopped=app._rc_cancel.is_set())
+        app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed",
+                                  message=error or ("" if done != "failed" else "Render finished, but no video was written."))
+
+    def job():
+        return rc.render(plan["base"], voiceover=plan["voice"] or None, output=str(out_path), resolution=plan["res"], music=plan["music"],
+                         progress=_progress(app), cancel=app._rc_cancel.is_set, log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **plan["src"])
+
+    def done(r) -> None:
+        mix = (r.get("mix") or {}).get("final_file") or {}
+        msg = f"Done: {out_path.name}" + (f"  ({mix.get('integrated_lufs')} LUFS)" if mix else "")
+        app._rc_status_var.set(msg)
+        app._append_log(f"{TAG} {msg}\n")
+
+    _start(app, "roblox-cinema-render", job, done, end)

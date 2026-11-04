@@ -1,0 +1,24 @@
+row,id,chapter,text,date,location,event,environment,time,weather,characters,actions,vehicles,camera,transition,extra
+plan,,,"D-Day: Six Days in June",1944,,,,,,,,,,,"{""side_a"":""allied"",""side_b"":""germany"",""music"":""stormfront""}"
+chapter,,The Channel,,SPRING 1944,,,,,,,,,,,
+beat,b1,,"In the spring of 1944, southern England had become one vast military camp.",,southern England,map,map,,,,,,,,"{""map"":{""pins"":[""London"",""Portsmouth"",""Paris"",""Normandy""],""dive"":""Portsmouth"",""margin"":1.4},""seed"":11}"
+beat,b2,,"Hundreds of thousands of Allied soldiers waited in tents, ports and airfields for the order to cross the English Channel.",,Portsmouth,troop_deployment,military_base,,,,,,descend>side_track,,"{""seed"":12}"
+beat,b3,,"Across the water, German forces held the coast of occupied France behind bunkers, mines and beach obstacles.",,Omaha Beach,defensive_position,beach,,overcast,,,,,dissolve,"{""seed"":13}"
+chapter,,The Decision,,JUNE 1944,,,,,,,,,,,
+beat,b4,,"The invasion was set for the fifth of June, but a storm swept in over the Channel.",,English Channel,natural_disaster,sea,day,storm,,,,,,"{""seed"":14}"
+beat,b5,,"At Southwick House near Portsmouth, General Dwight Eisenhower listened to his weather forecasters.",5 June 1944,Southwick House,political_meeting,interior,night,rain,,,,,,"{""seed"":15}"
+beat,b6,,"They predicted a short break in the weather. Eisenhower gave the order. The invasion would begin on the sixth of June.",5 June 1944,Southwick House,political_meeting,interior,night,rain,,,,over_shoulder>push_in,cut,
+chapter,,Night Drop,,6 JUNE 1944,,,,,,,,,,,
+beat,b7,,"That night, thousands of paratroopers flew over Normandy in transport planes.",,Normandy,airborne_drop,farmland,night,clear,,,,vehicle_follow>rise,,"{""seed"":17}"
+beat,b8,,"Many landed far from their targets, scattered across the fields and hedgerows in the dark.",,Normandy,airborne_drop,farmland,night,clear,paratrooper*14,look@scattered,,low_angle>ground_track,,"{""seed"":18}"
+beat,b9,,"In the town of Sainte-Mère-Église, American paratroopers fought through the streets. By dawn, the town was in their hands.",,Sainte-Mère-Église,city_occupation,town,night,clear,,,,,,"{""seed"":19}"
+chapter,,D-Day,,6 JUNE 1944,,,,,,,,,,,
+beat,b10,,"At sunrise, nearly seven thousand ships and landing craft appeared off the coast of Normandy.",,English Channel,naval_operation,sea,dawn,overcast,,,,,,"{""stat"":""~7,000 | ships and landing craft"",""seed"":20}"
+beat,b11,,"The landings stretched across five beaches, code-named Utah, Omaha, Gold, Juno and Sword.",,Normandy,map,map,,,,,,,,"{""map"":{""pins"":[""Utah Beach"",""Omaha Beach"",""Gold Beach"",""Juno Beach"",""Sword Beach""],""arrows"":[[""Portsmouth"",""Utah Beach""],[""Portsmouth"",""Omaha Beach""],[""Portsmouth"",""Gold Beach""],[""Portsmouth"",""Juno Beach""],[""Portsmouth"",""Sword Beach""]],""dive"":""Omaha Beach"",""margin"":0.5},""seed"":21}"
+beat,b12,,"At Omaha Beach, the landing craft dropped their ramps under heavy fire.",,Omaha Beach,landing_operation,beach,day,overcast,,,,vehicle_follow>low_angle,,"{""seed"":22}"
+beat,b13,,"Soldiers waded through the surf and took cover behind steel obstacles as they pushed toward the bluffs.",,Omaha Beach,battle,beach,day,overcast,,,,,,"{""seed"":22}"
+beat,b14,,"By nightfall, about one hundred and fifty-six thousand Allied troops were ashore, at a cost of roughly ten thousand casualties.",,Omaha Beach,aftermath,beach,dusk,overcast,,,,,dissolve,"{""stats"":[""156,000 | Allied troops ashore"",""~10,000 | Allied casualties (estimate)""],""seed"":22}"
+chapter,,Breakout,,SUMMER 1944,,,,,,,,,,,
+beat,b15,,"In the weeks that followed, tanks and trucks rolled inland through the Norman countryside.",SUMMER 1944,Normandy,convoy_movement,farmland,day,clear,,,,,,"{""seed"":25}"
+beat,b16,,"On the twenty-fifth of August, Paris was liberated.",,Paris,liberation,city,day,clear,,,,,,"{""seed"":26}"
+beat,b17,,"The road to the end of the war in Europe had opened on the beaches of Normandy.",,Omaha Beach,consequence,beach,sunset,clear,soldier*10,,landing_craft*4>park;ship*6>drift,pullback_reveal>rise,dissolve,"{""seed"":27}"

@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Roblox Cinema</title>
+<style>
+@font-face { font-family: 'Outfit'; font-weight: 700; src: url('/fonts/Outfit-Bold.ttf'); }
+@font-face { font-family: 'Outfit'; font-weight: 800; src: url('/fonts/Outfit-ExtraBold.ttf'); }
+@font-face { font-family: 'Inter'; font-weight: 700; src: url('/fonts/Inter-Bold.ttf'); }
+@font-face { font-family: 'Inter'; font-weight: 600; src: url('/fonts/Inter-SemiBold.ttf'); }
+html, body { margin: 0; background: #000; overflow: hidden; }
+#stage { position: relative; overflow: hidden; background: #000; }
+#gl { position: absolute; left: 0; top: 0; }
+#hud { position: absolute; inset: 0; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; color: #fff; pointer-events: none; }
+#hud > div { position: absolute; display: none; }
+.sub { left: 8%; right: 8%; bottom: calc(var(--u) * 64); text-align: center; font-weight: 700; font-size: calc(var(--u) * 46); line-height: 1.22; letter-spacing: 0.01em; }
+.sub .w { color: rgba(255,244,205,0.78); text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,0.9), 0 0 calc(var(--u)*2) rgba(0,0,0,0.95), 0 0 calc(var(--u)*14) rgba(0,0,0,0.55); -webkit-text-stroke: calc(var(--u)*1.2) rgba(0,0,0,0.55); paint-order: stroke fill; white-space: pre-wrap; }
+.sub .w.on { color: #fff6cf; }
+.date { left: calc(var(--u) * 56); top: calc(var(--u) * 48); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 54); letter-spacing: 0.06em; padding: calc(var(--u)*10) calc(var(--u)*24); background: rgba(14,16,20,0.62); border-left: calc(var(--u)*7) solid #e0b24a; border-radius: calc(var(--u)*4); text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,.6); }
+.place { left: calc(var(--u) * 56); bottom: calc(var(--u) * 210); font-family: 'Outfit', sans-serif; }
+.place .h { font-weight: 800; font-size: calc(var(--u) * 40); letter-spacing: 0.12em; text-shadow: 0 calc(var(--u)*2) calc(var(--u)*8) rgba(0,0,0,.75); }
+.place .s { font-weight: 700; font-size: calc(var(--u) * 24); letter-spacing: 0.2em; color: #e0b24a; margin-top: calc(var(--u)*4); text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,.75); }
+.chapter { inset: 0; display: none; text-align: center; font-family: 'Outfit', sans-serif; }
+.chapter .k { margin-top: calc(var(--u) * 380); font-weight: 700; font-size: calc(var(--u) * 28); letter-spacing: 0.5em; color: #e0b24a; }
+.chapter .h { font-weight: 800; font-size: calc(var(--u) * 112); letter-spacing: 0.06em; margin-top: calc(var(--u)*16); text-shadow: 0 calc(var(--u)*4) calc(var(--u)*18) rgba(0,0,0,.7); }
+.chapter .d { font-weight: 700; font-size: calc(var(--u) * 34); letter-spacing: 0.25em; margin-top: calc(var(--u)*18); color: #d8d4c8; }
+.stat { right: calc(var(--u) * 64); top: 40%; text-align: right; font-family: 'Outfit', sans-serif; padding: calc(var(--u)*16) calc(var(--u)*30); background: rgba(14,16,20,0.58); border-right: calc(var(--u)*7) solid #e0b24a; border-radius: calc(var(--u)*4); }
+.stat .v { font-weight: 800; font-size: calc(var(--u) * 92); line-height: 1; }
+.stat .l { font-weight: 700; font-size: calc(var(--u) * 26); letter-spacing: 0.2em; color: #e0b24a; margin-top: calc(var(--u)*6); }
+.label { left: 0; right: 0; top: calc(var(--u) * 54); text-align: center; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 40); letter-spacing: 0.14em; text-shadow: 0 calc(var(--u)*2) calc(var(--u)*8) rgba(0,0,0,.8); }
+.note { left: 0; right: 0; bottom: calc(var(--u) * 18); text-align: center; font-weight: 600; font-size: calc(var(--u) * 20); color: #e6e2d6; text-shadow: 0 calc(var(--u)*1) calc(var(--u)*4) rgba(0,0,0,.9); }
+.credit { right: calc(var(--u) * 40); bottom: calc(var(--u) * 24); font-weight: 600; font-size: calc(var(--u) * 20); color: #dcd8cc; text-align: right; text-shadow: 0 calc(var(--u)*1) calc(var(--u)*4) rgba(0,0,0,.9); }
+.pins { inset: 0; display: block !important; }
+.pin { position: absolute; left: 0; top: 0; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 26); letter-spacing: 0.1em; padding: calc(var(--u)*4) calc(var(--u)*12); background: rgba(14,16,20,0.7); border-radius: calc(var(--u)*4); white-space: nowrap; display: none; }
+</style></head>
+<body><script type="importmap">{"imports":{"three":"/three/three.module.min.js","three/addons/":"/three/addons/"}}</script><div id="stage"><canvas id="gl"></canvas><div id="hud"></div></div>
+<script type="module" src="/web/main.js"></script></body></html>

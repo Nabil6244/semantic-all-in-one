@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseStory } from '../lib/csv.mjs';
+import { direct } from '../lib/director.mjs';
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+export const SAMPLE = path.join(HERE, '..', 'samples', 'dday_1944.csv');
+let cached = null;
+export const samplePlan = () => (cached ||= direct(parseStory(fs.readFileSync(SAMPLE, 'utf8')), { fps: 24 }));
+export const sampleStory = () => parseStory(fs.readFileSync(SAMPLE, 'utf8'));

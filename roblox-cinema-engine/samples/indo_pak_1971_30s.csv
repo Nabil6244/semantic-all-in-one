@@ -1,0 +1,7 @@
+row,id,chapter,text,date,location,event,environment,time,weather,characters,actions,vehicles,camera,transition,extra
+plan,,,"The 1971 India-Pakistan War",1971,,,,,,,,,,,"{""side_a"":""india"",""side_b"":""pakistan"",""music"":""stormfront""}"
+beat,b1,,"In 1971, a crisis in East Pakistan pushed India and Pakistan toward their third war.",1971,Eastern front,map,map,,,,,,,,"{""map"":{""pins"":[""New Delhi"",""Lahore"",""Dhaka""],""dive"":""Dhaka"",""margin"":1.5},""seed"":31}"
+beat,b2,,"On the third of December, Pakistani jets struck Indian airfields, and war began.",3 December 1971,Amritsar,airstrike,airfield,dusk,clear,,,jet*3>flyover,vehicle_follow>rise,,"{""seed"":32}"
+beat,b3,,"Indian forces drove into the east, with tanks and infantry advancing from three sides.",,Eastern front,military_invasion,farmland,day,overcast,soldier*12,,tank*3>advance,low_angle>ground_track,dissolve,"{""seed"":33}"
+beat,b4,,"On the western front, armour and artillery clashed along the border near Lahore.",,Lahore,battle,battlefield,day,clear,,,tank*4>advance,,dissolve,"{""seed"":34}"
+beat,b5,,"In thirteen days it was over. On the sixteenth of December, Pakistani forces in Dhaka surrendered.",16 December 1971,Dhaka,surrender,city,dawn,clear,,,,,dissolve,"{""stat"":""13 days | the length of the war"",""seed"":35}"
