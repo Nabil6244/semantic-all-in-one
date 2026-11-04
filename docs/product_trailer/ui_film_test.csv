@@ -1,0 +1,8 @@
+#product: Nova X1
+#colors,Titanium Blue,Silver
+#pace,ui
+#disclaimer: Concept film for testing. Not affiliated with any brand.
+order,feature,kicker,value,sub,look
+1,control center,Redesigned,Quick Controls,"Wi-Fi, Bluetooth, Focus mode, Battery",
+2,lock screen,The new,Lock Screen,Live widgets and notifications on the glass,
+3,apps,Smarter,Home Screen,"Phone, Messages, Camera, Photos, Music",icon:camera

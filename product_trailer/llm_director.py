@@ -36,6 +36,7 @@ Balance: use every type the script gives a reason for, never the same type three
 should have at least one 3D render, one bench set and one footage scene wherever a sentence fits them."""
 
 KINDS_3D = ("xray", "fold", "chip", "macro", "lineup")
+CAPTION_OK = {"inside", "phone", "design", "display", "camera", "performance", "battery", "hinge", "chip", "colours", "colors", "options", "module", "lineup"}
 ROOMS = ("loft", "gallery", "studio", "terrace", "desk")
 MOVES = ("island", "edge", "screen", "port", "buttons", "monolith")
 
@@ -84,9 +85,44 @@ def _phone(p: Any, i: int) -> Optional[Dict[str, Any]]:
     return out
 
 
-def to_item(sc: Dict[str, Any], line: str = "") -> Optional[Dict[str, Any]]:
-    """One scene from the answer as a directive item the planner understands, or None when it is unusable."""
+def _said(fig: Any, line: str) -> bool:
+    """Is every number in `fig` ("7200", "60W", "$919.99") in the sentence? Whisper's split digit groups ("5 700") count."""
+    from .director import spoken_numbers
+
+    have = {x.replace(",", "").rstrip(".") for x in re.findall(r"\d[\d,]*(?:\.\d+)?", spoken_numbers(line))}
+    want = [x.replace(",", "") for x in re.findall(r"\d[\d,]*(?:\.\d+)?", str(fig))]
+    return all(w in have or w.rstrip("0").rstrip(".") in have for w in want)
+
+
+def _facts_ok(sc: Dict[str, Any], line: str) -> bool:
+    """The fact gate: a scene never shows a number, chip name or hinge the sentence did not give (a curve marked "(illustrative)" may)."""
+    if not line:
+        return True
     t = _s(sc.get("type"), 12).lower()
+    low = line.lower()
+    if t == "phones":
+        return all(_said(p.get(k) or "", line) for p in (sc.get("phones") or []) if isinstance(p, dict) for k in ("text", "badge", "top"))
+    if t == "bench":
+        return all(_said(x.get("value"), line) for x in (sc.get("items") or []) if isinstance(x, dict))
+    if t == "curve":
+        return "illustrative" in str(sc.get("title") or "").lower() and all(_said(m.get("text") or "", line) for m in (sc.get("marks") or []) if isinstance(m, dict))
+    if t == "fold":
+        return any(w in low for w in ("fold", "hinge", "crease", "flip"))
+    return True
+
+
+def _caption(sc: Dict[str, Any], line: str) -> str:
+    """A 3D shot's caption, or '' when it names a topic the sentence did not ("Cooling Vapor Chamber" over a line about certification)."""
+    cap = _s(sc.get("text"), 30)
+    words = set(re.findall(r"[a-z]{4,}", cap.lower()))
+    return cap if not line or words <= set(re.findall(r"[a-z]{4,}", line.lower())) | CAPTION_OK else ""
+
+
+def to_item(sc: Dict[str, Any], line: str = "") -> Optional[Dict[str, Any]]:
+    """One scene from the answer as a directive item the planner understands, or None when it is unusable or shows a fact the sentence did not give."""
+    t = _s(sc.get("type"), 12).lower()
+    if not _facts_ok(sc, line):
+        return None
     if t == "phones":
         ph = [x for x in (_phone(p, i) for i, p in enumerate((sc.get("phones") or [])[:4])) if x]
         return {"kind": "scene", "layer": {"title": _s(sc.get("title"), 40), "phones": ph}} if ph else None
@@ -119,11 +155,13 @@ def to_item(sc: Dict[str, Any], line: str = "") -> Optional[Dict[str, Any]]:
         q = _s(sc.get("query"), 80)
         return {"kind": "footage", "query": q, "text": ""} if len(q.split()) >= 2 else None
     if t in KINDS_3D:
-        it: Dict[str, Any] = {"kind": t, "text": _s(sc.get("text"), 30)}
+        it: Dict[str, Any] = {"kind": t, "text": _caption(sc, line)}
         if t == "macro":
             it["move"] = sc.get("move") if sc.get("move") in MOVES else "island"
         if t == "chip":
-            it["label"] = _s(sc.get("label") or "CHIP", 20).upper()
+            label = _s(sc.get("label") or "CHIP", 20)
+            words = [w for w in re.findall(r"[a-z0-9]+", label.lower()) if len(w) > 1]
+            it["label"] = label.upper() if line and all(w in line.lower() for w in words) else "CHIP"   # "Snapdragon 8 Gen 3" only if said
         if t == "lineup":
             it["room"] = sc.get("room") if sc.get("room") in ROOMS else None
             it["pose"] = None

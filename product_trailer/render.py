@@ -57,6 +57,12 @@ def render(spec_path, out_mp4, progress: Optional[Callable[[int, int], None]] = 
             from .voiceover import mix_voiceover
 
             wav = mix_voiceover(Path(voice), Path(music) if have_music else None, Path(tmp) / "voice_mix.wav", float(spec["duration"]), ffmpeg)
+            try:   # the references' loudness (-14 LUFS, as YouTube plays it): a voiced film came out at about -21 LUFS before
+                from whatif.sound import normalize_loudness
+
+                wav = Path(normalize_loudness(wav, Path(tmp) / "voice_norm.wav", ffmpeg))
+            except Exception:  # noqa: BLE001 -- never stop a video for loudness
+                pass
             mux_narration(silent, wav, out_mp4, float(spec["duration"]), ffmpeg=ffmpeg)
             return str(out_mp4)
         wav = prepare_music(Path(music), Path(tmp) / "music.wav", float(spec["duration"]), ffmpeg)

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Trailer Inventory</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1e;--mute:#6b6b70;--line:#e2e2e0;--bad:#c4372f;--badbg:#fbe9e7;--ok:#1f7a45;--okbg:#e5f4ea;--mid:#9a6a00;--midbg:#fbf1dc;--nil:#5f6670;--nilbg:#eceef1}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--mute:#9a9aa0;--line:#2e2e33;--bad:#ff7a70;--badbg:#3a1f1d;--ok:#6fd49a;--okbg:#173023;--mid:#f0c060;--midbg:#352a12;--nil:#a8b0bb;--nilbg:#26292e}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:34px 0 8px}h3{font-size:15px;margin:18px 0 6px}
+.sub{color:var(--mute);margin:0 0 20px}p{margin:6px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+code{font-size:12.5px}
+.b{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.bad{background:var(--badbg);color:var(--bad)}.ok{background:var(--okbg);color:var(--ok)}.mid{background:var(--midbg);color:var(--mid)}.nil{background:var(--nilbg);color:var(--nil)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat b{display:block;font-size:24px}.stat span{color:var(--mute);font-size:13px}
+.t{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--mute)}
+</style></head><body><main>
+<h1>Product Trailer: everything we already have</h1>
+<p class="sub">Read from the code on 2026-11-03, before any fix: <code>product_trailer/</code> (2,960 lines), <code>whatif-engine/layers/pt_*.mjs</code> (19 layers), <code>whatif-engine/lib/product*.mjs</code> and <code>phone_models.mjs</code> (3D), <code>data/phones.json</code>, and the reference studies in <code>docs/product_trailer/</code>. The last column says whether the tecg render used each one.</p>
+
+<div class="stats">
+<div class="stat"><b>19</b><span>2D graphic layers</span></div>
+<div class="stat"><b>6</b><span>3D scene builders</span></div>
+<div class="stat"><b>14</b><span>hero camera moves</span></div>
+<div class="stat"><b>5 + 5</b><span>backdrops + rooms</span></div>
+<div class="stat"><b>21</b><span>phone presets, 10 camera layouts</span></div>
+<div class="stat"><b>3 films · 4 styles</b><span>Trailer, Reveal, Review · mixed, cinematic, infographic, follow</span></div>
+<div class="stat"><b>~25</b><span>auto-director sentence rules</span></div>
+<div class="stat"><b>96</b><span>trailer tests in 9 files</span></div>
+</div>
+
+<h2>1. Film types and how each one reads its input</h2>
+<div class="card wrap"><table>
+<tr><th>Film</th><th>Input it expects</th><th>Planner</th><th>Pace</th><th>tecg</th></tr>
+<tr><td><b>Trailer</b></td><td>Feature CSV (<code>#product</code>, <code>#disclaimer</code>, <code>order,feature,kicker,value,sub,look</code>) + music. Music only: <i>"nothing is read aloud"</i> (<code>CSV_prompt.txt</code>)</td><td><code>planner.plan_spec</code>: cold open → one feature per ~3 s → fast second pass → "Introducing" reveal → disclaimer</td><td>Cuts land on the music's beats (<code>beats.py</code>, 110 bpm grid with no music)</td><td><span class="b nil">not used</span></td></tr>
+<tr><td><b>Reveal</b></td><td>The same feature CSV</td><td><code>planner.plan_reveal</code>; with AI on, <code>mixed.plan_mixed</code> (AI stills + 3D lineup + chip)</td><td>Long calm shots, one caption each (<code>ROOMS_FILM_PLAN.md</code>)</td><td><span class="b nil">not used</span></td></tr>
+<tr><td><b>Review</b></td><td>A <b>narration script</b> (pasted, or a narration CSV with a <code>text/line/narration</code> column) + voiceover</td><td><code>review.parse_script</code> → director (AI or rules) → <code>balance</code> → <code>plan_review_timed</code></td><td>Timed to the narrator's words (<code>voiceover.align_lines</code>)</td><td><span class="b bad">used with a Trailer CSV</span></td></tr>
+</table>
+<p><b>Key finding:</b> the tecg CSV is a <b>Trailer</b> CSV, and the Trailer planner already reads every part of it correctly: product block, kicker/value/sub, and looks. Review mode has no reader for that format, which is why the lines came out as <code>#product</code>, <code>order</code>, <code>1</code> … <code>9</code>.</p></div>
+
+<h2>2. 2D graphic layers (whatif-engine/layers)</h2>
+<div class="card wrap"><table>
+<tr><th>Layer</th><th>What it draws</th><th>Fields</th><th>Made for</th><th>tecg</th></tr>
+<tr><td><code>pt_feature</code></td><td>Kicker + huge value + sub line, beside the phone, no box</td><td>kicker, value, sub, side</td><td>Trailer: <b>exactly the CSV columns</b></td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_caption</code></td><td>One short spec line, bottom or top centre</td><td>text, y, size</td><td>Reveal / Review over 3D</td><td><span class="b mid">yes</span> invented captions</td></tr>
+<tr><td><code>pt_bigtype</code></td><td>Huge italic word across the frame ("120Hz")</td><td>text, y</td><td>Trailer display beat</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_badge</code></td><td>Gold chip badge with a spark burst</td><td>title, subtitle, color</td><td>Trailer <code>look=badge</code> (chip row)</td><td><span class="b nil">no</span> (CSV row 8 asked for it)</td></tr>
+<tr><td><code>pt_tagline</code></td><td>One medium line ("Slimmer. Stronger")</td><td>text, side</td><td>Trailer (rows 1 and 9 "Wider. Bolder", "Less. But more")</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_reveal</code></td><td>"Introducing" + product name</td><td>kicker, name, side</td><td>Trailer / Reveal ending</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_card</code></td><td>End disclaimer, plain white lines on black</td><td>lines[]</td><td>All films</td><td><span class="b bad">yes</span> one long line runs off the frame</td></tr>
+<tr><td><code>pt_subtitle</code></td><td>6–9 word burned-in subtitles</td><td>chunks[{start,end,text}]</td><td>Review</td><td><span class="b bad">yes</span> showed CSV tags</td></tr>
+<tr><td><code>pt_paper</code></td><td>Off-white paper backdrop for flat graphics</td><td>tone</td><td>Review infographic</td><td><span class="b mid">yes</span> 11 shots</td></tr>
+<tr><td><code>pt_flatphones</code></td><td>1–4 flat phone cut-outs, giant figure, battery capsule, cutaway cell, badge</td><td>phones[label,text,color,cams,fill,top,badge,cutaway,side]</td><td>Spec / battery / charging / price compare</td><td><span class="b bad">yes</span> "Phone 1", 120Hz, +500mAh</td></tr>
+<tr><td><code>pt_doc</code></td><td>Certification page, highlighted row, stamp (no fake readable text)</td><td>chip, title, rows, highlight, stamp</td><td>3C / BIS / FCC listing</td><td><span class="b bad">yes</span> at the wrong time (design leak)</td></tr>
+<tr><td><code>pt_tweet</code></td><td>Quote card, marker sweeps the key phrase</td><td>author, handle, text, highlight</td><td>Tipster / leak source</td><td><span class="b ok">yes</span> disclaimer quote</td></tr>
+<tr><td><code>pt_curve</code></td><td>Line chart drawing itself, marks, level line</td><td>points, marks, level, labels</td><td>Measured over time</td><td><span class="b bad">yes</span> invented charging curve</td></tr>
+<tr><td><code>pt_bench</code> (layer)</td><td>Big benchmark bars on a frosted panel, delta pill</td><td>rows[label,value,text], delta, max</td><td>Two-number chip rumour</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_compare3</code></td><td>2–4 columns, rising bars, unit</td><td>cols[label,value,highlight], unit</td><td>Brightness / spec vs spec</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_glass</code></td><td>Frosted glass data cards over 3D, count-up, delta</td><td>cards[title,value,unit,delta,tint,x,y,w]</td><td>Over the bench set</td><td><span class="b bad">yes</span> invented Geekbench</td></tr>
+<tr><td><code>pt_gauge</code></td><td>Speed-test half-ring dials</td><td>gauges[label,value], unit, max, dark</td><td>Speed tests</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_thermal</code></td><td>Heat-camera phone outlines with temperatures</td><td>phones[label,temp], min, max</td><td>Stress test</td><td><span class="b nil">no</span></td></tr>
+<tr><td><code>pt_coststack</code></td><td>Bill-of-materials stack beside a flat phone</td><td>rows[label,value], total</td><td>Cost to build</td><td><span class="b nil">no</span></td></tr>
+</table></div>
+
+<h2>3. 3D scenes (whatif-engine/lib)</h2>
+<div class="card wrap"><table>
+<tr><th>Builder</th><th>What it shows</th><th>Settings</th><th>tecg</th></tr>
+<tr><td><code>product.mjs</code> · <code>object: phone / galaxy / iphone</code></td><td>Studio-lit hero phone, glossy metal, bloom</td><td>14 moves (below) · 5 backdrops · wash / wash2 / wash_style swoosh or aurora · screen time, date, wallpaper liquid / wave / clock, power_on · fog · streak · glow · dim_in/out · sweep · cam_side · frame_side · colour · motion-blur samples</td><td><span class="b mid">yes</span> 2 shots (island, port), generic <code>"phone"</code> model</td></tr>
+<tr><td><code>product.mjs</code> · <code>object: chip</code></td><td>Chip package, circuits, glow</td><td>move chip / chip_macro, label, sublabel, glow, heat</td><td><span class="b bad">yes</span> label "SNAPDRAGON 8 GEN 3" invented</td></tr>
+<tr><td><code>product_room.mjs</code> · <code>lineup</code></td><td>Phones on a table in a code-built room, out-of-focus room</td><td>rooms loft / gallery / studio / terrace / desk · poses back / front / mixed / fan · colours · push · cam_y · cam_x · focus · light · bloom</td><td><span class="b mid">yes</span> 2 shots, colours not from CSV</td></tr>
+<tr><td><code>product_bench.mjs</code> · <code>bench</code></td><td>Review-lab pegboard set, phones on cone stands, screens show data</td><td>screens chart / bars / number / heat · palette blue / teal / amber · cam · focus · bloom</td><td><span class="b bad">yes</span> invented scores</td></tr>
+<tr><td><code>product_xray.mjs</code> · <code>xray</code></td><td>Glowing see-through phone, parts, scan line, explode, dimension lines</td><td>tone · explode · scan · dims[{from,to,text}] · cam · bloom</td><td><span class="b bad">yes</span> captioned "Cooling Vapor Chamber"</td></tr>
+<tr><td><code>product_fold.mjs</code> · <code>fold</code></td><td>Book-style foldable opening on a hinge</td><td>angle · crease · tone · wallpaper · cam</td><td><span class="b bad">yes</span> the S27 Ultra doesn't fold</td></tr>
+</table>
+<h3>Hero camera moves (14)</h3>
+<p><code>island</code> lens-bar macro · <code>monolith</code> low angle up the back · <code>hero</code> floating front · <code>profile</code> edge-on thinness · <code>orbit</code> half circle · <code>screen</code> top-of-front macro · <code>edge</code> bevel and keys · <code>flip</code> back→front · <code>rise</code> up from below · <code>port</code> USB-C macro · <code>buttons</code> side keys · <code>chip</code> · <code>chip_macro</code> · <code>reveal</code> back, then a half turn and the screen powers on. Trailer rules: no move repeats within 3 shots; front-facing shots ≤ 30 %; no text on frame-filling moves.</p>
+<h3>Backdrops (5)</h3>
+<p><code>stars</code> · <code>wash</code> (swoosh red/orange or aurora purple/blue) · <code>horizon</code> (dark land, city lights) · <code>studio</code> (cyclorama, floor shadow) · <code>charcoal</code>. tecg used only <code>charcoal</code>.</p>
+<h3>Phone models (21 presets, 10 camera layouts)</h3>
+<p>Layouts: <code>galaxy_ultra, galaxy_s, iphone_pro, iphone_base, pixel_bar, round_island, square_island, vertical_pill, galaxy_s27_island, galaxy_s27_video</code>. <b>A <code>galaxy_s27_ultra</code> preset exists</b>, with the S27 camera layout and colours Navy, Sky Blue, Pink, White, Black. tecg passed the generic <code>"phone"</code> instead, so the camera bar the narrator describes never appeared. "Titanium Black" isn't one of the S27 preset colours; the closest is Black.</p></div>
+
+<h2>4. CSV formats and looks</h2>
+<div class="card wrap"><table>
+<tr><th>Format</th><th>Read by</th><th>Fields</th></tr>
+<tr><td>Feature CSV</td><td><code>csv_io.parse_csv_text</code> (Trailer, Reveal)</td><td><code>#product,name,colour,wordmark,time,date</code> · <code>#disclaimer</code> · <code>#colors</code> · <code>#pace</code> · <code>key,value</code> rows · table <code>order,feature,kicker,value,sub,look</code></td></tr>
+<tr><td>Looks (feature <code>look</code> column)</td><td><code>planner.classify</code></td><td><code>wash</code>, <code>wash:red</code>, <code>wash:#hex</code>, <code>wash:blue:swoosh</code> · <code>badge</code> · <code>bigtype</code> · <code>stars</code> / <code>horizon</code> / <code>studio</code>. With no look, the feature word picks one: camera → stars · frame/titanium → red wash · software/AI → purple aurora · chip → badge · battery/charging → horizon · design/slim → horizon</td></tr>
+<tr><td>Narration CSV</td><td><code>review.csv_to_script</code> (Review)</td><td>text column: <code>text, line, narration, script_segment, script, sentence, voiceover, voice</code> · visual: <code>visual, directive, graphic, shot</code> · <code>chapter</code></td></tr>
+<tr><td>Script markup</td><td><code>review.parse_script</code></td><td><code># title</code> · <code>## chapter</code> · <code>[bars:]</code> <code>[curve:]</code> <code>[compare:]</code> <code>[stat:]</code> <code>[xray:]</code> <code>[fold:]</code> <code>[lineup: caption|room|pose]</code> <code>[chip: LABEL|caption]</code> <code>[macro: caption|move]</code> <code>[bigtype:]</code> <code>[intro:]</code> <code>[outro:]</code> <code>[scene: {json}]</code> and the flat, gauge, tweet, thermal, cost and bench kinds</td></tr>
+</table></div>
+
+<h2>5. Scene-choosing brains</h2>
+<div class="card wrap"><table>
+<tr><th>Part</th><th>What it does</th><th>tecg</th></tr>
+<tr><td><code>director.auto_direct</code> (rules)</td><td>Per sentence: certification/listing → doc · tipster/leaker → tweet · two numbers, same unit → two phones + delta · one number → phone with figure (battery cutaway for mAh) · colour list → coloured phones · model list → row · 3/4 cameras → lens count · inside → xray · hinge/fold → fold · chip/snapdragon → chip · camera → island macro · display → screen macro · frame/port → edge macro · nothing → hold the scene before. <code>footage_hint</code>: launch / hands / store</td><td><span class="b nil">not used</span> (Gemini answered)</td></tr>
+<tr><td><code>llm_director</code> (Gemini → Groq)</td><td>Same scene types as JSON. Rule written in the prompt: <i>"use only numbers and names that are in the sentence"</i>. Fields are clamped, but numbers and labels <b>aren't checked against the sentence</b></td><td><span class="b bad">used</span> on 12 CSV lines → invented content</td></tr>
+<tr><td><code>balance</code></td><td>No look 3 times in a row; in films of 5+ scenes, every reason-given look appears (3D, bench, footage); never touches author directives (<code>_own</code>)</td><td><span class="b mid">used</span></td></tr>
+<tr><td><code>footage.resolve_footage</code></td><td>Pexels → Pixabay per footage query; best landscape clip; a missed clip becomes 3D</td><td><span class="b mid">1 query</span> → yellow iPhone-style case</td></tr>
+<tr><td><code>REVIEW_TYPES</code> (Flow AI stills)</td><td>hands_desk · lab_rig · charging_cable · charging_desk · macro_edge · desk_row, using 5 reference renders of the code-built phone (<code>references.py</code>)</td><td><span class="b nil">0 pictures</span> (AI on, none made)</td></tr>
+<tr><td><code>scenepack</code> / <code>mixed</code></td><td>AI never draws text, numbers or the chip; the setting rotates; Veo clips are only counted</td><td><span class="b nil">not on this path</span></td></tr>
+</table></div>
+
+<h2>6. Timing rules that already exist</h2>
+<div class="card wrap"><table>
+<tr><th>Constant</th><th>Value</th><th>Meaning</th><th>What happened in tecg</th></tr>
+<tr><td><code>MAX_SCENE_S</code></td><td>9.0 s</td><td>A scene stays over the next sentences for at most this long</td><td>Never triggered: each "sentence" was itself 17.5 s</td></tr>
+<tr><td><code>MAX_HOLD_S</code> / <code>HOLD_STEP_S</code></td><td>5.0 / 4.5 s</td><td>Long flat scenes are cut into 4.5 s pieces</td><td>The pieces were <b>copies of the same card</b> (<code>"hold": true</code>), so it looked frozen for 18 s</td></tr>
+<tr><td><code>MIN_SHOT_S / MAX_SHOT_S</code></td><td>2.5 / 7.0 s</td><td>Shot length limits (untimed Review)</td><td>The timed path ignored them</td></tr>
+<tr><td><code>BEAT_S</code>, <code>CHUNK_WORDS</code></td><td>3.0 s, 7 words</td><td>Filler beat length; subtitle chunk size</td><td>—</td></tr>
+<tr><td><code>align_lines</code></td><td>60 % word hits</td><td>Below that, lines are spread evenly by word count</td><td>Triggered: 0 hits</td></tr>
+</table></div>
+
+<h2>7. Test run: the existing rule director on the real transcript</h2>
+<div class="card wrap">
+<p>No render. Sentences split on pauses, each passed to <code>director.scene_for</code>. This shows what we'd get <b>with no new graphics</b>, just the right input.</p>
+<table>
+<tr><th>Time</th><th>Narration</th><th>Rule picks</th><th>Verdict</th></tr>
+<tr><td class="t">0:00 · 0:03</td><td>may have lost a camera · dummies show a wide camera bar</td><td>camera island macro</td><td><span class="b ok">right</span> (needs the S27 preset)</td></tr>
+<tr><td class="t">0:28</td><td>a rumor or a certification listing</td><td>doc</td><td><span class="b mid">ok-ish</span></td></tr>
+<tr><td class="t">0:40</td><td>horizontal camera island, slightly bigger</td><td>camera macro</td><td><span class="b ok">right</span></td></tr>
+<tr><td class="t">0:48</td><td>163.76×78.25×7.97 mm vs 163.6×78.1×7.9 mm</td><td>flat "Before and now", empty</td><td><span class="b bad">gap</span> Whisper wrote "163 76x78 25x7 97mm"</td></tr>
+<tr><td class="t">1:13</td><td>200 MP main, 50 MP UW, 50 MP 5× (a rumor)</td><td>tweet (the "rumor" rule wins)</td><td><span class="b bad">gap</span> should be figures; CSV has 200MP and 50MP 5x</td></tr>
+<tr><td class="t">1:42</td><td>China 3C listing, 5,534 mAh</td><td>3C certification doc</td><td><span class="b ok">right</span></td></tr>
+<tr><td class="t">1:48 · 1:53</td><td>around 5,700 · S26 has 5,000, ~700 more</td><td>nothing</td><td><span class="b bad">gap</span> "5 700" and "5 0" split by Whisper; CSV has 5700 mAh</td></tr>
+<tr><td class="t">1:58</td><td>wired charging listed at 60 watts</td><td>doc ("listed" rule wins)</td><td><span class="b mid">gap</span> should be the 60W figure; CSV has 60W</td></tr>
+<tr><td class="t">2:11</td><td>privacy display, higher brightness</td><td>screen macro</td><td><span class="b ok">right</span> (CSV adds "Privacy" + purple wash)</td></tr>
+<tr><td class="t">2:21</td><td>Snapdragon for US buyers</td><td>chip "CHIP"</td><td><span class="b ok">right</span> (CSV adds "Ultra" + badge)</td></tr>
+<tr><td class="t">2:27</td><td>tipster Ice Universe: no Exynos 2700 signs</td><td>tweet</td><td><span class="b ok">right</span> (author not named; the regex misses it)</td></tr>
+<tr><td class="t">3:01 · 3:11</td><td>S26 Ultra $919.99 at Amazon vs $1,299.99</td><td>nothing</td><td><span class="b bad">gap</span> no price rule; <code>pt_flatphones</code> can already show "$919.99"</td></tr>
+<tr><td class="t">3:23</td><td>bigger battery or keeping the 3× camera</td><td>flat "Before and now", empty</td><td><span class="b mid">weak</span></td></tr>
+</table>
+<p><b>Result:</b> about 9 of 14 claims get the right picture from rules we already have, compared with ~2 of 13 in the tecg render. The rest are a handful of rule gaps, not missing graphics.</p></div>
+
+<h2>8. What this changes in the fix plan</h2>
+<div class="card wrap"><table>
+<tr><th>Plan step</th><th>Reuse (already built)</th><th>Truly new</th></tr>
+<tr><td>1. Recognise a feature CSV in Review</td><td><code>csv_io.parse_csv_text</code> already reads it fully</td><td>A small check in <code>review_source</code>: feature CSV → don't make it the script</td></tr>
+<tr><td>2. Voice is the script</td><td>Whisper words, <code>voiceover.chunks</code> for subtitles, <code>align_lines</code></td><td>Split the words into sentences (about 10 lines)</td></tr>
+<tr><td>3. CSV values on the right sentence</td><td><code>pt_feature</code> (kicker/value/sub), <code>pt_tagline</code>, <code>pt_badge</code>, wash/horizon backdrops via <code>planner.classify</code>, phone preset <code>galaxy_s27_ultra</code></td><td>Match a row to the sentence that says it (number and unit forms)</td></tr>
+<tr><td>4. No Gemini with a CSV</td><td><code>director.auto_direct</code> + <code>balance</code> (section 7 shows they work)</td><td>Don't pass <code>llm_run</code> when a CSV is set</td></tr>
+<tr><td>4b. Rule gaps (new, from section 7)</td><td>Existing rules</td><td>Join Whisper's split numbers ("5 700" → 5,700, "919 99" → $919.99); figures beat "rumor" and "listed"; a price rule → <code>pt_flatphones</code> with "$"</td></tr>
+<tr><td>5. Fact gate</td><td>The LLM prompt already states the rule</td><td>Enforce it: drop numbers or labels not in the sentence or CSV; fold only for foldables</td></tr>
+<tr><td>6. No frozen cards</td><td><code>MAX_SCENE_S</code>, <code>_alt_shot</code>, <code>_filler_shot</code></td><td>A hold piece switches to a different picture instead of copying the same card</td></tr>
+<tr><td>7. Disclaimer wraps</td><td><code>pt_card</code> already takes several lines</td><td>Split the long line into lines</td></tr>
+</table>
+<p><b>Nothing new to draw.</b> Every graphic and 3D scene the fix needs already exists. The work is wiring the input and closing the rule gaps above.</p></div>
+</main></body></html>

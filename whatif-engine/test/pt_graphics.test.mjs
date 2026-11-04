@@ -64,3 +64,29 @@ test('infographic layers draw without throwing (the layer runner would hide an e
     void layer;
   }
 });
+
+test('pt_card wraps a long disclaimer inside the card width', async () => {
+  const { wrapLines } = await import('../layers/pt_card.mjs');
+  const g = { measureText: (s) => ({ width: s.length * 10 }) };
+  const long = 'This is a conceptual trailer made by a fan. It is not affiliated with, endorsed by or sponsored by the manufacturer.';
+  const out = wrapLines(g, [long, 'Short.'], 300);
+  assert.ok(out.length > 3);
+  assert.ok(out.every((l) => l.length * 10 <= 300 || !l.includes(' ')));
+  assert.equal(out.join(' '), `${long} Short.`.replace(/\s+/g, ' '));
+  assert.equal(out[out.length - 1], 'Short.');
+});
+
+test('pt_flatphones: a row of four phones stays inside the frame', async () => {
+  const { mockCanvas } = await import('../lib/mockcanvas.mjs');
+  const mod = (await import('../layers/pt_flatphones.mjs')).default;
+  const { g } = mockCanvas();
+  const xs = [];
+  const orig = g.fillRect?.bind(g);
+  const rr = g.roundRect?.bind(g);
+  g.roundRect = (x, y, w, h, r) => { xs.push([x, x + w]); return rr ? rr(x, y, w, h, r) : undefined; };
+  const def = { type: 'pt_flatphones', start: 0, end: 5, phones: [1, 2, 3, 4].map((i) => ({ label: `P${i}`, cams: 3, badge: 'Yes' })) };
+  mod.draw(mod.create(def), { g, W: 1920, H: 1080, t: 3, alpha: 1 });
+  if (orig) g.fillRect = orig;
+  assert.ok(xs.length > 0);
+  assert.ok(xs.every(([a, b]) => a >= 0 && b <= 1920), JSON.stringify(xs.slice(0, 6)));
+});

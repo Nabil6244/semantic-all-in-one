@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>To The Point</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1e;--mute:#6b6b70;--line:#e2e2e0;--bad:#c4372f;--badbg:#fbe9e7;--ok:#1f7a45;--okbg:#e5f4ea;--mid:#9a6a00;--midbg:#fbf1dc}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--mute:#9a9aa0;--line:#2e2e33;--bad:#ff7a70;--badbg:#3a1f1d;--ok:#6fd49a;--okbg:#173023;--mid:#f0c060;--midbg:#352a12}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:32px 0 8px}
+.sub{color:var(--mute);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.t{white-space:nowrap;color:var(--mute);font-variant-numeric:tabular-nums}
+.b{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.bad{background:var(--badbg);color:var(--bad)}.ok{background:var(--okbg);color:var(--ok)}.mid{background:var(--midbg);color:var(--mid)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat b{display:block;font-size:24px}.stat span{color:var(--mute);font-size:13px}
+code{font-size:12.5px}ol li{margin:6px 0}
+</style></head><body><main>
+<h1>tecg_review: is each picture to the point?</h1>
+<p class="sub">All 43 script sentences of <code>tecg_review.mp4</code>, each with the shots on screen while it's spoken. A picture is "to the point" when it shows the claim itself: the figure, the source, the date or the comparison. Under "Should show", every option uses a graphic we already have.</p>
+
+<div class="stats">
+<div class="stat"><b>13</b><span>sentences on point</span></div>
+<div class="stat"><b>8</b><span>partly (right topic, the claim isn't shown)</span></div>
+<div class="stat"><b>22</b><span>miss: a generic 3D phone or room, or the wrong card</span></div>
+<div class="stat"><b>0</b><span>reliability labels, though the script promises "which is which"</span></div>
+</div>
+
+<h2>Sentence by sentence</h2>
+<div class="card wrap"><table>
+<tr><th>#</th><th>Time</th><th>Narration</th><th>On screen now</th><th>Should show (existing graphic)</th><th></th></tr>
+<tr><td>1</td><td class="t">0:00</td><td>Next Ultra may have lost a camera</td><td>3D camera island, "Camera"</td><td>Flat phones: 4 lenses → 3 lenses, badge "−1 camera" (<code>pt_flatphones</code> cams)</td><td><span class="b mid">partly</span></td></tr>
+<tr><td>2</td><td class="t">0:03</td><td>Dummy phones show a wide camera bar, one less camera than four</td><td>3D monolith, room lineup</td><td>Island macro on the S27 bar + caption "Wide camera bar"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>3</td><td class="t">0:10</td><td>What's solid, what's shaky; wait or buy the S26 Ultra before Black Friday</td><td>Tagline "Wider. Bolder" (CSV filler)</td><td>Two phones: "Galaxy S27 Ultra: WAIT?" vs "Galaxy S26 Ultra: BUY?"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>4–5</td><td class="t">0:18</td><td>Not announced; expected early 2027</td><td>3D buttons, screen macro</td><td>Big type "EARLY 2027" (<code>pt_bigtype</code>) + "NOT ANNOUNCED"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>6</td><td class="t">0:25</td><td>Leak, rumor or certification; I'll tell you which</td><td>Certification document</td><td>Three labels in a row: LEAK · RUMOR · CERTIFIED</td><td><span class="b mid">partly</span></td></tr>
+<tr><td>7–8</td><td class="t">0:32</td><td>First, the design. This one is a leak</td><td>3D edge, lineup</td><td>Section label "DESIGN · LEAK"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>9</td><td class="t">0:35</td><td>Android Headlines built dummy units</td><td>3D port, monolith</td><td>Source card, author "Android Headlines" (<code>pt_tweet</code>)</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>10</td><td class="t">0:40</td><td>Horizontal camera island; slightly bigger: 163.76×78.25×7.97 vs 163.6×78.1×7.9 mm</td><td>"Camera Island" feature, then a lineup (17 s)</td><td>Feature, then two flat phones with their sizes: "S26 Ultra 163.6×78.1×7.9" vs "S27 Ultra 163.76×78.25×7.97"</td><td><span class="b mid">partly</span> no sizes shown</td></tr>
+<tr><td>11</td><td class="t">0:57</td><td>Closer to iPhone 18 Pro than to S26 Ultra</td><td>Flat phones "Side by side"</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>12</td><td class="t">1:02</td><td>Your S26 Ultra case probably won't fit</td><td>Lineup, edge macro</td><td>Two phones, S26 vs S27, badge "Case won't fit"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>13</td><td class="t">1:08</td><td>Medium reliability</td><td>Screen macro, lineup</td><td>Reliability dial "MEDIUM" (<code>pt_gauge</code>)</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>14–15</td><td class="t">1:13</td><td>Second, the cameras. A rumor</td><td>Island macro "Camera"</td><td>Section label "CAMERAS · RUMOR"</td><td><span class="b mid">partly</span></td></tr>
+<tr><td>16</td><td class="t">1:16</td><td>200 MP main, 50 MP ultrawide, 50 MP 5×</td><td>Feature "200MP", lineup</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>17–18</td><td class="t">1:25</td><td>The 3× telephoto would be dropped; not confirmed</td><td>Feature "50MP 5x"</td><td>Before/after: "3×" (S26) → "5×" (S27), "3× dropped"</td><td><span class="b mid">partly</span></td></tr>
+<tr><td>19</td><td class="t">1:31</td><td>Do you use the 3× zoom?</td><td>Stock: a hand holding a phone</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>20</td><td class="t">1:35</td><td>Third, the battery</td><td>Lineup</td><td>Section label "BATTERY · CERTIFIED"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>21</td><td class="t">1:37</td><td>Most reliable: certification databases</td><td>Document</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>22</td><td class="t">1:42</td><td>China 3C listing: 5,534 mAh</td><td>Document with <b>no figure</b></td><td>The same document with stamp "5,534 mAh" (<code>pt_doc</code> stamp)</td><td><span class="b mid">partly</span></td></tr>
+<tr><td>23</td><td class="t">1:48</td><td>Advertised as around 5,700</td><td>Feature "5700 mAh"</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>24</td><td class="t">1:53</td><td>S26 Ultra has 5,000: ~700 more, ~14%</td><td>Tagline "Less. But more" (CSV filler)</td><td>Battery before/after: 5,000 → 5,700, badge "+700 mAh · +14%"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>25</td><td class="t">2:00</td><td>Wired charging 60 W</td><td>Feature "60W"</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>26–27</td><td class="t">2:02</td><td>Certification proves a battery exists, not final specs</td><td>Document (3rd time), lineup</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>28</td><td class="t">2:09</td><td>Two more things for US buyers</td><td>Port macro</td><td>Label "FOR US BUYERS"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>29</td><td class="t">2:11</td><td>Privacy Display on S27 Pro and Ultra, not S27 or S27 Plus</td><td>"Privacy" big type, <b>hidden behind the phone</b>, then a lineup</td><td>"Privacy" readable, then 4 flat phones: Pro ✓, Ultra ✓, S27 ✗, Plus ✗</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>30</td><td class="t">2:22</td><td>US keeps Snapdragon Ultra</td><td>Chip + gold badge</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>31</td><td class="t">2:27</td><td>Tipster Ice Universe: no Exynos 2700 signs</td><td>Quote card</td><td>Author "Ice Universe" (it says "As reported")</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>32</td><td class="t">2:35</td><td>That's a tipster, not Samsung</td><td>Screen macro</td><td>Label "TIPSTER · UNCONFIRMED"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>33–35</td><td class="t">2:37</td><td>What doesn't add up: Google-like first, now iPhone-like; leaks contradict</td><td>Lineup, monolith, buttons, island</td><td>Two flat phones "Earlier leak: Pixel-like" vs "Now: iPhone-like", badge "CONFLICTING"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>36–37</td><td class="t">2:51</td><td>My take: if your phone works, wait</td><td>Monolith, lineup</td><td>Big type "WAIT"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>38</td><td class="t">2:55</td><td>Battery is the real upgrade, camera change is the risk</td><td>Island "Camera", lineup</td><td>Two-row verdict: Battery ✓ upgrade · Camera ⚠ risk</td><td><span class="b mid">partly</span></td></tr>
+<tr><td>39</td><td class="t">3:00</td><td>Black Friday is November 27th</td><td>Monolith</td><td>Big type "NOV 27 · BLACK FRIDAY"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>40</td><td class="t">3:04</td><td>S26 Ultra $919.99 vs $1,299.99</td><td>Price card</td><td>—</td><td><span class="b ok">on point</span></td></tr>
+<tr><td>41</td><td class="t">3:16</td><td>No confirmed Black Friday prices yet</td><td>Monolith, edge</td><td>Price card again with "$ ? · NOT YET"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>42</td><td class="t">3:21</td><td>Bigger battery or keeping the 3× camera?</td><td>A flat phone with "3x" and no title</td><td>Two options: "+700 mAh battery" vs "3× camera"</td><td><span class="b bad">miss</span></td></tr>
+<tr><td>43</td><td class="t">3:26</td><td>Tell me in the comments</td><td>Port macro</td><td>Name reveal / outro (<code>pt_reveal</code>)</td><td><span class="b mid">partly</span></td></tr>
+</table></div>
+
+<h2>Why it misses (the code-level causes)</h2>
+<div class="card"><ol>
+<li><b>The director only reacts to numbers with units and a few keywords.</b> Dates ("early 2027", "November 27th"), named publications ("Android Headlines"), reliability words ("leak", "rumor", "medium reliability"), contradictions, verdicts ("wait", "the risk") and questions get no picture. So 22 sentences fall back to a generic 3D phone or room.</li>
+<li><b>Context from the sentence before is lost.</b> "The S26 Ultra has 5,000, so that's about 700 more, roughly 14 percent" has no "mAh", and "percent" isn't parsed as %. So the battery comparison gets nothing, even though the previous sentence was about mAh.</li>
+<li><b>A CSV filler can steal a better scene.</b> The two CSV taglines go on sentences that have "no scene", but that's decided before context is known. "Less. But more" took the battery comparison line. The Privacy feature also took the model-lineup sentence (Pro/Ultra vs S27/Plus) instead of being shown together with it.</li>
+<li><b>Some cards drop the very figure the sentence says.</b> The 3C document shows no "5,534 mAh", and the quote card says "As reported" instead of naming "Ice Universe". The name-matching rule only accepts a capitalised name after "tipster" and misses this one.</li>
+<li><b>Filler 3D isn't tied to the topic.</b> Under a battery sentence it can show a port macro or a room lineup. Moves rotate in a fixed order, not by subject (battery → x-ray cutaway, camera → island, design → edge/profile, chip → chip).</li>
+<li><b>The script's own structure isn't used.</b> "First, the design. This one is a leak." / "Second, the cameras. This one is a rumor." / "Third, the battery. Certification." That's a section label with a reliability tag, which the references show and the planner ignores.</li>
+<li><b>Readability.</b> "Privacy" big type sits behind the phone, and one flat phone card has an empty title.</li>
+</ol></div>
+
+<h2>Fix plan (rules and wiring only; every graphic already exists)</h2>
+<div class="card wrap"><table>
+<tr><th>Step</th><th>Rule</th><th>Uses</th><th>Fixes sentences</th></tr>
+<tr><td>1</td><td>Section label: "First / Second / Third, the X" + "This one is a leak / rumor / certification" → label "X · LEAK"</td><td><code>pt_tagline</code> over the topic's 3D shot</td><td>7–8, 14–15, 20</td></tr>
+<tr><td>2</td><td>Reliability words → status: leak / rumor / certified / medium reliability / tipster, not Samsung</td><td><code>pt_gauge</code> (one dial) or tagline</td><td>6, 13, 32</td></tr>
+<tr><td>3</td><td>Dates → big type: "early 2027", "November 27th", "Black Friday"</td><td><code>pt_bigtype</code> over a slow 3D move</td><td>4–5, 39</td></tr>
+<tr><td>4</td><td>Named source → quote card with that name ("Android Headlines", "Ice Universe": any capitalised name before "says")</td><td><code>pt_tweet</code></td><td>9, 31</td></tr>
+<tr><td>5</td><td>Carry the unit from the previous sentence; "percent" = %. Then "has 5,000 … 700 more … 14 percent" → before/after</td><td><code>pt_flatphones</code> battery cutaway, badge</td><td>24</td></tr>
+<tr><td>6</td><td>Figure on evidence: the doc stamp shows the sentence's figure</td><td><code>pt_doc</code> stamp</td><td>22</td></tr>
+<tr><td>7</td><td>Dimensions → two phones with sizes; camera count change → 4 vs 3 lenses; zoom change → 3× vs 5×</td><td><code>pt_flatphones</code></td><td>1, 10, 17</td></tr>
+<tr><td>8</td><td>Model lists with "while … won't" → phones with ✓ / ✗ badges. A CSV feature on the same sentence comes first, then this card</td><td><code>pt_flatphones</code> badges</td><td>29</td></tr>
+<tr><td>9</td><td>Contradiction ("first rumored … now"), verdict ("wait", "the real upgrade … the risk"), question ("A or B?") → two-card compare</td><td><code>pt_flatphones</code> / <code>pt_glass</code></td><td>3, 33–35, 37–38, 42</td></tr>
+<tr><td>10</td><td>CSV fillers only go on a sentence that stays plain after steps 1–9</td><td><code>place_features</code> after the director</td><td>3, 24</td></tr>
+<tr><td>11</td><td>Topic-tied filler: a plain sentence's 3D shot follows its section (battery → x-ray, camera → island, design → edge)</td><td>existing 3D moves</td><td>2, 12, 28, 41, 43</td></tr>
+<tr><td>12</td><td>Readability: big type in front of the phone, sitting in its empty half; no empty card titles</td><td><code>pt_bigtype</code> placement</td><td>29, 42</td></tr>
+</table>
+<p>Each step is a general rule with a synthetic test, not something tuned to this video. The aim on this script is about 35 of 43 sentences on point, up from 13.</p></div>
+</main></body></html>

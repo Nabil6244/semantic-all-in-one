@@ -2,7 +2,7 @@
 // camera that glides (macro, low monolith angle, floating hero, flat profile), a coloured glow behind the object and a bloom on the
 // bright parts. Built from code (no model file), so nothing is downloaded. Opt-in: only a shot of kind "product" uses this.
 //   { id, start, end, kind: "product", object: "phone" | "iphone" | "galaxy" | "chip", phone: "<id>" | {spec} (lib/phone_models.mjs, when present),
-//     move: "island" | "monolith" | "hero" | "profile" | "orbit" | "screen" | "edge" | "flip" (back turns to front) | "rise" (up from below)
+//     move: "island" | "monolith" | "hero" | "hero_back" (the back, floating) | "profile" | "orbit" | "screen" | "edge" | "flip" (back turns to front) | "rise" (up from below)
 //           | "port" (macro on the bottom edge) | "buttons" (macro on the side keys) | "chip" | "chip_macro"
 //           | "reveal" (back to camera, a 180-degree turn to the front at turn_at -- fraction of the shot, default 0.45, ~0.8 s eased --
 //             while the camera pulls back the whole shot, phone centred),
@@ -23,18 +23,20 @@
 //     samples: 8 (sub-frames per frame: motion blur over a 180-degree shutter + subpixel AA; env PRODUCT_SAMPLES overrides), fps: 30, shutter: 0.5 }
 // A pure function of the time inside the shot, like every other shot (sub-frames, sweep and sparks included), so parallel parts match.
 
+import { uiDraw, uiCard, uiLayout, drawLockScreen, SCREEN_W, SCREEN_H } from './uikit.mjs';
+
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const ease = (x) => { const k = clamp01(x); return k * k * (3 - 2 * k); };
 // camera travel inside one shot: near-constant speed (a hard cut already starts the next shot, so no slow start from rest) and a shorter move
 // (the reference trailers move about a tenth as far per frame as a full smoothstep). shot.travel 0..1 scales the move (default `tr`); 1 = as authored.
 const camE = (k, tr = 0.5, shot = null) => { const kk = clamp01(k), lin = 0.75 * kk + 0.25 * ease(kk), t = shot && shot.travel != null ? shot.travel : tr; return 0.5 + (lin - 0.5) * t; };
 const linE = (k) => { const kk = clamp01(k); return 0.75 * kk + 0.25 * ease(kk); };
-const SEMANTIC_MOVES = new Set(['flip', 'rise', 'reveal']);   // these end on a pose the shot needs: full travel, constant speed
+const SEMANTIC_MOVES = new Set(['flip', 'rise', 'reveal', 'demo']);   // these end on a pose the shot needs: full travel, constant speed
 const lerp = (a, b, k) => a + (b - a) * k;
 
 export const PRODUCT_OBJECTS = ['phone', 'iphone', 'galaxy', 'chip'];
-export const PRODUCT_MOVES = ['island', 'monolith', 'hero', 'profile', 'orbit', 'screen', 'edge', 'flip', 'rise', 'port', 'buttons', 'chip', 'chip_macro', 'reveal'];
-export const PRODUCT_BACKDROPS = ['stars', 'wash', 'horizon', 'studio', 'charcoal'];
+export const PRODUCT_MOVES = ['island', 'monolith', 'hero', 'hero_back', 'profile', 'orbit', 'screen', 'edge', 'flip', 'rise', 'port', 'buttons', 'chip', 'chip_macro', 'reveal', 'demo'];
+export const PRODUCT_BACKDROPS = ['stars', 'wash', 'horizon', 'studio', 'charcoal', 'daylight'];
 const seeded = (seed) => { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 
 // a rounded rectangle as a three.js Shape, centred on the origin
@@ -136,6 +138,10 @@ function backdropCanvas(THREE, shot, W, H) {
     const tint = new THREE.Color(shot.wash || '#3a3f48');
     gr.addColorStop(0, `rgb(${30 + tint.r * 30 | 0},${30 + tint.g * 30 | 0},${34 + tint.b * 30 | 0})`); gr.addColorStop(0.55, '#0b0c0f'); gr.addColorStop(1, '#020203');
     g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+  } else if (kind === 'daylight') {   // a bright seamless product studio (the review channels' daylight look): a pale sweep, a lighter pool behind the object, a soft floor line
+    const gr = g.createRadialGradient(cw * 0.5, ch * 0.42, 0, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.8);
+    gr.addColorStop(0, '#f7f7f5'); gr.addColorStop(0.45, '#e9eaea'); gr.addColorStop(1, '#c9ccd0');
+    g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
   } else if (kind === 'charcoal') {   // a charcoal-grey studio sweep: a soft lighter centre, a vignette to near black at the corners
     const gr = g.createRadialGradient(cw * 0.5, ch * 0.45, 0, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.72);
     gr.addColorStop(0, '#55585c'); gr.addColorStop(0.35, '#3a3c40'); gr.addColorStop(0.75, '#1c1d20'); gr.addColorStop(1, '#0b0b0d');
@@ -203,7 +209,9 @@ function wallpaperTint(THREE, hex) {
 }
 function liveScreen(THREE, shot, tintHex) {
   const opt = shot.screen || {}, kind = opt.wallpaper || 'liquid';
-  const c = document.createElement('canvas'); c.width = 540; c.height = 1170; const g = c.getContext('2d');
+  const SC = opt.ui ? 2 : 1;   // an interface needs twice the pixels: a demo shot dollies in until the screen fills the frame
+  const c = document.createElement('canvas'); c.width = 540 * SC; c.height = 1170 * SC; const g = c.getContext('2d');
+  const lifted = opt.ui && shot.layers3d ? new Set(shot.layers3d.cards ?? (opt.ui.components || []).map((_, i) => i)) : null;   // components that float above the glass as 3D cards
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const tint = wallpaperTint(THREE, opt.tint || tintHex), T = [tint.r, tint.g, tint.b];
   let still = null;
@@ -249,10 +257,12 @@ function liveScreen(THREE, shot, tintHex) {
     // t seconds into the shot; on 0..1 = how far the screen has powered up (0 = black glass)
     update(t, on) {
       const tq = Math.round(t * 30) / 30, key = `${tq}|${Math.round(on * 60)}`; if (key === last) return; last = key;
+      g.setTransform(SC, 0, 0, SC, 0, 0);
       if (on <= 0) { g.fillStyle = '#000'; g.fillRect(0, 0, 540, 1170); }
       else {
         if (still) g.drawImage(still, 0, 0); else if (kind === 'wave') wave(tq); else liquid(tq);
-        if (!still && opt.clock !== false) {   // small time and date at the top
+        if (opt.ui) uiDraw(g, opt.ui, t - (opt.ui.t0 || 0), { skip: lifted });   // the scripted interface on the same canvas: components, cursor, toggles
+        if (!still && !opt.ui && opt.clock !== false) {   // small time and date at the top
           g.fillStyle = 'rgba(255,255,255,0.92)'; g.textAlign = 'center'; g.shadowColor = 'rgba(0,0,0,0.25)'; g.shadowBlur = 8;
           g.font = '600 22px TMSans, sans-serif'; g.fillText(opt.date ?? 'Tue 27 Oct', 270, 128);
           g.font = '700 74px TMSans, sans-serif'; g.fillText(opt.time ?? '09:41', 270, 205); g.shadowBlur = 0;
@@ -463,6 +473,9 @@ function placement(THREE, shot, k, t) {
     case 'hero': {   // the front, floating and turning a little, screen lit
       return { q: eul(lerp(0.16, 0.06, e), lerp(-0.62, 0.42, e), lerp(0.04, -0.03, e)), pos: new THREE.Vector3(0, 0.05, lerp(4.6, 3.8, e)), at: new THREE.Vector3(0, 0, 0), fov: 32, roll: 0, phone: new THREE.Vector3(0, fl * 2, 0) };
     }
+    case 'hero_back': {   // the back, floating and turning a little: the camera bar faces the lens, the whole phone in frame (room beside it for text)
+      return { q: eul(lerp(0.12, 0.05, e), Math.PI + lerp(-0.5, 0.38, e), lerp(-0.03, 0.03, e)), pos: new THREE.Vector3(0, 0.05, lerp(4.9, 4.2, e)), at: new THREE.Vector3(0, 0, 0), fov: 32, roll: 0, phone: new THREE.Vector3(0, fl * 2, 0) };
+    }
     case 'profile': {   // lying flat, seen edge-on to show how thin it is
       return { q: flat(0.0), pos: new THREE.Vector3(lerp(-1.9, 0.9, e), lerp(0.2, 0.32, e), 2.1), at: new THREE.Vector3(lerp(-0.7, 0.7, e), 0, 0), fov: 28, roll: 0, phone: new THREE.Vector3(0, fl, 0) };
     }
@@ -495,6 +508,12 @@ function placement(THREE, shot, k, t) {
     case 'buttons': {   // macro down the side keys, the frame turned a little toward the lens
       return { q: eul(0, lerp(-0.3, -0.12, e), 0.02), pos: new THREE.Vector3(lerp(1.15, 1.0, e), lerp(0.6, 0.0, e), lerp(0.75, 0.55, e)), at: new THREE.Vector3(0.45, lerp(0.42, 0.0, e), 0.1), fov: 28, roll: 0.02, phone: new THREE.Vector3(0, fl * 0.5, 0) };
     }
+    case 'demo': {   // the front, the camera dollying in for real (z0 -> z1) while the phone turns: the interface grows to fill the frame. All values in shot.cam
+      // (p0/p1 pitch, y0/y1 yaw, r0/r1 roll in radians; z0/z1 distance; cy0/cy1 camera height; ay0/ay1 aim height), so a title can own the top of the frame
+      return { q: eul(lerp(c.p0 ?? 0.05, c.p1 ?? 0.02, e), lerp(c.y0 ?? -0.3, c.y1 ?? 0.08, e), lerp(c.r0 ?? 0.02, c.r1 ?? 0, e)),
+        pos: new THREE.Vector3(lerp(c.x0 ?? 0, c.x1 ?? 0, e), lerp(c.cy0 ?? 0, c.cy1 ?? 0, e), lerp(c.z0 ?? 5.0, c.z1 ?? 3.2, e)),
+        at: new THREE.Vector3(0, lerp(c.ay0 ?? 0, c.ay1 ?? 0.1, e), 0), fov: 32, roll: 0, phone: new THREE.Vector3(0, fl, 0) };
+    }
     case 'reveal': {   // back to camera, a half turn to the front at turn_at, the camera pulling back the whole shot
       const dur = Math.max(0.5, (shot.end ?? 0) - (shot.start ?? 0)), t0 = (shot.turn_at ?? 0.45) * dur, turn = ease((t - t0) / 0.8);
       const sway = Math.sin(t * 0.5) * 0.04 * (1 - turn);
@@ -510,6 +529,79 @@ const phoneSpec = (shot) => {
   if (shot.color && !p.color && !p.colour) p.color = shot.color; return p;
 };
 const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
+
+
+// ---------- the interface stage: exploded UI cards above the glass, and a wall of floating lock-screen phones ----------
+//   shot.layers3d = { cards: [component indexes] (default all), explode: [1, 0] (separation 1 = fully exploded -> 0 = flat on the glass), start, dur, depth: 0.22 (units between cards), fan: 0.3 }
+//     each listed component of shot.screen.ui is drawn on its own glass card (lib/uikit.mjs uiCard) and floats in front of the screen in real 3D, a different depth each, so the
+//     phone's yaw / pitch (the "demo" move) shows true perspective; the live screen leaves those components out (liveScreen `lifted`), so nothing is drawn twice.
+//   shot.wall = { cols: 4, rows: 3, speed: 0.32, out_at: seconds the wall slides away (none = it stays), seed, hue: [colours] }
+//     rows of phones, each with its own lock screen, drifting vertically at different speeds and depths behind the hero phone.
+const smoothE = (x) => ease(clamp01(x));
+function buildUiStage(THREE, shot, phone, holder, scene, envMap, dur) {
+  const ui = shot.screen && shot.screen.ui, parts = [];
+  const ud = phone.userData || {}, PW = (ud.W || 0.96) - 0.07, PH = (ud.H || 2) - 0.07, zf = (ud.D || 0.105) / 2 + 0.0042;
+  const L = shot.layers3d;
+  if (L && ui) {
+    const spot = softSpot(THREE), rects = uiLayout(ui), idx = (L.cards ?? (ui.components || []).map((_, i) => i)).filter((i) => rects[i]);
+    const ux = PW / SCREEN_W, uy = PH / SCREEN_H, cards = [];
+    idx.forEach((ci, n) => {
+      const c0 = uiCard(ui, ci, 0, 2, null); if (!c0) return;
+      const tex = new THREE.CanvasTexture(c0.canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(c0.w * ux, c0.h * uy), mat); mesh.renderOrder = 20 + n; holder.add(mesh);
+      const sh = new THREE.Mesh(new THREE.PlaneGeometry(c0.w * ux * 1.1, c0.h * uy * 1.16), new THREE.MeshBasicMaterial({ color: '#000', alphaMap: spot, transparent: true, depthWrite: false, opacity: 0 }));
+      sh.renderOrder = 19 + n; holder.add(sh);
+      const r = rects[ci], cx = ((r.x + r.w / 2) / SCREEN_W - 0.5) * PW, cy = (0.5 - (r.y + r.h / 2) / SCREEN_H) * PH;
+      cards.push({ ci, mesh, sh, tex, cv: c0.canvas, cx, cy, n });
+    });
+    parts.push({
+      update(t) {
+        const ex = L.explode || [1, 0], span = Math.max(0.5, L.dur ?? dur * 0.85), depth = L.depth ?? 0.22, fan = L.fan ?? 0.3, k0 = clamp01((t - (L.start ?? 0)) / span);
+        const amount = lerp(ex[0], ex[1], 0.75 * k0 + 0.25 * ease(k0));   // near-constant speed, like the camera
+        cards.forEach(({ ci, mesh, sh, tex, cv, cx, cy, n }) => {
+          const a = clamp01(amount - 0.0 * n), z = zf + 0.004 + a * (depth * 0.6 + depth * n), appear = smoothE((t - 0.08 * n) / 0.45);
+          mesh.position.set(cx * (1 + fan * a), cy * (1 + fan * 0.35 * a), z); mesh.material.opacity = appear;
+          sh.position.set(mesh.position.x + 0.02 * a, mesh.position.y - 0.04 * a, z - 0.0015); sh.material.opacity = 0.24 * a * appear;
+          if (ui.script && ui.script.length) { const tq = Math.round(t * 30) / 30; if (mesh.userData.tq !== tq) { mesh.userData.tq = tq; uiCard(ui, ci, tq, 2, cv); tex.needsUpdate = true; } }
+        });
+      },
+    });
+  }
+  const W0 = shot.wall;
+  if (W0) {
+    const rnd = seeded((W0.seed ?? shot.seed ?? 3) + 11), cols = W0.cols ?? 4, rows = W0.rows ?? 3, speed = W0.speed ?? 0.32, pitch = 2.85, cyc = pitch * rows;
+    const metalC = ['#c9ced6', '#2a2d33', '#8fa3b5', '#e8e8ea', '#3d5a80'], hue = W0.hue || [['#5b3cc4', '#1d6fe0'], ['#e0623a', '#f2b84b'], ['#0f8f6a', '#3ad1a0'], ['#d93a7a', '#7a3cff'], ['#1a2a6c', '#0a84ff'], ['#f2a1c4', '#8fb7ff'], ['#222', '#6b7280']];
+    const colX = [-1.95, 1.95, -3.7, 3.7, -5.5, 5.5].slice(0, cols), colZ = [-0.8, -0.8, -2.3, -2.3, -3.9, -3.9];
+    const wall = new THREE.Group(); scene.add(wall); const items = [], sw = 0.96 - 0.07, sh2 = 2.0 - 0.07;
+    colX.forEach((x, ci) => {
+      const v = speed * (ci % 2 ? 1 : -1) * (0.7 + 0.6 * rnd());
+      for (let r = 0; r < rows; r++) {
+        const cv = document.createElement('canvas'); cv.width = 360; cv.height = 780; const g = cv.getContext('2d'); g.scale(360 / SCREEN_W, 780 / SCREEN_H);
+        const h = hue[(ci * rows + r) % hue.length]; drawLockScreen(g, { c1: h[0], c2: h[1], c3: '#0b1030', time: W0.time || '9:41', date: W0.date || 'Monday 31 March' });
+        const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+        const body = new THREE.MeshPhysicalMaterial({ color: metalC[(ci + r * 2) % metalC.length], metalness: 0.9, roughness: 0.38, envMap, envMapIntensity: 1.5 });
+        const g3 = new THREE.Group(); g3.add(slab(THREE, 0.96, 2.0, 0.17, 0.105, 0.014, body));
+        const bez = slab(THREE, 0.915, 1.955, 0.13, 0.004, 0.0005, new THREE.MeshBasicMaterial({ color: '#030409' })); bez.position.z = 0.0535; g3.add(bez);
+        const scr = new THREE.Mesh(new THREE.ShapeGeometry(roundedRect(THREE, sw, sh2, 0.115), 24), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+        const uv = scr.geometry.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + sw / 2) / sw, (uv.getY(i) + sh2 / 2) / sh2);
+        scr.position.z = 0.0562; g3.add(scr); wall.add(g3);
+        items.push({ g3, x: x + (rnd() - 0.5) * 0.25, z: colZ[ci] + (rnd() - 0.5) * 0.5, y0: r * pitch + rnd() * 0.6, v, yaw: -Math.sign(x) * (0.28 + 0.18 * rnd()), roll: (rnd() - 0.5) * 0.08 });
+      }
+    });
+    parts.push({
+      update(t) {
+        const out = W0.out_at != null ? smoothE((t - W0.out_at) / 0.9) : 0;
+        wall.visible = out < 0.999;
+        items.forEach((it) => {
+          const y = ((((it.y0 + it.v * t) % cyc) + cyc) % cyc) - cyc / 2;
+          it.g3.position.set(it.x * (1 + 0.9 * out), y, it.z); it.g3.rotation.set(0, it.yaw, it.roll); it.g3.scale.setScalar(Math.max(0.001, 1 - 0.85 * out));
+        });
+      },
+    });
+  }
+  return { update: (t) => parts.forEach((p) => p.update(t)) };
+}
 
 export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#020306');
@@ -538,6 +630,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   }
   if (!phone) phone = buildPhone(THREE, shot, envMap, live ? live.texture : null);
   const holder = new THREE.Group(); holder.add(phone); scene.add(holder);
+  const stage = shot.object !== 'chip' && (shot.layers3d || shot.wall) ? buildUiStage(THREE, shot, phone, holder, scene, envMap, Math.max(0.5, (shot.end ?? 0) - (shot.start ?? 0))) : null;
   // dark finishes (Titanium Black...) reflect almost nothing as pure metal: lift the base colour to a floor and the reflections with it,
   // so the frame and back still carry broad soft highlights; light finishes are left as they are so they never blow out
   if (shot.object !== 'chip') {
@@ -573,6 +666,10 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   if (glareCap < 1) { key.intensity *= 0.55 + 0.45 * glareCap; fill.intensity *= 0.7; }
   const rimK = (shot.object === 'chip' || shot.object === 'iphone' ? 1 : 0.4 + 0.6 * darkness) * glareCap;   // light finishes get a gentler rim, or the edges blow out
   const rimA = new THREE.PointLight(wash || 0x7fa6ff, (wash ? 14 : 4) * rimK, 12, 1.6), rimB = new THREE.PointLight(0x9fd8ff, (bd === 'studio' ? 1.2 : 5) * rimK, 12, 1.6);   // studio: low, or it pools on the floor
+  if (bd === 'daylight') {   // a bright set: a stronger soft key and fill, rims down (they only glow against the dark), fuller reflections
+    key.intensity = 2.3 * glareCap + 0.6; fill.intensity = 1.0; rimA.intensity *= 0.2; rimB.intensity *= 0.2;
+    if (shot.object !== 'chip') scene.environmentIntensity = 1.25;
+  }
   scene.add(rimA, rimB);   // the silhouette edge against the dark
   // the backdrop plate (wash / horizon / studio): camera-facing, beyond the object, in front of the star sphere
   let plateTex = backdropCanvas(THREE, shot, W, H); const PD = 150;
@@ -626,12 +723,12 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   phone.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : []; for (const m of ms) if (!seenM.has(m) && m.envMap) { seenM.add(m); if (glareCap < 1 && m.metalness >= 0.5) m.envMapIntensity *= 0.6 + 0.4 * glareCap; envMats.push([m, m.envMapIntensity]); } });
   const plateGain = plate ? plate.material.color.r : 1;
   // studio: a dark floor that fades out, and a soft contact shadow under the object that thins as it floats up
-  const floorY = shot.floor_y ?? -1.3, spot = bd === 'studio' ? softSpot(THREE) : null;
+  const floorY = shot.floor_y ?? -1.3, spot = bd === 'studio' || bd === 'daylight' ? softSpot(THREE) : null, day = bd === 'daylight';
   let floor = null, shadow = null; const box = new THREE.Box3(), bsz = new THREE.Vector3(), bc = new THREE.Vector3();
   if (spot) {
-    floor = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshStandardMaterial({ color: '#07080a', roughness: 0.6, metalness: 0.1, envMap, envMapIntensity: 0.12, alphaMap: spot, transparent: true, depthWrite: false }));
+    floor = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshStandardMaterial({ color: day ? '#dcdddf' : '#07080a', roughness: day ? 0.35 : 0.6, metalness: 0.1, envMap, envMapIntensity: day ? 0.35 : 0.12, alphaMap: spot, transparent: true, depthWrite: false }));
     floor.rotation.x = -Math.PI / 2; floor.position.y = floorY; floor.renderOrder = 0; scene.add(floor);
-    shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: '#000', alphaMap: spot, transparent: true, depthWrite: false, opacity: 0.8 }));
+    shadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ color: day ? '#5a5d62' : '#000', alphaMap: spot, transparent: true, depthWrite: false, opacity: day ? 0.45 : 0.8 }));
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = floorY + 0.002; shadow.renderOrder = 1; scene.add(shadow);
   }
   let focusAt = 1.2;
@@ -649,7 +746,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   // cam_side "left": the move mirrored left-right (camera, target, phone offset, turn and roll); "right"/unset: as written.
   // frame_side "left"/"right": the picture is shifted so the object sits in that half (text goes in the other); frame_shift 0.2 of the width
   // only upright, mid-sized moves take the side shift; thin and macro moves (profile, edge, port, buttons, screen, island...) stay centred
-  const SIDE_OK = ['hero', 'monolith', 'orbit', 'flip', 'rise', 'chip', undefined, 'default'];
+  const SIDE_OK = ['hero', 'hero_back', 'monolith', 'orbit', 'flip', 'rise', 'chip', undefined, 'default'];
   const mirror = shot.cam_side === 'left', fShift = !SIDE_OK.includes(shot.move) ? 0 : shot.frame_side === 'left' ? 1 : shot.frame_side === 'right' ? -1 : 0, fAmt = (shot.frame_shift ?? 0.2) * W;
   const pbox = new THREE.Box3(), pv = new THREE.Vector3(), MACRO = ['island', 'island_old', 'screen', 'edge', 'port', 'buttons', 'chip_macro'];
   // the object's projected box in pixels (no view offset), or null when it is behind the camera
@@ -671,12 +768,12 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
     camera.clearViewOffset();
     holder.quaternion.copy(p.q); holder.position.copy(p.phone);
     if (phone.userData.update) phone.userData.update(k, t);
-    camera.fov = p.fov; camera.aspect = W / H; camera.updateProjectionMatrix();
+    camera.fov = p.fov; camera.aspect = W / H; camera.near = 0.01; camera.far = 1000; camera.updateProjectionMatrix();   // the shared camera: a room / x-ray / bench shot before this one leaves a short far plane that clipped the backdrop plate (black sky)
     camera.position.copy(p.pos); camera.up.set(Math.sin(p.roll), Math.cos(p.roll), 0); camera.lookAt(p.at); camera.updateMatrixWorld(true);
     // keep the object in the picture: a wide move whose object drifts off-centre is re-aimed at it and pulled in when it reads small;
     // a macro is re-aimed only when its subject has slid mostly out of frame
     let b = projBox(camera);
-    if (b && shot.move !== 'rise') {
+    if (b && shot.move !== 'rise' && shot.move !== 'demo') {   // a demo shot's camera is authored (title above, phone below): never re-aimed
       const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2, bw = b.x1 - b.x0, bh = b.y1 - b.y0;
       const ix = Math.max(0, Math.min(W, b.x1) - Math.max(0, b.x0)), iy = Math.max(0, Math.min(H, b.y1) - Math.max(0, b.y0));
       const macro = MACRO.includes(shot.move), seenFrac = (ix * iy) / Math.max(1, Math.min(bw, W) * Math.min(bh, H));
@@ -715,6 +812,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
     // the reveal kit at t
     const on = live ? (powerOn < 0 ? 1 : clamp01((t - powerOn) / 0.5)) : 1, f = dimF(t);
     if (live) live.update(t, on);
+    if (stage) stage.update(t);
     for (const [l, b] of lightBase) l.intensity = b * f;
     for (const [m, b] of envMats) m.envMapIntensity = b * f;
     if (plate) plate.material.color.setScalar(plateGain * lerp(0.4, 1, f));
@@ -740,7 +838,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
       holder.updateMatrixWorld(true); box.setFromObject(holder); box.getSize(bsz); box.getCenter(bc);
       const gap = Math.max(0, box.min.y - floorY);
       shadow.position.x = bc.x; shadow.position.z = bc.z; shadow.scale.set(bsz.x * 1.5 + 0.3 + gap * 0.6, bsz.z * 1.5 + 0.35 + gap * 0.6, 1);
-      shadow.material.opacity = 0.85 * clamp01(1 - gap / 1.2);
+      shadow.material.opacity = (day ? 0.45 : 0.85) * clamp01(1 - gap / 1.2);
     }
   };
   // swaps a re-baked environment onto every material that holds the old one
@@ -762,7 +860,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
       fragmentShader: 'uniform sampler2D tDiffuse; uniform float w; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tDiffuse, vUv).rgb * w, w); }' }));
     fin = new mods.EffectComposer(renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType })); fin.setPixelRatio(1); fin.setSize(W, H);
     fin.addPass(new mods.TexturePass(acc.texture));
-    fin.addPass(new mods.UnrealBloomPass(new THREE.Vector2(W, H), (shot.bloom ?? 0.55) * (glareCap < 1 ? 0.35 + 0.4 * glareCap : NEAR ? 0.7 : 1), 0.65, glareCap < 1 ? 0.95 : 0.88));
+    fin.addPass(new mods.UnrealBloomPass(new THREE.Vector2(W, H), (shot.bloom ?? (bd === 'daylight' ? 0.1 : 0.55)) * (glareCap < 1 ? 0.35 + 0.4 * glareCap : NEAR ? 0.7 : 1), 0.65, glareCap < 1 ? 0.95 : 0.88));
     fin.addPass(new mods.OutputPass());
   };
   return {

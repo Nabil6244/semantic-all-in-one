@@ -21,7 +21,7 @@ from .widgets import make_button
 
 STYLE = "Product Trailer"
 TAG = "[PRODUCT TRAILER]"
-FILM_TYPES = ("Trailer", "Reveal", "Review")
+FILM_TYPES = ("Trailer", "Reveal", "Review", "UI Film")
 RESOLUTIONS = {"1080p (1920x1080)": (1920, 1080)}
 DEFAULT_COLOURS = ("Titanium Black", "Titanium Silver", "Titanium Blue", "Titanium Gray", "Titanium White", "Gold", "Red", "Green")
 DEFAULT_DISCLAIMER = ("This is a conceptual trailer made by a fan. It is not affiliated with, endorsed by or sponsored by the "
@@ -266,6 +266,8 @@ def activate(app: Any) -> None:
     if getattr(app, "_pt_block", None) is None:
         build(app, app._view_visual_director.content, row=9)
     app._pt_active = True
+    from .voiceover_view import adopt_project_voiceover
+    adopt_project_voiceover(app, app._pt_voice_var)   # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
     _refresh_phones(app)
     _load_options(app)
     app._pt_block.grid()
@@ -491,7 +493,7 @@ def on_generate(app: Any) -> None:
     out_dir = _work_dir(app)
     app._pt_status_var.set(f"Planning the {o['film_type'].lower()}…")
     app._append_log(f"{TAG} Generate: {o['film_type']}{' + AI scenes' if o['use_ai'] else ''}, {o['width']}x{o['height']} @ {o['fps']} fps\n")
-    new_modes = review_film or o["use_ai"] or o["film_type"] == "Reveal" or bool(o["voiceover"])
+    new_modes = review_film or o["use_ai"] or o["film_type"] in ("Reveal", "UI Film") or bool(o["voiceover"])
     whisper_model = (app.model_var.get().strip() if hasattr(app, "model_var") else "") or "base"
     if o["use_ai"]:
         _visuals_into_results(app, out_dir)      # the AI pictures as the Visuals tab holds them
@@ -503,7 +505,7 @@ def on_generate(app: Any) -> None:
             from product_trailer import studio
 
             words = None
-            if review_film and o["voiceover"]:   # a Review is timed to the narrator: read the voice-over's word times (cached, else Whisper)
+            if (review_film or o["film_type"] == "UI Film") and o["voiceover"]:   # a Review or UI Film is timed to the narrator: read the voice-over's word times (cached, else Whisper)
                 app.after(0, lambda: app._pt_status_var.set("Reading the voice-over…"))
                 try:
                     words = app._pakmap_get_words(Path(o["voiceover"]), whisper_model, getattr(app._workspace, "state_dir", None),
@@ -614,7 +616,7 @@ def _ai_args(app: Any, o: Dict[str, Any]) -> Dict[str, Any]:
 def _type_picked(app: Any) -> None:
     """Only a hint: the Review type reads the script box, Trailer and Reveal read the feature CSV. Nothing is planned."""
     review_film = app._pt_type_var.get() == "Review"
-    app._pt_status_var.set("Review: paste the narration as plain text below (or choose a review CSV); chapters are optional." if review_film else "")
+    app._pt_status_var.set("Review: paste the narration below, or choose a review CSV, or choose the voice-over with a feature CSV (its rows are shown when the narrator says them)." if review_film else "")
 
 
 def _scene_pack(app: Any, o: Dict[str, Any]):

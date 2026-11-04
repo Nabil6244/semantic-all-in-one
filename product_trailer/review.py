@@ -18,6 +18,7 @@ replaces these times. A line whose AI picture is missing or failed becomes a 3D 
 
 from __future__ import annotations
 
+import copy
 import re
 import shutil
 from pathlib import Path
@@ -34,8 +35,10 @@ MAX_HOLD_S = 5.0
 HOLD_STEP_S = 4.5
 MAX_SCENE_S = 9.0          # a scene stays on screen for the sentences that follow it for at most this long, then the film moves on to other pictures
 CHUNK_WORDS = 7
+MAX_CARD_S = 6.0           # a flat card (paper, phones, document, quote) stays at most this long, then the film cuts to moving 3D: never a frozen screen
 FLAT_LOOK = {"saturate": 1.0, "contrast": 1.0, "vignette": 0.0, "grain": 0.0}
 LOOK = {"saturate": 0.97, "contrast": 1.05, "lift": "#05070B", "vignette": 0.25, "grain": 0.025}
+NEWS_LOOK = {"saturate": 1.0, "contrast": 1.02, "vignette": 0.08, "grain": 0.0}    # real footage keeps its own colour
 
 # line keywords -> an AI scene type for a review (hands-on and lab looks), or None to stay 3D
 REVIEW_TYPES: Dict[str, Dict[str, Any]] = {
@@ -71,13 +74,15 @@ def _clean(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-ROOMS = ["loft", "gallery", "studio", "terrace", "desk"]
-POSES = ["back", "front", "mixed", "fan"]
+ROOMS = ["gallery", "loft", "terrace", "gallery", "loft"]          # the bright rooms (the dark studio and the orange desk read as a toy set in a review)
+POSES = ["back", "fan", "mixed", "back"]
+ALL_ROOMS = ("loft", "gallery", "studio", "terrace", "desk")      # every room an author may name in [lineup: ...]                             # backs first: the camera bar is what the narration talks about
 MACRO_MOVES = ["island", "edge", "port", "buttons", "screen", "monolith"]
 DIRECTIVE_SECONDS = {"bars": 7.0, "curve": 8.0, "compare": 7.0, "stat": 4.0, "xray": 5.0, "fold": 5.0, "lineup": 5.0, "chip": 5.0, "macro": 4.0,
-                     "bigtype": 3.5, "intro": 5.0, "outro": 5.0, "flat": 5.0, "gauge": 5.5, "tweet": 6.0, "thermal": 5.5, "cost": 6.0, "scene": 4.0, "bench": 5.5}
+                     "bigtype": 3.5, "intro": 5.0, "outro": 5.0, "flat": 5.0, "gauge": 5.5, "tweet": 6.0, "thermal": 5.5, "cost": 6.0, "scene": 4.0, "bench": 5.5, "feature": 4.5, "callout": 4.0,
+                     "ui": 6.0, "icon": 5.0, "wall": 5.0}
 PAPER_SHOT = {"kind": "black"}
-STYLES = ("mixed", "cinematic", "infographic", "follow")
+STYLES = ("mixed", "cinematic", "infographic", "follow", "news")
 
 
 def _paper(layers_fn):
@@ -134,6 +139,31 @@ def infographic_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: i
     return None
 
 
+def paper_form(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int):
+    """The paper version of a scene that is otherwise 3D, for the one-look infographic film: a spoken point or a CSV row as a phone with its figure
+    beside it, a lineup as coloured phones, the chip as its badge, the inside as a battery cutaway. None for a kind with no paper form."""
+    kind = it["kind"]
+    sec = DIRECTIVE_SECONDS.get(kind, 4.5)
+    swatch = ["#2b2b2e", "#5b5a86", "#7a2f45", "#cfc9de"]
+    name = phone.title() if phone else ""
+    if kind in ("feature", "callout"):
+        value = str(it.get("value") or it.get("feature", "")).strip()
+        title = " · ".join(x for x in (it.get("kicker"), it.get("sub")) if x)
+        size = 96 if len(value) <= 9 else 72 if len(value) <= 14 else 54
+        ph = [{"label": name, "color": swatch[k % 2], "cams": 3, "side": {"text": value, "size": size}}]
+        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_flatphones", "title": title.upper(), "phones": ph, "start": a + 0.05, "end": b - 0.05}]), sec
+    if kind == "lineup":
+        ph = [{"label": c, "color": COLOUR_HEX.get(c.lower(), swatch[i % 4]), "cams": 3} for i, c in enumerate(list(cols)[:4])]
+        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_flatphones", "title": str(it.get("text") or "").upper(), "phones": ph, "start": a + 0.05, "end": b - 0.05}]), sec
+    if kind == "chip":
+        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_badge", "title": str(it.get("label") or "CHIP"), "subtitle": str(it.get("text") or ""), "color": "#d4a017",
+                                                 "start": a + 0.05, "end": b - 0.05}]), sec
+    if kind in ("xray", "macro", "fold"):
+        ph = [{"label": name, "color": swatch[0], "cams": 3, **({"cutaway": True, "cell_from": 0.3, "cell": 0.85} if kind == "xray" else {})}]
+        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_flatphones", "title": str(it.get("text") or "").upper(), "phones": ph, "start": a + 0.05, "end": b - 0.05}]), sec
+    return None
+
+
 def line_visual(phone: str, cols: Sequence[str], k: int):
     """A narrated line in the infographic style: a row of flat phones on the paper, drifting slightly (never a still screen)."""
     swatch = ["#5b5a86", "#2b2b2e", "#7a2f45", "#cfc9de"]
@@ -142,13 +172,67 @@ def line_visual(phone: str, cols: Sequence[str], k: int):
     return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_flatphones", "phones": ph, "start": a, "end": b}])
 
 
+def ui_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int, product: Optional[Dict[str, Any]] = None, flat: bool = False):
+    """A software sentence's scene (product_trailer/uifilm.py): "ui" a live interface on a 3D phone (a scripted demo, or its layers exploded in 3D),
+    "icon" an app icon built on construction lines, "wall" floating lock-screen phones. The title types on word by word. The set alternates light /
+    dark and the shot dissolves in with a blur, so the interface beats read as their own moments inside the review. flat: paper looks keep no 3D."""
+    from .uifilm import ACCENTS, _script, ui_for_feature
+
+    kind, prod = it["kind"], product or {}
+    light = k % 2 == 0
+    ink = "dark" if light else "light"
+    title = it.get("title") or it.get("text") or {"icon": "New Icons", "wall": "Make It Yours"}.get(kind, "")
+    words = lambda a, b: [{"type": "pt_words", "text": title, "start": round(a + 0.2, 3), "end": round(min(b - 0.2, a + 4.4), 3), "y": 0.12, "ink": ink}] if title else []
+    if kind == "icon" or flat:
+        glyph = it.get("icon") or "star"
+        shot = {"kind": "plate", "tint": "paper" if light or flat else "ink", "dissolve_in": 0.5, "dissolve_style": "fade"}
+        return shot, lambda a, b: words(a, b) + [{"type": "pt_iconbuild", "icon": glyph, "label": glyph.title(), "color": ACCENTS[k % len(ACCENTS)], "start": round(a + 0.2, 3),
+                                                  "end": round(b - 0.15, 3), "ink": "dark" if light or flat else "light", "build": round(min(2.8, max(1.2, (b - a) * 0.55)), 2), "y": 0.56, "size": 0.34}], DIRECTIVE_SECONDS[kind]
+    colour = cols[k % len(cols)] if cols else ""
+    base = {"kind": "product", "object": "phone", "phone": phone, "color": colour, "move": "demo", "backdrop": "daylight" if light else "charcoal", "glow": not light,
+            "seed": 61 + k, "dissolve_in": 0.5, "dissolve_style": "blur", "exit": "cut"}
+    time, date = prod.get("time", "9:41"), prod.get("date", "Tuesday, October 21")
+    if kind == "wall":
+        ui = {"theme": "dark", "accent": ACCENTS[0], "components": [{"type": "clock", "time": time, "date": date}], "top": 150}
+        shot = {**base, "screen": {"wallpaper": "wave", "clock": False, "ui": ui}, "wall": {"cols": 4, "rows": 3, "speed": 0.34, "seed": 7 + k},
+                "cam": {"z0": 6.1, "z1": 5.2, "y0": -0.2, "y1": 0.08, "ay0": 0.3, "ay1": 0.4}}
+        return shot, words, DIRECTIVE_SECONDS[kind]
+    f = {"feature": title, "kicker": "", "value": title, "sub": ", ".join(it.get("rows") or []), "look": " ".join(x for x in (it.get("look"), f"rows:{'|'.join(r.replace(' ', '_') for r in it['rows'])}" if it.get("rows") else "") if x)}
+    accent = ACCENTS[k % len(ACCENTS)]
+    ui, cat = ui_for_feature(f, accent=accent, time=time, date=date)
+    style = "exploded" if "style:exploded" in (it.get("look") or "") or ("style:demo" not in (it.get("look") or "") and cat in ("lock", "widgets", "home", "notif")) else "demo"
+    shot = {**base, "screen": {"wallpaper": "wave", "tint": accent, "clock": False, "ui": ui}, "ui_style": style}
+    if style == "exploded":
+        shot.update({"layers3d": {"explode": [1, 0], "start": 0.4, "depth": 0.4, "fan": 0.42}, "cam": {"p0": 0.16, "p1": 0.03, "y0": -0.62, "y1": 0.05, "z0": 5.3, "z1": 3.0, "ay0": 0.22, "ay1": 0.4}})
+    else:
+        shot["cam"] = {"p0": 0.07, "p1": 0.02, "y0": -0.34, "y1": 0.1, "z0": 5.0, "z1": 2.4, "ay0": 0.3, "ay1": 0.62}
+
+    def make(a: float, b: float) -> List[Dict[str, Any]]:
+        if style == "exploded":
+            shot["layers3d"]["dur"] = round(max(1.0, (b - a) * 0.78), 2)
+        elif not ui.get("script"):
+            ui["script"] = _script(ui, b - a)          # spread over the shot; a timed review moves them onto the spoken row names
+        return words(a, b)
+    return shot, make, DIRECTIVE_SECONDS[kind]
+
+
 def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int, product: Optional[Dict[str, Any]] = None, style: str = "cinematic"):
     """The shot and layers of one non-spoken item (chart, stat, X-ray, fold, lineup, chip, macro, big word, intro, outro): (shot fields, make(a, b) -> layers, seconds)."""
     kind = it["kind"]
+    if kind in ("ui", "icon", "wall"):
+        return ui_visual(it, phone, cols, k, product, flat=style in ("infographic", "news"))
     if kind == "bench":
         return bench_visual(it, phone, k)
-    if style in ("infographic", "follow") or kind in ("flat", "gauge", "tweet", "thermal", "cost", "scene"):
+    if kind in ("feature", "callout"):
+        if style in ("infographic", "news"):
+            return paper_form(it, phone, cols, k)
+        return feature_visual(it, phone, k, product)
+    if style in ("infographic", "follow", "news") or kind in ("flat", "gauge", "tweet", "thermal", "cost", "scene"):
         flat = infographic_visual(it, phone, cols, k)
+        if flat:
+            return flat
+    if style == "infographic":                       # one look: the 3D kinds are drawn on the paper too
+        flat = paper_form(it, phone, cols, k)
         if flat:
             return flat
     cap = lambda text, a, b: [{"type": "pt_caption", "text": text, "y": 0.13, "size": 0.075, "start": round(a + 0.4, 3), "end": round(b - 0.2, 3)}] if text else []
@@ -174,10 +258,10 @@ def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int
         return shot, lambda a, b: cap(it.get("text"), a, b), sec
     if kind == "macro":
         move = it.get("move") if it.get("move") in MACRO_MOVES else MACRO_MOVES[k % len(MACRO_MOVES)]
-        shot = {"kind": "product", "object": "phone", "phone": phone, "move": move, "backdrop": "charcoal", "seed": 41 + k}
+        shot = {"kind": "product", "object": "phone", "phone": phone, "move": move, "backdrop": REVIEW_SET, "seed": 41 + k}
         return shot, lambda a, b: cap(it.get("text"), a, b), sec
     if kind == "bigtype":
-        shot = {"kind": "product", "object": "phone", "phone": phone, "move": "monolith", "backdrop": "charcoal", "seed": 51 + k}
+        shot = {"kind": "product", "object": "phone", "phone": phone, "move": "monolith", "backdrop": REVIEW_SET, "seed": 51 + k}
         return shot, lambda a, b: [{"type": "pt_bigtype", "text": str(it.get("text") or ""), "y": 0.22, "start": a + 0.2, "end": b - 0.1}], sec
     if kind == "intro":
         shot = {"kind": "product", "object": "lineup", "phone": phone, "colors": list(cols), "room": "gallery", "pose": "back", "turn": [0.45, 0.8], "seed": 3}
@@ -223,13 +307,218 @@ def csv_to_script(text: str) -> str:
     return "\n".join(out)
 
 
+def is_feature_csv(text: str) -> bool:
+    """True for a Trailer feature CSV (#product / #disclaimer lines, an order,feature,kicker,value,sub,look table) and no narration column:
+    its rows are facts to show, never lines to speak."""
+    import csv as _csv
+    import io
+
+    rows = [[c.strip().lower() for c in r] for r in _csv.reader(io.StringIO(text.lstrip("﻿"))) if any(c.strip() for c in r)]
+    if any(c in TEXT_COLS for r in rows for c in r[:8]):
+        return False
+    tags = any(r and r[0].startswith(("#product", "#disclaimer", "#colors", "#colours", "#pace")) for r in rows)
+    table = any("feature" in r and "value" in r for r in rows)
+    return tags or table
+
+
 def review_source(script: Optional[str], csv_path: Optional[str]) -> str:
-    """The pasted script when there is one, else the review CSV converted to a script, else ''."""
+    """The pasted script when there is one, else the review CSV converted to a script, else ''. A feature CSV gives no script (its rows are facts)."""
     if (script or "").strip():
         return script
     if csv_path and Path(csv_path).is_file():
-        return csv_to_script(Path(csv_path).read_text(encoding="utf-8-sig"))
+        text = Path(csv_path).read_text(encoding="utf-8-sig")
+        return "" if is_feature_csv(text) else csv_to_script(text)
     return ""
+
+
+SPOKEN_UNITS = {"mp": ("mp", "megapixel", "megapixels"), "mah": ("mah", "milliamp", "milliamps"), "w": ("w", "watt", "watts"), "hz": ("hz", "hertz"),
+                "x": ("x",), "gb": ("gb", "gigabytes"), "tb": ("tb", "terabyte"), "mm": ("mm", "millimeters", "millimetres"), "nits": ("nits", "nit")}
+GENERIC_WORDS = {"the", "a", "an", "and", "but", "or", "of", "to", "new", "next", "gen", "more", "less", "than", "ever", "built", "in", "up", "with", "for", "top",
+                 "phone", "ultra", "galaxy", "samsung", "iphone", "pro", "plus", "max", "big", "bigger", "fast", "steady", "longer", "range"}
+
+
+def _figures(value: str) -> List[tuple]:
+    """(number, unit) pairs of a CSV value: "50MP 5x" -> [("50", "mp"), ("5", "x")], "5700 mAh" -> [("5700", "mah")]."""
+    return [(n.replace(",", ""), u.lower()) for n, u in re.findall(r"(\d[\d,]*(?:\.\d+)?)\s*([A-Za-z]*)", value or "")]
+
+
+def _says_figure(line: str, num: str, unit: str) -> bool:
+    """Does the spoken line say this figure? Whisper writes 5,700 as "5 700" and 60W as "60 watts"."""
+    t = re.sub(r"(?<=\d)[ ,](?=\d{3}\b)", "", line.lower())
+    forms = SPOKEN_UNITS.get(unit, (unit,)) if unit else ("",)
+    for f in forms:
+        if re.search(r"(?<![\d.])" + re.escape(num) + (r"\s*" + re.escape(f) if f else "") + r"(?![a-z\d])", t):
+            return True
+    if unit and len(num.split(".")[0]) < 3:
+        return False                                 # "5x" or "50MP" only with its unit; a figure of 3+ digits ("around 5,700") is distinctive on its own
+    return re.search(r"(?<![\d.])" + re.escape(num) + r"(?!\d|\.\d)", t) is not None
+
+
+def _feature_words(f: Dict[str, Any]) -> List[str]:
+    """The distinctive words of a feature with no figure ("Camera Island" -> camera, island; kicker "Snapdragon" when the value is "Ultra")."""
+    for field in ("value", "kicker", "sub"):
+        ws = [w for w in re.findall(r"[a-z0-9]+", str(f.get(field) or "").lower()) if w not in GENERIC_WORDS and len(w) >= 4]
+        if ws:
+            return ws
+    return []
+
+
+def feature_matches(f: Dict[str, Any], line: str) -> bool:
+    figs = _figures(str(f.get("value") or ""))
+    if figs:
+        return all(_says_figure(line, n, u) for n, u in figs)
+    ws = _feature_words(f)
+    toks = set(re.findall(r"[a-z0-9]+", line.lower()))
+    return bool(ws) and all(w in toks for w in ws)
+
+
+FEATURE_TOPICS = {"battery": "battery", "charging": "battery", "camera": "camera", "display": "display", "screen": "display", "chip": "chip", "design": "design"}
+
+
+def _row_topic(f: Dict[str, Any]) -> Optional[str]:
+    return FEATURE_TOPICS.get(str(f.get("feature") or "").lower().split(" ")[0])
+
+
+def _repeats(scene: Dict[str, Any], f: Dict[str, Any]) -> bool:
+    """Does the director's scene only say again what the CSV row shows? A 3D shot (the row is itself a 3D shot with its text), or flat phones whose
+    figures are all the row's own."""
+    if scene.get("kind") in ("macro", "chip", "lineup", "xray"):
+        return True
+    phones = (scene.get("layer") or {}).get("phones") if scene.get("kind") == "scene" else None
+    if not phones:
+        return False
+    figs = [str(p.get("text") or (p.get("side") or {}).get("text") or "") for p in phones]
+    val = re.sub(r"\s+", "", str(f.get("value") or "")).lower()
+    return all(x and re.sub(r"\s+", "", x).lower() in val for x in figs) and not any(p.get("badge") for p in phones)
+
+
+def place_features(parsed: Dict[str, Any], features: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """A copy of `parsed` with each feature-CSV row as a "feature" scene right before the first sentence that says it (the CSV's own words and look on
+    the 3D phone). Rows the narrator never says go on sentences that call for no scene of their own, in CSV order, spread over the film."""
+    from . import director
+
+    out = copy.deepcopy(parsed)
+    slots = [(ch["items"], i) for ch in out["chapters"] for i, it in enumerate(ch["items"]) if it["kind"] == "line"]
+    has_scene = {j for j, (items, i) in enumerate(slots) if i and items[i - 1]["kind"] != "line"}
+    taken: Dict[int, Dict[str, Any]] = {}
+    left: List[Dict[str, Any]] = []
+    for f in features:
+        if not (f.get("value") or f.get("kicker")):
+            continue
+        j = next((j for j, (items, i) in enumerate(slots) if j not in taken and feature_matches(f, items[i]["text"])), None)
+        if j is None:                                # a sentence that says two rows ("200MP main, ... 50MP 5x telephoto") shows the next one on the sentence after it
+            j = next((j + 1 for j, (items, i) in enumerate(slots) if j + 1 < len(slots) and j + 1 not in taken and feature_matches(f, items[i]["text"])), None)
+        if j is None:
+            left.append(f)
+        else:
+            taken[j] = f
+    plain = [j for j, (items, i) in enumerate(slots) if j not in taken and j not in has_scene and (has_scene or not director.scene_for(items[i]["text"]))]
+    for f in list(left):                             # a row nobody says goes first on a plain sentence about its own subject ("design" -> a design sentence)
+        want = _row_topic(f)
+        j = next((j for j in plain if j not in taken and want and director.topic_of(slots[j][0][slots[j][1]]["text"]) == want), None)
+        if j is not None:
+            taken[j] = f
+            left.remove(f)
+    plain = plain[::-1]                              # the rest close the film, the way a trailer ends on its tagline
+    for n, f in enumerate(left):
+        if not plain:
+            break
+        j = plain[min(len(plain) - 1, n * len(plain) // len(left))]
+        if j in taken:
+            j = next((p for p in plain if p not in taken), None)
+            if j is None:
+                break
+        taken[j] = f
+    for j in sorted(taken, reverse=True):          # from the end, so the earlier indexes stay right
+        items, i = slots[j]
+        f = taken[j]
+        while i and items[i - 1]["kind"] != "line":       # in front of the scene the director already gave this sentence: the CSV row, then that scene
+            i -= 1
+            if _repeats(items[i], f):                    # ...unless that scene only repeats the row (a 3D shot of the same part, the same figure again)
+                items.pop(i)
+        items.insert(i, {"kind": "feature", "_own": True, **{k: str(f.get(k) or "") for k in ("feature", "kicker", "value", "sub", "look")}})
+    return out
+
+
+NEWS_KEEP = ("scene", "tweet", "bench", "curve", "compare", "bars", "feature", "gauge", "thermal", "cost")
+NEWS_BEAT_S = 2.6
+
+
+def news_beats(parsed: Dict[str, Any]) -> Dict[str, Any]:
+    """The news-compilation form of a directed script (the leak channels: real footage, cut every 2-3 s, a data card only where a figure, a document
+    or a quote is the point). Data scenes stay; spoken-point callouts and 3D shots go; every sentence without a data card gets footage beats of its
+    subject, one per ~2.6 s; a long sentence with a card gets footage after it."""
+    from . import director
+
+    out = copy.deepcopy(parsed)
+    topic = None
+    for ch in out["chapters"]:
+        items: List[Dict[str, Any]] = []
+        pending: List[Dict[str, Any]] = []
+        for it in ch["items"]:
+            if it["kind"] != "line":
+                if it["kind"] in NEWS_KEEP:
+                    pending.append(it)
+                continue
+            topic = director.topic_of(director.spoken_numbers(it["text"])) or topic
+            secs = line_seconds(it["text"])
+            n = max(1, int(round(secs / NEWS_BEAT_S)))
+            if pending:
+                n = 1 if secs > 6.0 else 0
+            beats = [{"kind": "footage", "query": "", "topic": topic, "text": ""} for _ in range(n)]
+            items.extend(pending + beats + [it])
+            pending = []
+        ch["items"] = items + pending
+    return out
+
+
+def feature_visual(it: Dict[str, Any], phone: str, k: int, product: Optional[Dict[str, Any]] = None):
+    """A feature-CSV row in the Trailer's own look (planner.classify: its moves, wash / horizon / stars backdrop, badge or big type), the text beside the phone."""
+    from . import planner
+
+    rule = planner.classify(it)
+    prod = product or {}
+    if it.get("kind") == "callout":                      # a spoken point: plain big type beside the phone of its subject, never a chip badge
+        rule["extra"] = None
+        rule["moves"] = [m for m in rule["moves"] if planner.FACE.get(m) != "chip"] or list(planner.TEXT_MOVES)
+    text_side = "right" if k % 2 == 0 else "left"
+    if rule["extra"] == "bigtype":
+        rule["extra"] = None                             # a review's big word goes beside the phone (behind it, over a dark back, it cannot be read)
+    if rule["extra"] == "badge":
+        move = "chip"
+    else:
+        ok = list(TEXT_SAFE_MOVES)                       # the whole phone in frame beside its text (monolith / orbit crop it), mostly its back
+        move = ok[k % len(ok)]
+    backdrop = REVIEW_SET if rule["backdrop"] in ("stars", "horizon", "studio") else rule["backdrop"]   # a CSV wash stays; the night-sky looks become the bright set
+    shot: Dict[str, Any] = {"kind": "product", "object": "chip" if move == "chip" else "phone", "phone": phone, "move": move, "backdrop": backdrop,
+                            "frame_side": "left" if text_side == "right" else "right", "seed": 61 + k}
+    ink = {"ink": "dark"} if backdrop == REVIEW_SET else {}
+    if move == "chip":
+        shot.update({"label": " ".join(x for x in (it.get("kicker"), it.get("value")) if x).upper()[:24] or "CHIP", "glow": "#ffb340"})
+    if rule["backdrop"] == "wash":
+        shot["wash"] = planner.WASH.get(rule["wash"] or "red", rule["wash"] or "#ff4a1f")
+        shot["wash_style"] = rule["wash_style"] or "swoosh"
+    elif rule["backdrop"] == "gradient":
+        shot["wash"] = planner.WASH.get(rule["wash"] or "blue", rule["wash"] or "#2f6bff")
+    elif rule["backdrop"] == "image":
+        shot["backdrop"] = "stars"                      # a backdrop picture is a Trailer-only option (copied next to its CSV)
+    if planner.FACE.get(move) == "front":
+        shot["screen"] = {"time": prod.get("time", "09:41"), "date": prod.get("date", "Tue 27 Oct"), "tint": SCREEN_TINTS[k % len(SCREEN_TINTS)]}
+        if rule["extra"] == "bigtype":
+            shot["screen"]["clock"] = False
+    value = it.get("value") or it.get("feature", "").title()
+
+    def make(a: float, b: float) -> List[Dict[str, Any]]:
+        a, b = a + 0.05, b - 0.05
+        if rule["extra"] == "badge":
+            return [{"type": "pt_badge", "title": value, "subtitle": it.get("sub") or it.get("kicker", ""), "color": "#ffb340", "start": a, "end": b}]
+        if rule["extra"] == "bigtype":
+            return [{"type": "pt_bigtype", "text": value, "y": 0.5, "start": a, "end": b}]
+        if it.get("value") and not (it.get("kicker") or it.get("sub")) and len(it["value"]) <= 24:
+            return [{"type": "pt_tagline", "text": it["value"], "side": text_side, "start": a, "end": b, **ink}]
+        return [{"type": "pt_feature", "kicker": it.get("kicker", ""), "value": value, "sub": it.get("sub", ""), "side": text_side, "start": a, "end": b, **ink}]
+
+    return shot, make, DIRECTIVE_SECONDS["feature"]
 
 
 def parse_script(text: str) -> Dict[str, Any]:
@@ -246,7 +535,7 @@ def parse_script(text: str) -> Dict[str, Any]:
             title = _clean(line[2:])
         elif line.startswith("[") and line.endswith("]"):
             cur = cur or chapters.append({"title": "", "items": []}) or chapters[-1]
-            m = re.match(r"\[(bars|stat|curve|compare|xray|fold|lineup|chip|macro|bigtype|intro|outro|flat|gauge|tweet|thermal|cost|scene|bench)\s*:\s*(.*)\]$", line, re.I)
+            m = re.match(r"\[(bars|stat|curve|compare|xray|fold|lineup|chip|macro|bigtype|intro|outro|flat|gauge|tweet|thermal|cost|scene|bench|ui|icon|wall)\s*:\s*(.*)\]$", line, re.I)
             if not m:
                 continue
             parts = [p.strip() for p in m.group(2).split("|")]
@@ -263,8 +552,16 @@ def parse_script(text: str) -> Dict[str, Any]:
                 continue
             if kind in ("xray", "fold", "bigtype", "intro", "outro"):
                 cur["items"].append({"kind": kind, "text": parts[0] if parts and parts[0] else ""})
+            elif kind == "ui":         # [ui: Title | row, row, row | demo or exploded]  a live interface on the phone
+                rows = [r.strip() for r in parts[1].split(",") if r.strip()] if len(parts) > 1 else []
+                style = parts[2].lower() if len(parts) > 2 and parts[2].lower() in ("demo", "exploded") else ""
+                cur["items"].append({"kind": "ui", "title": parts[0] if parts else "", "rows": rows, "look": f"style:{style}" if style else ""})
+            elif kind == "icon":       # [icon: glyph | Title]  an app icon built on construction lines
+                cur["items"].append({"kind": "icon", "icon": parts[0].lower() if parts and parts[0] else "star", "text": parts[1] if len(parts) > 1 else ""})
+            elif kind == "wall":       # [wall: Title]  a wall of floating lock-screen phones
+                cur["items"].append({"kind": "wall", "text": parts[0] if parts else ""})
             elif kind == "lineup":     # [lineup: caption | room | pose]
-                cur["items"].append({"kind": "lineup", "text": parts[0] if parts else "", "room": (parts[1] if len(parts) > 1 and parts[1] in ROOMS else None),
+                cur["items"].append({"kind": "lineup", "text": parts[0] if parts else "", "room": (parts[1] if len(parts) > 1 and parts[1] in ALL_ROOMS else None),
                                      "pose": (parts[2] if len(parts) > 2 and parts[2] in POSES else None)})
             elif kind == "chip":       # [chip: LABEL | caption]
                 cur["items"].append({"kind": "chip", "label": parts[0] if parts else "", "text": parts[1] if len(parts) > 1 else ""})
@@ -394,11 +691,30 @@ def _beats(a: float, b: float, beat: float = BEAT_S):
     return [(a + step * j, a + step * (j + 1)) for j in range(n)]
 
 
-def _filler_shot(phone: str, cols: Sequence[str], k: int, moves: Sequence[str]) -> Dict[str, Any]:
-    """The picture under a narrated line: a macro phone move, every third beat a lineup in a rotating room, so a long line never repeats one frame."""
+COLOUR_HEX = {"black": "#2b2b2e", "navy": "#26325c", "sky blue": "#8fc3ea", "pink": "#e49ab0", "white": "#ecebea", "silver": "#c8ccd2", "gray": "#8a8f98", "grey": "#8a8f98"}
+REVIEW_SET = "daylight"      # the review's 3D phone sits in a bright seamless studio, as the reference channels' footage is bright; dark looks are for trailers
+TEXT_SAFE_MOVES = ("hero_back", "hero", "hero_back", "flip")   # mostly the back: the camera bar is the star, as in the references
+SCREEN_TINTS = ("#9cc3ff", "#f2b8c6", "#b9e3cf", "#e9d3a8", "#c9b8f2")
+TOPIC_SHOTS = {"battery": ("xray", "rise", "orbit"), "camera": ("island", "monolith", "flip"), "display": ("screen", "hero", "orbit"),
+               "chip": ("chip_macro", "chip", "edge"), "design": ("edge", "profile", "buttons", "monolith"), "price": ("lineup", "hero", "lineup")}
+
+
+def _filler_shot(phone: str, cols: Sequence[str], k: int, moves: Sequence[str], topic: Optional[str] = None) -> Dict[str, Any]:
+    """The picture under a narrated line: a macro phone move, every third beat a lineup in a rotating room, so a long line never repeats one frame.
+    With the line's subject (`topic`) the shot shows that subject: battery -> the x-ray cutaway, camera -> the lens bar, chip -> the chip, and so on."""
+    pick = TOPIC_SHOTS.get(topic or "")
+    if pick:
+        m = pick[k % len(pick)]
+        if m == "xray":
+            return {"kind": "product", "object": "xray", "seed": 100 + k, "explode": [0, 0.6]}
+        if m == "lineup":
+            return {"kind": "product", "object": "lineup", "phone": phone, "colors": list(cols), "room": ROOMS[k % len(ROOMS)], "pose": POSES[(k + 1) % 4], "seed": 70 + k}
+        if m in ("chip", "chip_macro"):
+            return {"kind": "product", "object": "chip", "move": m, "label": "CHIP", "glow": "#3ac8ff", "seed": 110 + k}
+        return {"kind": "product", "object": "phone", "phone": phone, "move": m, "backdrop": REVIEW_SET, "seed": 9 + k}
     if k % 3 == 2:
         return {"kind": "product", "object": "lineup", "phone": phone, "colors": list(cols), "room": ROOMS[k % len(ROOMS)], "pose": POSES[(k + 1) % 4], "seed": 70 + k}
-    return {"kind": "product", "object": "phone", "phone": phone, "move": moves[k % len(moves)], "backdrop": "charcoal", "seed": 9 + k}
+    return {"kind": "product", "object": "phone", "phone": phone, "move": moves[k % len(moves)], "backdrop": REVIEW_SET, "seed": 9 + k}
 
 
 def footage_shot(it: Dict[str, Any], media_dir: Optional[Path], k: int) -> Optional[Dict[str, Any]]:
@@ -415,7 +731,7 @@ def footage_shot(it: Dict[str, Any], media_dir: Optional[Path], k: int) -> Optio
 def _alt_shot(prev: Dict[str, Any], phone: str, cols: Sequence[str], k: int, moves: Sequence[str]) -> Dict[str, Any]:
     """The second angle after a 3D shot: never the same kind of picture twice running (a lineup after a lineup reads as a restart)."""
     if prev.get("object") == "lineup":
-        return {"kind": "product", "object": "phone", "phone": phone, "move": moves[k % len(moves)], "backdrop": "charcoal", "seed": 90 + k}
+        return {"kind": "product", "object": "phone", "phone": phone, "move": moves[k % len(moves)], "backdrop": REVIEW_SET, "seed": 90 + k}
     room = next(r for r in ROOMS[k % len(ROOMS):] + ROOMS if r != prev.get("room"))
     return {"kind": "product", "object": "lineup", "phone": phone, "colors": list(cols), "room": room, "pose": POSES[(k + 2) % 4], "seed": 80 + k}
 
@@ -539,7 +855,7 @@ def plan_review(parsed: Dict[str, Any], pack: Dict[str, Any], results: Optional[
             else:
                 if sc["source"] == "ai_still":
                     notes.append(f"line {n_line} had no AI picture: a 3D shot was used")
-                s = add({"kind": "product", "object": "phone", "phone": phone, "move": moves[k3 % len(moves)], "backdrop": "charcoal", "seed": 9 + k3}, length)
+                s = add({"kind": "product", "object": "phone", "phone": phone, "move": moves[k3 % len(moves)], "backdrop": REVIEW_SET, "seed": 9 + k3}, length)
                 k3 += 1
             chunks += _chunks(it["text"], s["start"] + 0.1, s["end"] - 0.1)
     layers.append({"type": "pt_subtitle", "chunks": chunks, "box": True})
@@ -575,6 +891,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
     k3 = 0
     last_dir: Dict[str, Any] = {}
     moves = ["island", "monolith", "edge", "screen", "port", "monolith", "buttons", "screen"]
+    cur_topic: List[Optional[str]] = [None]          # the subject the narration is on: filler shots show it
 
     def add(a: float, b: float, shot: Dict[str, Any]) -> Dict[str, Any]:
         s = {"id": f"s{len(shots) + 1:02d}", "start": round(a, 3), "end": round(b, 3), "exit": "cut", **shot}
@@ -602,29 +919,40 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
                 add(a, b, fs)
             else:
                 notes.append(f"no footage for '{it.get('query', '')}': a 3D shot was used")
-                add(a, b, _filler_shot(phone, cols, k3, moves))
+                add(a, b, _filler_shot(phone, cols, k3, moves, cur_topic[0]))
             k3 += 1
             return
         shot, make, _secs = directive_visual(it, phone, cols, k3, prod, style)
-        split = it["kind"] in ("lineup", "macro", "intro", "bigtype", "stat") and shot.get("kind") == "product" and (b - a) > 3.8
+        split = it["kind"] in ("lineup", "macro", "intro", "bigtype", "stat", "feature", "callout") and shot.get("kind") == "product" and (b - a) > 3.8
         mid = a + (b - a) * 0.55 if split else b
         s = add(a, mid, shot)
         first = len(layers)
         layers.extend(make(s["start"], mid))
+        ui = (s.get("screen") or {}).get("ui")
+        if ui and s.get("ui_style") == "demo" and words:   # the cursor taps a row when the narrator names it
+            from .uifilm import _cue_taps
+            from .voiceover import _wtimes
+
+            cues = _cue_taps(ui, _wtimes(words), a, mid)
+            if cues:
+                s["screen"] = {**s["screen"], "ui": {**ui, "script": cues}}
         last_dir.clear()
         if not split:
             last_dir.update({"shot": s, "first": first, "last": len(layers), "t0": a})
             held = layers[first:]
-            if style == "follow" and (mid - a) > MAX_HOLD_S + 1.0 and all(L["type"] in ("pt_paper", "pt_flatphones") for L in held):
-                cut = a + HOLD_STEP_S                    # a long line: the scene is cut into settled pieces of about 4.5 s, each a slow push
+            most = MAX_CARD_S if s.get("kind") == "black" else MAX_SCENE_S
+            if style in ("follow", "news") and (mid - a) > most + 1.0:
+                cut = a + most                           # a long line: the scene has its read, then moving 3D shots carry the rest of the line
                 s["end"] = round(cut, 3)
                 for L in held:
-                    L["end"] = round(cut if L["type"] == "pt_paper" else cut - 0.03, 3)
-                held = list(held)
-                while mid - cut > 0.4:
-                    nxt = min(mid, cut + HOLD_STEP_S) if mid - cut - HOLD_STEP_S > 1.5 else mid
-                    hold_copy(cut, nxt, held)
-                    cut = nxt
+                    L["end"] = round(min(L["end"], cut if L["type"] == "pt_paper" else cut - 0.03), 3)
+                last_dir.clear()
+                for a2, b2 in _beats(cut, mid):
+                    fs = _filler_shot(phone, cols, k3, moves, cur_topic[0])
+                    if shots and shots[-1].get("object") == "lineup" and fs.get("object") == "lineup":
+                        fs = _alt_shot(shots[-1], phone, cols, k3, moves)
+                    add(a2, b2, fs)
+                    k3 += 1
         k3 += 1
         if split:                                  # the 3D beat is cut in two: a second angle follows the first (every 2-3 s something new)
             add(mid, b, _alt_shot(shot, phone, cols, k3, moves))
@@ -642,7 +970,10 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
                 pend.append(it)
     if pend and flat:
         flat[-1]["pending"] = flat[-1]["pending"] + pend      # directives after the last line share its stretch
+    from . import director
+
     for i, f in enumerate(flat):
+        cur_topic[0] = director.topic_of(director.spoken_numbers(f["line"]["text"])) or cur_topic[0]
         a = 0.0 if i == 0 else spans[i][0]
         b = D if i + 1 >= len(flat) else spans[i + 1][0]
         b = max(b, a + 1.0)
@@ -656,7 +987,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
             cur += card
         rest = b - cur
         share = rest / (len(units) + 1)
-        if units and (share < MIN_CHART_S or style == "follow"):          # too short to read a chart and then a filler shot: the graphics own the whole line
+        if units and (share < MIN_CHART_S or style in ("follow", "news")):          # too short to read a chart and then a filler shot: the graphics own the whole line
             share = rest / len(units)
         for u in units:
             directive(u, cur, cur + share)
@@ -665,9 +996,10 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
             continue_line = True
         else:
             continue_line = False
-        if style == "follow" and not units and last_dir and shots and shots[-1] is last_dir["shot"] and b - last_dir.get("t0", 0.0) <= MAX_SCENE_S:
+        held = [L for L in layers[last_dir["first"]:last_dir["last"]]] if last_dir else []
+        limit = MAX_CARD_S if last_dir and last_dir["shot"].get("kind") == "black" else MAX_SCENE_S
+        if style in ("follow", "news") and not units and last_dir and shots and shots[-1] is last_dir["shot"] and b - last_dir.get("t0", 0.0) <= limit:
             prev = shots[-1]                             # a line with no picture of its own keeps the scene before it on screen (as the references do)
-            held = [L for L in layers[last_dir["first"]:last_dir["last"]]]
             if b - prev["start"] > MAX_HOLD_S and all(L["type"] in ("pt_paper", "pt_flatphones") for L in held):
                 n0 = prev["end"]                         # a long hold continues as a settled copy of the same scene (a cut between identical frames is invisible)
                 hold_copy(n0, b, held)
@@ -711,7 +1043,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
             if sc["source"] == "ai_still":
                 notes.append(f"line {i + 1} had no AI picture: a 3D shot was used")
             for a2, b2 in _beats(cur, b):
-                fs = _filler_shot(phone, cols, k3, moves)
+                fs = _filler_shot(phone, cols, k3, moves, cur_topic[0])
                 if shots and shots[-1].get("object") == "lineup" and fs.get("object") == "lineup":
                     fs = _alt_shot(shots[-1], phone, cols, k3, moves)
                 add(a2, b2, fs)
@@ -726,7 +1058,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
         t += 4.0
     if not ok:
         notes.append("the voice-over did not follow the script word for word: lines were spread evenly over its length")
-    spec = {"width": int(width), "height": int(height), "fps": int(fps), "duration": round(t, 3), "look": dict(FLAT_LOOK if style == "infographic" else LOOK), "shots": shots, "layers": layers,
+    spec = {"width": int(width), "height": int(height), "fps": int(fps), "duration": round(t, 3), "look": dict(FLAT_LOOK if style == "infographic" else NEWS_LOOK if style == "news" else LOOK), "shots": shots, "layers": layers,
             "whatif": {"title": parsed.get("title") or "Review", "notes": notes},
             "product_trailer": {"pace": "review", "product": prod, "voiceover_timed": True, "voice_matched": bool(ok)}}
     if media_dir:

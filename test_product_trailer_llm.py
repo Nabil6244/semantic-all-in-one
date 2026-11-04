@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from product_trailer import footage, llm_director, review, studio
 
-SCRIPT = ("Samsung says the battery got a certification in India.\nThe phone has a bigger battery than last year.\n"
+SCRIPT = ("Samsung says the battery got a certification in India.\nThe battery grows from 5000 mAh to 5700 mAh, 700 more than last year.\n"
           "A tipster says charging is faster.\nPeople will hold it in one hand.\nThe frame is thin.\n")
 GOOD = json.dumps({"scenes": [
     {"line": 1, "type": "doc", "chip": "BIS CERTIFICATION", "title": "Battery listing", "highlight": 9},

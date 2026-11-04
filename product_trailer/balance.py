@@ -25,7 +25,7 @@ def family(it: Dict[str, Any]) -> Optional[str]:
     k = it.get("kind")
     if k == "scene":
         return "evidence" if (it.get("layer") or {}).get("type") == "pt_doc" else "flat"
-    return {"tweet": "evidence", "curve": "chart", "bench": "bench", "footage": "footage"}.get(k) or ("3d" if k in KINDS_3D else None)
+    return {"tweet": "evidence", "curve": "chart", "bench": "bench", "footage": "footage"}.get(k) or ("3d" if k in KINDS_3D or k in ("feature", "callout") else None)
 
 
 def _bench_from(it: Dict[str, Any]) -> Optional[Dict[str, Any]]:

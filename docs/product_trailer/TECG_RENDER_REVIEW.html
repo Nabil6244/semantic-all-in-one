@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tecg Render Review</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1e;--mute:#6b6b70;--line:#e2e2e0;--bad:#c4372f;--badbg:#fbe9e7;--ok:#1f7a45;--okbg:#e5f4ea;--mid:#9a6a00;--midbg:#fbf1dc}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--mute:#9a9aa0;--line:#2e2e33;--bad:#ff7a70;--badbg:#3a1f1d;--ok:#6fd49a;--okbg:#173023;--mid:#f0c060;--midbg:#352a12}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:32px 0 10px}
+.sub{color:var(--mute);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.wrap{overflow-x:auto}
+.t{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--mute)}
+.b{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600}
+.bad{background:var(--badbg);color:var(--bad)}.ok{background:var(--okbg);color:var(--ok)}.mid{background:var(--midbg);color:var(--mid)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat b{display:block;font-size:24px}.stat span{color:var(--mute);font-size:13px}
+img{width:100%;border-radius:8px;border:1px solid var(--line)}
+ol li{margin:6px 0}
+code{font-size:12.5px}
+</style></head><body><main>
+<h1>tecg: render review</h1>
+<p class="sub">Product Trailer, Review film, Mixed style. 1920×1080, 30 fps, 3:34. Render finished 2026-11-03 13:33. Input: <code>galaxy_s27_ultra_trailer.csv</code> plus a 518-word voiceover.</p>
+
+<div class="stats">
+<div class="stat"><b>0 of 9</b><span>CSV feature values shown on screen</span></div>
+<div class="stat"><b>~2 of 13</b><span>beats where the picture matches what the voice says</span></div>
+<div class="stat"><b>11 of 21</b><span>shots that are flat 2D cards on a plain background</span></div>
+<div class="stat"><b>17.5 s</b><span>every scene the same length (lines spread evenly)</span></div>
+<div class="stat"><b>6</b><span>invented facts on screen (120Hz, 8 Gen 3, 7200 pts, vapor chamber, charging curve, hinge)</span></div>
+<div class="stat"><b>1</b><span>stock clip in the whole film, looped for 17 s</span></div>
+</div>
+
+<h2>Frames (one every 8 s)</h2>
+<img src="tecg_frames.jpg" alt="30 frames from the render, one every 8 seconds">
+
+<h2>Timeline comparison: what the voice says, what the CSV asked for, what we got</h2>
+<div class="card wrap"><table>
+<tr><th>Time</th><th>Voiceover says</th><th>CSV asked for</th><th>Video shows</th><th>Verdict</th></tr>
+<tr><td class="t">0:00–0:17</td><td>S27 Ultra may lose a camera; dummy phones show a wide camera bar</td><td>Wider. Bolder (horizon look)</td><td>Pexels clip: a hand holding a yellow iPhone-style case, looped 17 s. Subtitle reads <b>"#product"</b></td><td><span class="b bad">Wrong</span> wrong phone, CSV tag shown as subtitle</td></tr>
+<tr><td class="t">0:17–0:35</td><td>Not announced, expected early 2027; leak, rumor or certification</td><td>#disclaimer line</td><td>Tweet card "Specs based on early rumors and leaks", held 17 s. Subtitle <b>"#disclaimer"</b></td><td><span class="b mid">Partly</span> right idea, still for 17 s</td></tr>
+<tr><td class="t">0:35–0:52</td><td>Design leak: Android Headlines dummy units, horizontal camera island, slightly bigger</td><td>(header row)</td><td>"Official Device Pre-Order Certification" document with empty rows. Subtitle <b>"order"</b></td><td><span class="b bad">Wrong</span> made-up document, no camera bar</td></tr>
+<tr><td class="t">0:52–1:10</td><td>Size 163.76×78.25×7.97 mm vs S26 Ultra; looks like iPhone 18 Pro; old cases won't fit</td><td>1: design, Wider. Bolder</td><td>Flat phone "120Hz Display", label "Phone 1", vertical cameras, the same card held 18 s across 4 shots</td><td><span class="b bad">Wrong</span> 120Hz invented, cameras run the wrong way, size never shown</td></tr>
+<tr><td class="t">1:10–1:20</td><td>Dummies come from design files; camera setup</td><td>2: Camera Island, horizontal bar, red wash</td><td>3D camera island close-up, "Camera Module"</td><td><span class="b ok">Close</span> but round cameras, not a bar, and no red wash</td></tr>
+<tr><td class="t">1:20–1:28</td><td>200 MP main, 50 MP ultra-wide, 50 MP 5×; 3× dropped</td><td>3: 200MP · 4: 50MP 5x</td><td>4-phone lineup in a loft, no text</td><td><span class="b bad">Missing</span> camera numbers never shown</td></tr>
+<tr><td class="t">1:28–1:45</td><td>Do you use 3× zoom? Battery is the most reliable leak: 3C lists 5,534 mAh</td><td>5: 5700 mAh</td><td>"Next-Gen Processor" chip labelled <b>SNAPDRAGON 8 GEN 3</b></td><td><span class="b bad">Wrong</span> wrong topic, old chip name</td></tr>
+<tr><td class="t">1:45–2:03</td><td>About 5,700 vs 5,000: ~700 more, ~14%. 60 W wired</td><td>5: 5700 mAh · 7: 60W</td><td>Geekbench bench: "Phone 1" 7200 pts vs 6500 pts</td><td><span class="b bad">Wrong</span> made-up scores, wrong topic</td></tr>
+<tr><td class="t">2:03–2:20</td><td>Certification doesn't lock specs; privacy display for Pro and Ultra only</td><td>6: Privacy, brighter display, purple wash</td><td>X-ray phone, "Cooling Vapor Chamber"</td><td><span class="b bad">Wrong</span> invented topic</td></tr>
+<tr><td class="t">2:20–2:38</td><td>US gets Snapdragon; no Exynos 2700 signs (Ice Universe)</td><td>8: Snapdragon Ultra badge</td><td>Battery card "+500mAh", 90%</td><td><span class="b bad">Wrong</span> wrong moment, wrong number (voice says ~700)</td></tr>
+<tr><td class="t">2:38–2:55</td><td>Design leaks contradict each other; my take: wait</td><td>—</td><td>"Charging Speed Curve (illustrative)", 50% in 15 min</td><td><span class="b bad">Wrong</span> invented numbers</td></tr>
+<tr><td class="t">2:55–3:13</td><td>Black Friday Nov 27; S26 Ultra was $919.99 vs $1,299.99</td><td>—</td><td>"Color Options" lineup (4 colours), then a USB-port close-up</td><td><span class="b bad">Missing</span> no date or price shown; CSV colour was Titanium Black only</td></tr>
+<tr><td class="t">3:13–3:30</td><td>Bigger battery or 3× camera? Tell me in the comments</td><td>9: Less. But more</td><td><b>"Flex Hinge Mechanism"</b>, a folding phone</td><td><span class="b bad">Wrong</span> the S27 Ultra doesn't fold</td></tr>
+<tr><td class="t">3:30–3:34</td><td>—</td><td>#disclaimer</td><td>Disclaimer card; the text runs off the right edge</td><td><span class="b mid">Partly</span> text cut off</td></tr>
+</table></div>
+
+<h2>What the root problem is</h2>
+<div class="card"><ol>
+<li><b>The CSV was read as the script.</b> The trailer CSV has 12 lines (<code>#product</code>, <code>#disclaimer</code>, the header, 9 rows). The run treated each line as a narration sentence, which is where "12 scenes for 12 sentences" comes from, and why the subtitles read <code>#product</code>, <code>#disclaimer</code>, <code>order</code>, <code>1</code> … <code>9</code>.</li>
+<li><b>Because of that, the timing broke.</b> That "script" never matched the voice, so the run logged <i>"the voice-over did not follow the script word for word: lines were spread evenly"</i>, and every block got exactly 17.53 s. Whisper had already transcribed all 518 words with timings, but none of it was used to place scenes.</li>
+<li><b>The CSV values never reached the screen.</b> 200MP, 50MP 5x, 5700 mAh, 60W, Privacy and Snapdragon Ultra appear nowhere. The <code>wash:red</code>, <code>wash:purple</code>, <code>horizon</code> and <code>badge</code> looks were ignored.</li>
+<li><b>An AI scene-writer filled the gap with made-up content.</b> One Gemini call (gemini-3.6-flash) wrote the scenes even though a CSV was supplied, which goes against the "CSV means no Gemini" rule. That's where 120Hz, Snapdragon 8 Gen 3, Geekbench 7200/6500, the vapor chamber, the charging curve and the flex hinge came from.</li>
+<li><b>The product line was ignored.</b> <code>#product,Galaxy S27 Ultra,Titanium Black</code> wasn't picked up. The product name is empty in the spec, so cards show "Phone 1" and the lineup shows 4 colours, not Titanium Black.</li>
+<li><b>Footage was thin and wrong.</b> One Pexels search found one clip (an iPhone-style phone in a yellow case). It's looped for the whole 17.5 s opening.</li>
+<li><b>Long still screens.</b> 11 of 21 shots are "black" shots with 2D paper cards. The same flat phone card is held for 18 s, and the same battery card for 17 s, which breaks the no-still-screens rule.</li>
+<li><b>Small layout bug.</b> The disclaimer end card's single long line overflows the frame.</li>
+</ol></div>
+
+<h2>What worked</h2>
+<div class="card"><table>
+<tr><th>Area</th><th>Result</th></tr>
+<tr><td>Render</td><td><span class="b ok">Good</span> finished in about 2.5 min, 1080p30, length matches the 3:34 voiceover</td></tr>
+<tr><td>Transcription</td><td><span class="b ok">Good</span> Whisper got all 518 words with timestamps (just not used for placement)</td></tr>
+<tr><td>3D shot quality</td><td><span class="b ok">Good</span> camera island, lineup rooms, bench, x-ray and port close-up look clean</td></tr>
+<tr><td>Disclaimer</td><td><span class="b mid">Partly</span> shown at the start (tweet) and the end, but the end card overflows</td></tr>
+<tr><td>Subtitles</td><td><span class="b bad">Broken</span> CSV tags shown instead of spoken words</td></tr>
+<tr><td>Matching voice to picture</td><td><span class="b bad">Broken</span> about 2 of 13 beats match</td></tr>
+<tr><td>Spec accuracy</td><td><span class="b bad">Broken</span> 0 of 9 CSV values shown, 6 invented facts</td></tr>
+</table></div>
+
+<h2>Sources checked</h2>
+<div class="card"><code>Video_2026-11-03_002_tecg/final/tecg.mp4</code> · <code>state/product_trailer/product_trailer_spec.json</code> · <code>options.json</code> · <code>logs/generation.log</code> · <code>state/ai_calls.jsonl</code> · <code>state/narration_words.json</code> · <code>~/Downloads/galaxy_s27_ultra_trailer.csv</code>. Audio levels weren't measured.</div>
+</main></body></html>

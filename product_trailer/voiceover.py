@@ -34,6 +34,49 @@ def _wtimes(words: Sequence[Any]) -> List[Tuple[str, float, float]]:
     return [x for x in out if x[0]]
 
 
+def _match_tokens(text: str) -> List[str]:
+    """Words as both a typed script and Whisper can agree on them: "Samsung’s" -> samsung, "5,534" -> 5 534, "$919.99" -> 919 99."""
+    t = re.sub(r"['’]s\b", "", str(text).lower().replace("’", "'"))
+    return [x for x in re.split(r"[^a-z0-9]+", t.replace("'", "")) if x]
+
+
+def _align_fuzzy(lines: Sequence[str], W: Sequence[Tuple[str, float, float]], need: float = 0.6):
+    """A typed script against the narrator's words when they differ in spelling, punctuation and number format: a longest-match alignment of the whole
+    token streams, each line spanning its first to last matched word (a line with no match sits between its neighbours). None below `need` matched."""
+    from difflib import SequenceMatcher
+
+    script: List[Tuple[int, str]] = [(i, tok) for i, line in enumerate(lines) for tok in _match_tokens(line)]
+    voice: List[Tuple[int, str]] = [(k, tok) for k, (w, _, _) in enumerate(W) for tok in _match_tokens(w)]
+    if not script or not voice:
+        return None
+    sm = SequenceMatcher(None, [t for _, t in script], [t for _, t in voice], autojunk=False)
+    first: dict = {}
+    last: dict = {}
+    hit = 0
+    for a, b, n in sm.get_matching_blocks():
+        for j in range(n):
+            li, wk = script[a + j][0], voice[b + j][0]
+            first.setdefault(li, wk)
+            last[li] = max(last.get(li, wk), wk)
+            hit += 1
+    if hit < need * len(script):
+        return None
+    spans: List[Tuple[float, float]] = []
+    ranges: List[Tuple[int, int]] = []
+    prev_end = 0
+    for i in range(len(lines)):
+        if i in first:
+            s, e = max(first[i], prev_end if i and prev_end < len(W) else first[i]), last[i]
+            s = min(s, e)
+        else:
+            nxt = next((first[j] for j in range(i + 1, len(lines)) if j in first), len(W) - 1)
+            s = e = min(prev_end, nxt)
+        spans.append((W[s][1], W[e][2]))
+        ranges.append((s, e))
+        prev_end = min(len(W) - 1, e + 1)
+    return spans, ranges
+
+
 def align_lines(lines: Sequence[str], words: Sequence[Any], duration: float) -> dict:
     """Each line's (start, end) in the voice-over, and each line's word index range, by walking the narrator's words in order.
     Falls back to an even split by word count when the words do not follow the script ('ok' is then False)."""
@@ -62,6 +105,11 @@ def align_lines(lines: Sequence[str], words: Sequence[Any], duration: float) -> 
         ranges.append((start, end))
         p = end + 1
     ok = bool(W) and hits >= 0.6 * len([t for t in toks if t]) and p >= 0.6 * len(W)
+    if not ok and W:
+        fuzzy = _align_fuzzy(lines, W)
+        if fuzzy:
+            spans, ranges = fuzzy
+            ok = True
     if not ok:
         t0 = W[0][1] if W else 0.0
         span = max(0.1, float(duration) - t0)
@@ -72,6 +120,29 @@ def align_lines(lines: Sequence[str], words: Sequence[Any], duration: float) -> 
             ranges.append((0, 0))
             acc += len(t)
     return {"spans": spans, "ranges": ranges, "ok": ok, "duration": float(duration)}
+
+
+def sentences(words: Sequence[Any], gap: float = 0.45, min_words: int = 6, max_words: int = 26) -> List[str]:
+    """The narrator's own words as script lines, for a review with a voice-over and no pasted script: a line ends on a pause of `gap` seconds once it
+    has `min_words`, or at `max_words`. The words are the voice's, so align_lines() then matches every line exactly."""
+    out: List[str] = []
+    cur: List[str] = []
+    prev_end = None
+    for w in words:
+        text, a, b = (str(w.get("text") or w.get("word") or ""), float(w["start"]), float(w["end"])) if isinstance(w, dict) else (str(w[0]), float(w[1]), float(w[2]))
+        if not text.strip():
+            continue
+        if cur and ((prev_end is not None and a - prev_end > gap and len(cur) >= min_words) or len(cur) >= max_words):
+            out.append(" ".join(cur))
+            cur = []
+        cur.append(text.strip())
+        prev_end = b
+    if cur:
+        if out and len(cur) < 3:
+            out[-1] += " " + " ".join(cur)      # a two-word tail joins the line before it
+        else:
+            out.append(" ".join(cur))
+    return out
 
 
 def chunks(text: str, span: Tuple[float, float], words: Sequence[Any], rng: Tuple[int, int], ok: bool) -> List[dict]:

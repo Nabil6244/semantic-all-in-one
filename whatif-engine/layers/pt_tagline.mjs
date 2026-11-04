@@ -11,6 +11,6 @@ export default {
     const d = inst.def, { g, W, H } = f, T = tm(g, W), S = T.S, m = ptMotion(d, f.t, S);
     const side = ['left', 'right', 'center'].includes(d.side) ? d.side : 'left';
     const { x, align, maxW } = ptSide(side, W), text = String(d.text), px = ptFit(T, text, 96, maxW, 800, 'display', -1.5);
-    ptWith(g, f, m, () => T.text(text, x, H * 0.5 + px * S * 0.35, { font: ptFont(S, px, 800), track: -px * 0.015, color: C.white, align, shadow: 0.35 }));
+    ptWith(g, f, m, () => T.text(text, x, H * 0.5 + px * S * 0.35, { font: ptFont(S, px, 800), track: -px * 0.015, color: d.ink === 'dark' ? '#15171B' : C.white, align, shadow: d.ink === 'dark' ? 0 : 0.35 }));   // ink "dark" over a bright set
   },
 };

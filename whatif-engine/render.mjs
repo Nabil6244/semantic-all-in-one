@@ -131,7 +131,13 @@ async function main() {
       return;
     }
     ffmpeg = spawn(spec.ffmpeg || 'ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-      '-c:v', 'libx264', '-preset', spec.x264_preset || 'medium', '-crf', String(spec.crf ?? 18), '-pix_fmt', 'yuv420p', '-r', String(fps), '-movflags', '+faststart', spec.output], { stdio: ['pipe', 'ignore', 'pipe'] });
+      '-c:v', 'libx264', '-preset', spec.x264_preset || 'medium', '-crf', String(spec.crf ?? 18),
+      // the page's frames are JPEG (full range, BT.601 matrix): convert to standard video range and the HD matrix, and tag it, so players and YouTube show the
+      // colours as drawn (untagged full-range yuvj420p came out with shifted contrast on some players)
+      // (checked: within ~0.7 of 255 of the drawn frame; the stream itself carries the BT.709 flags, which survive the parts' concat and the audio mux)
+      '-vf', 'format=rgb24,scale=out_range=tv:out_color_matrix=bt709:flags=accurate_rnd+full_chroma_int,format=yuv420p',
+      '-color_range', 'tv', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
+      '-bsf:v', 'h264_metadata=colour_primaries=1:transfer_characteristics=1:matrix_coefficients=1:video_full_range_flag=0', '-r', String(fps), '-movflags', '+faststart', spec.output], { stdio: ['pipe', 'ignore', 'pipe'] });
     let err = ''; ffmpeg.stderr.on('data', (d) => { err += d; });
     const closed = new Promise((resolve) => ffmpeg.on('close', (code) => resolve(code)));
     const t0 = Date.now();

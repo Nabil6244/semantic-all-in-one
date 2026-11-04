@@ -18,7 +18,7 @@ LOOK = {"saturate": 0.95, "contrast": 1.06, "lift": "#05070B", "vignette": 0.3, 
 MOVES = ["island", "monolith", "hero", "profile", "orbit", "screen", "edge", "chip", "chip_macro", "flip", "rise", "port", "buttons", "reveal"]
 # what the viewer mostly sees (checked on rendered stills): flip ends on the lit front, rise settles front-on, orbit shows the screen.
 # "reveal" (back -> turn -> front, screen powers on) is led by the back and counts as a back shot for the front cap.
-FACE = {"island": "back", "monolith": "back", "reveal": "back", "flip": "front", "rise": "front", "hero": "front", "screen": "front", "orbit": "front",
+FACE = {"hero_back": "back", "island": "back", "monolith": "back", "reveal": "back", "flip": "front", "rise": "front", "hero": "front", "screen": "front", "orbit": "front",
         "profile": "side", "edge": "side", "port": "side", "buttons": "side", "chip": "chip", "chip_macro": "chip"}
 FRONT_CAP = 0.30                                                                         # front-facing product shots <= 30 %: the camera island is the star
 COLD_OPEN = ["island", "monolith", "profile", "edge", "orbit"]          # cycled from the first: a macro glide across the lens island opens the film; no crop-prone front moves
@@ -123,6 +123,10 @@ def _tone(colour: str) -> str:
 def plan_spec(data: Dict[str, Any], beats: BeatInfo, *, width: int = 1920, height: int = 1080, fps: int = 30, seed: int = 0,
               music_path: Optional[str] = None, pace: Optional[str] = None) -> Dict[str, Any]:
     pace = (pace or data.get("product", {}).get("pace") or "trailer").lower()
+    if pace == "ui":
+        from .uifilm import plan_ui
+
+        return plan_ui(data, beats, width=width, height=height, fps=fps, seed=seed, music_path=music_path)
     if pace == "reveal":
         return plan_reveal(data, beats, width=width, height=height, fps=fps, seed=seed, music_path=music_path)
     rng = random.Random(seed)
@@ -391,6 +395,10 @@ def build_spec(csv_path, music_path=None, out_dir=None, width: int = 1920, heigh
     pace = (pace or prod.get("pace") or "trailer").lower()
     if pace == "reveal" and not music_path:          # no music: a 6 s grid, long enough for one shot per feature + the reveal + the card
         beats = grid(min(MAX_LEN_S, 6.0 * (len(data.get("features") or []) + 1) + 3.0), bpm=10.0)
+    elif pace == "ui" and not music_path:            # no music: 7 s blocks (opening wall + a block per feature + the reveal) and the card
+        from .uifilm import film_length
+
+        beats = grid(min(MAX_LEN_S, film_length(data)), bpm=60.0 / 7.0)
     else:
         beats = detect(str(music_path) if music_path else None)
     spec = plan_spec(data, beats, width=width, height=height, fps=fps, seed=seed, music_path=music_path, pace=pace)

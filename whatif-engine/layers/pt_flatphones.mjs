@@ -3,7 +3,7 @@
 //   { "type": "pt_flatphones", "start": 0, "end": 5, "title": "CHARGING SPEED",
 //     "phones": [{ "label": "Galaxy S26 Ultra", "text": "60W", "color": "#5b5a86", "cams": 4, "fill": 0.95, "top": "5000mAh", "highlight": false },
 //                { "label": "Galaxy S27 Ultra", "text": "60W", "color": "#2b2b2e", "cams": 3, "fill": 0.99, "top": "5700mAh" }] }
-// More per phone: fill_from (the capsule counts from it), cutaway:true (the battery cell is drawn inside the body, level cell_from -> cell), side: {from,to,suffix,prefix}
+// More per phone: design: "bar" (a camera bar across the top, as on the Galaxy S27 Ultra; default: a lens column), fill_from (the capsule counts from it), cutaway:true (the battery cell is drawn inside the body, level cell_from -> cell), side: {from,to,suffix,prefix}
 // or side: {text} (a big figure to the right of the phone), cable: "60W" (a cable out of the bottom with a readout), badge: "+700mAh" (a green pill above).
 // fill 0..1 grows from empty over about a second after the phone appears; "cams" is 2..4 lens circles; the phones pop in one after the other.
 import { tm, clamp01, overshoot, quartOut } from './tm_theme.mjs';
@@ -11,6 +11,47 @@ import { ptMotion, ptFont } from './pt_feature.mjs';
 
 const GREEN = '#1fc41f';
 const shade = (hex, k) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || '')); if (!m) return hex; const n = parseInt(m[1], 16); const f = (v) => Math.max(0, Math.min(255, Math.round(v * k))); return `rgb(${f(n >> 16 & 255)},${f(n >> 8 & 255)},${f(n & 255)})`; };
+
+// the camera layout a phone's name or its label above calls for when the scene gives none: an iPhone's square module, a Pixel's visor bar
+// ("Google-like" too); everything else keeps the lens column (a camera-bar Galaxy is set by the planner as design "bar")
+export function designFor(p) {
+  const t = `${p.label || ''} ${p.top || ''}`.toLowerCase();
+  if (/\biphone\b/.test(t)) return 'iphone';
+  if (/\b(pixel|google)\b/.test(t)) return 'pixel';
+  return null;
+}
+
+// a realistic camera lens: brushed ring, black glass, a coloured coating glint and a hard specular dot
+function lens(g, cx, cy, R) {
+  const ring = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R); ring.addColorStop(0, '#d9dde3'); ring.addColorStop(0.5, '#6d727a'); ring.addColorStop(1, '#c4c8ce');
+  g.fillStyle = ring; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+  g.fillStyle = '#07090d'; g.beginPath(); g.arc(cx, cy, R * 0.8, 0, 7); g.fill();
+  const glass = g.createRadialGradient(cx - R * 0.2, cy - R * 0.25, R * 0.05, cx, cy, R * 0.62); glass.addColorStop(0, '#2a3f6b'); glass.addColorStop(0.55, '#0d1424'); glass.addColorStop(1, '#05070b');
+  g.fillStyle = glass; g.beginPath(); g.arc(cx, cy, R * 0.62, 0, 7); g.fill();
+  g.fillStyle = 'rgba(150,110,255,0.35)'; g.beginPath(); g.arc(cx + R * 0.18, cy + R * 0.15, R * 0.22, 0, 7); g.fill();
+  g.fillStyle = 'rgba(255,255,255,0.85)'; g.beginPath(); g.arc(cx - R * 0.26, cy - R * 0.28, R * 0.09, 0, 7); g.fill();
+}
+
+// the back of a camera-bar phone (Galaxy S27 Ultra style): a raised bar across the top holding the big lenses, a pill with the small lens and the
+// flash, a metal frame edge and a soft diagonal sheen. Used by phones with design "bar"; the others keep the lens column.
+function drawBarBack(g, x, y0, w, h, r, col, cams, S) {
+  g.save(); g.beginPath(); g.roundRect(x, y0, w, h, r); g.clip();
+  const sheen = g.createLinearGradient(x, y0, x + w, y0 + h * 0.6); sheen.addColorStop(0, 'rgba(255,255,255,0)'); sheen.addColorStop(0.45, 'rgba(255,255,255,0.10)'); sheen.addColorStop(0.55, 'rgba(255,255,255,0)');
+  g.fillStyle = sheen; g.fillRect(x, y0, w, h); g.restore();
+  const bx = x + w * 0.07, by = y0 + h * 0.035, bw = w * 0.86, bh = h * 0.215, br = bh * 0.32;
+  g.save(); g.shadowColor = 'rgba(0,0,0,0.28)'; g.shadowBlur = 10 * S; g.shadowOffsetY = 4 * S;
+  const bar = g.createLinearGradient(bx, by, bx, by + bh); bar.addColorStop(0, shade(col, 1.18)); bar.addColorStop(1, shade(col, 0.92));
+  g.fillStyle = bar; g.beginPath(); g.roundRect(bx, by, bw, bh, br); g.fill(); g.restore();
+  g.strokeStyle = 'rgba(255,255,255,0.22)'; g.lineWidth = 1.5 * S; g.beginPath(); g.roundRect(bx, by, bw, bh, br); g.stroke();
+  const R = bh * 0.26, big = Math.min(2, cams - 1);
+  for (let i = 0; i < big; i++) lens(g, bx + bh * 0.3, by + bh * (big === 1 ? 0.5 : 0.27 + i * 0.46), R);
+  const px = bx + bh * 0.62, pw = R * 1.5, ph = bh * 0.72, py = by + (bh - ph) / 2;
+  g.fillStyle = '#0a0c10'; g.beginPath(); g.roundRect(px, py, pw, ph, pw / 2); g.fill();
+  g.fillStyle = '#fff6d8'; g.beginPath(); g.arc(px + pw / 2, py + ph * 0.3, pw * 0.17, 0, 7); g.fill();
+  lens(g, px + pw / 2, py + ph * 0.7, pw * 0.36);
+  const fr = g.createLinearGradient(x, y0, x + w, y0); fr.addColorStop(0, 'rgba(255,255,255,0.45)'); fr.addColorStop(0.5, 'rgba(255,255,255,0.08)'); fr.addColorStop(1, 'rgba(255,255,255,0.35)');
+  g.strokeStyle = fr; g.lineWidth = 3 * S; g.beginPath(); g.roundRect(x + 1.5 * S, y0 + 1.5 * S, w - 3 * S, h - 3 * S, r); g.stroke();
+}
 
 export default {
   type: 'pt_flatphones',
@@ -24,8 +65,13 @@ export default {
     g.save(); g.globalAlpha = (f.alpha ?? 1) * m.k;
     const zoom = 1 + Math.min(0.06, 0.008 * Math.max(0, f.t - (d.t0 ?? d.start ?? 0)));            // a slow push so a held scene is never a still
     g.translate(W / 2, H / 2); g.scale(zoom, zoom); g.translate(-W / 2, -H / 2);
-    const ph_h = Math.min(H * 0.66, W * 0.78 / n * 1.9), ph_w = ph_h * 0.49, hasCap = ph.some((p) => p.fill != null), hasSide = ph.some((p) => p.side), gap = ph_w * (hasCap ? 0.9 : hasSide ? 0.5 : 0.6), capW = hasSide ? ph_w * 1.25 : hasCap ? ph_w * 0.42 : 0;
-    const unit = ph_w + gap + capW * 0.9, x0 = W / 2 - (unit * n - gap) / 2, y0 = H * 0.5 - ph_h / 2 + H * 0.03;
+    const hasCap0 = ph.some((p) => p.fill != null), hasSide0 = ph.some((p) => p.side), per = 0.49 * (1 + (hasCap0 ? 0.9 : hasSide0 ? 0.5 : 0.6)) + (hasSide0 ? 0.49 * 1.25 * 0.9 : hasCap0 ? 0.49 * 0.42 * 0.9 : 0);
+    // the row of n phones, their gaps and capsules fits in 90 % of the width (four phones used to run off both edges)
+    const subs = ((f.spec && f.spec.layers) || []).some((L) => L && L.type === 'pt_subtitle');
+    const ph_h = Math.min(subs ? H * 0.6 : H * 0.66, W * 0.78 / n * 1.9, W * 0.9 / Math.max(0.01, n * per - 0.49 * (hasCap0 ? 0.9 : hasSide0 ? 0.5 : 0.6))), ph_w = ph_h * 0.49, hasCap = ph.some((p) => p.fill != null), hasSide = ph.some((p) => p.side), gap = ph_w * (hasCap ? 0.9 : hasSide ? 0.5 : 0.6), capW = hasSide ? ph_w * 1.25 : hasCap ? ph_w * 0.42 : 0;
+    // a film with subtitles keeps its bottom band clear: the phones end above the caption box (they ran under it on the price and size cards)
+    const lift = subs ? Math.max(0, H * 0.53 + ph_h / 2 - H * 0.82) : 0;
+    const unit = ph_w + gap + capW * 0.9, x0 = W / 2 - (unit * n - gap) / 2, y0 = H * 0.5 - ph_h / 2 + H * 0.03 - lift;
     if (d.title) T.text(String(d.title).toUpperCase(), W / 2, H * 0.11, { font: ptFont(S, 34, 700, 'sans'), track: 4, align: 'center', color: '#8A8F98', shadow: 0 });
     ph.forEach((p, i) => {
       const age = m.age - 0.12 * i, kin = overshoot(age / 0.45), x = x0 + unit * i, a = clamp01(age / 0.25);
@@ -38,7 +84,19 @@ export default {
       g.fillStyle = gr; g.beginPath(); g.roundRect(x, y0, ph_w, ph_h, r); g.fill();
       g.shadowColor = 'transparent'; g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 2 * S; g.stroke();
       const cams = Math.max(2, Math.min(4, p.cams || 3)), cr = ph_w * 0.095;      // lens circles down the top-left
-      for (let c = 0; c < cams; c++) {
+      const design = p.design || designFor(p);
+      if (design === 'bar') { drawBarBack(g, x, y0, ph_w, ph_h, r, col, cams, S); }
+      else if (design === 'iphone') {                                            // a square camera module, lenses in a triangle, the flash beside them
+        const side = ph_w * 0.47, mx = x + ph_w * 0.07, my = y0 + ph_w * 0.07, R = side * 0.2;
+        g.fillStyle = shade(col, 1.12); g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = Math.max(1, 1.5 * S); g.beginPath(); g.roundRect(mx, my, side, side, side * 0.26); g.fill(); g.stroke();
+        [[0.3, 0.29], [0.3, 0.71], [0.71, 0.5]].slice(0, Math.max(2, Math.min(3, cams))).forEach(([u, v]) => lens(g, mx + side * u, my + side * v, R));
+        g.fillStyle = '#f4ead2'; g.beginPath(); g.arc(mx + side * 0.71, my + side * 0.2, R * 0.28, 0, 7); g.fill();
+      } else if (design === 'pixel') {                                           // a camera visor across the full width, lenses in a row
+        const bh = ph_h * 0.085, by = y0 + ph_h * 0.12, R = bh * 0.32;
+        g.fillStyle = '#15171b'; g.beginPath(); g.roundRect(x - ph_w * 0.01, by, ph_w * 1.02, bh, bh / 2); g.fill();
+        for (let c = 0; c < Math.max(2, Math.min(3, cams)); c++) lens(g, x + ph_w * (0.22 + c * 0.16), by + bh / 2, R);
+        g.fillStyle = '#f4ead2'; g.beginPath(); g.arc(x + ph_w * 0.8, by + bh / 2, R * 0.35, 0, 7); g.fill();
+      } else for (let c = 0; c < cams; c++) {
         const cx = x + ph_w * 0.26, cy = y0 + ph_h * 0.075 + c * cr * 2.5;
         g.fillStyle = 'rgba(0,0,0,0.65)'; g.beginPath(); g.arc(cx, cy, cr * 1.08, 0, 7); g.fill();
         g.fillStyle = '#10151d'; g.beginPath(); g.arc(cx, cy, cr * 0.72, 0, 7); g.fill();
@@ -76,7 +134,7 @@ export default {
         if (typeof p.cable === 'string' && p.cable) T.text(p.cable, cxp, yb + 52 * S, { font: ptFont(S, 28, 800, 'sans'), align: 'center', color: '#1d2127', shadow: 0, alpha: a });
       }
       if (p.badge) {
-        const bw = T.measure(String(p.badge), ptFont(S, 26, 800, 'sans')) + 40 * S, bx = x + ph_w / 2 - bw / 2, by = y0 - 78 * S;
+        const bw = T.measure(String(p.badge), ptFont(S, 26, 800, 'sans')) + 40 * S, bx = x + ph_w / 2 - bw / 2, by = y0 - (p.top ? 104 : 78) * S;   // above the top label, never on it
         g.save(); g.globalAlpha *= clamp01((age - 0.4) / 0.25); g.fillStyle = '#17c964'; g.beginPath(); g.roundRect(bx, by, bw, 44 * S, 22 * S); g.fill(); g.restore();
         T.text(String(p.badge), x + ph_w / 2, by + 31 * S, { font: ptFont(S, 26, 800, 'sans'), align: 'center', color: '#FFFFFF', shadow: 0, alpha: clamp01((age - 0.4) / 0.25) });
       }

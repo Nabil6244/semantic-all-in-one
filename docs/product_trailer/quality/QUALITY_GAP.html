@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Quality Gap</title>
+<style>
+:root{--bg:#f6f6f4;--card:#fff;--ink:#1c1c1e;--mute:#6b6b70;--line:#e2e2e0;--bad:#c4372f;--badbg:#fbe9e7;--ok:#1f7a45;--okbg:#e5f4ea;--mid:#9a6a00;--midbg:#fbf1dc}
+@media (prefers-color-scheme:dark){:root{--bg:#141416;--card:#1d1d20;--ink:#ececee;--mute:#9a9aa0;--line:#2e2e33;--bad:#ff7a70;--badbg:#3a1f1d;--ok:#6fd49a;--okbg:#173023;--mid:#f0c060;--midbg:#352a12}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:26px;margin:0 0 4px}h2{font-size:19px;margin:34px 0 8px}h3{font-size:15px;margin:16px 0 6px}
+.sub{color:var(--mute);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:10px 0}
+.wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.b{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.bad{background:var(--badbg);color:var(--bad)}.ok{background:var(--okbg);color:var(--ok)}.mid{background:var(--midbg);color:var(--mid)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+figure{margin:0}figure img{width:100%;border-radius:8px;border:1px solid var(--line)}figcaption{font-size:13px;color:var(--mute);margin-top:4px}
+code{font-size:12.5px}ol li,ul li{margin:5px 0}
+</style></head><body><main>
+<h1>Why ours looks low quality: the reference channels vs tecg_review_v2</h1>
+<p class="sub">Measured on 2026-11-03 from the reference videos in Downloads (the ones in <code>REVIEW_REFERENCE*.md</code>) and our render. Each sheet shows one frame every 6 s over the first 3:36. Cuts were found with ffmpeg scene detection (threshold 0.28) and loudness with EBU R128. This is analysis only; no code was changed.</p>
+
+<h2>1. The pictures side by side</h2>
+<div class="grid">
+<figure><img src="ref_never_expected.jpg" alt="Frames from This Was NEVER Expected"><figcaption><b>S27 Ultra: This Was NEVER Expected</b>: leak news, same topic as ours</figcaption></figure>
+<figure><img src="ref_s26_new_changes.jpg" alt="Frames from S26 Ultra NEW CHANGES"><figcaption><b>S26 Ultra: NEW CHANGES</b>: leak news</figcaption></figure>
+<figure><img src="ref_iphone17_truth.jpg" alt="Frames from iPhone 17 Pro Max THE TRUTH"><figcaption><b>iPhone 17 Pro Max: THE TRUTH</b>: leak news</figcaption></figure>
+<figure><img src="ref_hows_this_possible.jpg" alt="Frames from How's This Possible"><figcaption><b>S27 Ultra: How's This Possible?</b>: flat infographic</figcaption></figure>
+<figure><img src="ours_tecg_review_v2.jpg" alt="Frames from our tecg_review_v2"><figcaption><b>Ours: tecg_review_v2</b></figcaption></figure>
+</div>
+
+<h2>2. Measured</h2>
+<div class="card wrap"><table>
+<tr><th></th><th>NEVER Expected</th><th>S26 NEW CHANGES</th><th>iPhone 17 TRUTH</th><th>How's This Possible</th><th>Ours</th></tr>
+<tr><td>Length</td><td>4:33</td><td>5:23</td><td>5:41</td><td>4:26</td><td>3:34</td></tr>
+<tr><td>Shots</td><td>90</td><td>153</td><td>92</td><td>24</td><td>63</td></tr>
+<tr><td>Median shot</td><td>2.4 s</td><td>2.0 s</td><td>2.4 s</td><td>3.7 s</td><td>2.9 s</td></tr>
+<tr><td>Shots under 2 s</td><td>40 %</td><td>50 %</td><td>40 %</td><td>29 %</td><td><b>17 %</b></td></tr>
+<tr><td>Shots of 2–5 s</td><td>44 %</td><td>47 %</td><td>35 %</td><td>33 %</td><td><b>67 %</b> (all about the same length)</td></tr>
+<tr><td>Real footage / real images</td><td>~95 %</td><td>~100 %</td><td>~100 %</td><td>~10 %</td><td><b>~2 %</b> (one stock clip)</td></tr>
+<tr><td>Burned-in subtitles</td><td>none</td><td>none</td><td>none</td><td>none</td><td><b>on every line, in a box</b></td></tr>
+<tr><td>Big text on the picture</td><td>rare (source screenshots)</td><td>none</td><td>none</td><td>small labels on the graphic</td><td><b>on ~60 % of shots</b></td></tr>
+<tr><td>Looks in one film</td><td>one (real footage)</td><td>one</td><td>one</td><td>one (paper, all the way)</td><td><b>three, switching every few seconds</b> (dark 3D, light paper, 3D rooms)</td></tr>
+<tr><td>Loudness</td><td>−13.3 LUFS</td><td>−12.9 LUFS</td><td>−10.6 LUFS</td><td>−17.2 LUFS</td><td><b>−20.6 LUFS</b>, voice only, no music bed</td></tr>
+</table></div>
+
+<h2>3. What their editing actually is</h2>
+<div class="card">
+<h3>A. The three leak/news channels (the same kind of video as ours)</h3>
+<ul>
+<li><b>It's a footage compilation, not a motion-graphics film.</b> Almost every shot is real material about the exact phone: hands turning the real phone or the dummy, leak renders of the actual design (pink/white S27 with the camera bar), teardown footage, UI screen recordings, official promo clips (the chip/CPU animation, "To express the exceptional"), games on the screen, launch events.</li>
+<li><b>Evidence is the real thing.</b> The actual Ice Universe post, with avatar, verified tick and date. The actual certification table, with readable rows. Not a drawn stand-in.</li>
+<li><b>Text is almost absent.</b> No subtitles and no captions: the voice carries the words and the picture carries the proof. The only text is inside screenshots.</li>
+<li><b>Fast, uneven rhythm.</b> Half the shots are under 2 s, then a few long holds (a renders turntable, a screenshot). Cuts bunch up on lists ("black, blue, pink, white") and slow down on explanations.</li>
+<li><b>Motion comes from the footage itself:</b> handheld hands, a turning phone, a scrolling screen. Nothing is a slow CG drift.</li>
+<li><b>Loud and full sound:</b> −11 to −13 LUFS, voice on top of a steady music bed.</li>
+<li><b>Light, natural colour.</b> Mostly bright desks, white and pastel phones, daylight. Very few dark frames.</li>
+</ul>
+<h3>B. The flat infographic channel (How's This Possible)</h3>
+<ul>
+<li><b>One look for the whole film:</b> the same off-white paper from start to end. It never jumps to dark 3D.</li>
+<li><b>Real phone cut-outs:</b> flat renders that look like the actual S27 Ultra (camera bar, lens sizes, model name printed on the back), not icons.</li>
+<li><b>Dense, animated compositions:</b> four phones with watt figures, green battery capsules filling, cables with "57W" readouts, 12MP/50MP/??MP callout lines on the camera, a world map with chip regions. Each shot keeps animating for 4–10 s, so long shots don't feel still.</li>
+<li><b>Numbers are part of the drawing</b> (on the phone body, on the capsule), not a caption over it. No subtitles.</li>
+<li><b>Real footage only as a rare cut-in</b> (a hand charging a phone, a launch stage "No.").</li>
+</ul>
+</div>
+
+<h2>4. Where ours falls short, in order of how much it hurts</h2>
+<div class="card wrap"><table>
+<tr><th>#</th><th>Gap</th><th>Theirs</th><th>Ours</th><th>Hurts</th></tr>
+<tr><td>1</td><td>Source of the pictures</td><td>Real footage and real leak images of this phone</td><td>A code-built grey phone and drawn cards for 98 % of the film</td><td><span class="b bad">most</span></td></tr>
+<tr><td>2</td><td>Evidence</td><td>Real tweet and listing screenshots</td><td>A generic "Regulatory listing" with grey bars, and a quote card with no avatar or date</td><td><span class="b bad">high</span></td></tr>
+<tr><td>3</td><td>Text load</td><td>No subtitles, almost no captions</td><td>A subtitle box on every line plus a big callout on most shots: it reads like slides</td><td><span class="b bad">high</span></td></tr>
+<tr><td>4</td><td>One consistent look</td><td>One look per film</td><td>Dark 3D, then light paper, then a 3D room, every few seconds: the film feels stitched together</td><td><span class="b bad">high</span></td></tr>
+<tr><td>5</td><td>Phone fidelity</td><td>The real design (photos, renders, faithful cut-outs)</td><td>3D: a plain grey phone on charcoal. Flat: a rounded rectangle with 3 circles, icon-like</td><td><span class="b bad">high</span></td></tr>
+<tr><td>6</td><td>Rhythm</td><td>40–50 % of shots under 2 s, clustered cuts, uneven</td><td>17 % under 2 s, two-thirds of shots 2–5 s: an even, metronome pace</td><td><span class="b mid">medium</span></td></tr>
+<tr><td>7</td><td>Repetition</td><td>Each shot is a different piece of footage</td><td>The same moves (monolith, rise, orbit) and the same 5 rooms come back about 20 times</td><td><span class="b mid">medium</span></td></tr>
+<tr><td>8</td><td>Sound</td><td>−11 to −13 LUFS, voice plus a music bed</td><td>−20.6 LUFS, voice only: quiet and empty</td><td><span class="b mid">medium</span></td></tr>
+<tr><td>9</td><td>Infographic density</td><td>Capsules, cables, readouts and callout lines, all animating</td><td>One or two simple flat phones, a figure, then a cut</td><td><span class="b mid">medium</span></td></tr>
+<tr><td>10</td><td>Colour and light</td><td>Bright, daylight, pastel</td><td>Mostly dark charcoal frames</td><td><span class="b mid">medium</span></td></tr>
+</table></div>
+
+<h2>5. What this means</h2>
+<div class="card">
+<p><b>The rules work, but the material is wrong.</b> The last passes made each picture say the right thing. These channels look high quality because of <i>what</i> is on screen (real footage, real evidence), not because of the graphics. More rules on top of code-built phones and cards won't close this gap.</p>
+<p><b>Two honest routes, and one choice per film:</b></p>
+<ol>
+<li><b>News footage route</b> (matches all three leak channels): footage-first. Each sentence gets real material:
+  <ul>
+    <li>stock or web clips searched with the phone's name ("Galaxy S26 Ultra hands on", "S27 Ultra dummy");</li>
+    <li>news and YouTube clips (allowed for this channel);</li>
+    <li>leak render images;</li>
+    <li>real screenshots of the tweet and the listing, through the Visuals tab;</li>
+    <li>Flow pictures (the hands-on prompts already in <code>review.REVIEW_TYPES</code>).</li>
+  </ul>
+  Our graphics drop to 10–15 % accents (price, battery before/after, who-gets-it). Subtitles off by default, a music bed mixed to about −13 LUFS, and a cut pace of about 2–2.5 s median that bunches up on lists. The app already has footage-first pipelines (Hybrid, News Doc, <code>visual_bridge</code>) that this would reuse.</li>
+<li><b>Infographic route</b> (matches How's This Possible): one paper look for the whole film, no dark 3D jumps. Flat phones become real cut-outs rendered from the S27 3D model (the <code>references.py</code> renders already exist), with denser animated compositions (capsules, cables, callout lines) and no subtitle box.</li>
+</ol>
+<p>The current "Mixed" style tries to be both at once, which is where the stitched, low-quality feel comes from.</p>
+</div>
+
+<h2>6. What I couldn't measure</h2>
+<div class="card"><ul>
+<li>Music versus voice inside the references. The loudness is measured, but separating the music bed needs a stem split.</li>
+<li>Exact real-footage shares. They're estimated from the 36 sampled frames per video, not counted shot by shot.</li>
+</ul></div>
+</main></body></html>

@@ -4,7 +4,7 @@
 // spec always gives the same video. This renderer shares no code with StarMap.
 import { createRegistry, runLayers } from '/lib/layers.mjs';
 import { registerBuiltins } from '/layers/index.mjs';
-import { shotAt, driftAt, clipFrameIndex, sanitizeShots } from '/lib/shots.mjs';
+import { shotAt, driftAt, clipFrameIndex, sanitizeShots, smooth } from '/lib/shots.mjs';
 import { tm, C, colourSet } from '/layers/tm_theme.mjs';
 import { setAccent } from '/lib/tpl.mjs';
 
@@ -68,7 +68,7 @@ const registry = registerBuiltins(createRegistry());
 const layers = await registry.instantiate(spec.layers || [], { spec, W, H, loadImage, warn }, { lenient: true, warn });
 const gradeFilter = `saturate(${look.saturate}) contrast(${look.contrast})`;
 
-const TINTS = { cool: ['#0E131B', '#05070B'], warm: ['#24170F', '#0A0706'], blue: ['#0B2A4A', '#04101E'], dark: ['#0A0C11', '#040508'] };
+const TINTS = { cool: ['#0E131B', '#05070B'], warm: ['#24170F', '#0A0706'], blue: ['#0B2A4A', '#04101E'], dark: ['#0A0C11', '#040508'], paper: ['#F7F8FB', '#E3E6EE'], ink: ['#0B0C11', '#050608'] };
 // a diagram plate stands in deep space like the reference's (V3): the same seeded star sky every frame and every render part, under the
 // tint, faint enough that a diagram on it stays the subject
 const skyTile = (() => {
@@ -85,7 +85,7 @@ const skyTile = (() => {
   }
   return c;
 })();
-const SKY_ALPHA = { cool: 0.85, dark: 0.75, blue: 0.6, warm: 0.35 };
+const SKY_ALPHA = { cool: 0.85, dark: 0.75, blue: 0.6, warm: 0.35, paper: 0, ink: 0 };
 function drawPlate(s) {
   const [inner, outer] = TINTS[s.tint] || TINTS.cool;
   const grd = ctx.createRadialGradient(W * 0.5, H * 0.46, H * 0.05, W * 0.5, H * 0.5, H * 1.05);
@@ -199,9 +199,32 @@ const HUD_BOXES = { tm_clock: [0.015, 0.02, 0.235, 0.155], tm_mission: [0.76, 0.
 const reservedAt = (t) => layers.filter((L) => HUD_BOXES[L.def.type] && (L.def.type !== 'tm_clock' || (L.def.mode || 'light') === 'light')
   && t >= (L.def.start ?? 0) && t <= (L.def.end ?? 1e9)).map((L) => HUD_BOXES[L.def.type]);
 
+// a real cross-dissolve between two shots: shot B (the next one) says { dissolve_in: seconds, dissolve_style: "fade" | "blur" }; during the last `dissolve_in` seconds of
+// shot A both are drawn (A running to its end, B held on its first frame) and mixed. "blur" defocuses A as it leaves and B as it arrives (a phone becoming a title).
+// Frames outside a dissolve take the plain path below, so a spec without dissolve_in renders exactly as before.
+const dissA = document.createElement('canvas'), dissB = document.createElement('canvas'); dissA.width = dissB.width = W; dissA.height = dissB.height = H;
+async function drawFrame(t) {
+  const s = shotAt(spec.shots, t), i = spec.shots.indexOf(s), nx = i >= 0 ? spec.shots[i + 1] : null;
+  const d = nx && nx.dissolve_in > 0 ? Math.min(nx.dissolve_in, (s.end - s.start) * 0.9) : 0;
+  if (!(d > 0 && t > s.end - d && t < s.end)) { await drawShot(s, t); return s; }
+  const k = smooth((t - (s.end - d)) / d), blurred = nx.dissolve_style === 'blur', px = H * 0.024;
+  await drawShot(s, t); dissA.getContext('2d').drawImage(out, 0, 0);
+  await drawShot(nx, Math.max(t, nx.start)); dissB.getContext('2d').drawImage(out, 0, 0);
+  const mixIn = (img, alpha, blur, scale) => {
+    ctx.save(); ctx.globalAlpha = alpha;
+    if (blur > 0.3) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+    ctx.translate(W / 2, H / 2); ctx.scale(scale, scale); ctx.translate(-W / 2, -H / 2); ctx.drawImage(img, 0, 0); ctx.restore();
+  };
+  ctx.save(); ctx.filter = 'none'; ctx.globalAlpha = 1; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore();
+  // every dissolve defocuses a little (so two different framings read as one deliberate move, not a ghost); "blur" defocuses fully and pushes
+  const amt = blurred ? 1 : 0.4, grow = blurred ? 0.05 : 0.02;
+  mixIn(dissA, 1, k * px * amt, 1 + grow * k);
+  mixIn(dissB, k, (1 - k) * px * amt, 1 + grow * (1 - k));
+  return s;
+}
+
 window.renderFrame = async (t) => {
-  const s = shotAt(spec.shots, t);
-  await drawShot(s, t);
+  const s = await drawFrame(t);
   const reserved = reservedAt(t);
   runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [], reserved }, 'draw', (L) => L.def.type !== 'tm_fade', warn);
   finish(t);

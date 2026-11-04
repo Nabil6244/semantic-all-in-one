@@ -1,6 +1,6 @@
 // PT_FEATURE: one product feature in the concept-trailer look -- white, bold, no box: a small kicker, a huge value ("200MP"),
 // a small line under it ("main sensor"). It sits in the empty half of the frame (side), never over the phone.
-//   { "type": "pt_feature", "kicker": "Up to", "value": "200MP", "sub": "main sensor", "side": "left", "start": 4, "end": 8 }
+//   { "type": "pt_feature", "kicker": "Up to", "value": "200MP", "sub": "main sensor", "side": "left", "start": 4, "end": 8 }   ink: "dark" over a bright set
 // Also exports the shared product-trailer helpers (enter/exit motion, fitted fonts, side anchors) used by the other pt_* layers.
 import { C, tm, clamp01, quartOut, SANS, DISPLAY } from './tm_theme.mjs';
 
@@ -46,11 +46,12 @@ export default {
     const value = String(d.value), vpx = ptFit(T, value, 210, maxW, 800, 'display', -3);
     const cy = H * 0.5, vy = cy + vpx * S * 0.34;
     ptWith(g, f, m, () => {
-      if (d.kicker) T.text(String(d.kicker), x, vy - vpx * S * 0.78 - 18 * S, { font: ptFont(S, 44, 600, 'sans'), color: C.white, align, shadow: 0.35, alpha: 0.92 });
-      T.text(value, x, vy, { font: ptFont(S, vpx, 800), track: -vpx * 0.03, color: C.white, align, shadow: 0.35 });
+      const dark = d.ink === 'dark', ink = dark ? '#15171B' : C.white, sh = dark ? 0 : 0.35;   // ink "dark": the text over a bright (daylight) set
+      if (d.kicker) T.text(String(d.kicker), x, vy - vpx * S * 0.78 - 18 * S, { font: ptFont(S, 44, 600, 'sans'), color: dark ? '#5A6069' : C.white, align, shadow: sh, alpha: 0.92 });
+      T.text(value, x, vy, { font: ptFont(S, vpx, 800), track: -vpx * 0.03, color: ink, align, shadow: sh });
       if (d.sub) {
         const k2 = clamp01((m.age - 0.25) / 0.5);
-        T.text(String(d.sub), x, vy + 70 * S + (1 - k2) * 10 * S, { font: ptFont(S, 46, 600, 'sans'), color: '#E9ECF1', align, shadow: 0.35, alpha: k2 });
+        T.text(String(d.sub), x, vy + 70 * S + (1 - k2) * 10 * S, { font: ptFont(S, 46, 600, 'sans'), color: d.ink === 'dark' ? '#4A4F57' : '#E9ECF1', align, shadow: d.ink === 'dark' ? 0 : 0.35, alpha: k2 });
       }
     });
   },
