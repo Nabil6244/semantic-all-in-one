@@ -1,0 +1,398 @@
+"""Voiceover tab: turn a script into a free voiceover (Microsoft Edge neural voices via edge-tts) and make it the project's voiceover.
+
+Nothing starts until the user presses Generate (or Preview): choosing a voice, speed or pitch only remembers it. The work runs in a
+background thread (edge_voiceover.py); this file only builds the page and moves results back to the UI thread. If the free service
+fails the page says so and the user's own audio file (Audio & Effects) keeps working."""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import sys
+import threading
+from pathlib import Path
+from typing import Any
+
+import customtkinter as ctk
+
+from . import theme as T
+from .widgets import Card, make_button
+
+# (label by use, voice id). Curated so the page opens instantly with no network call.
+VOICES = [
+    ("Documentary narrator - male, warm", "en-US-AndrewNeural"),
+    ("Documentary narrator - male, British", "en-GB-RyanNeural"),
+    ("Deep storyteller - male", "en-US-ChristopherNeural"),
+    ("Calm explainer - male", "en-US-BrianNeural"),
+    ("News anchor - male", "en-US-GuyNeural"),
+    ("Clear educator - male", "en-US-EricNeural"),
+    ("Natural narrator - female", "en-US-AvaNeural"),
+    ("Friendly explainer - female", "en-US-EmmaNeural"),
+    ("News anchor - female", "en-US-JennyNeural"),
+    ("Documentary narrator - female, British", "en-GB-SoniaNeural"),
+    ("Australian narrator - male", "en-AU-WilliamNeural"),
+    ("Australian narrator - female", "en-AU-NatashaNeural"),
+    ("Indian English narrator - male", "en-IN-PrabhatNeural"),
+    ("Indian English narrator - female", "en-IN-NeerjaNeural"),
+]
+_SECONDS_PER_WORD = 0.4   # ~150 spoken words a minute
+
+
+def adopt_project_voiceover(app: Any, var: Any, previous: str = "") -> None:
+    """Fill a style page's own voice-over box with the project voiceover (the file made on the Voiceover tab or chosen on Audio &
+    Effects) when the box is empty or still holds the previous project voiceover. Only remembers the path: nothing runs."""
+    try:
+        cur = (app.audio_var.get() or "").strip()
+        if not cur or not Path(cur).is_file():
+            return
+        have = (var.get() or "").strip()
+        if not have or (previous and have == previous):
+            var.set(cur)
+    except Exception:
+        pass
+
+
+def _share_with_styles(app: Any, previous: str) -> None:
+    """After a new voiceover is set, update the style pages that are already built (the others adopt it when opened)."""
+    for name in ("_pt_voice_var", "_rc_voice_var", "_vm_voice_var"):
+        var = getattr(app, name, None)
+        if var is not None:
+            adopt_project_voiceover(app, var, previous)
+
+
+def _find(name: str) -> str:
+    root = Path(__file__).resolve().parent.parent
+    base = Path(getattr(sys, "_MEIPASS", root)) if getattr(sys, "frozen", False) else root
+    cand = base / "bin" / (name + (".exe" if sys.platform == "win32" else ""))
+    if cand.is_file():
+        return str(cand)
+    return shutil.which(name) or name
+
+
+def build(view: Any, app: Any) -> None:
+    view._vo_busy = False
+    view._vo_cancel = threading.Event()
+    view._vo_voice_var = ctk.StringVar(value=VOICES[0][0])
+    view._vo_speed_var = ctk.DoubleVar(value=1.0)
+    view._vo_pitch_var = ctk.IntVar(value=0)
+    view._vo_status_var = ctk.StringVar(value="")
+    view._vo_count_var = ctk.StringVar(value="0 words")
+
+    script = Card(view._body, title="Script", subtitle="The text to speak. Nothing starts until you press Generate.")
+    script.grid(row=0, column=0, sticky="ew", pady=(0, 12))
+    script.body.grid_columnconfigure(0, weight=1)
+    view._vo_text = ctk.CTkTextbox(script.body, height=220, wrap="word")
+    view._vo_text.grid(row=0, column=0, sticky="ew")
+    view._vo_text.bind("<KeyRelease>", lambda _e: _update_count(view), add="+")
+    row = ctk.CTkFrame(script.body, fg_color="transparent")
+    row.grid(row=1, column=0, sticky="ew", pady=(8, 0))
+    make_button(row, "Use Script tab text", lambda: _from_script_tab(view, app), width=170).grid(row=0, column=0, padx=(0, 8))
+    make_button(row, "Open text file...", lambda: _open_file(view), width=150).grid(row=0, column=1, padx=(0, 12))
+    ctk.CTkLabel(row, textvariable=view._vo_count_var, text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=2)
+
+    voice = Card(view._body, title="Semantic voices")
+    voice.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+    voice.body.grid_columnconfigure(3, weight=1)
+    ctk.CTkLabel(voice.body, text="Voice", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=4)
+    ctk.CTkOptionMenu(voice.body, values=[v[0] for v in VOICES], variable=view._vo_voice_var, width=330).grid(row=0, column=1, sticky="w", pady=4)
+    ctk.CTkLabel(voice.body, text="Speed", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=4)
+    ctk.CTkSlider(voice.body, from_=0.8, to=1.3, number_of_steps=10, variable=view._vo_speed_var, width=260,
+                  command=lambda _v: view._vo_speed_lbl.configure(text=f"{view._vo_speed_var.get():.2f}x")).grid(row=1, column=1, sticky="w", pady=4)
+    view._vo_speed_lbl = ctk.CTkLabel(voice.body, text="1.00x", text_color=T.MUTED, font=ctk.CTkFont(size=12))
+    view._vo_speed_lbl.grid(row=1, column=2, padx=8)
+    ctk.CTkLabel(voice.body, text="Pitch", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", padx=(0, 12), pady=4)
+    ctk.CTkSlider(voice.body, from_=-20, to=20, number_of_steps=8, variable=view._vo_pitch_var, width=260,
+                  command=lambda _v: view._vo_pitch_lbl.configure(text=f"{int(view._vo_pitch_var.get()):+d} Hz")).grid(row=2, column=1, sticky="w", pady=4)
+    view._vo_pitch_lbl = ctk.CTkLabel(voice.body, text="+0 Hz", text_color=T.MUTED, font=ctk.CTkFont(size=12))
+    view._vo_pitch_lbl.grid(row=2, column=2, padx=8)
+
+    go = Card(view._body, title="Generate",
+              subtitle="Semantic voices: natural narration. The audio is made online at about 2-3x real time, so a 10-minute script takes a few minutes.")
+    go.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+    bar = ctk.CTkFrame(go.body, fg_color="transparent")
+    bar.grid(row=0, column=0, sticky="w")
+    view._vo_preview_btn = make_button(bar, "Preview first sentences", lambda: _start(view, app, preview=True), width=190)
+    view._vo_preview_btn.grid(row=0, column=0, padx=(0, 8))
+    view._vo_go_btn = ctk.CTkButton(bar, text="Generate voiceover", width=190, height=40, corner_radius=6, fg_color=T.ACCENT, hover_color=T.ACCENT_HOV,
+                                    text_color=T.ACCENT_DARK, font=ctk.CTkFont(size=13, weight="bold"), command=lambda: _start(view, app, preview=False))
+    view._vo_go_btn.grid(row=0, column=1, padx=(0, 8))
+    view._vo_stop_btn = make_button(bar, "Stop", lambda: view._vo_cancel.set(), width=90, state="disabled")
+    view._vo_stop_btn.grid(row=0, column=2)
+    view._vo_progress = ctk.CTkProgressBar(go.body, width=420)
+    view._vo_progress.set(0)
+    view._vo_progress.grid(row=1, column=0, sticky="w", pady=(10, 0))
+    ctk.CTkLabel(go.body, textvariable=view._vo_status_var, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
+                 wraplength=620).grid(row=2, column=0, sticky="w", pady=(6, 0))
+
+    view._vo_last = None      # the file the Play button plays (the last preview or voiceover made here)
+    view._vo_play_proc = None
+    view._vo_play_var = ctk.StringVar(value="Nothing to play yet. Generate or preview a voice first.")
+    listen = Card(view._body, title="Listen", subtitle="Play the voiceover here before you use it.")
+    listen.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+    lb = ctk.CTkFrame(listen.body, fg_color="transparent")
+    lb.grid(row=0, column=0, sticky="w")
+    view._vo_play_btn = make_button(lb, "\u25B6  Play", lambda: _play(view), width=130, state="disabled")
+    view._vo_play_btn.grid(row=0, column=0, padx=(0, 8))
+    view._vo_stopplay_btn = make_button(lb, "\u25A0  Stop playing", lambda: _stop_play(view), width=150, state="disabled")
+    view._vo_stopplay_btn.grid(row=0, column=1, padx=(0, 8))
+    view._vo_download_btn = make_button(lb, "\u2193  Download", lambda: _download(view), width=140, state="disabled")
+    view._vo_download_btn.grid(row=0, column=2)
+    ctk.CTkLabel(listen.body, textvariable=view._vo_play_var, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
+                 wraplength=620).grid(row=1, column=0, sticky="w", pady=(8, 0))
+    existing = _existing_voiceover(app)
+    if existing is not None:
+        _set_last(view, existing, "Last voiceover in this project")
+    view.bind("<Unmap>", lambda _e: _stop_play(view), add="+")   # leaving the tab stops the sound
+
+
+def _project_voiceover_path(ws: Any) -> Path:
+    """audio/<project name>_voiceover.mp3 - named after the project, not the voice service."""
+    import re
+
+    name = re.sub(r'[\\/:*?"<>|#]+', " ", str(getattr(ws, "folder_name", "") or "project"))
+    name = re.sub(r"\s+", "_", name).strip("_ ") or "project"
+    return Path(ws.audio_dir) / f"{name}_voiceover.mp3"
+
+
+def _existing_voiceover(app: Any):
+    ws = getattr(app, "_workspace", None)
+    if ws is None:
+        return None
+    for p in (_project_voiceover_path(ws), Path(ws.audio_dir) / "voiceover_edge.mp3"):   # the second is the older name
+        if p.is_file():
+            return p
+    return None
+
+
+def _set_last(view: Any, path: Path, label: str) -> None:
+    view._vo_last = Path(path)
+    view._vo_play_btn.configure(state="normal")
+    view._vo_download_btn.configure(state="normal")
+    view._vo_play_var.set(f"{label}: {Path(path).name}")
+
+
+def _download(view: Any) -> None:
+    """Save a copy of the voiceover wherever the user chooses (the project's own copy stays where it is)."""
+    from tkinter import filedialog
+
+    src = view._vo_last
+    if src is None or not Path(src).is_file():
+        view._vo_play_var.set("The file is not there any more. Generate again.")
+        return
+    dest = filedialog.asksaveasfilename(title="Save a copy of the voiceover", defaultextension=".mp3", initialfile=Path(src).name,
+                                        filetypes=[("MP3", "*.mp3")])
+    if not dest:
+        return
+    try:
+        shutil.copy2(src, dest)
+    except OSError as exc:
+        view._vo_play_var.set(f"Could not save the copy: {exc}")
+        return
+    view._vo_play_var.set(f"Saved a copy: {dest}")
+
+
+def _player_cmd(path: Path):
+    if sys.platform == "darwin" and shutil.which("afplay"):
+        return ["afplay", str(path)]
+    ff = shutil.which("ffplay") or _find("ffplay")
+    return [ff, "-nodisp", "-autoexit", "-loglevel", "quiet", str(path)]
+
+
+def _play(view: Any) -> None:
+    path = view._vo_last
+    if path is None or not Path(path).is_file():
+        view._vo_play_var.set("The file is not there any more. Generate again.")
+        view._vo_play_btn.configure(state="disabled")
+        return
+    _stop_play(view)
+    try:
+        if sys.platform == "win32":
+            os.startfile(str(path))  # noqa: S606  (the default player; no console player is bundled on Windows)
+            view._vo_play_var.set(f"Opened in your audio player: {Path(path).name}")
+            return
+        view._vo_play_proc = subprocess.Popen(_player_cmd(path), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as exc:  # noqa: BLE001
+        view._vo_play_var.set(f"No audio player could be started ({type(exc).__name__}). The file is at {path}")
+        return
+    view._vo_play_var.set(f"Playing: {Path(path).name}")
+    view._vo_stopplay_btn.configure(state="normal")
+    _watch_play(view)
+
+
+def _watch_play(view: Any) -> None:
+    proc = view._vo_play_proc
+    if proc is None:
+        return
+    if proc.poll() is None:
+        view.after(400, lambda: _watch_play(view))
+        return
+    view._vo_play_proc = None
+    view._vo_stopplay_btn.configure(state="disabled")
+    view._vo_play_var.set(f"Finished: {Path(view._vo_last).name}")
+
+
+def _stop_play(view: Any) -> None:
+    proc = getattr(view, "_vo_play_proc", None)
+    view._vo_play_proc = None
+    if proc is not None and proc.poll() is None:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
+    try:
+        view._vo_stopplay_btn.configure(state="disabled")
+    except Exception:
+        pass
+
+
+def _voice_id(view: Any) -> str:
+    label = view._vo_voice_var.get()
+    return next((vid for lab, vid in VOICES if lab == label), VOICES[0][1])
+
+
+def _text(view: Any) -> str:
+    return view._vo_text.get("1.0", "end").strip()
+
+
+def _update_count(view: Any) -> None:
+    n = len(_text(view).split())
+    mins = n * _SECONDS_PER_WORD / 60
+    view._vo_count_var.set(f"{n:,} words, about {mins:.1f} min of speech")
+
+
+def _from_script_tab(view: Any, app: Any) -> None:
+    box = getattr(app, "script_box", None)
+    text = box.get("1.0", "end").strip() if box is not None else ""
+    if not text:
+        view._vo_status_var.set("The Script tab has no text yet.")
+        return
+    view._vo_text.delete("1.0", "end")
+    view._vo_text.insert("1.0", text)
+    _update_count(view)
+
+
+def _open_file(view: Any) -> None:
+    from tkinter import filedialog
+
+    path = filedialog.askopenfilename(title="Choose the script text", filetypes=[("Text", "*.txt *.md"), ("All files", "*.*")])
+    if path:
+        try:
+            data = Path(path).read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            view._vo_status_var.set(f"Could not read the file: {exc}")
+            return
+        view._vo_text.delete("1.0", "end")
+        view._vo_text.insert("1.0", data)
+        _update_count(view)
+
+
+def _set_busy(view: Any, busy: bool) -> None:
+    view._vo_busy = busy
+    state = "disabled" if busy else "normal"
+    view._vo_go_btn.configure(state=state)
+    view._vo_preview_btn.configure(state=state)
+    view._vo_stop_btn.configure(state="normal" if busy else "disabled")
+
+
+def _start(view: Any, app: Any, *, preview: bool) -> None:
+    if view._vo_busy:
+        return
+    text = _text(view)
+    if not text:
+        view._vo_status_var.set("Paste or load the script first.")
+        return
+    ws = getattr(app, "_workspace", None)
+    if preview:
+        import re
+        text = " ".join(re.split(r"(?<=[.!?])\s+", text)[:3])
+        out = Path(ws.audio_dir if ws is not None else Path.home()) / "voiceover_preview.mp3"
+    elif ws is not None:
+        ws.ensure_dirs()
+        out = _project_voiceover_path(ws)
+    else:
+        from tkinter import filedialog
+
+        chosen = filedialog.asksaveasfilename(title="Save the voiceover as", defaultextension=".mp3", filetypes=[("MP3", "*.mp3")])
+        if not chosen:
+            return
+        out = Path(chosen)
+    voice, speed, pitch = _voice_id(view), round(view._vo_speed_var.get(), 2), int(view._vo_pitch_var.get())
+    view._vo_cancel.clear()
+    view._vo_progress.set(0)
+    view._vo_status_var.set("Starting...")
+    _set_busy(view, True)
+
+    def ui(fn, *a):
+        try:
+            app.after(0, lambda: fn(*a))
+        except Exception:
+            pass
+
+    def work():
+        try:
+            import edge_voiceover as ev
+
+            if not ev.ensure_installed(lambda t: ui(view._vo_status_var.set, t)):
+                raise ImportError("edge-tts")
+
+            def progress(done, total):
+                if view._vo_cancel.is_set():
+                    raise RuntimeError("stopped")
+                ui(_progress, view, done, total)
+
+            res = ev.synthesize(text, str(out), voice=voice, speed=speed, pitch_hz=pitch,
+                                ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"), progress=progress)
+            ui(_done, view, app, res, preview, ws is not None)
+        except ImportError:
+            ui(_fail, view, "The voices could not be set up (no internet, or pip is blocked). Connect and try again, or load your own audio on Audio & Effects.")
+        except Exception as exc:  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            msg = "Stopped." if "stopped" in str(exc) else (
+                f"The voice step failed: {type(exc).__name__}: {str(exc)[:160]}. Try again in a minute, or load your own audio on Audio & Effects.")
+            ui(_fail, view, msg)
+
+    threading.Thread(target=work, daemon=True).start()
+
+
+def _progress(view: Any, done: int, total: int) -> None:
+    view._vo_progress.set(done / max(1, total))
+    view._vo_status_var.set(f"Making the voice: piece {done} of {total}")
+
+
+def _fail(view: Any, msg: str) -> None:
+    _set_busy(view, False)
+    view._vo_status_var.set(msg)
+
+
+def _done(view: Any, app: Any, res: dict, preview: bool, has_project: bool) -> None:
+    _set_busy(view, False)
+    view._vo_progress.set(1)
+    path = Path(res["path"])
+    mins = res["duration"] / 60
+    if preview:
+        view._vo_status_var.set(f"Preview ready ({res['duration']:.0f} s).")
+        _set_last(view, path, "Preview")
+        _play(view)
+        return
+    _set_last(view, path, "Voiceover")
+    if has_project and app._confirm_voiceover_switch(path, source="imported"):
+        previous = (app.audio_var.get() or "").strip()
+        app._set_active_voiceover(path, source="imported")
+        _share_with_styles(app, previous)
+        view._vo_status_var.set(f"Done: {mins:.1f} min voiceover saved and set as this project's voiceover ({path.name}). Word timings: {Path(res['words_path']).name}")
+    else:
+        view._vo_status_var.set(f"Done: {mins:.1f} min voiceover saved at {path}. It was not set as the project's voiceover.")
+
+
+def _open_in_player(path: Path) -> None:
+    try:
+        if sys.platform == "darwin":
+            subprocess.Popen(["open", str(path)])
+        elif sys.platform == "win32":
+            os.startfile(str(path))  # noqa: S606
+        else:
+            subprocess.Popen(["xdg-open", str(path)])
+    except Exception:
+        pass
