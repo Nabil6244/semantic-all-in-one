@@ -1,0 +1,30 @@
+row,id,date,place,lon,lat,rung,alt,heading,site,gap,text,extra
+plan,Indochina 1954-1965,,,,,,,,,,,"{""world"":""indochina"",""width"":1280,""height"":720,""fps"":30,""wpm"":140}"
+territory,split,1954-07,,,,,,,,,,"{""legend"":[{""label"":""North"",""color"":""#b8322a""},{""label"":""South"",""color"":""#2f5fa8""}],""rules"":[{""iso"":[""VNM""],""lat_min"":17.0,""color"":""#b8322a""},{""iso"":[""VNM""],""lat_max"":17.0,""color"":""#2f5fa8""}]}"
+territory,allied,1964-08,,,,,,,,,,"{""legend"":[{""label"":""North"",""color"":""#b8322a""},{""label"":""South"",""color"":""#2f5fa8""},{""label"":""Allied rear"",""color"":""#9fb4d0""}],""rules"":[{""iso"":[""VNM""],""lat_min"":17.0,""color"":""#b8322a""},{""iso"":[""VNM""],""lat_max"":17.0,""color"":""#2f5fa8""},{""iso"":[""THA""],""color"":""#9fb4d0"",""strength"":0.55}]}"
+label,,,,103.6,19.6,,,,,,Laos,"{""kind"":""country"",""min_alt"":250}"
+label,,,,104.9,12.8,,,,,,Cambodia,"{""kind"":""country"",""min_alt"":250}"
+label,,,,101.0,15.6,,,,,,Thailand,"{""kind"":""country"",""min_alt"":250}"
+label,,,,104.5,23.6,,,,,,China,"{""kind"":""country"",""min_alt"":250}"
+label,,,,96.5,21.5,,,,,,Burma,"{""kind"":""country"",""min_alt"":250}"
+label,,,,105.85,21.03,,,,,,Hanoi,"{""kind"":""city""}"
+label,,,,106.68,20.86,,,,,,Haiphong,"{""kind"":""city""}"
+label,,,,107.59,16.46,,,,,,Hue,"{""kind"":""city""}"
+label,,,,108.22,16.05,,,,,,Da Nang,"{""kind"":""city""}"
+label,,,,106.70,10.78,,,,,,Saigon,"{""kind"":""city""}"
+label,,,,102.60,17.97,,,,,,Vientiane,"{""kind"":""city""}"
+label,,,,100.50,13.75,,,,,,Bangkok,"{""kind"":""city""}"
+label,,,,104.92,11.56,,,,,,Phnom Penh,"{""kind"":""city""}"
+chapter,c1,,,,,,,,,,A Temporary Line,
+beat,b1,1954-03,Indochina,104.5,15.5,map,,,,,"In 1954, French rule in Indochina is coming apart.",
+beat,b2,1954-05,Dien Bien Phu,103.02,21.39,ground,,20,battle,6,"In a valley near Laos, Viet Minh guns ring a French base at Dien Bien Phu. After eight weeks of siege, the garrison falls on 7 May.",
+beat,b3,1954-07,The 17th parallel,106.6,17.2,oblique,,,,,"At Geneva, Vietnam is divided along the 17th parallel. The North goes to Ho Chi Minh, the South to a French-backed state.","{""territory"":""split""}"
+chapter,c2,,,,,,,,,,Two Vietnams,
+beat,b4,1955-10,Saigon,106.70,10.78,ground,,0,city,,"In Saigon, Ngo Dinh Diem declares a republic and takes power.",
+beat,b5,1959-05,The trails through Laos,106.0,16.2,oblique,300,15,,,"From 1959, the North sends men and weapons south along trails through Laos.",
+beat,b6,1963-01,Ap Bac,106.22,10.42,ground,,300,village,5,"At Ap Bac, in the Mekong Delta, a guerrilla battalion beats a much larger southern force. Five American helicopters are lost.",
+chapter,c3,,,,,,,,,,The Gulf of Tonkin,
+beat,b8,1964-08,Gulf of Tonkin,106.8,19.6,oblique,500,,,,"In August 1964, American destroyers report attacks in the Gulf of Tonkin. Congress gives the president a free hand.","{""territory"":""allied""}"
+beat,b9,1965-03,Da Nang,108.24,16.07,ground,,110,beach_landing,6,"In March 1965, Marines come ashore at Da Nang. They are the first American combat troops in Vietnam.",
+beat,b10,1965-11,Ia Drang,107.75,13.6,ground,,200,battle,4,"In November, the Ia Drang valley sees the first large battle between American and North Vietnamese units.",
+beat,b11,1965-12,Indochina,104.5,15.5,map,,,,,"By the end of 1965, nearly two hundred thousand American troops are in the country. And the war is only beginning.",

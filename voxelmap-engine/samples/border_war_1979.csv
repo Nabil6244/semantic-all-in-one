@@ -1,0 +1,12 @@
+row,id,date,place,lon,lat,rung,alt,heading,site,gap,text,extra
+plan,The Border War,,,,,,,,,,,"{""world"":""indochina"",""width"":1280,""height"":720,""fps"":30,""wpm"":140,""subtitle"":""China and Vietnam, 1979"",""credits_lines"":[""Music: app library (assets/music)""]}"
+territory,border,1979-02,,,,,,,,,,"{""legend"":[{""label"":""Vietnam"",""color"":""#b8322a""},{""label"":""China"",""color"":""#d4a020""}],""rules"":[{""iso"":[""VNM""],""color"":""#b8322a""},{""iso"":[""CHN""],""color"":""#d4a020"",""strength"":0.55}]}"
+label,,,,105.2,23.6,,,,,,China,"{""kind"":""country"",""min_alt"":150}"
+label,,,,105.6,21.2,,,,,,Vietnam,"{""kind"":""country"",""min_alt"":150}"
+label,,,,105.85,21.03,,,,,,Hanoi,"{""kind"":""city""}"
+label,,,,106.76,21.85,,,,,,Lang Son,"{""kind"":""city""}"
+label,,,,106.25,22.67,,,,,,Cao Bang,"{""kind"":""city""}"
+chapter,c1,,,,,,,,,,Across the Border,
+beat,b0,1979-02,Asia,106.5,21.8,globe,,,,,"In February 1979, China invades Vietnam.","{""territory"":""border""}"
+beat,b1,1979-03,Lang Son,106.76,21.85,ground,,30,battle,,"After weeks of heavy fighting, Chinese troops take the border city of Lang Son.","{""factions"":[""pla"",""pavn""],""light"":""dawn"",""effects"":[{""kind"":""blasts"",""at"":[106.76,21.85]},{""kind"":""smoke"",""at"":[106.25,22.67]}],""museum"":{""item"":""tank"",""name"":""Type 59 tank"",""note"":""The main Chinese tank of the war""}}"
+beat,b2,1979-03,Asia,106.5,21.8,globe,,,,,"Within weeks, both armies pull back, and both claim the victory.",

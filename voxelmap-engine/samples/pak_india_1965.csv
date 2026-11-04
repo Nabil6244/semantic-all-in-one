@@ -1,0 +1,11 @@
+row,id,date,place,lon,lat,rung,alt,heading,site,gap,text,extra
+plan,The 1965 War,,,,,,,,,,,"{""world"":""southasia"",""width"":1280,""height"":720,""fps"":30,""wpm"":160,""subtitle"":""India and Pakistan, 1965"",""credits_lines"":[""Music: app library (assets/music)""]}"
+territory,border,1965-09,,,,,,,,,,"{""legend"":[{""label"":""Pakistan"",""color"":""#1f7a3d""},{""label"":""India"",""color"":""#d4781a""}],""rules"":[{""iso"":[""PAK""],""color"":""#1f7a3d""},{""iso"":[""IND""],""color"":""#d4781a"",""strength"":0.55}]}"
+label,,,,69.5,29.5,,,,,,Pakistan,"{""kind"":""country"",""min_alt"":150}"
+label,,,,78.0,24.5,,,,,,India,"{""kind"":""country"",""min_alt"":150}"
+label,,,,74.35,31.55,,,,,,Lahore,"{""kind"":""city""}"
+label,,,,74.87,31.63,,,,,,Amritsar,"{""kind"":""city""}"
+chapter,c1,,,,,,,,,,Seventeen Days,
+beat,b0,1965-09,South Asia,74.3,31.3,globe,,,,,"In 1965, India and Pakistan go to war over Kashmir.","{""territory"":""border""}"
+beat,b1,1965-09,Asal Uttar,74.55,31.2,ground,,30,battle,,"At Asal Uttar, a huge tank battle is fought.","{""light"":""dawn"",""effects"":[{""kind"":""blasts"",""at"":[74.55,31.2]},{""kind"":""smoke"",""at"":[74.4,31.35]}]}"
+beat,b2,1965-09,Punjab,74.3,31.3,map,,,,,"A ceasefire follows, and the border stays put.",

@@ -1,0 +1,8 @@
+{
+  "name": "voxelmap-engine",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Experimental block-world history map prototype (separate from pakMap, What If, Hybrid, Explainer).",
+  "scripts": { "test": "node --test test/*.test.mjs" }
+}
