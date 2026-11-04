@@ -104,6 +104,8 @@ from ui.widgets import make_button as _make_button
 from ui import style_registry as _style_registry
 from ui import style_pages as _style_pages
 from ui import product_trailer_section as _pt_section
+from ui import roblox_cinema_section as _rc_section   # Roblox Cinema (ui/roblox_cinema_section.py, roblox-cinema-engine/)
+from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_section.py, voxelmap-engine/)
 import editorial_timeline_edit as _tl_edit
 
 
@@ -822,6 +824,7 @@ _LAZY_VIEWS = {
     "about": "AboutOwnershipView",
     "tools": "ToolsView",
     "graphics": "GraphicsView",
+    "voiceover": "VoiceoverView",   # free Edge neural voices (ui/voiceover_view.py, edge_voiceover.py)
 }
 
 
@@ -3153,6 +3156,10 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_next_btn.configure(text=btn or "Continue", state=state)
 
     def _active_style(self) -> str:
+        if getattr(self, "_vm_active", False):   # Voxel Map (ui/voxelmap_section.py): opt-in, per session
+            return "Voxel Map"
+        if getattr(self, "_rc_active", False):   # Roblox Cinema (ui/roblox_cinema_section.py): opt-in, per session
+            return "Roblox Cinema"
         if getattr(self, "_pt_active", False):   # Product Trailer (ui/product_trailer_section.py): opt-in, per session
             return "Product Trailer"
         if getattr(self, "_rt_active", False):   # Rep Theory (reptheory/): opt-in, per session
@@ -3210,6 +3217,14 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_rc_running", False):   # Roblox Cinema
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
+        if getattr(self, "_vm_running", False):   # Voxel Map
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         choice, _look_only = _style_pages.pick_variant(self, choice)   # StarMap Cinema / Explainer: StarMap / Hybrid Map with their look on
         if _look_only:
             self._sync_style_picker()
@@ -3229,6 +3244,18 @@ class VideoGeneratorApp(ctk.CTk):
             _pt_section.deactivate(self)
         if choice == "Product Trailer":   # its own page (ui/product_trailer_section.py); nothing runs until Generate
             _pt_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Voxel Map":
+            _vm_section.deactivate(self)
+        if choice == "Voxel Map":   # its own page (ui/voxelmap_section.py); nothing runs until Generate
+            _vm_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Roblox Cinema":
+            _rc_section.deactivate(self)
+        if choice == "Roblox Cinema":   # its own page (ui/roblox_cinema_section.py); nothing runs until Generate
+            _rc_section.activate(self)
             self._sync_primary_cta()
             return
         if choice == "Rep Theory":   # its own branch (reptheory/app_section.py), loaded only now
@@ -3371,6 +3398,12 @@ class VideoGeneratorApp(ctk.CTk):
         pt_block = getattr(self, "_pt_block", None)
         if pt_block is not None:
             pt_block.grid() if active == "Product Trailer" else pt_block.grid_remove()
+        rc_block = getattr(self, "_rc_block", None)
+        if rc_block is not None:
+            rc_block.grid() if active == "Roblox Cinema" else rc_block.grid_remove()
+        vm_block = getattr(self, "_vm_block", None)
+        if vm_block is not None:
+            vm_block.grid() if active == "Voxel Map" else vm_block.grid_remove()
         _style_pages.sync(self, active)   # the picker or the active style's page
 
     def _style_card_header(self, block, title: str, description: str) -> None:
@@ -7303,6 +7336,10 @@ class VideoGeneratorApp(ctk.CTk):
             self._on_whatif_cancel()
         elif action in ("pt_generate", "pt_render", "pt_cancel"):
             _pt_section.cta(self, action)
+        elif action in ("rc_generate", "rc_render", "rc_cancel"):
+            _rc_section.cta(self, action)
+        elif action in ("vm_generate", "vm_render", "vm_cancel"):
+            _vm_section.cta(self, action)
         elif action in ("rt_render", "rt_cancel"):
             from reptheory import app_section as _rt
 
@@ -8084,6 +8121,10 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _sync_primary_cta(self, snap=None) -> None:
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
+        if getattr(self, "_vm_active", False) and getattr(self, "_vm_block", None) is not None:   # Voxel Map owns the button while its page is up
+            return _vm_section.sync_cta(self)
+        if getattr(self, "_rc_active", False) and getattr(self, "_rc_block", None) is not None:   # Roblox Cinema owns the button while its page is up
+            return _rc_section.sync_cta(self)
         pt_on = getattr(self, "_pt_active", False) and getattr(self, "_pt_block", None) is not None
         if pt_on:   # Product Trailer (ui/product_trailer_section.py) owns the button while its page is up
             return _pt_section.sync_cta(self)
@@ -8920,6 +8961,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._health_deactivate()   # Health Cinema likewise
         self._reptheory_deactivate()   # Rep Theory likewise
         _pt_section.deactivate(self)   # Product Trailer likewise
+        _rc_section.deactivate(self)   # Roblox Cinema likewise
+        _vm_section.deactivate(self)   # Voxel Map likewise
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16707,6 +16750,8 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = ("_running", "_overscaled_running", "_hybrid_running", "_starmap_running", "_pakmap_running", "_weather_running", "_whatif_running",
                   "_war_running", "_health_running")
     _RUN_FLAGS = _RUN_FLAGS + ("_pt_running", "_rt_running")   # Product Trailer: the stall watchdog and quit guard see it too
+    _RUN_FLAGS = _RUN_FLAGS + ("_rc_running",)   # Roblox Cinema likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_vm_running",)   # Voxel Map likewise
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long

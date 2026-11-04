@@ -564,6 +564,7 @@ FOCUS_RING_WIDTH = 2
 NAV_ITEMS = (
     ("project", "Overview", "workspace"),
     ("script", "Script", "workspace"),
+    ("voiceover", "Voiceover", "workspace"),
     ("visual_director", "Visual Director", "workspace"),
     ("visual_plan", "Visuals", "workspace"),
     ("audio", "Audio & Effects", "workspace"),
@@ -584,6 +585,7 @@ NAV_GROUP_LABELS = {"workspace": "PRODUCTION", "advanced": "TOOLS"}
 NAV_ICONS = {
     "project": "\u2302",          # ⌂
     "script": "\u270E",           # ✎
+    "voiceover": "\u263A",        # smiley
     "visual_director": "\u25CE",  # ◎
     "visual_plan": "\u25A6",      # ▦
     "audio": "\u266A",            # ♪

@@ -44,6 +44,14 @@ EXTRA_CARDS: Dict[str, Tuple[str, str, str, str]] = {
     PRODUCT_TRAILER: ("\u25AF", "A phone launch trailer, cut to music", "A feature CSV (+ music)", "Phone launches, concept trailers"),
 }
 
+# Roblox Cinema (ui/roblox_cinema_section.py, roblox-cinema-engine/): appended here so nothing above changes
+ROBLOX_CINEMA = "Roblox Cinema"
+STANDALONE = STANDALONE + (ROBLOX_CINEMA,)
+GROUPS = tuple((title, names + (ROBLOX_CINEMA,) if title == "Documentary" else names) for title, names in GROUPS)
+EXTRA_BLURBS[ROBLOX_CINEMA] = ("History told in a block-toy 3D world: planned from your narration into scenes, cast, vehicles, cameras and "
+                               "tabletop maps, cut to your voice, with music and sound. From a story CSV or plain narration.")
+EXTRA_CARDS[ROBLOX_CINEMA] = ("\u25A6", "History as a block-world film", "A story CSV or narration (+ voice-over)", "War and history stories")
+
 
 def with_extras(choices: Tuple[str, ...]) -> Tuple[str, ...]:
     """The app's choices plus the card-only styles, each right after the style it is built on."""
@@ -76,3 +84,12 @@ def group_of(name: str) -> Optional[str]:
         if name in names:
             return title
     return None
+
+
+# Voxel Map (ui/voxelmap_section.py, voxelmap-engine/): appended here so nothing above changes
+VOXEL_MAP = "Voxel Map"
+STANDALONE = STANDALONE + (VOXEL_MAP,)
+GROUPS = tuple((title, names + (VOXEL_MAP,) if title == "Maps" else names) for title, names in GROUPS)
+EXTRA_BLURBS[VOXEL_MAP] = ("A block-world 3D history map from a story CSV: real terrain, the camera flying from the globe down to ground scenes, "
+                           "territory colours, captions, music, sound effects and your voice-over.")
+EXTRA_CARDS[VOXEL_MAP] = ("\u25A9", "History on a 3D block-world map", "A story CSV (+ voice-over)", "War and history map stories")

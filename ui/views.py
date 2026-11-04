@@ -2829,3 +2829,17 @@ class ToolsView(_BaseView):
         # Only what the app actually has (a build without one of these tools shows no dead button).
         for method, btn in self._buttons.items():
             btn.configure(state="normal" if callable(getattr(self.app, method, None)) else "disabled")
+
+
+class VoiceoverView(_BaseView):
+    """Script -> free voiceover (Edge neural voices). The page itself lives in ui/voiceover_view.py."""
+
+    key = "voiceover"
+
+    def __init__(self, master, app: Any, **kwargs):
+        super().__init__(master, app, **kwargs)
+        SectionHeader(self, "Voiceover", "Semantic voices: turn the script into a narration voiceover, then use it for the video").grid(
+            row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
+        )
+        from . import voiceover_view
+        voiceover_view.build(self, app)
