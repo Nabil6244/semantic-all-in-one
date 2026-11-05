@@ -180,7 +180,17 @@ async function checkStory(story, tl, storyPath) {
   const { LIGHTS } = await import('./lib/timeline.mjs');
   const errors = [], warnings = [...tl.warnings];
   const worldDir = path.join(HERE, 'worlds', story.world || '');
-  if (!story.world || !fs.existsSync(path.join(worldDir, 'meta.json'))) { errors.push(`world "${story.world}" is not built (tools/build_world.py)`); return { errors, warnings }; }
+  if (!story.world) { errors.push('the plan row has no world: add "world" to its extra, e.g. {"world": "northamerica"}'); return { errors, warnings }; }
+  if (!/^[a-z0-9_-]+$/i.test(story.world)) { errors.push(`world "${story.world}": use letters, digits, _ or - only`); return { errors, warnings }; }
+  if (!fs.existsSync(path.join(worldDir, 'meta.json'))) {
+    // not an error: the app builds it (runner.build_world) around the story's places, after the user agrees to the download
+    const { worldFor, MB_PER_TILE } = await import('./lib/world_extent.mjs');
+    const need = worldFor(story);
+    if (!need) { errors.push(`world "${story.world}" is not built and the story names no map place to build it around`); return { errors, warnings }; }
+    const downloads = need.tiles.filter((t) => !fs.existsSync(path.join(HERE, 'cache', 'terrarium', `${t}.png`))).length;
+    return { errors, warnings, duration_s: tl.duration, beats: story.beats.length, chapters: story.chapters.length,
+      world_build: { id: story.world, bbox: need.bbox, res: need.res, zoom: need.zoom, cells: need.w * need.h, downloads, download_mb_est: +(downloads * MB_PER_TILE).toFixed(1) } };
+  }
   const { meta, data } = loadWorld(worldDir), [lo0, la0, lo1, la1] = meta.bbox;
   const inside = (lon, lat) => lon >= lo0 && lon <= lo1 && lat >= la0 && lat <= la1;
   const keys = new Set(story.territories.map((x) => x.key));

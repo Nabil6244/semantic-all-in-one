@@ -49,8 +49,8 @@ Beat columns: `id`, `date` (YYYY-MM of the event; `-0216-08` is August 216 BC; a
 5. Every chapter should open with a short silence (the planner adds one for the chapter card) — do not start a chapter mid-sentence.
 6. Use `territory` changes for who controls what, `effects` for bombing and air campaigns, `light` for night actions and endings, `museum` for one real surviving object every few minutes.
 7. All lon/lat must be inside the world's bounding box (`--check` says so). Built worlds: `indochina` (lon 84 to 124, lat 0 to 30),
-   `southasia` (lon 60 to 90, lat 6 to 38), `mediterranean` (lon -12 to 45, lat 28 to 58: Europe, North Africa, Turkey). Another region
-   needs a new world first: `python3 tools/build_world.py --id <id> --bbox=lon0,lat0,lon1,lat1`.
+   `southasia` (lon 60 to 90, lat 6 to 38), `mediterranean` (lon -12 to 45, lat 28 to 58: Europe, North Africa, Turkey). Another region:
+   give it a new world id (e.g. `northamerica`); on Generate the app offers to build it once around the story's places.
 8. Ground beats in one city may share the same coordinates: each shows its own scene, and the camera rises out and comes back down between them.
 9. Battles: name both sides in `factions` (e.g. `["roman", "carthaginian"]`); never `civilian` for an army. Rooms (`hall`, `office`)
    for treaties, councils and leaders; a `landmark` for a famous building the narration talks about.

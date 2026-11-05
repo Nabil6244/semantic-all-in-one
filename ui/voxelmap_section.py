@@ -341,6 +341,18 @@ def on_generate(app: Any) -> None:
         return c
 
     def after_check(c) -> None:
+        wb = c.get("world_build")
+        if wb:      # the story's world is not built yet: build it around the story's places (one download), then check again
+            if not messagebox.askyesno("Build the map world?", f"The story uses the world \"{wb['id']}\", which is not built yet.\n\n"
+                                       f"Build it now around the story's places (lon {wb['bbox'][0]} to {wb['bbox'][2]}, lat {wb['bbox'][1]} to {wb['bbox'][3]})? "
+                                       f"About {wb.get('download_mb_est', 0)} MB of elevation data to download, once; every later story there reuses it."):
+                app._vm_status_var.set(f"Not started: world \"{wb['id']}\" is not built.")
+                return
+            app._vm_status_var.set(f"Building world \"{wb['id']}\"…")
+            app._append_log(f"{TAG} building world {wb['id']} {wb['bbox']} ({wb.get('download_mb_est', 0)} MB)\n")
+            _start(app, "voxel-map-world", lambda: (vm.build_world(wb, progress=_progress(app), cancel=app._vm_cancel.is_set, log=_log(app)), job())[1],
+                   after_check)
+            return
         tiles = c.get("detail_tiles") or {}
         if tiles.get("to_build"):
             mb = tiles.get("download_mb_est", 0)

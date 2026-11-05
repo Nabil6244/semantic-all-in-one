@@ -69,7 +69,7 @@ def fetch_tile(z: int, x: int, y: int, cache: Path) -> np.ndarray:
     return a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
 
 
-def elevation_grid(bbox, res, z, cache) -> np.ndarray:
+def elevation_grid(bbox, res, z, cache, on_tile=None) -> np.ndarray:
     lon0, lat0, lon1, lat1 = bbox
     w, h = round((lon1 - lon0) / res), round((lat1 - lat0) / res)
     x0, y0 = tile_xy(lon0, lat1, z)
@@ -83,6 +83,8 @@ def elevation_grid(bbox, res, z, cache) -> np.ndarray:
             mosaic[(ty - ty0) * 256:(ty - ty0 + 1) * 256, (tx - tx0) * 256:(tx - tx0 + 1) * 256] = fetch_tile(z, tx, ty, cache)
             done += 1
             print(json.dumps({"event": "tile", "done": done, "total": total}), flush=True)
+            if on_tile:
+                on_tile(done, total)      # may raise to stop (the app's Stop button); meta.json is not written then
     lons = lon0 + (np.arange(w) + 0.5) * res
     lats = lat1 - (np.arange(h) + 0.5) * res
     gx = np.array([tile_xy(lo, 0, z)[0] for lo in lons])
@@ -126,12 +128,12 @@ def overlaps(f, bbox) -> bool:
     return False
 
 
-def build(world_id: str, bbox, res: float, z: int) -> Path:
+def build(world_id: str, bbox, res: float, z: int, on_tile=None) -> Path:
     out = HERE / "worlds" / world_id
     out.mkdir(parents=True, exist_ok=True)
     lon0, lat0, lon1, lat1 = bbox
     w, h = round((lon1 - lon0) / res), round((lat1 - lat0) / res)
-    elev = elevation_grid(bbox, res, z, HERE / "cache" / "terrarium")
+    elev = elevation_grid(bbox, res, z, HERE / "cache" / "terrarium", on_tile)
 
     land_f = [f for f in json.load(gzip.open(DATA / "land.json.gz"))["features"] if overlaps(f, bbox)]
     land = rasterize(land_f, bbox, res, w, h, lambda f: 1).astype(np.uint8)
