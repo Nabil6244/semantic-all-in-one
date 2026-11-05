@@ -1,6 +1,7 @@
 // Builds the 3D set from a world description (lib/world.mjs). Terrain is one vertex-coloured mesh; trees, hedges and props
 // are instanced (one draw per part type, however many there are); buildings share geometries and facade textures.
 import * as THREE from '/three/three.module.min.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 import { plastic, rbox, box, cyl, sphere, cone, geo, studTexture, facadeTexture, grainTexture, stats } from './gfx.js';
 import { distToPolyline, SIZE } from '../lib/world.mjs';
 import { makeRng, fbm2 } from '../lib/rng.mjs';
@@ -242,6 +243,24 @@ const PROPS = (night) => ({
   clock: [part(cyl(1.2, 1.2, 0.3, 16), plastic('#efe9d8'), 0, 10, 0, Math.PI / 2, 0, 0)],
   chair: [part(box(2.4, 0.4, 2.4), plastic('#5a3b22'), 0, 2, 0), part(box(2.4, 2.6, 0.3), plastic('#5a3b22'), 0, 3.3, -1.1), ...[[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([x, z]) => part(box(0.3, 2, 0.3), plastic('#4a3020'), x, 1, z))],
   phone: [part(box(1, 0.5, 0.8), plastic('#151515', { rough: 0.3 }), 0, 0.25, 0)],
+  mirror: [part(box(9, 8, 0.2), plastic('#2c2a28', { rough: 0.5 }), 0, 6.8, 0)],
+  vanity: [part(rbox(10, 3, 3.6, 0.1), plastic('#e7e3da', { rough: 0.5 }), 0, 1.5, 0), part(box(10.4, 0.3, 4, 0), plastic('#cfcac0', { rough: 0.3 }), 0, 3.15, 0), part(cyl(1.5, 1.2, 0.2, 18), plastic('#8d9aa0', { rough: 0.25 }), 0, 3.32, 0.1), part(cyl(0.16, 0.16, 1.2, 8), plastic('#c8cdd0', { metal: 0.8, rough: 0.25 }), 0, 3.9, -1.3), part(box(0.25, 0.2, 1), plastic('#c8cdd0', { metal: 0.8, rough: 0.25 }), 0, 4.4, -0.9)],
+  towel_rail: [part(box(5, 0.2, 0.2), plastic('#c8cdd0', { metal: 0.8, rough: 0.3 }), 0, 7, 0.3), part(box(3.6, 3.4, 0.25), plastic('#b5483a', { rough: 1 }), 0, 5.4, 0.42)],
+  bathtub: [part(rbox(7, 3.2, 14, 0.4), plastic('#efece4', { rough: 0.35 }), 0, 1.6, 0), part(box(5.6, 0.1, 12.4), plastic('#a9c0c9', { rough: 0.15 }), 0, 3.22, 0)],
+  toilet: [part(cyl(1.5, 1.1, 2.2, 16), plastic('#efece4', { rough: 0.3 }), 0, 1.1, 0.8), part(cyl(1.6, 1.6, 0.2, 16), plastic('#dedad0', { rough: 0.3 }), 0, 2.3, 0.8), part(rbox(3.4, 3.4, 1.4, 0.2), plastic('#efece4', { rough: 0.3 }), 0, 3.4, -1.2)],
+  door: [part(box(6, 10.6, 0.3), plastic('#6e4a30', { rough: 0.7 }), 0, 5.3, 0), part(box(4.4, 3.6, 0.1), plastic('#7d573a', { rough: 0.7 }), 0, 7.6, 0.17), part(box(4.4, 3.6, 0.1), plastic('#7d573a', { rough: 0.7 }), 0, 3, 0.17), part(sphere(0.3, 10, 8), plastic('#c8b070', { metal: 0.8, rough: 0.3 }), 2.3, 5, 0.3)],
+  light_switch: [part(box(0.7, 1.1, 0.12), plastic('#efe9d8'), 0, 5.2, 0), part(box(0.2, 0.4, 0.1), plastic('#c9c2b0'), 0, 5.2, 0.1)],
+  counter: [part(box(30, 3.2, 3.6), plastic('#7a5c44', { rough: 0.7 }), 0, 1.6, 0), part(box(30.4, 0.3, 4, 0), plastic('#d9d4c8', { rough: 0.35 }), 0, 3.35, 0), part(box(4, 0.08, 2.4), plastic('#8d9aa0', { rough: 0.25 }), 0, 3.52, 0), part(cyl(0.15, 0.15, 1.4, 8), plastic('#c8cdd0', { metal: 0.8, rough: 0.25 }), 0, 4.2, -1.3)],
+  wall_cabinet: [part(box(30, 4, 1.8), plastic('#8a6a4e', { rough: 0.65 }), 0, 9, 0), ...[-12, -6, 0, 6, 12].map((x) => part(box(5.4, 3.6, 0.1), plastic('#9a7a5c', { rough: 0.65 }), x, 9, 0.95))],
+  table_plain: [part(rbox(13, 0.5, 7, 0.15), plastic('#8a6238', { rough: 0.5 }), 0, 3.2, 0), ...[[-6, -3], [6, -3], [-6, 3], [6, 3]].map(([x, z]) => part(box(0.5, 3, 0.5), plastic('#5a3b22'), x, 1.5, z))],
+  coffee_pot: [part(cyl(0.7, 0.85, 1.5, 12), plastic('#2d2d2f', { rough: 0.3 }), 0, 0.75, 0), part(box(0.2, 0.8, 0.5), plastic('#2d2d2f'), 0.9, 0.9, 0)],
+  cup: [part(cyl(0.42, 0.36, 0.9, 12), plastic('#e8e3d6', { rough: 0.35 }), 0, 0.45, 0)],
+  plate: [part(cyl(1.1, 0.9, 0.1, 18), plastic('#f0ece2', { rough: 0.35 }), 0, 0.06, 0), part(cyl(0.45, 0.45, 0.08, 14), plastic('#f4c542'), 0, 0.15, 0)],
+  side_table: [part(box(3.4, 0.3, 3.4), plastic('#5a3b22'), 0, 3, 0), ...[[-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]].map(([x, z]) => part(box(0.3, 3, 0.3), plastic('#4a3020'), x, 1.5, z))],
+  table_lamp: [part(cyl(0.2, 0.5, 1.2, 10), plastic('#6a6a5a'), 0, 0.6, 0), part(cone(1, 1.3, 14), plastic('#f2d9a0', { emissive: '#ffc070', emissiveIntensity: 1.6 }), 0, 1.8, 0)],
+  bed: [part(box(11, 1.8, 15), plastic('#5a3b22', { rough: 0.7 }), 0, 0.9, 0), part(rbox(10.4, 1.2, 14.4, 0.3), plastic('#d9d4c8', { rough: 1 }), 0, 2.3, 0), part(rbox(10.6, 0.5, 9, 0.2), plastic('#51667f', { rough: 1 }), 0, 2.95, 2.6), part(rbox(4.2, 0.8, 2.4, 0.3), plastic('#f2eee4', { rough: 1 }), -2.5, 3.2, -5.4), part(rbox(4.2, 0.8, 2.4, 0.3), plastic('#f2eee4', { rough: 1 }), 2.5, 3.2, -5.4)],
+  tv: [part(box(10, 5.8, 0.4), plastic('#101012', { rough: 0.15 }), 0, 6, 0), part(box(12, 2.8, 2.6), plastic('#5a3b22'), 0, 1.4, 0.4)],
+  sofa: [part(rbox(13, 1.8, 5, 0.3), plastic('#6c7a68', { rough: 1 }), 0, 1.6, 0), part(rbox(13, 3, 1.4, 0.3), plastic('#5f6d5c', { rough: 1 }), 0, 3, 2.4), part(rbox(1.4, 2.4, 5, 0.3), plastic('#5f6d5c', { rough: 1 }), -6.8, 2.2, 0), part(rbox(1.4, 2.4, 5, 0.3), plastic('#5f6d5c', { rough: 1 }), 6.8, 2.2, 0)],
   wreck: [],
 });
 let mapPaperTex = null;
@@ -269,20 +288,34 @@ function props(W, night) {
 }
 
 function interior(W, look) {
-  const I = W.interior, g = new THREE.Group();
-  const wallM = plastic(I.wall, { rough: 0.9 }), floorM = plastic('#ffffff', { map: planks(), rough: 0.6 });
+  const I = W.interior, g = new THREE.Group(), side = (I.d - I.winW) / 2;
+  const wallM = I.tile ? plastic('#ffffff', { map: tiles(I.wall, 7, 4), rough: 0.35 }) : plastic(I.wall, { rough: 0.9 }), floorM = plastic('#ffffff', { map: I.floor === 'tile' ? tiles('#8f9a9c', 6, 5) : planks(), rough: I.floor === 'tile' ? 0.3 : 0.6 });
   const fl = new THREE.Mesh(box(I.w, 0.4, I.d), floorM); fl.position.y = -0.2; fl.receiveShadow = true; g.add(fl);
   const ce = new THREE.Mesh(box(I.w, 0.4, I.d), plastic('#d9d2c0')); ce.position.y = I.h; g.add(ce);
   const wall = (w, h, x, y, z, ry = 0) => { const m = new THREE.Mesh(box(w, h, 0.6), wallM); m.position.set(x, y, z); m.rotation.y = ry; m.receiveShadow = true; m.castShadow = true; g.add(m); };
   wall(I.w, I.h, 0, I.h / 2, -I.d / 2); wall(I.w, I.h, 0, I.h / 2, I.d / 2);
   // left wall with a window: the night and rain outside
   wall(I.d, 4, -I.w / 2, 2, 0, Math.PI / 2); wall(I.d, 3.5, -I.w / 2, I.h - 1.75, 0, Math.PI / 2);
-  wall(9, I.h - 7.5, -I.w / 2, 4 + (I.h - 7.5) / 2, -I.d / 2 + 4.5, Math.PI / 2); wall(9, I.h - 7.5, -I.w / 2, 4 + (I.h - 7.5) / 2, I.d / 2 - 4.5, Math.PI / 2);
+  wall(side, I.h - 7.5, -I.w / 2, 4 + (I.h - 7.5) / 2, -I.d / 2 + side / 2, Math.PI / 2); wall(side, I.h - 7.5, -I.w / 2, 4 + (I.h - 7.5) / 2, I.d / 2 - side / 2, Math.PI / 2);
   const out = new THREE.Mesh(new THREE.PlaneGeometry(I.d, I.h), new THREE.MeshBasicMaterial({ color: look.night ? 0x1a2433 : 0x8aa0b0 })); out.position.set(-I.w / 2 - 3, I.h / 2, 0); out.rotation.y = Math.PI / 2; g.add(out);
-  const pane = new THREE.Mesh(new THREE.PlaneGeometry(I.d - 18, I.h - 7.5), new THREE.MeshStandardMaterial({ color: 0x9fb6c8, transparent: true, opacity: 0.18, roughness: 0.05 })); pane.position.set(-I.w / 2 + 0.05, 4 + (I.h - 7.5) / 2, 0); pane.rotation.y = Math.PI / 2; g.add(pane);
+  const pane = new THREE.Mesh(new THREE.PlaneGeometry(I.winW, I.h - 7.5), new THREE.MeshStandardMaterial({ color: 0x9fb6c8, transparent: true, opacity: 0.18, roughness: 0.05 })); pane.position.set(-I.w / 2 + 0.05, 4 + (I.h - 7.5) / 2, 0); pane.rotation.y = Math.PI / 2; g.add(pane);
   wall(I.d, I.h, I.w / 2, I.h / 2, 0, Math.PI / 2);
-  for (let x = -I.w / 2 + 3; x < I.w / 2; x += 8) { const b = new THREE.Mesh(box(0.6, I.h, 0.8), plastic('#8a7a60')); b.position.set(x, I.h / 2, -I.d / 2 + 0.6); g.add(b); }
+  if (I.beams) for (let x = -I.w / 2 + 3; x < I.w / 2; x += 8) { const b = new THREE.Mesh(box(0.6, I.h, 0.8), plastic('#8a7a60')); b.position.set(x, I.h / 2, -I.d / 2 + 0.6); g.add(b); }
+  // a mirror really reflects the room and whoever stands at it
+  for (const p of W.props) if (p.kind === 'mirror') {
+    const m = new Reflector(new THREE.PlaneGeometry(8.2, 7.2), { textureWidth: 1024, textureHeight: 900, clipBias: 0.003, color: 0xb8bcbc, multisample: 4 });
+    m.position.set(p.x, 6.8, p.z + 0.12); g.add(m);
+    const glow = new THREE.PointLight(0xffe6c0, 70, 26, 1.6); glow.position.set(p.x, 11, p.z + 3); g.add(glow); // the light over the glass: faces in the mirror are not in shadow
+  }
   return g;
+}
+const tilesTex = new Map();
+function tiles(color, rx, ry) {
+  const key = `${color}:${rx}:${ry}`; if (tilesTex.has(key)) return tilesTex.get(key);
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = color; g.fillRect(0, 0, 128, 128); g.fillStyle = 'rgba(40,40,40,0.35)'; g.fillRect(0, 0, 128, 3); g.fillRect(0, 0, 3, 128);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.colorSpace = THREE.SRGBColorSpace; stats.textures++; tilesTex.set(key, t);
+  return t;
 }
 let planksTex = null;
 function planks() {

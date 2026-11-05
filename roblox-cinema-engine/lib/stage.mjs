@@ -30,7 +30,7 @@ export function stageScene(world, spec) {
   const vehicles = [];
   for (const v of spec.vehicles || []) vehicles.push(...planVehicles(v.kind, v.count, v.motion, world, { t0: t0 - (v.lead ?? 1.5), t1: t1 + 2, seed: `${spec.seed}:${v.kind}`, anchor: v.anchor || (VEHICLES[v.kind]?.cls === 'water' && world.env === 'beach' ? 'waterline' : 'center'), heading: v.heading ?? heading, rampAt: spec.rampAt }));
   const crafts = vehicles.filter((v) => v.kind === 'landing_craft' && v.rampAt != null);
-  let ci = 0;
+  let ci = 0, mi = 0;
   for (const group of spec.cast || []) {
     const n = group.count || 1, anchor = world.anchorY(group.anchor || anchorFor(group, world));
     const target = group.moveTo ? world.anchorY(group.moveTo) : null;
@@ -53,12 +53,15 @@ export function stageScene(world, spec) {
         case 'stack': x += -60 + row * 3.5; z += (col % 2 ? 1 : -1) * 7; break;
         case 'corners': x += rng.pick([-1, 1]) * rng.range(15, 30); z += rng.pick([-1, 1]) * 9; break;
         case 'hidden': x += rng.range(-40, 40); z += rng.range(30, 45); break;
+        case 'mark': { const k = mi++, spots = [[0, 0], [5, 2.5], [-5, 2.5], [0, 5.5]], [ox, oz] = spots[k] || [((k % 4) - 1.5) * 4, 6 + Math.floor(k / 4) * 3.5];
+          x += ox; z += oz; if (k === 0) { if (spec.face) a.face = [spec.face[0], spec.face[2]]; } else a.face = [anchor[0], anchor[2]]; break; }
         case 'center': break;
         case 'sky': x += rng.range(-90, 90); z += rng.range(-70, 70); break;
         case 'boats': break;
         default: x += rng.range(-45, 45); z += rng.range(-30, 30);
       }
       // avoid putting anyone inside a building or (unless wading) in deep water
+      if (world.room) { x = clamp(x, world.room.x0 + 1.5, world.room.x1 - 1.5); z = clamp(z, world.room.z0 + 1.5, world.room.z1 - 1.5); }
       for (let k = 0; k < 6 && blockedAt(world, x, z) && group.formation !== 'boats' && group.formation !== 'sky'; k++) { x += rng.range(-8, 8); z += rng.range(-8, 8); }
       const st = group.action || 'idle';
       if (group.formation === 'boats' && crafts.length) {
@@ -87,12 +90,12 @@ export function stageScene(world, spec) {
         }
         if (st === 'fire' || st === 'cover') a.schedule[0].opts = { rate: rng.range(1.2, 2.6) };
       }
-      if (group.formation === 'head' || group.formation === 'table' || group.formation === 'table_far') a.path = [[x, z]];
+      if (group.formation === 'head' || group.formation === 'table' || group.formation === 'table_far' || group.formation === 'mark') a.path = [[x, z]];
       a.yaw0 = a.face ? Math.atan2(a.face[0] - x, a.face[1] - z) : heading + (group.side === 'b' ? Math.PI : 0) + rng.range(-0.3, 0.3);
       actors.push(a);
     }
   }
-  applyNarrationActions(actors, spec.actionsTimed || [], rng, t1);
+  applyNarrationActions(actors, spec.actionsTimed || [], rng, t1, world);
   return { actors, vehicles };
 }
 
@@ -105,10 +108,12 @@ const PERFORMERS = { point: ['commander', 'officer', 'leader'], talk: ['forecast
   wave: ['crowd', 'civilian', 'leader'], hands_up: ['soldier', 'guard'], look: ['soldier', 'paratrooper', 'guard', 'civilian'], carry: ['soldier', 'worker', 'farmer'], gesture: ['leader', 'politician', 'commander'] };
 const HOLD = { point: 2.6, salute: 2.8, talk: 4, gesture: 3, listen: 4, look: 3, wave: 3 }; // seconds a one-off action lasts (others last to the end)
 
-function applyNarrationActions(actors, timed, rng, t1) {
+function applyNarrationActions(actors, timed, rng, t1, world) {
   for (const act of timed) {
     const roles = PERFORMERS[act.state] || null;
-    const who = actors.filter((a) => !a.sky && (!roles || roles.includes(a.role)));
+    const free = actors.filter((a) => !a.sky), fits = free.filter((a) => !roles || roles.includes(a.role));
+    // an action the CSV asks for is performed by the people the row names, whatever their role
+    const who = fits.length || !act.csv ? fits : free;
     if (!who.length) continue;
     const many = !HOLD[act.state]; // group actions (cover, run, cheer...) go to everyone eligible, staggered
     const sel = many ? who : [who[0]];
@@ -119,7 +124,11 @@ function applyNarrationActions(actors, timed, rng, t1) {
       const before = a.schedule.filter((s) => s.t0 < at).map((s) => ({ ...s, t1: Math.min(s.t1, at) }));
       const after = a.schedule.filter((s) => s.t1 > end).map((s) => ({ ...s, t0: Math.max(s.t0, end) }));
       a.schedule = [...before, seg, ...after];
-      if (MOVING.has(act.state) && a.path.length === 1) a.path = [a.path[0], [a.path[0][0] + rng.range(-10, 10), a.path[0][1] + 30]];
+      if (MOVING.has(act.state) && a.path.length === 1) {
+        const [px, pz] = a.path[0];
+        if (world?.room) a.path = [[clamp(px + rng.range(-4, 4), world.room.x0 + 1.5, world.room.x1 - 1.5), clamp(pz + 9, world.room.z0 + 1.5, world.room.z1 - 1.5)], [px, pz]]; // walks up to the mark, inside the walls
+        else a.path = [a.path[0], [px + rng.range(-10, 10), pz + 30]];
+      }
     });
   }
 }

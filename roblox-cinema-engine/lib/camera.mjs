@@ -54,6 +54,49 @@ export function shotCamera(shot, t, subj, dirAt = () => 0) {
   return { pos, target: tgt, fov, roll: shot.roll ? shot.roll * Math.sin(u * Math.PI) : 0 };
 }
 
+// Indoor moves: [distance start, end (fraction of the room behind the subject), height start, end, side swing start, end].
+// Outdoor distances (70, 150...) only pinned the camera to a wall, so a room gets its own table and every move stays in the room.
+const ROOM_MOVES = { dolly_in: [1, 0.62, 6.4, 5.8, 0.25, 0.1], push_in: [0.7, 0.45, 5.6, 5.4, 0.12, 0.05], dolly_out: [0.5, 1, 5.6, 7.5, 0.1, 0.3], pullback_reveal: [0.42, 1, 5, 8.5, 0.35, 0.1],
+  crane_up: [0.7, 0.85, 2.6, 11, 0.3, 0.4], rise: [0.55, 0.9, 4, 11, -0.2, 0.2], descend: [0.9, 0.55, 11, 5, 0.3, 0.1], low_angle: [0.62, 0.55, 1.5, 1.5, 0.5, 0.6], follow: [0.6, 0.6, 6.5, 6.5, 0.2, 0.2],
+  ground_track: [0.65, 0.65, 4.5, 4.5, 0.7, 0.35], side_track: [0.75, 0.75, 6, 6, -0.65, 0.65], orbit: [0.72, 0.72, 7, 7, -0.5, 0.5], static_close: [0.46, 0.42, 5.3, 5.3, 0.2, 0.17] };
+const ROOM_NEAR = 6.5, ROOM_FAR = 18;
+const rayToWall = (room, P, ang) => {
+  const dx = Math.sin(ang), dz = Math.cos(ang); let d = 1e9;
+  if (dx > 1e-6) d = Math.min(d, (room.x1 - P[0]) / dx); if (dx < -1e-6) d = Math.min(d, (room.x0 - P[0]) / dx);
+  if (dz > 1e-6) d = Math.min(d, (room.z1 - P[2]) / dz); if (dz < -1e-6) d = Math.min(d, (room.z0 - P[2]) / dz);
+  return Math.max(0, d);
+};
+/** A shot inside a room. P = subject on the floor, Q = what the shot is about (the prop being spoken of, another person). The camera
+ *  stands on the far side of P from Q, so P and Q share the frame, and never closer to P than a head-and-shoulders. beside = stand off to
+ *  one side (a mirror: straight behind, the person's own head hides the reflection). */
+export function roomCamera(shot, t, room, P, Q, small = false, beside = false, glass = null) {
+  const u = clamp((t - shot.t0) / Math.max(0.01, shot.t1 - shot.t0), 0, 1), e = smoother(u), ee = easeInOut(u), beh = shot.behaviour;
+  if (glass) { // the reflection is acting: past the shoulder, long lens, onto the face in the glass
+    const side = P[0] < Q[0] - 1 ? 1 : -1;
+    return { pos: [P[0] + side * 3.2, P[1] + 5.2, P[2] + lerp(2.6, 1.4, ee)], target: glass, fov: lerp(24, 19, ee), roll: 0 };
+  }
+  if ((beh === 'establishing_interior' || beh === 'establishing_wide') && room.wide) {
+    const w = room.wide; return { pos: w.from.map((v, i) => lerp(v, w.to[i], e)), target: w.target, fov: 52, roll: 0 };
+  }
+  const apart = Math.hypot(P[0] - Q[0], P[2] - Q[2]), head = [P[0], P[1] + 4.4, P[2]];
+  let base = apart > 1 ? Math.atan2(P[0] - Q[0], P[2] - Q[2]) : shot.yaw ?? 0.6;
+  const off = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2.2, -2.2, Math.PI].find((a) => rayToWall(room, P, base + a) >= 10) ?? 0; base += off;
+  if (small) { // the thing itself: a ring, a phone, a plate
+    const a = base + 0.35, d = lerp(6, 4.6, ee), pos = [Q[0] + Math.sin(a) * d, Q[1] + lerp(3, 2.2, ee), Q[2] + Math.cos(a) * d];
+    return { pos, target: Q, fov: 36, roll: 0 };
+  }
+  if (beh === 'over_shoulder' && apart > 1) {
+    const dx = (Q[0] - P[0]) / apart, dz = (Q[2] - P[2]) / apart, side = (Math.sin((shot.yaw || 0) * 7) >= 0 ? 1 : -1) * lerp(2.2, 3, e) * (beside ? 1.7 : 1);
+    return { pos: [P[0] - dx * 5 + dz * side, P[1] + 6.4, P[2] - dz * 5 - dx * side], target: [Q[0], Q[1], Q[2]], fov: 42, roll: 0 };
+  }
+  const M = ROOM_MOVES[beh] || ROOM_MOVES.dolly_in, sign = Math.sin((shot.yaw || 0) * 7) >= 0 ? 1 : -1;
+  const swing = Math.min(rayToWall(room, P, base + sign * M[4]), rayToWall(room, P, base + sign * M[5])) >= ROOM_NEAR ? sign : 0;
+  const clear = beside && rayToWall(room, P, base + sign * 0.6) >= ROOM_NEAR ? sign * 0.6 : 0, ang = base + clear + swing * lerp(M[4], M[5], e), reach = Math.min(ROOM_FAR, rayToWall(room, P, ang));
+  const d = Math.min(reach, Math.max(ROOM_NEAR, reach * lerp(M[0], M[1], ee)));
+  const look = apart > 1 ? Math.min(0.3, 0.3 * d / apart) : 0; // the aim leans toward the prop but the person stays in frame
+  return { pos: [P[0] + Math.sin(ang) * d, clamp(P[1] + lerp(M[2], M[3], ee), room.y0, room.y1), P[2] + Math.cos(ang) * d], target: head.map((v, i) => lerp(v, Q[i], look)), fov: 40, roll: 0 };
+}
+
 /** Keep the camera above ground/water/roofs (with margin) and the line of sight clear; inside rooms keep it in the room. */
 export function constrain(cam, world, margin = 1.6) {
   const p = [...cam.pos];

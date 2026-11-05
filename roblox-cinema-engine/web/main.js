@@ -4,7 +4,7 @@
 import * as THREE from '/three/three.module.min.js';
 import { assembleScene } from '../lib/assemble.mjs';
 import { buildWorld } from './world3d.js';
-import { buildCharacter, poseRig } from './character.js';
+import { buildCharacter, poseRig, setFace } from './character.js';
 import { buildVehicle, poseVehicle } from './vehicle.js';
 import { buildMap } from './map3d.js';
 import { makeFxLayer } from './fx3d.js';
@@ -18,6 +18,7 @@ let plan, geo, renderer, post, camera, hud, W, H;
 const runtimes = new Map();
 const perf = { builds: [], frames: 0, maxDraw: 0, maxTris: 0, maxLive: 0, errors: [] };
 const MAP_HEIGHT = 780;
+const LAYER_ROOM = 3, LAYER_GLASS = 4; // people the film camera sees / doubles only a mirror sees
 
 async function init() {
   plan = await (await fetch('/plan.json')).json();
@@ -32,7 +33,7 @@ async function init() {
   document.documentElement.style.setProperty('--u', `${H / 1080}px`);
   document.getElementById('stage').style.cssText = `width:${W}px;height:${H}px`;
   post = makePost(renderer, W, H);
-  camera = new THREE.PerspectiveCamera(40, W / H, 0.3, 5000);
+  camera = new THREE.PerspectiveCamera(40, W / H, 0.3, 5000); camera.layers.enable(LAYER_ROOM);
   plan.hud.credit = plan.hud.credit || null;
   hud = makeHud(document.getElementById('hud'), plan.hud, { duration: plan.duration });
   for (const s of plan.scenes) if (s.env === 'map') { const v = mapView(s); s.mapView = v; for (const sh of s.shots) sh.height = v.h * (sh.zoom || 1); }
@@ -66,6 +67,12 @@ function ensure(i) {
     root.traverse((o) => { if (o.userData && o.userData.animate) rt.animates.push(o.userData.animate); });
     sc.add(root);
     for (const a of A.stage.actors) { const rig = buildCharacter(a.look); rig.userData.actor = a; sc.add(rig); rt.rigs.push(rig); }
+    const glass = []; root.traverse((o) => { if (o.isReflector) glass.push(o); });
+    if (glass.length && s.mirrorPlay?.length) {
+      rt.doubles = A.stage.actors.map((a) => { const d = buildCharacter(a.look); d.userData.actor = a; d.traverse((o) => o.layers.set(LAYER_GLASS)); sc.add(d); return d; });
+      for (const rig of rt.rigs) rig.traverse((o) => o.layers.set(LAYER_ROOM));
+      for (const m of glass) m.camera.layers.enable(LAYER_GLASS);
+    }
     for (const v of A.stage.vehicles) { const rig = buildVehicle(v.kind, v.color); rig.userData.veh = v; sc.add(rig); rt.vrigs.push(rig); }
     rt.fxLayer = makeFxLayer(); sc.add(rt.fxLayer.group);
     if (A.lights.length) for (let k = 0; k < 2; k++) { const L = new THREE.PointLight(0xffa860, 0, 120, 2); sc.add(L); rt.lightPool.push(L); }
@@ -78,6 +85,7 @@ function ensure(i) {
 
 function dispose(rt) {
   rt.sc.traverse((o) => {
+    if (o.isReflector) { o.dispose(); return; }
     if (o.geometry && !isSharedGeo(o.geometry)) o.geometry.dispose();
     if (o.shadow && o.shadow.map) o.shadow.map.dispose();
   });
@@ -95,6 +103,10 @@ function drawScene(rt, t, target) {
     const st = A.actorAt(rig.userData.actor, t), dx = st.x - camPos.x, dz = st.z - camPos.z;
     if (dx * dx + dz * dz > 650 * 650) { rig.visible = false; continue; }
     rig.visible = true; rig.position.set(st.x, st.y, st.z); rig.rotation.y = st.yaw; poseRig(rig, st.pose, t);
+  }
+  for (const d of rt.doubles || []) {
+    const v = A.reflectionAt(d.userData.actor, t); d.visible = v.visible; if (!v.visible) continue;
+    d.position.set(v.x, v.y, v.z); d.rotation.y = v.yaw; poseRig(d, v.pose, t); setFace(d, v.face);
   }
   for (const rig of rt.vrigs) poseVehicle(rig, A.vehicleAt(rig.userData.veh, t));
   let live = 0;

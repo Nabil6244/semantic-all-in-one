@@ -3,6 +3,7 @@
 // seed. The browser builds meshes from it; Node uses the same object for camera-collision and ground-contact checks.
 // Units: studs (a character is ~5 tall). x east, z south; the sea, when there is one, lies toward -z.
 
+import { buildRoom } from './rooms.mjs';
 import { makeRng, fbm2, clamp, smooth, lerp } from './rng.mjs';
 
 export const ENVIRONMENTS = ['city', 'town', 'village', 'farmland', 'forest', 'jungle', 'hills', 'mountains', 'valley', 'desert', 'beach', 'river',
@@ -258,12 +259,10 @@ export function makeWorld(env, opts = {}) {
     }
     case 'interior': {
       W.ground = 'floor';
-      W.interior = { w: 44, d: 30, h: 14, wall: opts.variant === 'bunker' ? '#7c7a72' : '#c9bfa8', floor: '#6b4a32', window: true, rainOutside: opts.weather === 'rain' || opts.weather === 'storm' };
-      W.props.push({ kind: 'table_map', x: 0, z: 0, y: 0, rot: 0 }, { kind: 'wall_map', x: 0, z: -14.6, y: 0, rot: 0 }, { kind: 'lamp_hang', x: -8, z: 0, y: 0 }, { kind: 'lamp_hang', x: 8, z: 0, y: 0 },
-        { kind: 'bookcase', x: 20, z: -13, y: 0, rot: 0 }, { kind: 'clock', x: -14, z: -14.6, y: 0 }, { kind: 'chair', x: -10, z: 6, y: 0, rot: Math.PI }, { kind: 'chair', x: 10, z: 6, y: 0, rot: Math.PI }, { kind: 'chair', x: 0, z: -7, y: 0, rot: 0 }, { kind: 'phone', x: 6, z: -1, y: 3.1 });
-      const I = W.interior;
-      W.colliders.push({ inside: true, x0: -I.w / 2 + 1.5, x1: I.w / 2 - 1.5, z0: -I.d / 2 + 1.5, z1: I.d / 2 - 1.5, y0: 1, y1: I.h - 1 });
-      W.anchors = { center: [0, 0], table: [0, 0], head: [0, -6], window: [-21, 0], door: [21, 8] };
+      const R = buildRoom(opts.room || 'war', opts.wanted || [], { variant: opts.variant, rainOutside: opts.weather === 'rain' || opts.weather === 'storm' });
+      W.interior = R.interior; W.props.push(...R.items); W.colliders.push(R.collider);
+      W.anchors = R.anchors; W.focus = R.focus; W.mainFocus = R.main;
+      W.room = { ...R.collider, kind: R.kind, wide: R.wide };
       break;
     }
     case 'sea': { W.anchors = { center: [0, 0], fleet: [0, -40], near: [0, 40] }; break; }

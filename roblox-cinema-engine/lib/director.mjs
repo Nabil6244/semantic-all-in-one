@@ -3,6 +3,8 @@
 // it (subtitles, date, place tag, chapter card, statistic callouts, sound cues). Every decision is recorded with its reason
 // in `report`, and any CSV value overrides the inference. Pure and deterministic: the same story gives the same plan.
 
+import { roomKindFor, isRoomName, propsIn } from './rooms.mjs';
+import { planMirrorPlay } from './mirrorplay.mjs';
 import { makeRng, hash } from './rng.mjs';
 import { analyseSentence, splitSentences, estimateTiming, alignTiming, wordTime, extractDates, dateLabel, formatCount } from './narration.mjs';
 import { makeGazetteer } from './gazetteer.mjs';
@@ -49,7 +51,7 @@ export function direct(story, opts = {}) {
   const beatSent = story.beats.map((_, bi) => sentences.filter((s) => s.beat === bi));
 
   // ---- per-beat analysis and scene decisions --------------------------------------------------------------------------------
-  let carryCsvPlace = null, carryTime = 'day', carryWeather = 'clear', carryDate = '', carryPlace = null, lastScene = null;
+  let carryMirror = {}, carryLead = null, carryRoom = null, carryCsvPlace = null, carryTime = 'day', carryWeather = 'clear', carryDate = '', carryPlace = null, lastScene = null;
   const scenes = [];
   story.beats.forEach((b, bi) => {
     const ss = beatSent[bi]; if (!ss.length) return;
@@ -71,7 +73,7 @@ export function direct(story, opts = {}) {
     const csvPlace = b.location ? gaz.get(b.location) : null, unknownLoc = !!b.location && !csvPlace;
     const place = csvPlace || (unknownLoc ? (carryCsvPlace || null) : null) || A.flatMap((a) => a.places).find((p) => p.kind !== 'sea' && p.kind !== 'region') || A.flatMap((a) => a.places)[0] || carryPlace;
     if (csvPlace) carryCsvPlace = csvPlace;
-    if (b.location && !gaz.get(b.location)) warnings.push(`beat ${b.id}: place "${b.location}" is not in the gazetteer (no map pin; set "lon,lat")`);
+    if (b.location && !gaz.get(b.location) && !isRoomName(b.location)) warnings.push(`beat ${b.id}: place "${b.location}" is not in the gazetteer (no map pin; set "lon,lat")`);
     // environment: CSV > words that suit the event > place biome (if it suits) > recipe default
     const words = A.flatMap((a) => a.environments);
     const suits = EVENT_ENVS[event];
@@ -107,22 +109,30 @@ export function direct(story, opts = {}) {
     function r0(v) { return vehicleForEra(v.kind, era).anachronism; }
     // narration actions, timed to the spoken word
     const actionsTimed = [];
-    const csvActs = b.actions.map((a) => ({ state: a.state, word: a.at }));
+    const csvActs = b.actions.map((a) => ({ state: a.state, word: a.at, csv: true }));
     const spokenActs = A.flatMap((a, k) => a.actions.map((x) => ({ ...x, sent: k })));
     for (const act of csvActs.length ? csvActs : spokenActs) {
       const s = act.sent != null ? ss[act.sent] : ss.find((x) => wordTime(x, act.word) != null) || ss[0];
       const at = wordTime(s, act.word) ?? s.start;
-      actionsTimed.push({ state: act.state, time: at, word: act.word });
+      actionsTimed.push({ state: act.state, time: at, word: act.word, ...(act.csv ? { csv: true } : {}) });
     }
     // effects
     const fx = b.effects.length ? [...b.effects] : [...R.fx];
     if (weather === 'rain' || weather === 'storm') fx.push('rain'); if (weather === 'fog') fx.push('fog'); if (weather === 'snow') fx.push('snow');
+    const room = env === 'interior' ? roomKindFor({ location: b.location, props: b.props, text, event, civilian: cast.every((c) => c.side === 'civ'), last: carryRoom }) : null;
+    if (room && room !== 'war') carryRoom = room;
+    // the person in the glass wears the lead's body: a "Reflection" row is the same character, not a stranger
+    for (const c of cast) { if (/^reflection$/i.test(c.name || '')) { if (carryLead) c.name = carryLead; } else if (c.name && !carryLead) carryLead = c.name; }
     const scene = {
-      id: `s${scenes.length + 1}`, beat: bi, beatId: b.id, chapter: b.chapter, text, event, recipeIntent: R.intent, env, place: place ? { name: place.name, lon: place.lon, lat: place.lat, country: place.country || '', kind: place.kind } : null,
+      room, props: b.props || [], id: `s${scenes.length + 1}`, beat: bi, beatId: b.id, chapter: b.chapter, text, event, recipeIntent: R.intent, env, place: place ? { name: place.name, lon: place.lon, lat: place.lat, country: place.country || '', kind: place.kind } : null,
       time, weather, date, era: era.id, factions, cast, vehicles, actionsTimed, fx, ambience: R.ambience, cues: R.cues || [], camera: b.camera, transitionReq: b.transition, extra: b.extra || {}, sentences: ss, analysis: A,
       seed: b.extra?.seed ?? hash(`${b.id}:${place ? place.name : ''}:${event}`) % 100000, culture: place ? place.culture : 'european', why,
     };
     if (env === 'map' || event === 'map') scene.env = 'map';
+    if (room === 'bathroom' || room === 'hallway' || (room && propsIn(`${b.props.join('; ')} ${text}`).includes('mirror'))) {
+      const mp = planMirrorPlay(scene, wordTime, carryMirror);
+      scene.mirrorPlay = mp.play; scene.actionsTimed.push(...mp.actions); carryMirror = mp.carry;
+    }
     // the same map again (same place, same pins/arrows, same chapter and date) is one map scene, not the map re-opening per beat
     if (lastScene && sameMapMoment(lastScene, scene, b)) {
       lastScene.text += ` ${text}`; lastScene.sentences.push(...ss); lastScene.analysis.push(...A); lastScene.mergedBeats = [...(lastScene.mergedBeats || [lastScene.beatId]), b.id];

@@ -6,22 +6,33 @@ import { makeRng, smooth, lerp, clamp } from './rng.mjs';
 import { makeWorld } from './world.mjs';
 import { stageScene, evaluateActor } from './stage.mjs';
 import { vehicleState, VEHICLES } from './vehicles.mjs';
-import { shotCamera, constrain } from './camera.mjs';
+import { shotCamera, roomCamera, constrain } from './camera.mjs';
 import { particlesAt } from './fx.mjs';
+import { propsIn, SMALL_FOCUS } from './rooms.mjs';
+import { mirrorStateAt, AHEAD } from './mirrorplay.mjs';
 
 const HEADING = { beach: 0, sea: 0, port: 0, island: 0, interior: 0 };
 
+const ROOM_FORMATIONS = new Set(['head', 'table', 'table_far']), WALKING = new Set(['walk', 'run', 'march']);
 export function assembleScene(scene) {
-  const W = makeWorld(scene.env === 'map' ? 'map' : scene.env, { seed: scene.seed, culture: scene.culture, era: scene.era, time: scene.time, weather: scene.weather, damaged: ['battle', 'aftermath', 'city_occupation', 'airstrike', 'landing_operation'].includes(scene.event), variant: scene.extra.variant });
+  const wanted = scene.env === 'interior' ? propsIn(`${(scene.props || []).join('; ')} ${scene.text || ''}`) : [];
+  const W = makeWorld(scene.env === 'map' ? 'map' : scene.env, { room: scene.room, wanted, seed: scene.seed, culture: scene.culture, era: scene.era, time: scene.time, weather: scene.weather, damaged: ['battle', 'aftermath', 'city_occupation', 'airstrike', 'landing_operation'].includes(scene.event), variant: scene.extra.variant });
   const heading = scene.extra.heading ?? HEADING[scene.env] ?? (W.roads.length ? Math.PI / 2 : 0);
   scene.heading = heading;
   const rampAt = scene.event === 'landing_operation' ? (scene.actionsTimed.find((a) => a.word && /ramp|dropped/.test(a.word))?.time ?? (scene.sentences.map((s) => s.words.find((w) => /^ramp/.test(w.word))).find(Boolean)?.start) ?? scene.t0 + (scene.t1 - scene.t0) * 0.35) : null;
-  const castSpec = scene.cast.map((c) => ({ ...c, anchor: c.anchor || anchorFor(c, scene, W) }));
+  const indoors = scene.env === 'interior';
+  // indoors everyone stands on the room's mark; a recipe's outdoor formation and default walk would carry them through the walls
+  const castSpec = scene.cast.map((c) => (indoors && !ROOM_FORMATIONS.has(c.formation)
+    ? { ...c, formation: 'mark', anchor: 'mark', moveTo: undefined, action: WALKING.has(c.action) ? 'idle' : c.action }
+    : { ...c, anchor: c.anchor || anchorFor(c, scene, W) }));
   const vehSpec = scene.vehicles.map((v) => ({ ...v, motion: v.motion || defaultMotion(v.kind, scene, W), anchor: v.anchor || vehicleAnchor(v.kind, scene, W) }));
-  const stage = scene.env === 'map' ? { actors: [], vehicles: [] } : stageScene(W, { cast: castSpec, vehicles: vehSpec, actionsTimed: scene.actionsTimed, t0: scene.t0, t1: scene.t1, seed: scene.seed, era: scene.era, factions: scene.factions, heading, rampAt });
+  const stage = scene.env === 'map' ? { actors: [], vehicles: [] } : stageScene(W, { cast: castSpec, vehicles: vehSpec, actionsTimed: scene.actionsTimed, t0: scene.t0, t1: scene.t1, seed: scene.seed, era: scene.era, factions: scene.factions, heading, rampAt, face: indoors ? sceneFocus(wanted, W) : null });
   const vIndex = new Map(stage.vehicles.map((v) => [v.id, v]));
   const A = { scene, world: W, stage, vIndex, heading, rampAt };
   A.actorAt = (a, t) => evaluateActor(a, t, W, vIndex);
+  A.reflectionAt = (a, t) => reflectionAt(A, a, t);
+  // while the glass grins, the person in the room does not, unless the narration says they do
+  if (scene.mirrorPlay?.length && !/\b(he|she)\b.{0,40}\bsmil/i.test(scene.text)) for (const a of stage.actors) a.look = { ...a.look, face: { ...a.look.face, mouth: 'flat' } };
   A.vehicleAt = (v, t) => vehicleState(v, t, W);
   const fxp = planFx(A);
   A.emitters = fxp.emitters; A.cues = fxp.cues; A.lights = fxp.lights;
@@ -82,17 +93,52 @@ function rawCam(A, sh, t) {
   const sub = sh.subject;
   const subj = (tt) => A.subjectAt(sub, tt);
   const dirAt = (tt) => { const a = subj(tt - 0.5), b = subj(tt + 0.5); return Math.hypot(b[0] - a[0], b[2] - a[2]) > 0.3 ? Math.atan2(b[0] - a[0], b[2] - a[2]) : A.heading; };
-  const shot = { ...sh, scale: subjectScale(A, sub), yaw: sh.yaw + (A.scene.env === 'interior' ? 0 : 0) };
+  const shot = { ...sh, scale: subjectScale(A, sub), yaw: sh.yaw };
+  if (A.world.room) { const f = shotFocus(A, sh, t), P = subj(t); return roomCamera(shot, t, A.world.room, P, f.point(P), f.small, f.beside, glassPoint(A, sh, t)); }
+  // fog swallows a high camera: at night a full rise ends on empty dark
+  if (A.scene.weather === 'fog') { if (sh.behaviour === 'rise') shot.height = 42; if (sh.behaviour === 'pullback_reveal') shot.far = 70; }
   // a formation of aircraft is seen from far enough to read as aircraft, not as one wing filling the frame
   if (sub && sub.type === 'vehicles' && VEHICLES[sub.kind]?.cls === 'air' && sh.behaviour === 'vehicle_follow') { shot.dist = sh.dist || 150 * shot.scale; shot.height = sh.height ?? 60 * shot.scale; }
   if (sh.behaviour === 'over_shoulder' && sub && sub.lookAt) shot.lookAt = A.subjectAt(sub.lookAt, t);
   if (A.scene.env === 'map') { const c = A.mapFocus ? A.mapFocus(t) : [0, 0, 0]; return shotCamera(shot, t, () => c, dirAt); }
   return shotCamera(shot, t, subj, dirAt);
 }
+/** Where the reflection acts from: the double stands in the room, the mirror shows it; press moves it up to the glass. */
+function reflectionAt(A, a, t) {
+  const m = mirrorStateAt(A.scene.mirrorPlay, t), lead = a === A.stage.actors[0], Q = A.world.focus.mirror;
+  if (!lead) return { ...A.actorAt(a, t), visible: !m.empty, face: {} };
+  const st = A.actorAt(a, m.frozenAt ?? (m.ahead ? t + AHEAD : t));
+  const pose = { ...st.pose, head: { ...st.pose.head }, armL: { ...st.pose.armL }, armR: { ...st.pose.armR } };
+  if (m.turn) { pose.head.yaw = 0.95 * m.turn; pose.head.pitch = 0; }
+  if (m.hands) { const w = Math.sin(t * 2.2) * 0.25; pose.armL.x = (1.45 + w) * m.hands; pose.armR.x = (1.45 - w) * m.hands; }
+  let { x, y, z } = st;
+  if (m.frozenAt != null) x += Math.sin(t * 70) * 0.09; // the stutter
+  if (m.press && Q) { x = lerp(x, Q[0], m.press); z = lerp(z, Q[2] + 1.4, m.press); y += 1.4 * m.press; }
+  return { ...st, x, y, z, pose, visible: !m.empty, face: { mouth: m.smile ? 'grin' : null, eyes: m.blink ? 'narrow' : null, blank: m.noface, stretch: 1 + m.press * 0.25 } };
+}
+/** A shot that holds a spoken reflection moment looks at the face in the glass. */
+function glassPoint(A, sh, t) {
+  const play = A.scene.mirrorPlay, Q = A.world.focus.mirror, a = A.stage.actors[0];
+  if (!play || !Q || !a || !play.some((p) => !p.carried && p.t0 >= sh.t0 - 0.2 && p.t0 < sh.t1)) return null;
+  const v = A.reflectionAt(a, t);
+  return [v.x, v.y + 4.6, 2 * Q[2] - v.z];
+}
+const sceneFocus = (wanted, W) => W.focus[wanted.find((k) => W.focus[k])] || W.focus[W.mainFocus] || null;
+/** What a shot inside a room is about: the prop spoken during it, then the scene's props, then the other person, then the room's main feature. */
+function shotFocus(A, sh, t) {
+  const W = A.world, s = A.scene, spoken = s.sentences.filter((x) => x.start < sh.t1 && x.end > sh.t0).map((x) => x.text).join(' ');
+  const keys = [...propsIn(spoken), ...propsIn((s.props || []).join('; '))].filter((k) => k === 'hands' || W.focus[k]);
+  const key = keys[0];
+  if (key === 'hands') return { small: true, point: (P) => [P[0], P[1] + 3.2, P[2]] };
+  if (key) return { small: SMALL_FOCUS.has(key), beside: key === 'mirror', point: () => W.focus[key] };
+  const other = A.stage.actors[1];
+  if (other) return { small: false, point: () => { const p = A.actorAt(other, t); return [p.x, p.y + 4.4, p.z]; } };
+  return { small: false, beside: W.mainFocus === 'mirror', point: () => W.focus[W.mainFocus] };
+}
 export function sceneCamera(A, t) {
   const i = shotAt(A, t), sh = A.scene.shots[i];
   let cam = rawCam(A, sh, t);
-  if (sh.transition === 'continuous' && i > 0 && t - sh.t0 < 1.4) {
+  if (sh.transition === 'continuous' && !A.world.room && i > 0 && t - sh.t0 < 1.4) { // indoors a shot cuts, so a moment lands on its word
     const prev = rawCam(A, A.scene.shots[i - 1], t), k = smooth((t - sh.t0) / 1.4);
     cam = { pos: cam.pos.map((v, j) => lerp(prev.pos[j], v, k)), target: cam.target.map((v, j) => lerp(prev.target[j], v, k)), fov: lerp(prev.fov, cam.fov, k), roll: 0 };
   }

@@ -16,6 +16,7 @@ function hat(look) {
   const h = look.hat; if (!h) return hair(look);
   const g = new THREE.Group(), col = h.color || '#4a4a3a', M = plastic(col, { rough: 0.7 });
   switch (h.type) {
+    case 'crest': { const d = mesh(sphere(0.84, 18, 10, Math.PI * 2, Math.PI / 2), M, 0, 0.4, 0); d.scale.set(1, 0.9, 1.05); g.add(d); g.add(mesh(cyl(0.88, 0.92, 0.12, 18), M, 0, 0.42, 0.02)); g.add(mesh(box(0.2, 0.34, 1.1), plastic('#b02a22', { rough: 0.8 }), 0, 1.22, 0)); break; }
     case 'm1': case 'modern': case 'ssh': { const d = mesh(sphere(0.86, 18, 10, Math.PI * 2, Math.PI / 2), M, 0, 0.42, 0); d.scale.set(1, 0.85, 1.05); g.add(d); g.add(mesh(cyl(0.9, 0.95, 0.1, 18), M, 0, 0.44, 0.02)); if (h.net) g.add(mesh(sphere(0.88, 10, 6, Math.PI * 2, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x3a3a2a, wireframe: true }), 0, 0.42, 0)); break; }
     case 'brodie': { g.add(mesh(cyl(1.15, 1.15, 0.08, 20), M, 0, 0.5, 0)); const d = mesh(sphere(0.72, 16, 8, Math.PI * 2, Math.PI / 2), M, 0, 0.5, 0); d.scale.y = 0.7; g.add(d); break; }
     case 'stahl': { const d = mesh(sphere(0.84, 18, 10, Math.PI * 2, Math.PI / 2), M, 0, 0.36, 0); d.scale.set(1, 0.95, 1.08); g.add(d); g.add(mesh(cyl(0.86, 0.98, 0.34, 18), M, 0, 0.26, -0.04)); break; }
@@ -24,7 +25,7 @@ function hat(look) {
     case 'peaked': case 'police_cap': { g.add(mesh(cyl(0.78, 0.66, 0.42, 18), M, 0, 0.66, 0)); g.add(mesh(cyl(0.68, 0.68, 0.14, 18), plastic('#2a2a2a'), 0, 0.45, 0)); g.add(mesh(box(0.95, 0.06, 0.5), plastic('#1d1d1d', { rough: 0.3 }), 0, 0.42, 0.7)); g.add(mesh(box(0.22, 0.14, 0.04), plastic('#c8b46a', { metal: 0.6, rough: 0.3 }), 0, 0.66, 0.72)); break; }
     case 'cap_soft': case 'flat_cap': { g.add(mesh(box(1.32, 0.34, 1.34), M, 0, 0.62, -0.02)); g.add(mesh(box(1.2, 0.08, 0.5), M, 0, 0.48, 0.78)); break; }
     case 'beret': { const b = mesh(sphere(0.75, 14, 8), M, -0.12, 0.66, 0); b.scale.set(1.08, 0.3, 1.05); b.rotation.z = 0.2; g.add(b); break; }
-    case 'headscarf': { const b = mesh(sphere(0.8, 14, 8, Math.PI * 2, Math.PI * 0.6), M, 0, 0.1, -0.05); b.scale.set(1, 1.15, 1); g.add(b); break; }
+    case 'headscarf': { const b = mesh(sphere(0.8, 14, 8, Math.PI * 2, Math.PI * 0.6), M, 0, 0.42, -0.08); b.scale.set(1, 1.15, 1); b.rotation.x = -0.3; g.add(b); break; } // sits back on the head: the eyes stay visible
     case 'straw': { g.add(mesh(cone(1.45, 0.75, 18), plastic('#d8c27a', { rough: 0.9 }), 0, 0.85, 0)); break; }
     case 'conical': { g.add(mesh(cone(1.5, 0.8, 18), plastic('#d8c27a', { rough: 0.9 }), 0, 0.88, 0)); break; }
     case 'hardhat': { const d = mesh(sphere(0.8, 14, 8, Math.PI * 2, Math.PI / 2), plastic('#e0b030'), 0, 0.45, 0); g.add(d); g.add(mesh(cyl(0.95, 0.95, 0.06, 16), plastic('#e0b030'), 0, 0.46, 0.08)); break; }
@@ -89,7 +90,7 @@ export function buildCharacter(look) {
   let gun = null;
   if (look.weapon) { gun = weapon(look.weapon); torso.add(gun); }
   if (!flashMat) flashMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0.95, depthWrite: false, blending: THREE.AdditiveBlending });
-  const flash = new THREE.Mesh(sphere(0.45, 8, 6), flashMat); flash.visible = false; if (gun) gun.userData.tip.add(flash);
+  const flash = new THREE.Mesh(sphere(0.45, 8, 6), flashMat); flash.visible = false; if (gun && gun.userData.tip) gun.userData.tip.add(flash);   // spears and swords have no muzzle
   // parachute canopy (hidden unless the pose has one)
   if (!chuteMat) chuteMat = new THREE.MeshStandardMaterial({ color: 0xd9d4c0, roughness: 0.85, side: THREE.DoubleSide });
   const chute = new THREE.Group();
@@ -105,6 +106,14 @@ const GUN = {
   carry: { p: [0.75, 1.0, 0.75], r: [-0.9, 0.2, 0.7] }, port: { p: [0.4, 1.1, 0.95], r: [-0.55, 0.65, 0] }, aim: { p: [0.95, 2.05, 1.1], r: [0, 0, 0] },
   back: { p: [0, 1.2, -0.9], r: [0.1, 0, 0.9] }, upright: { p: [1.2, 0.6, 0.5], r: [-1.45, 0, 0] },
 };
+/** Change a face for this frame (the reflection): {mouth, eyes, blank, stretch}. */
+export function setFace(rig, f) {
+  const u = rig.userData; u.baseFace = u.baseFace || u.look.face;
+  const face = { ...u.baseFace, ...(f.mouth ? { mouth: f.mouth } : {}), ...(f.eyes ? { eyes: f.eyes } : {}) };
+  u.look = { ...u.look, face }; u.face.material = faceMat(face, false); u.face.visible = !f.blank;
+  const k = f.stretch || 1; u.face.scale.set(k, k, 1);
+}
+
 /** Apply a pose (lib/animation.mjs) to a rig; t drives the mouth flap while talking. */
 export function poseRig(rig, pose, t) {
   const u = rig.userData;
