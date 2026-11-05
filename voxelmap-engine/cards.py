@@ -212,7 +212,7 @@ def _hit_rank(title: str, label: str, person: bool) -> int:
     return 1
 
 
-def wiki_picture(label: str, query: str, get=None) -> Optional[dict]:
+def wiki_picture(label: str, query: str, get=None, cancel: Optional[Callable] = None) -> Optional[dict]:
     """The lead picture of the Wikipedia article that is about `label` (a free-licence Wikimedia Commons file only): {url, title, page}.
     A named person, place or event nearly always has one, and it is the right one; free-image sites return snapshots and doodles for the same
     name. Returns None when no article matches the name or its picture is not on Commons. `get(url, params)` -> parsed JSON (tests pass a fake)."""
@@ -223,9 +223,13 @@ def wiki_picture(label: str, query: str, get=None) -> Optional[dict]:
             import time
 
             for attempt in range(4):      # Wikipedia answers a burst of searches with 429; wait and ask again
+                if cancel and cancel():
+                    return {}
                 r = requests.get(url, params=params, headers=UA, timeout=20)
                 if r.status_code in (429, 500, 502, 503) and attempt < 3:
-                    time.sleep(float(r.headers.get("Retry-After") or 0) or 1.5 * (attempt + 1))
+                    until = time.monotonic() + (float(r.headers.get("Retry-After") or 0) or 1.5 * (attempt + 1))
+                    while time.monotonic() < until and not (cancel and cancel()):      # its wait can be a minute: Stop must not sit through it
+                        time.sleep(min(0.3, max(0.0, until - time.monotonic())))
                     continue
                 r.raise_for_status()
                 return r.json()
@@ -257,8 +261,11 @@ def wiki_picture(label: str, query: str, get=None) -> Optional[dict]:
     return None
 
 
-def seed_from_wikipedia(reqs: List[dict], images_dir: Path, log: Callable = lambda m: None, get=None, download=None) -> int:
-    """Files a Wikipedia lead picture as the finished asset of every search card the Visuals table does not hold a picture for yet. Returns how many."""
+def seed_from_wikipedia(reqs: List[dict], images_dir: Path, log: Callable = lambda m: None, get=None, download=None,
+                        cancel: Optional[Callable] = None, progress: Optional[Callable] = None, on_picture: Optional[Callable] = None) -> int:
+    """Files a Wikipedia lead picture as the finished asset of every search card the Visuals table does not hold a picture for yet. Returns how many.
+    Reports each card it reaches and stops at Stop; pictures already filed are kept, so the next Generate carries on after them.
+    on_picture() is called after each one is filed, so the Visuals tab can show it right away."""
     import visual_bridge
     from asset_manager import AssetManifest
 
@@ -273,10 +280,17 @@ def seed_from_wikipedia(reqs: List[dict], images_dir: Path, log: Callable = lamb
     images_dir.mkdir(parents=True, exist_ok=True)
     man = AssetManifest(images_dir)
     got = 0
-    for c in reqs:
-        if c.get("local") or not c.get("query") or man.get(str(c["n"])):
+    searches = [c for c in reqs if c.get("query") and not c.get("local")]
+    for i, c in enumerate(searches, start=1):
+        if man.get(str(c["n"])):
             continue
-        hit = wiki_picture(c.get("label") or c["query"], c["query"], get)
+        if cancel and cancel():
+            break
+        msg = f"Finding card pictures on Wikipedia {i}/{len(searches)}"
+        log(msg)      # a line per card: Wikipedia can slow this to a few a minute, and the log must show it moving
+        if progress:
+            progress((i - 1) / len(searches), msg)
+        hit = wiki_picture(c.get("label") or c["query"], c["query"], get, cancel)
         if not hit:
             continue
         try:
@@ -291,12 +305,15 @@ def seed_from_wikipedia(reqs: List[dict], images_dir: Path, log: Callable = lamb
                               "stock_query": c["query"], "provider": "wikipedia", "author": "Wikimedia Commons", "source_url": hit["page"],
                               "provider_asset_id": hit["title"]})
         got += 1
+        if on_picture:
+            on_picture()
     if got:
         log(f"{got} card pictures from Wikipedia")
     return got
 
 
-def fetch(reqs: List[dict], manager, images_dir: Path, log: Callable = lambda m: None, cancel: Optional[Callable] = None) -> list:
+def fetch(reqs: List[dict], manager, images_dir: Path, log: Callable = lambda m: None, cancel: Optional[Callable] = None,
+          progress: Optional[Callable] = None, on_picture: Optional[Callable] = None) -> list:
     """Fetches the pictures the Visuals table does not hold yet (a picture already there, or one the user picked, is kept). Returns the table's rows.
     A failed search leaves that card without a picture; the render drops it."""
     import threading
@@ -304,10 +321,12 @@ def fetch(reqs: List[dict], manager, images_dir: Path, log: Callable = lambda m:
     import visual_bridge
 
     try:
-        seed_from_wikipedia(reqs, images_dir, log)      # the article's own picture first: it is the right one
+        seed_from_wikipedia(reqs, images_dir, log, cancel=cancel, progress=progress, on_picture=on_picture)      # the article's own picture first: it is the right one
     except Exception as exc:  # noqa: BLE001
         log(f"Wikipedia pictures skipped: {type(exc).__name__}: {exc}")
     rows = table_rows(reqs)
+    if cancel and cancel():
+        return rows
     # A card planned from the narration that Wikipedia has no picture for is dropped: a stock search on a bare name returns snapshots and
     # doodles, and a missing card is better than a wrong one. A card the story's author wrote (CSV) still gets the stock search.
     auto = {str(c["n"]) for c in reqs if c.get("source") == "auto"}

@@ -192,6 +192,46 @@ class Wikipedia(unittest.TestCase):
         self.assertIn("Wikimedia", cards.credits(reqs, {1: rec})[0])
         self.assertEqual(cards.seed_from_wikipedia(reqs, d, get=get, download=lambda u: b"x"), 0)      # already held: never replaced
 
+    def _two_cards(self):
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        get = self.fake([{"title": "Scipio Africanus", "description": "Roman general"}],
+                        [{"title": "Scipio Africanus", "thumbnail": {"source": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/S.jpg/1280px-S.jpg"}}])
+        return d, get, [{"n": n, "label": "Scipio", "query": "Scipio portrait painting", "local": ""} for n in (1, 2)]
+
+    def test_each_card_is_counted_and_each_picture_is_announced_as_it_lands(self):
+        d, get, reqs = self._two_cards()
+        logs, bar, landed = [], [], []
+        n = cards.seed_from_wikipedia(reqs, d, logs.append, get=get, download=lambda u: b"jpg", progress=lambda f, m: bar.append(m),
+                                      on_picture=lambda: landed.append(len(list(d.glob("card_*")))))
+        self.assertEqual(n, 2)
+        self.assertEqual(landed, [1, 2])      # the file is there when the Visuals tab is told
+        self.assertEqual(bar, ["Finding card pictures on Wikipedia 1/2", "Finding card pictures on Wikipedia 2/2"])
+        self.assertIn("Finding card pictures on Wikipedia 2/2", logs)
+
+    def test_stop_ends_the_picture_step_and_the_next_run_carries_on(self):
+        d, get, reqs = self._two_cards()
+        stop = {"on": False}
+
+        def download(_url):
+            stop["on"] = True      # Stop pressed while the first picture downloads
+            return b"jpg"
+
+        self.assertEqual(cards.seed_from_wikipedia(reqs, d, get=get, download=download, cancel=lambda: stop["on"]), 1)
+        self.assertEqual(cards.seed_from_wikipedia(reqs, d, get=get, download=lambda u: b"jpg"), 1)      # only the second is left
+
+    def test_stop_during_wikipedias_wait_does_not_sit_through_it(self):
+        import time
+        from unittest import mock
+
+        class Busy:
+            status_code, headers = 429, {"Retry-After": "60"}
+
+        began = time.monotonic()
+        with mock.patch("requests.get", return_value=Busy()):
+            self.assertIsNone(cards.wiki_picture("Scipio", "Scipio", cancel=lambda: time.monotonic() - began > 0.3))
+        self.assertLess(time.monotonic() - began, 5)
+
     def test_a_planned_card_without_a_wikipedia_picture_is_dropped_but_a_csv_card_is_searched(self):
         class Mgr:
             settings: dict = {}

@@ -215,6 +215,29 @@ class ProjectReopens(unittest.TestCase):
             self.s.resume_on_open(d)
             self.assertEqual(d.picked, [])
 
+    def test_cards_reach_the_visuals_tab_only_for_the_project_and_page_still_up(self):
+        import visual_bridge
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as t:
+            a = _app(Path(t))
+            ws = a._workspace
+            with mock.patch.object(visual_bridge, "fill") as fill:
+                self.s._show_cards(a, ["row"], ws)
+                fill.assert_called_once_with(a, self.s.OWNER, ["row"])
+                fill.reset_mock()
+                self.s._show_cards(a, ["row"], SimpleNamespace())      # another project opened meanwhile
+                a._vm_active = False
+                self.s._show_cards(a, ["row"], ws)                     # another style picked meanwhile
+                fill.assert_not_called()
+
+    def test_picture_step_is_wired_to_the_visuals_tab_while_it_runs(self):
+        src = (ROOT / "ui" / "voxelmap_section.py").read_text(encoding="utf-8")
+        plan = src.split("def _plan")[1].split("\ndef ")[0]
+        self.assertIn("on_picture=", plan)
+        self.assertLess(plan.index("_show_cards(app, listed, ws)"), plan.index("def job"))      # listed before any work starts
+        self.assertIn('_show_cards(app, holder["rows"], ws)', plan.split("def end")[1])         # the final list even when planning fails
+
     def test_nothing_starts_on_open(self):
         src = (ROOT / "ui" / "voxelmap_section.py").read_text(encoding="utf-8")
         for fn in ("def _save", "def _restore", "def resume_on_open"):

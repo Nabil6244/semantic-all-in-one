@@ -177,6 +177,8 @@ def _transcribe(voice: str, out: Path) -> int:
 def plan(csv: str, work: str, *, voiceover: Optional[str] = None, progress: Optional[Callable] = None, cancel: Optional[Callable] = None,
          log=print) -> dict:
     """Writes <work>/timeline.json (+ vo_timing.json when a voice-over is given). Returns {duration, beats, chapters, voiceTimed, warnings}."""
+    if cancel and cancel():      # before timing the voice-over, which takes a while and does not listen for Stop
+        raise Cancelled("Voxel Map cancelled.")
     csv, voiceover = _abs(csv), _abs(voiceover)
     w = Path(_abs(work))
     w.mkdir(parents=True, exist_ok=True)

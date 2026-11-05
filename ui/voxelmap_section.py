@@ -465,6 +465,14 @@ def on_generate(app: Any) -> None:
     _start(app, "voxel-map-check", job, after_check)
 
 
+def _show_cards(app: Any, rows: list, ws: Any) -> None:
+    """Main thread. The cards and whatever pictures they have so far, in the Visuals tab, while this project's page is still the one up."""
+    import visual_bridge
+
+    if app._workspace is ws and getattr(app, "_vm_active", False):
+        visual_bridge.fill(app, OWNER, rows)
+
+
 def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
     app._vm_status_var.set("Planning…")
     # photo cards: the CSV's own card rows, or cards planned from the narration; their pictures are fetched into the Visuals tab (no Gemini)
@@ -478,6 +486,10 @@ def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
         app._append_log(f"{TAG} photo cards skipped: {type(exc).__name__}: {exc}\n")
         reqs, manager = [], None
     holder: dict = {}
+    ws = app._workspace
+    listed = cards.table_rows(reqs) if reqs else []      # the cards are in the Visuals tab from the start; each picture appears as it lands
+    if listed:
+        _show_cards(app, listed, ws)
 
     def job():
         if prepare:
@@ -485,17 +497,14 @@ def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
         story = o["csv"]
         if reqs:
             if manager is not None:
-                holder["rows"] = cards.fetch(reqs, manager, _assets_dir(app), log=_log(app), cancel=app._vm_cancel.is_set)
+                holder["rows"] = cards.fetch(reqs, manager, _assets_dir(app), log=_log(app), cancel=app._vm_cancel.is_set, progress=_progress(app),
+                                              on_picture=lambda: app.after(0, lambda: _show_cards(app, listed, ws)))
             else:
                 holder["rows"] = cards.table_rows(reqs)
             story = _story_with_cards(app, o, work, reqs)
         return vm.plan(story, work, voiceover=o["voice"] or None, progress=_progress(app), cancel=app._vm_cancel.is_set, log=_log(app))
 
     def done(r) -> None:
-        if holder.get("rows"):
-            import visual_bridge
-
-            visual_bridge.fill(app, OWNER, holder["rows"])      # check or change the pictures there; Render uses what the tab holds
         app._vm_planned = {"csv": o["csv"], "voice": o["voice"], "res": o["res"], "work": work, "cards": reqs}
         warn = f"  {len(r['warnings'])} notes (see the log)." if r["warnings"] else ""
         msg = (f"Planned {r['beats']} scenes, {r['duration']:.0f} s ({'camera timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over: the video has no sound'}).{warn}")
@@ -506,9 +515,11 @@ def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
 
     def end(_error: str) -> None:
         app._vm_generating = False
+        if holder.get("rows"):
+            _show_cards(app, holder["rows"], ws)      # check or change the pictures there; Render uses what the tab holds
         _save(app)
 
-    app._vm_generating = True      # closed before this ends: reopening says Generate carries on from the finished terrain
+    app._vm_generating = True     # closed before this ends: reopening says Generate carries on from the finished terrain
     _save(app)
     _start(app, "voxel-map-plan", job, done, end)
 
