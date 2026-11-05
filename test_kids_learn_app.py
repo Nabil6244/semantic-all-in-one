@@ -69,7 +69,10 @@ class Stub:
 sys.modules["kl_runner"] = Stub()
 
 csv = Path("cartoon3d-engine/samples/first_words.csv").resolve()
-inst._kl_csv_var.set(str(csv)); inst._kl_music_var.set("Calm"); inst.update_idletasks()
+vo = tmp / "my_voice.wav"
+import subprocess as _sp
+_sp.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", "2", str(vo)], check=True)
+inst._kl_csv_var.set(str(csv)); inst._kl_vo_var.set(str(vo)); inst._kl_music_var.set("Calm"); inst.update_idletasks()
 emit("choosing_starts_nothing", calls == [] and not inst._kl_running and inst._kl_planned is None)
 
 def wait(cond, sec=20):
@@ -89,6 +92,7 @@ def wait(cond, sec=20):
 inst._on_primary_cta() if hasattr(inst, "_on_primary_cta") else K.cta(inst, inst._cta_action)
 emit("generate_ran", wait(lambda: not inst._kl_running and inst._kl_planned is not None), str(calls))
 emit("options_reach_engine", calls and calls[0][2].get("music") == "calm" and calls[0][2].get("host") == "host3d", str(calls[:1]))
+emit("voiceover_reaches_engine", calls and calls[0][2].get("voiceover") == str(vo), str(calls[:1]))
 emit("cta_render_after_generate", inst._cta_action == "kl_render", str(inst._cta_action))
 settings = Path(ws.state_dir) / "kids_learn" / "settings.json"
 emit("project_remembers", settings.is_file() and json.loads(settings.read_text())["planned"]["csv"] == str(csv))

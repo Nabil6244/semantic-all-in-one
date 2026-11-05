@@ -55,11 +55,12 @@ HOSTS = {"3D host": "host3d", "Maya (simple)": "tutor"}
 WORLDS = {"Playroom": "playroom", "Park": "park"}
 MUSIC = {"Auto (matches the set)": "auto", "Playroom": "playroom", "Calm": "calm", "Sunny": "sunny", "Off": "off"}
 VOICES = {"Jenny (US)": "en-US-JennyNeural", "Ana (US, child)": "en-US-AnaNeural", "Sonia (UK)": "en-GB-SoniaNeural"}
-_VARS = ("csv", "host", "world", "voice", "music", "res")
+_VARS = ("csv", "vo", "host", "world", "voice", "music", "res")
 
 
 def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._kl_csv_var = ctk.StringVar(value="")
+    app._kl_vo_var = ctk.StringVar(value="")
     app._kl_host_var = ctk.StringVar(value=next(iter(HOSTS)))
     app._kl_world_var = ctk.StringVar(value=next(iter(WORLDS)))
     app._kl_voice_var = ctk.StringVar(value=next(iter(VOICES)))
@@ -79,9 +80,12 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     body = section(block, 0, 1, "Lesson", "a lesson CSV: one row per thing the host says")
     app._path_row(0, "Lesson CSV", app._kl_csv_var, lambda: _browse(app), parent=body,
                   placeholder_text="Choose the lesson CSV (type, text, object, color, count, word, gesture, emotion, pause)")
+    app._path_row(1, "Voice-over", app._kl_vo_var, lambda: _browse(app, "vo"), parent=body,
+                  placeholder_text="Optional: your recording of the lesson (the video follows it; without it the free voice reads the CSV)")
     ctk.CTkLabel(body, text="Row types: say, word, repeat, count, color, cheer, opposite, animal, shape, letter, feeling, chant. "
+                            "With your voice-over, record the CSV lines in order; toys, cards and her mouth follow your words. "
                             "Samples: cartoon3d-engine/samples/first_words.csv and chant_lesson.csv.", font=ctk.CTkFont(size=11),
-                 text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=1, column=0, sticky="w", pady=(4, 0))
+                 text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(4, 0))
 
     body = section(block, 1, 2, "Look and sound")
     grid = ctk.CTkFrame(body, fg_color="transparent")
@@ -112,18 +116,23 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     block.grid_remove()
 
 
-def _browse(app: Any) -> None:
+def _browse(app: Any, kind: str = "csv") -> None:
     from tkinter import filedialog
 
-    path = filedialog.askopenfilename(title="Choose the lesson CSV", filetypes=[("CSV", "*.csv"), ("All files", "*.*")])
+    if kind == "vo":
+        path = filedialog.askopenfilename(title="Choose your voice-over", filetypes=[("Audio", "*.mp3 *.wav *.m4a *.aac *.flac *.ogg"), ("All files", "*.*")])
+        var = app._kl_vo_var
+    else:
+        path = filedialog.askopenfilename(title="Choose the lesson CSV", filetypes=[("CSV", "*.csv"), ("All files", "*.*")])
+        var = app._kl_csv_var
     if path:
-        app._kl_csv_var.set(path)   # remembered only: nothing is read or spoken until Generate
+        var.set(path)   # remembered only: nothing is read, timed or spoken until Generate
         app._kl_planned = None
         _sync_buttons(app)
 
 
 def options(app: Any) -> dict:
-    return {"csv": app._kl_csv_var.get().strip(), "host": HOSTS.get(app._kl_host_var.get(), "host3d"), "world": WORLDS.get(app._kl_world_var.get(), "playroom"),
+    return {"csv": app._kl_csv_var.get().strip(), "voiceover": app._kl_vo_var.get().strip(), "host": HOSTS.get(app._kl_host_var.get(), "host3d"), "world": WORLDS.get(app._kl_world_var.get(), "playroom"),
             "voice": VOICES.get(app._kl_voice_var.get(), "en-US-JennyNeural"), "music": MUSIC.get(app._kl_music_var.get(), "auto"),
             "sfx": bool(app._kl_sfx_var.get()), "resolution": RESOLUTIONS.get(app._kl_res_var.get(), 720)}
 
@@ -154,7 +163,8 @@ def _save(app: Any) -> None:
     try:
         labels = {k: getattr(app, f"_kl_{k}_var").get() for k in _VARS}
         planned = getattr(app, "_kl_planned", None)
-        data = {"labels": labels, "sfx": bool(app._kl_sfx_var.get()), "planned": {**planned, "sig": _sig(planned["csv"])} if planned else None}
+        data = {"labels": labels, "sfx": bool(app._kl_sfx_var.get()),
+                "planned": {**planned, "sig": _sig(planned["csv"]), "vo_sig": _sig(planned["voiceover"]) if planned.get("voiceover") else None} if planned else None}
         f.parent.mkdir(parents=True, exist_ok=True)
         tmp = f.with_suffix(".tmp")
         tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
@@ -184,8 +194,9 @@ def _restore(app: Any) -> None:
                 getattr(app, f"_kl_{k}_var").set(v)
         app._kl_sfx_var.set(bool(d.get("sfx", True)))
         p = d.get("planned")
-        if p and p.get("csv") and p.get("sig") is not None and _sig(p["csv"]) == p["sig"]:
-            app._kl_planned = {k: v for k, v in p.items() if k != "sig"}
+        same_vo = (not p.get("voiceover")) or (p.get("vo_sig") is not None and _sig(p["voiceover"]) == p["vo_sig"]) if p else False
+        if p and p.get("csv") and p.get("sig") is not None and _sig(p["csv"]) == p["sig"] and same_vo:
+            app._kl_planned = {k: v for k, v in p.items() if k not in ("sig", "vo_sig")}
             app._kl_status_var.set("Restored: the lesson is planned. Click Render, or Generate to plan again.")
     finally:
         app._kl_restoring = False
@@ -212,6 +223,8 @@ def activate(app: Any) -> None:
         build(app, app._view_visual_director.content, row=9)
     app._kl_active = True
     _restore(app)
+    from .voiceover_view import adopt_project_voiceover
+    adopt_project_voiceover(app, app._kl_vo_var)      # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
     app._kl_block.grid()
     _sync_buttons(app)
 
@@ -329,7 +342,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
 
 
 def _engine_opts(o: dict) -> dict:
-    return {k: o[k] for k in ("host", "world", "voice", "music", "sfx", "resolution")}
+    return {k: o[k] for k in ("host", "world", "voice", "music", "sfx", "resolution", "voiceover")}
 
 
 def on_generate(app: Any) -> None:
@@ -344,6 +357,9 @@ def on_generate(app: Any) -> None:
     if not o["csv"] or not Path(o["csv"]).is_file():
         messagebox.showerror("Cannot start", "Choose the lesson CSV first." if not o["csv"] else f"The lesson CSV is not there: {o['csv']}")
         return
+    if o["voiceover"] and not Path(o["voiceover"]).is_file():
+        messagebox.showerror("Cannot start", f"The voice-over is not there: {o['voiceover']}")
+        return
     kl = _runner()
     if kl is None:
         return
@@ -351,8 +367,8 @@ def on_generate(app: Any) -> None:
         messagebox.showerror("Cannot start", "The 3D host model is missing (cartoon3d-engine/assets/host/host.glb). Choose Maya, or restore the file.")
         return
     work = str(_work_dir(app))
-    app._kl_status_var.set("Speaking and planning…")
-    app._append_log(f"{TAG} Generate: speaking the lines and planning the lesson\n")
+    app._kl_status_var.set("Timing your voice-over and planning…" if o["voiceover"] else "Speaking and planning…")
+    app._append_log(f"{TAG} Generate: {'timing your voice-over' if o['voiceover'] else 'speaking the lines'} and planning the lesson\n")
 
     def job():
         return kl.plan(o["csv"], work, progress=_progress(app), cancel=app._kl_cancel.is_set, log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **_engine_opts(o))
@@ -361,7 +377,9 @@ def on_generate(app: Any) -> None:
         app._kl_planned = dict(o)
         _save(app)
         warn = f"  {len(r['warnings'])} notes (see the log)." if r["warnings"] else ""
-        msg = f"Planned {r['lines']} lines, {r['duration']:.0f} s, {r['props']} toys, {r['cards']} word cards.{warn}"
+        vo = r.get("voiceover") or {}
+        heard = f" Your voice-over: {vo.get('lines_found')}/{vo.get('lines')} lines found." if vo else ""
+        msg = f"Planned {r['lines']} lines, {r['duration']:.0f} s, {r['props']} toys, {r['cards']} word cards.{heard}{warn}"
         app._kl_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
 

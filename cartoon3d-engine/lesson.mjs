@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Kids Learn: lesson CSV -> Edge voice with word timings -> plan -> GPU Chromium frames -> mp4 (-14 LUFS).
 // Usage: node cartoon3d-engine/lesson.mjs --csv lesson.csv [--out out.mp4] [--w 1280 --h 720] [--world playroom|park]
-//        [--host tutor|toon|host3d] [--glb host.glb] [--work cache_dir] [--plan-file plan.json] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
+//        [--host tutor|toon|host3d] [--glb host.glb] [--work cache_dir] [--plan-file plan.json] [--voiceover your_recording.mp3] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -11,6 +11,7 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseCsv, normalizeRows, buildLesson, TUTOR_X } from './lib/lesson.mjs';
 import { visemeTrack } from './lib/visemes.mjs';
+import { alignLines, fillMissing } from './lib/align.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), ROOT = path.dirname(HERE);
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
@@ -53,6 +54,23 @@ function musicChoice(world) {
   const bpms = JSON.parse(r.stdout.trim().split('\n').pop());
   if (bed && !bpms[bed]) throw new Error(`unknown --music "${bed}" (use ${Object.keys(bpms).join(', ')}, auto or off)`);
   return { bed, bpm: bpms[bed || 'playroom'] };
+}
+
+// A recorded voice-over: word times (local faster-whisper, cached per file), each CSV line matched to where it was said,
+// and the recording itself as the voice track. The free Edge voice is not used.
+function voiceoverLesson(file, beats, work) {
+  if (!fs.existsSync(file)) throw new Error(`voice-over not found: ${file}`);
+  const wj = path.join(work, 'voiceover_words.json');
+  const r = spawnSync(PY, [path.join(HERE, 'tools', 'voice_words.py'), path.resolve(file), wj], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`timing the voice-over failed: ${(r.stderr || '').slice(-400)}`);
+  const spoken = JSON.parse(fs.readFileSync(wj, 'utf8')), duration = dur(file);
+  const found = alignLines(beats.map((b) => b.text), spoken.words), timed = fillMissing(found, duration, beats.map((b) => b.text));
+  found.forEach((x, i) => { if (!x) log({ event: 'warning', message: `line ${i + 1} ("${beats[i].text.slice(0, 40)}") was not found in the voice-over; it is placed between its neighbours` }); });
+  log({ event: 'voiceover', words: spoken.words.length, lines: beats.length, lines_found: found.filter(Boolean).length, seconds: +duration.toFixed(2) });
+  const lesson = buildLesson(beats, [], { timed, voiceDuration: duration });
+  const wav = path.join(work, 'voice.wav');
+  run('ffmpeg', ['-y', '-loglevel', 'error', '-i', path.resolve(file), '-af', `aresample=48000,apad,atrim=0:${lesson.duration.toFixed(3)}`, '-ac', '1', '-ar', '48000', wav]);
+  return { lesson, wav };
 }
 
 function mixVoice(lesson, vo, work) {
@@ -143,9 +161,13 @@ async function main() {
   for (const p of problems) log({ event: 'warning', message: p });
   if (!beats.length) throw new Error('the lesson CSV has no usable rows');
   const music = musicChoice(arg('world', 'playroom'));
-  const vo = voices(beats, work, arg('voice', 'en-US-JennyNeural'), arg('rate', '-6%'), music.bpm);
-  const lesson = buildLesson(beats, vo, { beat: 60 / music.bpm });
-  const wav = mixVoice(lesson, vo, work), env = envelope(wav, lesson.duration);
+  let lesson, wav;
+  if (arg('voiceover')) ({ lesson, wav } = voiceoverLesson(arg('voiceover'), beats, work));
+  else {
+    const vo = voices(beats, work, arg('voice', 'en-US-JennyNeural'), arg('rate', '-6%'), music.bpm);
+    lesson = buildLesson(beats, vo, { beat: 60 / music.bpm }); wav = mixVoice(lesson, vo, work);
+  }
+  const env = envelope(wav, lesson.duration);
   const plan = { width: W, height: H, fps: FPS, envFps: FPS, envelope: env, ...lesson, tutorX: TUTOR_X, host: arg('host', 'tutor'), look: arg('look', 'maya'), world: arg('world', 'playroom'), music: music.bed, bpm: music.bpm };
   const glb = plan.host === 'host3d' ? path.resolve(arg('glb', HOST_GLB)) : null;
   if (glb && !fs.existsSync(glb)) throw new Error(`host GLB not found: ${glb}`);

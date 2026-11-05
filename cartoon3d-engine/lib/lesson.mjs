@@ -82,15 +82,17 @@ function slots(n) {
 }
 
 // voices[i] = { dur, words: [{text,t0,t1}] } for beats[i] (seconds from the line start).
+// opts.timed[i] = { t0, t1, words } (seconds on a recorded voice-over): lines sit where they were said; opts.voiceDuration keeps the end.
 export function buildLesson(beats, voices, opts = {}) {
   const lead = opts.lead ?? 0.6, gap = opts.gap ?? 0.35, tail = opts.tail ?? 0.8;
   const lines = [], gestures = [], props = [], cards = [], badges = [];
   let t = lead, live = [];
   const endLive = (when) => { for (const p of live) p.t1 = when; live = []; };
-  const beat = opts.beat || 0;
+  const timed = opts.timed || null, beat = timed ? 0 : opts.beat || 0;       // a recording keeps its own rhythm: no beat snapping
   beats.forEach((b, i) => {
+    if (timed && timed[i]) t = timed[i].t0;
     if (b.type === 'chant' && beat) t = Math.ceil((t - 1e-6) / (2 * beat)) * 2 * beat;      // chants start on a half-bar of the music
-    const v = voices[i] || { dur: 1.5, words: [] }, t0 = t, t1 = t + v.dur;
+    const T = timed && timed[i], v = T ? { dur: Math.max(0.3, T.t1 - T.t0), words: T.words.map((w) => ({ text: w.text, t0: w.t0 - T.t0, t1: w.t1 - T.t0 })) } : voices[i] || { dur: 1.5, words: [] }, t0 = t, t1 = t + v.dur;
     const words = (v.words.length ? v.words : spread(b.text, v.dur)).map((w) => ({ text: w.text, t0: +(t0 + w.t0).toFixed(3), t1: +(t0 + w.t1).toFixed(3) }));
     lines.push({ i, type: b.type, text: b.text, t0: +t0.toFixed(3), t1: +t1.toFixed(3), words: captionWords(b.text, words) });
     gestures.push({ t: Math.max(0, +(t0 - (b.type === 'chant' ? 0 : 0.15)).toFixed(3)), gesture: b.gesture, emotion: b.emotion, look: live.length || ['word', 'count', 'color'].includes(b.type) ? 'props' : 'camera', ...(b.type === 'chant' && beat ? { beat: +beat.toFixed(5) } : {}) });
@@ -129,10 +131,11 @@ export function buildLesson(beats, voices, opts = {}) {
     // A card lasts until the next card or until its props leave.
     if (b.type === 'say') for (const c of cards) if (c.t1 === null) c.t1 = t0 - 0.05;
     t = t1 + gap + b.pause;
-    if (b.type === 'repeat') badges.push({ text: 'Your turn!', t0: +(t1 + 0.1).toFixed(3), t1: +(t1 + gap + b.pause - 0.1).toFixed(3) });
+    const nextT0 = timed && timed[i + 1] ? timed[i + 1].t0 : null;           // with a recording, "Your turn" lasts until the next line
+    if (b.type === 'repeat') badges.push({ text: 'Your turn!', t0: +(t1 + 0.1).toFixed(3), t1: +(nextT0 !== null ? Math.max(t1 + 0.7, nextT0 - 0.1) : t1 + gap + b.pause - 0.1).toFixed(3) });
   });
   gestures.sort((a, b) => a.t - b.t);
-  const duration = +(t - gap + tail).toFixed(3);
+  const duration = +Math.max(t - gap + tail, timed ? (opts.voiceDuration || 0) + 0.4 : 0).toFixed(3);
   endLive(duration);
   // Each card lasts until the next card appears (or its line's props leave, or the end).
   cards.sort((a, b) => a.t0 - b.t0);

@@ -39,11 +39,13 @@ def host_ready() -> bool:
 
 
 def args(csv: str, *, out: str, work: str, plan_file: str, host: str = "host3d", world: str = "playroom", music: str = "auto",
-         sfx: bool = True, voice: str = "en-US-JennyNeural", resolution: int = 720, plan_only: bool = False) -> list:
+         sfx: bool = True, voice: str = "en-US-JennyNeural", resolution: int = 720, plan_only: bool = False, voiceover: str = "") -> list:
     w, h = (1920, 1080) if resolution >= 1080 else (1280, 720)
     a = [str(HERE / "lesson.mjs"), "--csv", os.path.abspath(csv), "--out", os.path.abspath(out), "--work", os.path.abspath(work),
          "--plan-file", os.path.abspath(plan_file), "--host", host, "--world", world, "--music", music, "--sfx", "on" if sfx else "off",
          "--voice", voice, "--w", str(w), "--h", str(h)]
+    if voiceover:                                        # your recording: the lesson follows it and Edge is not used
+        a += ["--voiceover", os.path.abspath(voiceover)]
     return a + (["--plan-only"] if plan_only else [])
 
 
@@ -53,7 +55,7 @@ def _run(a: list, *, progress=None, cancel=None, log=print, span=(0.0, 1.0), tim
     err: list = []
     threading.Thread(target=lambda: err.extend(proc.stderr), daemon=True).start()
     timer = threading.Timer(timeout_s, proc.kill); timer.start()
-    out = {"warnings": [], "plan": None, "audio": None, "done": None, "error": None}
+    out = {"warnings": [], "plan": None, "audio": None, "done": None, "voiceover": None, "error": None}
     try:
         for raw in proc.stdout:
             if cancel and cancel():
@@ -67,7 +69,7 @@ def _run(a: list, *, progress=None, cancel=None, log=print, span=(0.0, 1.0), tim
                 progress(span[0] + (span[1] - span[0]) * ev["frame"] / max(1, ev["total"]), f"frame {ev['frame']}/{ev['total']}")
             elif k == "warning":
                 out["warnings"].append(ev.get("message")); log(f"[KIDS LEARN] {ev.get('message')}")
-            elif k in ("plan", "audio", "done"):
+            elif k in ("plan", "audio", "done", "voiceover"):
                 out[k] = ev
             elif k == "error":
                 out["error"] = ev.get("message")
@@ -92,12 +94,13 @@ def plan(csv: str, work: str, *, progress: Optional[Callable] = None, cancel: Op
         raise FileNotFoundError(f"The lesson CSV is not there: {csv}")
     os.makedirs(work, exist_ok=True); pf = os.path.join(work, "lesson.plan.json")
     if progress:
-        progress(0.1, "Speaking the lines…")
+        progress(0.1, "Timing your voice-over…" if opt.get("voiceover") else "Speaking the lines…")
     r = _run(args(csv, out=os.path.join(work, "lesson.mp4"), work=os.path.join(work, "voice_cache"), plan_file=pf, plan_only=True, **opt), cancel=cancel, log=log)
     p = r["plan"] or {}
     if progress:
         progress(1.0, "Planned")
-    return {"duration": p.get("duration", 0), "lines": p.get("lines", 0), "props": p.get("props", 0), "cards": p.get("cards", 0), "warnings": r["warnings"], "plan_file": pf}
+    return {"duration": p.get("duration", 0), "lines": p.get("lines", 0), "props": p.get("props", 0), "cards": p.get("cards", 0), "warnings": r["warnings"], "plan_file": pf,
+            "voiceover": r["voiceover"]}
 
 
 def render(csv: str, work: str, output: str, *, progress: Optional[Callable] = None, cancel: Optional[Callable] = None, log=print, **opt) -> dict:
