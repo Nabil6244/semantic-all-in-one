@@ -91,7 +91,7 @@ class Cards(unittest.TestCase):
         rows, _ = cards.read_rows(out)
         crow = [r for r in rows if r["row"] == "card"]
         self.assertEqual(len(crow), 1)
-        self.assertEqual(json.loads(crow[0]["extra"])["asset"], str(pic))
+        self.assertEqual(Path(json.loads(crow[0]["extra"])["asset"]), pic.resolve())      # absolute, so the renderer finds it from any folder
         plan = next(r for r in rows if r["row"] == "plan")
         self.assertIn("Picture: x - y (z)", json.loads(plan["extra"])["credits_lines"])
 
@@ -161,6 +161,15 @@ class Wikipedia(unittest.TestCase):
         self.assertIsNone(cards.wiki_picture("Senate", "Senate", self.fake([{"title": "Senate", "description": "Wikimedia disambiguation page"}], img)))
         local = [{"title": "Senate", "thumbnail": {"source": "https://upload.wikimedia.org/wikipedia/en/thumb/a/ab/Senate.jpg/1280px-Senate.jpg"}}]
         self.assertIsNone(cards.wiki_picture("Senate", "Senate", self.fake([{"title": "Senate", "description": "legislature"}], local)))
+
+    def test_the_article_about_the_person_beats_one_that_only_mentions_them(self):
+        img = [{"title": "X", "thumbnail": {"source": "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/X.jpg/1280px-X.jpg"}}]
+        pages = [{"title": "Curia of Pompey", "description": "building in Rome"}, {"title": "Pompey", "description": "Roman general"}]
+        hit = cards.wiki_picture("Pompey", "Pompey portrait painting", self.fake(pages, img))
+        self.assertTrue(hit["page"].endswith("/Pompey") or hit["title"] == "X")
+        self.assertEqual(cards._hit_rank("Pompey", "Pompey", True), 0)
+        self.assertEqual(cards._hit_rank("Baths of Diocletian", "Diocletian", False), 2)
+        self.assertEqual(cards._hit_rank("Roman Senate", "Senate", False), 1)
 
     def test_a_network_error_is_not_an_error(self):
         def boom(url, params):

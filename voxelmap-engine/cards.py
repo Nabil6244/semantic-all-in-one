@@ -199,6 +199,19 @@ def _tok(x: str) -> set:
     return {w for w in re.findall(r"[a-z0-9]+", (x or "").lower()) if len(w) > 2}
 
 
+_NOT_THE_SUBJECT = re.compile(r"^(curia|baths?|war|battle|siege|sack|end|fall|assassination|death|temple|tomb|villa|palace|list|history|legacy|family|dynasty|reign|rise|cultural|depictions?|in popular)\b", re.IGNORECASE)
+
+
+def _hit_rank(title: str, label: str, person: bool) -> int:
+    """0 = the article about the name itself, 1 = fine, 2 = an article merely mentioning it (\"Curia of Pompey\", \"Baths of Diocletian\")."""
+    t, l = title.lower(), label.lower()
+    if person and (t == l or t.startswith(l + " ") or t.endswith(" " + l)):
+        return 0
+    if _NOT_THE_SUBJECT.match(title) and not _NOT_THE_SUBJECT.match(label):
+        return 2
+    return 1
+
+
 def wiki_picture(label: str, query: str, get=None) -> Optional[dict]:
     """The lead picture of the Wikipedia article that is about `label` (a free-licence Wikimedia Commons file only): {url, title, page}.
     A named person, place or event nearly always has one, and it is the right one; free-image sites return snapshots and doodles for the same
@@ -207,9 +220,16 @@ def wiki_picture(label: str, query: str, get=None) -> Optional[dict]:
         import requests
 
         def get(url, params):
-            r = requests.get(url, params=params, headers=UA, timeout=20)
-            r.raise_for_status()
-            return r.json()
+            import time
+
+            for attempt in range(4):      # Wikipedia answers a burst of searches with 429; wait and ask again
+                r = requests.get(url, params=params, headers=UA, timeout=20)
+                if r.status_code in (429, 500, 502, 503) and attempt < 3:
+                    time.sleep(float(r.headers.get("Retry-After") or 0) or 1.5 * (attempt + 1))
+                    continue
+                r.raise_for_status()
+                return r.json()
+    person = bool(re.search(r"\bportrait\b", query))
     base = re.sub(r"\s+(painting|portrait|ruins|landscape)$", "", query.strip())
     want = _tok(label)
     for q in dict.fromkeys([base, label]):
@@ -217,10 +237,11 @@ def wiki_picture(label: str, query: str, get=None) -> Optional[dict]:
             hits = (get(f"{WIKI_API}/rest.php/v1/search/page", {"q": q, "limit": 4}) or {}).get("pages") or []
         except Exception:
             continue
+        hits = sorted(hits, key=lambda h: _hit_rank(h.get("title") or "", label, person))      # stable: Wikipedia's own order within a rank
         for h in hits:
             title = h.get("title") or ""
-            if not want & (_tok(title) | _tok(h.get("description") or "")):
-                continue
+            if not want & (_tok(title) | _tok(h.get("description") or "")) or _hit_rank(title, label, person) == 2:
+                continue        # not about the name, or only an article that mentions it (a missing card beats a wrong one)
             if "disambiguation" in (h.get("description") or "").lower():
                 continue
             try:
@@ -364,7 +385,7 @@ def write_story(csv_path: str, out_path: str, reqs: List[dict], paths: Dict[int,
         p = paths.get(c["n"])
         if not p:
             continue
-        x = {"asset": p, "kind": c.get("kind") or "photo"}
+        x = {"asset": str(Path(p).resolve()), "kind": c.get("kind") or "photo"}
         for k in ("words", "hold", "t", "anchor"):
             if c.get(k) not in (None, ""):
                 x[k] = c[k]
