@@ -29,11 +29,20 @@ function text(g, s, x, y, colour, p, shadow = SHADOW) {
  * iw/ih = the picture's size; returns the whole framed card {x, y, w, h, pic: {x, y, w, h}}.
  * ml / mr are the free sides: left of the caption log's top and right under the museum inset. tl / tr / center are explicit-only.
  */
-export function cardRect(anchor, W, H, iw, ih) {
-  const S = H / 720, pad = 8 * S, strip = 28 * S, k = Math.min(250 * S / iw, 190 * S / ih), pw = Math.round(iw * k), ph = Math.round(ih * k);
+export const CARD_STYLES = {
+  photo:    { maxW: 250, maxH: 190, pad: 8,  frame: '#ece7d6', edge: 'rgba(0,0,0,0.55)', ink: '#1c1c22', tilt: 1,   filter: 'none' },                 // a white print
+  portrait: { maxW: 190, maxH: 230, pad: 10, frame: '#d9c9a3', edge: 'rgba(60,40,10,0.7)', ink: '#2a1d08', tilt: 0.6, filter: 'sepia(0.55) contrast(1.05)' },   // tall, aged paper, sepia
+  painting: { maxW: 280, maxH: 190, pad: 11, frame: '#b88a2b', edge: 'rgba(40,24,0,0.85)', ink: '#2a1a00', tilt: 0.4, filter: 'saturate(1.08)', inner: '#6b4a10' }, // gilt frame
+  artefact: { maxW: 210, maxH: 210, pad: 10, frame: '#2b2a33', edge: 'rgba(0,0,0,0.85)', ink: '#f2efe4', tilt: 0,   filter: 'none' },                 // dark plinth, light caption
+  document: { maxW: 250, maxH: 200, pad: 9,  frame: '#e8dcb8', edge: 'rgba(80,60,20,0.7)', ink: '#3a2c10', tilt: 0.8, filter: 'sepia(0.3)' },          // parchment
+};
+export const cardStyle = (kind) => CARD_STYLES[kind] || CARD_STYLES.photo;
+
+export function cardRect(anchor, W, H, iw, ih, kind = 'photo') {
+  const st = cardStyle(kind), S = H / 720, pad = st.pad * S, strip = 28 * S, k = Math.min(st.maxW * S / iw, st.maxH * S / ih), pw = Math.round(iw * k), ph = Math.round(ih * k);
   const w = pw + 2 * pad, h = ph + 2 * pad + strip, m = 24 * S;
   const x = anchor === 'tr' || anchor === 'mr' ? W - m - w : anchor === 'center' ? (W - w) / 2 : m;
-  const y = anchor === 'tl' || anchor === 'tr' ? 20 * S + (anchor === 'tl' ? 150 * S : 0) : anchor === 'ml' ? H * 0.44 - h / 2 : anchor === 'center' ? H * 0.4 - h / 2 : H * 0.58 - h / 2;
+  const y = anchor === 'tl' || anchor === 'tr' ? 20 * S + (anchor === 'tl' ? 150 * S : 0) : anchor === 'ml' ? H * 0.44 - h / 2 : anchor === 'center' ? H * 0.4 - h / 2 : H * 0.6 - h / 2;
   return { x: Math.round(x), y: Math.round(y), w, h, pic: { x: Math.round(x + pad), y: Math.round(y + pad), w: pw, h: ph } };
 }
 /** The boxes a card must keep out of (date panel top left, museum inset top right, caption log bottom left, hotbar and item bar). */
@@ -47,9 +56,9 @@ export function reservedBoxes(W, H) {
 function drawCard(g, W, H, c, S, P, font) {
   const img = c.img, iw = img.width || img.naturalWidth, ih = img.height || img.naturalHeight;
   if (!iw || !ih || c.a <= 0) return;
-  const r = cardRect(c.anchor, W, H, iw, ih), e = 1 - Math.pow(1 - clamp(c.a, 0, 1), 3);
+  const st = cardStyle(c.kind), r = cardRect(c.anchor, W, H, iw, ih, c.kind), e = 1 - Math.pow(1 - clamp(c.a, 0, 1), 3);
   const dir = c.anchor === 'ml' || c.anchor === 'tl' ? -1 : c.anchor === 'center' ? 0 : 1, dx = dir * (1 - e) * (r.w + 40 * S), dy = c.anchor === 'center' ? (1 - e) * 40 * S : 0;
-  const tilt = ((c.tilt ?? 0) * Math.PI) / 180;
+  const tilt = ((c.tilt ?? 0) * st.tilt * Math.PI) / 180;
   if (c.lead && c.a > 0.6) {   // leader line from the card's nearest edge to the place it shows
     const ex = c.lead.x < r.x + r.w / 2 ? r.x : r.x + r.w, ey = clamp(c.lead.y, r.y + 10 * S, r.y + r.h - 10 * S);
     g.globalAlpha = (c.a - 0.6) / 0.4; g.strokeStyle = AMBER; g.lineWidth = 2 * P; g.setLineDash([6 * S, 5 * S]);
@@ -59,17 +68,20 @@ function drawCard(g, W, H, c, S, P, font) {
   g.save(); g.globalAlpha = clamp(c.a * 1.6, 0, 1);
   g.translate(r.x + r.w / 2 + dx, r.y + r.h / 2 + dy); g.rotate(tilt); g.translate(-r.w / 2, -r.h / 2);
   g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(6 * S, 7 * S, r.w, r.h);                  // drop shadow
-  g.fillStyle = '#ece7d6'; g.fillRect(0, 0, r.w, r.h);                                    // print frame
-  g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = P; g.strokeRect(0, 0, r.w, r.h);
+  g.fillStyle = st.frame; g.fillRect(0, 0, r.w, r.h);                                      // the frame of this kind
+  g.strokeStyle = st.edge; g.lineWidth = P; g.strokeRect(0, 0, r.w, r.h);
+  if (st.inner) { g.strokeStyle = st.inner; g.lineWidth = 2 * P; g.strokeRect(4 * S, 4 * S, r.w - 8 * S, r.h - 8 * S); }
   const px = r.pic.x - r.x, py = r.pic.y - r.y, zoom = 1 + 0.06 * clamp(c.p ?? 0, 0, 1);  // Ken Burns inside the frame
   g.save(); g.beginPath(); g.rect(px, py, r.pic.w, r.pic.h); g.clip();
+  g.filter = st.filter;
   g.imageSmoothingEnabled = true; g.drawImage(img, px - (r.pic.w * (zoom - 1)) / 2, py - (r.pic.h * (zoom - 1)) / 2, r.pic.w * zoom, r.pic.h * zoom); g.imageSmoothingEnabled = false;
+  g.filter = 'none';
   g.restore();
   if (c.label) {
     g.font = font(13); let s = c.label; const maxW = r.w - 14 * S;
     while (s.length > 4 && g.measureText(s).width > maxW) s = s.slice(0, -2);
     if (s !== c.label) s = s.trimEnd() + '…';
-    text(g, s, 7 * S, r.h - 10 * S, '#1c1c22', P, 'rgba(255,255,255,0.55)');
+    text(g, s, 7 * S, r.h - 10 * S, st.ink, P, st.ink === '#f2efe4' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.45)');
   }
   g.restore(); g.globalAlpha = 1;
 }

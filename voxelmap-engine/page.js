@@ -624,7 +624,7 @@ async function main() {
       let lead = null;
       if (cd.lon != null && cd.lat != null && c.alt >= 20) { const q = geo.toWorld(cd.lon, cd.lat); v.set(q.x, ground(q.x, q.z) + 0.6, q.z).project(camera);   // a leader line only at map scale; a ground set has its own scale
         if (v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1) lead = { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
-      return { img: cardImgs.get(cd.id), label: cd.label, anchor: cd.anchor, lead, tilt: cardTilt(cd.id), p: (t - cd.t0) / Math.max(0.1, cd.t1 - cd.t0),
+      return { img: cardImgs.get(cd.id), label: cd.label, kind: cd.kind, anchor: cd.anchor, lead, tilt: cardTilt(cd.id), p: (t - cd.t0) / Math.max(0.1, cd.t1 - cd.t0),
         a: Math.min(smooth(cd.t0, cd.t0 + 0.7, t), 1 - smooth(cd.t1 - 0.6, cd.t1, t)) };
     });
     drawHud(g2, W, H, tl, legendAt, t, { tags, cards, letterbox: 1 - smooth(9, 22, c.alt), noDate: c.alt > 4500,

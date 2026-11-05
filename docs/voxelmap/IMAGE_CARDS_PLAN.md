@@ -92,3 +92,7 @@ Openverse returned snapshots and doodles for bare names (a board-game box for Ha
 non-free local images are never used), files it in the Visuals manifest with a Wikimedia credit, and only searches stock for cards Wikipedia
 has no picture for. Names are classed person/place/event/other for the stock query. Live check: Hannibal, Roman Senate, Carthage, Scipio,
 Pompey and Mark Antony all got the right picture.
+
+## Follow-ups built (2026-11-05)
+- Planned cards that Wikipedia has no picture for are dropped (no stock guess); CSV-authored cards still use the stock search.
+- Phase 5 done: frame by kind in lib/hud.mjs `CARD_STYLES` (photo print, portrait sepia, painting gilt, artefact plinth, document parchment); mr card centre moved to 0.60 H so tall cards clear the museum inset.

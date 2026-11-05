@@ -183,6 +183,31 @@ class Wikipedia(unittest.TestCase):
         self.assertIn("Wikimedia", cards.credits(reqs, {1: rec})[0])
         self.assertEqual(cards.seed_from_wikipedia(reqs, d, get=get, download=lambda u: b"x"), 0)      # already held: never replaced
 
+    def test_a_planned_card_without_a_wikipedia_picture_is_dropped_but_a_csv_card_is_searched(self):
+        class Mgr:
+            settings: dict = {}
+
+            def __init__(self):
+                self.got = []
+
+            def resolve_all(self, rows):
+                self.got = [r.stock for r in rows]
+
+            def request_cancel(self):
+                pass
+
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        reqs = [{"n": 1, "label": "Vandals", "query": "Vandals rome painting", "local": "", "source": "auto"},
+                {"n": 2, "label": "Wolf", "query": "Capitoline wolf bronze", "local": "", "source": "csv"}]
+        old = cards.wiki_picture
+        cards.wiki_picture = lambda *a, **k: None
+        self.addCleanup(setattr, cards, "wiki_picture", old)
+        m = Mgr()
+        rows = cards.fetch(reqs, m, d)
+        self.assertEqual([str(r.scene_number) for r in rows], ["2"])
+        self.assertEqual(m.got, ["Capitoline wolf bronze"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseStory, MAX_CARDS } from '../lib/beats_csv.mjs';
 import { buildTimeline } from '../lib/timeline.mjs';
-import { cardRect, reservedBoxes } from '../lib/hud.mjs';
+import { cardRect, reservedBoxes, CARD_STYLES } from '../lib/hud.mjs';
 
 const HEAD = 'row,id,date,place,lon,lat,rung,alt,heading,site,gap,text,extra\n';
 const base = `${HEAD}plan,T,,,,,,,,,,,"{""world"":""x""}"\nchapter,c1,,,,,,,,,,One,\n` +
@@ -46,10 +46,12 @@ test('the free sides never cover the date panel, caption log, hotbar, item bar o
   for (const [W, H] of [[1280, 720], [1920, 1080], [3840, 2160]]) {
     const R = reservedBoxes(W, H);
     for (const [iw, ih] of [[1600, 900], [900, 1200], [1000, 1000], [2400, 800]]) {
-      const ml = cardRect('ml', W, H, iw, ih), mr = cardRect('mr', W, H, iw, ih);
+    for (const kind of Object.keys(CARD_STYLES)) {
+      const ml = cardRect('ml', W, H, iw, ih, kind), mr = cardRect('mr', W, H, iw, ih, kind);
       for (const k of ['date', 'captions', 'bottom']) assert.ok(!hit(ml, R[k]), `ml ${W}x${H} ${iw}x${ih} hits ${k}`);
       for (const k of ['museum', 'bottom', 'items']) assert.ok(!hit(mr, R[k]), `mr ${W}x${H} ${iw}x${ih} hits ${k}`);
       assert.ok(ml.x >= 0 && mr.x + mr.w <= W);
+    }
     }
   }
 });

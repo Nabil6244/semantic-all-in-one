@@ -282,11 +282,18 @@ def fetch(reqs: List[dict], manager, images_dir: Path, log: Callable = lambda m:
 
     import visual_bridge
 
-    rows = table_rows(reqs)
     try:
-        seed_from_wikipedia(reqs, images_dir, log)      # the article's own picture first: it is the right one; the stock search covers the rest
+        seed_from_wikipedia(reqs, images_dir, log)      # the article's own picture first: it is the right one
     except Exception as exc:  # noqa: BLE001
         log(f"Wikipedia pictures skipped: {type(exc).__name__}: {exc}")
+    rows = table_rows(reqs)
+    # A card planned from the narration that Wikipedia has no picture for is dropped: a stock search on a bare name returns snapshots and
+    # doodles, and a missing card is better than a wrong one. A card the story's author wrote (CSV) still gets the stock search.
+    auto = {str(c["n"]) for c in reqs if c.get("source") == "auto"}
+    dropped = [r for r in rows if str(r.scene_number) in auto and not visual_bridge.records(images_dir, [r])]
+    if dropped:
+        log(f"{len(dropped)} planned cards have no Wikipedia picture and are left out: " + ", ".join(str(r.stock) for r in dropped[:6]))
+    rows = [r for r in rows if r not in dropped]
     todo = [r for r in rows if not visual_bridge.records(images_dir, [r])]
     if not todo:
         return rows
