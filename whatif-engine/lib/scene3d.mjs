@@ -52,6 +52,7 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
   async function build(shot) {
     if (shot.kind === 'hero') return { hero: buildHero(THREE, shot, { stars }) };
     if (shot.kind === 'scene') return { gen: buildScene(THREE, shot, { stars }) };
+    if (shot.kind === 'product' && shot.object === 'car') { const { buildCar } = await import('./car.mjs'); return { product: await buildCar(THREE, shot, { renderer, W, H }) }; }   // Car Concept style
     if (shot.kind === 'product') return { product: shot.object === 'lineup' ? await buildRoom(THREE, shot, { renderer, W, H }) : shot.object === 'bench' ? await buildBench(THREE, shot, { renderer, W, H }) : shot.object === 'xray' ? await buildXray(THREE, shot, { renderer, W, H }) : shot.object === 'fold' ? await buildFold(THREE, shot, { renderer, W, H }) : await buildProduct(THREE, shot, { stars, renderer, W, H }) };
     const scene = new THREE.Scene();
     scene.add(stars(7));

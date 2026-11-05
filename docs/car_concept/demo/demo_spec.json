@@ -1,0 +1,131 @@
+{
+ "width": 1920,
+ "height": 1080,
+ "fps": 30,
+ "duration": 10,
+ "look": {
+  "accent": "#ff6a1a",
+  "saturate": 1.0,
+  "contrast": 1.06,
+  "lift": "#040506",
+  "vignette": 0.3,
+  "grain": 0.02
+ },
+ "shots": [
+  {
+   "id": "reveal",
+   "start": 0,
+   "end": 4,
+   "kind": "product",
+   "object": "car",
+   "body": "suv",
+   "paint": "#ff6a1a",
+   "look": "studio",
+   "frame_x": 0.12,
+   "cam": {
+    "az0": 48,
+    "az1": 66,
+    "el0": 7,
+    "el1": 5,
+    "dist0": 14.5,
+    "dist1": 13.2
+   }
+  },
+  {
+   "id": "profile",
+   "start": 4,
+   "end": 7,
+   "kind": "product",
+   "object": "car",
+   "body": "suv",
+   "paint": "#ff6a1a",
+   "look": "studio",
+   "cam": {
+    "az0": 8,
+    "az1": -10,
+    "el0": 3,
+    "el1": 4,
+    "dist0": 12.5,
+    "dist1": 11.6,
+    "ty": 1.45
+   }
+  },
+  {
+   "id": "xray",
+   "start": 7,
+   "end": 10,
+   "kind": "product",
+   "object": "car",
+   "body": "suv",
+   "paint": "#ff6a1a",
+   "accent": "#ff6a1a",
+   "look": "blueprint",
+   "dissolve_in": 0.5,
+   "dissolve_style": "blur",
+   "frame_x": 0.16,
+   "cam": {
+    "az0": 34,
+    "az1": 22,
+    "el0": 24,
+    "el1": 20,
+    "dist0": 13,
+    "dist1": 12
+   }
+  }
+ ],
+ "layers": [
+  {
+   "type": "pt_feature",
+   "kicker": "Introducing",
+   "value": "TERRA X",
+   "sub": "2030 electric SUV concept",
+   "side": "left",
+   "start": 0.5,
+   "end": 3.9
+  },
+  {
+   "type": "pt_glass",
+   "start": 4.3,
+   "end": 6.9,
+   "heading": "THE NUMBERS",
+   "cards": [
+    {
+     "title": "Range",
+     "value": 600,
+     "unit": "mi",
+     "tint": "amber",
+     "x": 0.25,
+     "y": 0.24,
+     "w": 0.2
+    },
+    {
+     "title": "Power",
+     "value": 1020,
+     "unit": "hp",
+     "tint": "slate",
+     "x": 0.5,
+     "y": 0.24,
+     "w": 0.2
+    },
+    {
+     "title": "0-60 mph",
+     "value": 2.1,
+     "unit": "s",
+     "tint": "slate",
+     "x": 0.75,
+     "y": 0.24,
+     "w": 0.2
+    }
+   ]
+  },
+  {
+   "type": "pt_feature",
+   "kicker": "Structural battery",
+   "value": "212 kWh",
+   "sub": "in the floor, 48 modules",
+   "side": "left",
+   "start": 7.4,
+   "end": 10
+  }
+ ]
+}
