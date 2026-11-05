@@ -41,13 +41,38 @@ const json = (v, at) => { if (!v) return {}; try { return JSON.parse(v); } catch
 export const seedOf = (...parts) => { let h = 2166136261; for (const ch of parts.join('|')) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h || 1; };
 export const splitSentences =(s) => (s.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) || []).map((x) => x.trim()).filter(Boolean);
 
+/** YYYY-MM from the forms a story writer types: 1754, 1754-5, 1754-05-12, 1754/05 (BC years with a leading -). Anything else stays as is. */
+export function normDate(v) {
+  const m = String(v ?? '').trim().match(/^(-?\d{1,4})(?:[-/.](\d{1,2})(?:[-/.]\d{1,2})?)?$/);
+  if (!m) return String(v ?? '').trim();
+  const mo = m[2] ? Number(m[2]) : 1;
+  if (mo < 1 || mo > 12) return String(v).trim();
+  const y = m[1].startsWith('-') ? `-${m[1].slice(1).padStart(4, '0')}` : m[1].padStart(4, '0');
+  return `${y}-${String(mo).padStart(2, '0')}`;
+}
+
+export const STORY_COLUMNS = ['row', 'id', 'date', 'place', 'lon', 'lat', 'rung', 'text', 'extra'];
+/** A CSV made for another style fails here with what it is and where it goes, not with a puzzling row error later. */
+export function checkColumns(head) {
+  const has = (c) => head.includes(c), missing = ['row', 'date', 'lon', 'lat', 'text'].filter((c) => !has(c));
+  if (!missing.length) return;
+  let kind = '';
+  if (has('location') && has('environment')) kind = 'a Roblox Cinema story CSV (Rules Horror / story scenes): load it in the Roblox Cinema section';
+  else if (has('vo_anchor') && has('mode')) kind = 'a Hybrid Map / StarMap beat plan: load it in that section';
+  throw new Error(`this is not a Voxel Map story CSV${kind ? `, it is ${kind}` : ''}. A Voxel Map story needs the columns ${STORY_COLUMNS.join(', ')} `
+    + `(missing: ${missing.join(', ')}). Copy the CSV prompt in this section to write one.`);
+}
+
 /** CSV text -> story spec. Throws with the row number on anything that would make a wrong video. */
 
 export function parseStory(text) {
   const spec = { title: '', world: '', width: 1280, height: 720, fps: 30, wpm: 140, chapters: [], territories: [], labels: [], beats: [] };
   let chapter = null;
   const cardRows = [];
-  parseCsv(text).forEach((r, n) => {
+  const rows = parseCsv(text);
+  checkColumns(rows[0] ? Object.keys(rows[0]) : []);
+  rows.forEach((r, n) => {
+    if (r.row === 'beat' || (r.row === 'territory' && r.date)) r.date = normDate(r.date);
     const at = `row ${n + 2} (${r.row})`, x = json(r.extra, at);
     if (r.row === 'plan') Object.assign(spec, { title: r.id, ...x });
     else if (r.row === 'chapter') { chapter = { id: r.id, title: r.text }; spec.chapters.push(chapter); }

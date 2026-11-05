@@ -28,3 +28,22 @@ test('a single-place story still gets a world', () => {
   assert.ok(w && w.bbox[0] < 10 && w.bbox[2] > 10);
   assert.equal(worldFor({ beats: [beat(0, 0, 'globe')], labels: [] }), null);
 });
+
+import { parseStory, normDate } from '../lib/beats_csv.mjs';
+
+test('a CSV from another style says which section it belongs to', () => {
+  const roblox = 'row,id,chapter,text,date,location,environment,camera,extra\nplan,,,"T",2026,,,,\nchapter,,"C",,"2:00 AM",,,,\nbeat,b1,,"Hi.",,Bedroom,interior,wide,\n';
+  assert.throws(() => parseStory(roblox), /Roblox Cinema section/);
+  assert.throws(() => parseStory('beat,row,vo_anchor,mode,id,text\n1,beat,,map,b1,Hi.\n'), /Hybrid Map \/ StarMap/);
+});
+
+test('common date forms become YYYY-MM; times and words are still refused', () => {
+  assert.equal(normDate('1754'), '1754-01');
+  assert.equal(normDate('1754-5'), '1754-05');
+  assert.equal(normDate('1754-05-12'), '1754-05');
+  assert.equal(normDate('-218'), '-0218-01');
+  assert.equal(normDate('2:00 AM'), '2:00 AM');
+  const csv = 'row,id,date,place,lon,lat,rung,text,extra\nplan,T,,,,,,,"{""world"":""indochina""}"\nchapter,c1,,,,,,One,\nbeat,b1,1954-3-7,Hanoi,105.8,21.0,map,Hello there.,\n';
+  assert.equal(parseStory(csv).beats[0].date, '1954-03');
+  assert.throws(() => parseStory(csv.replace('1954-3-7', 'March')), /date must be YYYY-MM/);
+});

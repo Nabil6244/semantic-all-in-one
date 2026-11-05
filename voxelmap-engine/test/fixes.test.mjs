@@ -53,7 +53,8 @@ test('a territory row without a date starts with the first beat; a malformed dat
   const body = 'chapter,c1,,,,,,,,,,One,\nbeat,b1,1965-09,X,74.5,31.2,map,,,,,"Hello there.",\n';
   const ok = _parseStory(head + 'territory,t,,,,,,,,,,,"{""rules"":[]}"\n' + body);
   assert.equal(ok.territories[0].date, '1965-09');
-  assert.throws(() => _parseStory(head + 'territory,t,1965,,,,,,,,,,"{}"\n' + body), /YYYY-MM/);
+  assert.equal(_parseStory(head + 'territory,t,1965,,,,,,,,,,"{}"\n' + body).territories[0].date, '1965-01');   // a bare year is read as January
+  assert.throws(() => _parseStory(head + 'territory,t,autumn 1965,,,,,,,,,,"{}"\n' + body), /YYYY-MM/);
 });
 
 import { monthLabel as _ml, monthIndex as _mi } from '../lib/timeline.mjs';
