@@ -16,7 +16,7 @@ import { buildTimeline, monthIndex } from './lib/timeline.mjs';
 import { LANDMARKS } from './lib/landmarks.mjs';
 import { cameraAt, placeCamera } from './lib/camera3d.mjs';
 import { makeGeo } from './lib/geo.mjs';
-import { wantedTiles, parentKey, sampleHeight, maxHeightNear, sampleLand, LEVELS, tileKey } from './lib/lod.mjs';
+import { wantedTiles, parentKey, sampleHeight, maxHeightNear, sampleLand, LEVELS, tileKey, detailZoom } from './lib/lod.mjs';
 import { makeWorldData, addTile } from './lib/world_data.mjs';
 import { dioramaWeight } from './lib/diorama.mjs';
 const smoothstep = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b - a))); return k * k * (3 - 2 * k); };
@@ -213,7 +213,7 @@ async function checkStory(story, tl, storyPath) {
   for (const l of story.labels) if (!inside(l.lon, l.lat)) warnings.push(`label "${l.name}" is outside the world`);
   // detail tiles the camera would want, and how many elevation tiles that would download
   const tiles = planTiles(tl, data, meta), missing = tiles.filter((t) => !fs.existsSync(path.join(worldDir, `L${t.level}`, `${t.tx}_${t.tz}.bin`)));
-  const zoomOf = { 1: 9, 2: 10 }, cellsOf = { 1: 40, 2: 10 }, kOf = { 1: 4, 2: 16 }, need = new Set();
+  const zoomOf = { 1: detailZoom(1, meta.res), 2: detailZoom(2, meta.res) }, cellsOf = { 1: 40, 2: 10 }, kOf = { 1: 4, 2: 16 }, need = new Set();
   const txy = (lon, lat, z) => { const n = 2 ** z, r = (lat * Math.PI) / 180; return [((lon + 180) / 360) * n, ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n]; };
   for (const t of missing) {
     const res = meta.res / kOf[t.level], pad = 16 * res, lon = lo0 + t.tx * cellsOf[t.level] * meta.res, lat = la1 - t.tz * cellsOf[t.level] * meta.res, span = cellsOf[t.level] * meta.res, z = zoomOf[t.level];
@@ -256,7 +256,13 @@ async function main() {
     if (a.dry) return;
     const py = fs.existsSync(path.join(REPO, '.venv', 'bin', 'python')) ? path.join(REPO, '.venv', 'bin', 'python') : 'python3';
     await new Promise((res, rej) => { const p = spawn(py, [path.join(HERE, 'tools', 'build_detail.py'), '--world', story.world, '--needs', needsFile], { stdio: ['ignore', 'pipe', 'inherit'] });
-      let last = ''; p.stdout.on('data', (d) => { last = String(d).trim().split('\n').pop(); }); p.on('close', (c) => (c ? rej(new Error(`build_detail failed (${c})`)) : (emit(JSON.parse(last)), res()))); });
+      process.stdout.on('error', () => { p.kill(); process.exit(1); });      // the app is gone: stop downloading for nobody
+      let buf = '', why = '';
+      p.stdout.on('data', (d) => {      // every fetch / tile line goes on to the app, so its progress moves and Stop is heard
+        const lines = (buf + d).split('\n'); buf = lines.pop();
+        for (const l of lines) { let ev; try { ev = JSON.parse(l); } catch { continue; } if (ev.event === 'error') why = ev.message; else emit(ev); }
+      });
+      p.on('close', (c) => (c ? rej(new Error(why || `build_detail failed (${c})`)) : res())); });
     return;
   }
   const needs = fs.existsSync(needsFile) ? JSON.parse(fs.readFileSync(needsFile, 'utf8')).tiles : [];

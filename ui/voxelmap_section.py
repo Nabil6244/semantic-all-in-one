@@ -3,11 +3,15 @@ Render step that renders it (a block-world 3D map on the GPU: globe to ground, m
 voxelmap-engine/ (runner.py), imported only inside the button handlers. Nothing starts until Generate: picking files or options only
 remembers them. The one download (elevation tiles for close-up terrain) is shown with its size and only happens after the user agrees.
 
-app.py only calls in here: activate / deactivate / sync_cta / cta, and reads `_vm_block` / `_vm_running` / `_vm_active`."""
+Each project remembers this page (state/voxel_map/settings.json): reopening it comes back on the page with its files, options and, if
+the files did not change, its planned film, so Render is ready. Finished terrain stays on disk, so Generate carries on from there.
+
+app.py only calls in here: activate / deactivate / resume_on_open / sync_cta / cta, and reads `_vm_block` / `_vm_running` / `_vm_active`."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import threading
 from pathlib import Path
@@ -133,6 +137,84 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
     block.grid_remove()
+    for v in (app._vm_csv_var, app._vm_voice_var, app._vm_res_var):
+        v.trace_add("write", lambda *_a: _save(app))
+
+
+def _sig(path: str):
+    try:
+        st = Path(path).stat()
+        return [str(Path(path).resolve()), st.st_size, st.st_mtime_ns]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _settings_file(app: Any) -> Optional[Path]:
+    ws = getattr(app, "_workspace", None)
+    return Path(ws.state_dir) / "voxel_map" / "settings.json" if ws is not None else None
+
+
+def _read_settings(app: Any) -> dict:
+    f = _settings_file(app)
+    try:
+        return json.loads(f.read_text(encoding="utf-8")) if f is not None and f.is_file() else {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _save(app: Any) -> None:
+    """Remember the page for this project. Picks only: nothing is read or started here."""
+    f = _settings_file(app)
+    if f is None or getattr(app, "_vm_restoring", False) or getattr(app, "_vm_csv_var", None) is None:
+        return
+    try:
+        planned = getattr(app, "_vm_planned", None)
+        data = {"active": bool(getattr(app, "_vm_active", False)), "generating": bool(getattr(app, "_vm_generating", False)),
+                "csv": app._vm_csv_var.get(), "voice": app._vm_voice_var.get(), "res_label": app._vm_res_var.get(), "planned": None}
+        if planned:
+            data["planned"] = {**planned, "sig_csv": _sig(planned["csv"]), "sig_voice": _sig(planned["voice"]) if planned["voice"] else None}
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        tmp.replace(f)
+    except Exception:  # noqa: BLE001 - remembering is a convenience, never a failure
+        pass
+
+
+def _restore(app: Any) -> None:
+    """Put back this project's choices and, if its files did not change, its planned film. Starts nothing."""
+    ws = getattr(app, "_workspace", None)
+    key = str(getattr(ws, "state_dir", "")) if ws is not None else ""
+    if key == getattr(app, "_vm_restored_for", None) or getattr(app, "_vm_running", False):
+        return
+    app._vm_restored_for = key
+    app._vm_planned = None            # a plan belongs to one project
+    d = _read_settings(app)
+    if not d:
+        return
+    app._vm_restoring = True
+    try:
+        app._vm_csv_var.set(d.get("csv", "") or "")
+        app._vm_voice_var.set(d.get("voice", "") or "")
+        if d.get("res_label") in RESOLUTIONS:
+            app._vm_res_var.set(d["res_label"])
+        p = d.get("planned")
+        if p and p.get("csv") and (Path(str(p.get("work", ""))) / "timeline.json").is_file():
+            same_csv = p.get("sig_csv") is not None and _sig(p["csv"]) == p["sig_csv"]
+            same_voice = (not p.get("voice")) or (p.get("sig_voice") is not None and _sig(p["voice"]) == p["sig_voice"])
+            if same_csv and same_voice:
+                app._vm_planned = {k: p.get(k) for k in ("csv", "voice", "res", "work", "cards")}
+                app._vm_status_var.set("Restored: the film is planned. Click Render, or Generate to plan again.")
+        if d.get("generating") and not app._vm_planned:
+            app._vm_status_var.set("The last Generate did not finish. Click Generate: the terrain already built is kept and it carries on from there.")
+    finally:
+        app._vm_restoring = False
+
+
+def resume_on_open(app: Any) -> None:
+    """A project that was left on this page opens on it again."""
+    if _read_settings(app).get("active"):
+        app.after(0, lambda: app._on_style_pick(STYLE))
 
 
 def _browse(app: Any, kind: str) -> None:
@@ -148,6 +230,7 @@ def _browse(app: Any, kind: str) -> None:
         var.set(path)   # remembered only: nothing is read or planned until Generate
         app._vm_planned = None
         auto_render.stop(app, "vm")
+        _save(app)
         _sync_buttons(app)
 
 
@@ -182,6 +265,8 @@ def activate(app: Any) -> None:
     if getattr(app, "_vm_block", None) is None:
         build(app, app._view_visual_director.content, row=9)
     app._vm_active = True
+    _restore(app)
+    _save(app)
     from .voiceover_view import adopt_project_voiceover
     adopt_project_voiceover(app, app._vm_voice_var)   # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
     app._vm_block.grid()
@@ -194,9 +279,12 @@ def activate(app: Any) -> None:
     _sync_buttons(app)
 
 
-def deactivate(app: Any) -> None:
+def deactivate(app: Any, *, remember: bool = True) -> None:
+    """remember=False when a project is opening: the page was not left by choice, and the settings on disk may be another project's."""
     if getattr(app, "_vm_active", False):
         app._vm_active = False
+        if remember:
+            _save(app)
         try:
             import visual_bridge
 
@@ -339,6 +427,7 @@ def on_generate(app: Any) -> None:
         return
     work = str(_work_dir(app) / "film")
     app._vm_planned = None
+    _save(app)
     app._vm_status_var.set("Checking the story…")
     app._append_log(f"{TAG} Generate: checking the story\n")
 
@@ -365,7 +454,8 @@ def on_generate(app: Any) -> None:
         if tiles.get("to_build"):
             mb = tiles.get("download_mb_est", 0)
             if not messagebox.askyesno("Download close-up terrain?", f"The close-up scenes need {tiles['to_build']} terrain tiles that are not built yet "
-                                       f"(about {mb} MB to download, once). Download now?\n\nNo = plan anyway; those areas render with coarser terrain."):
+                                       f"(about {mb} MB to download, once). Download now?\n\nIf you stop or close the app, what is finished is kept and the next Generate carries on from there.\n\n"
+                                       "No = plan anyway; those areas render with coarser terrain."):
                 _plan(app, vm, o, work, prepare=False)
                 return
             _plan(app, vm, o, work, prepare=True)
@@ -414,7 +504,13 @@ def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
         auto_render.start(app, "vm", status_var=app._vm_status_var, still_ok=lambda p=app._vm_planned: _auto_render_ok(app, p),
                           render=lambda: on_render(app), tag=TAG)
 
-    _start(app, "voxel-map-plan", job, done)
+    def end(_error: str) -> None:
+        app._vm_generating = False
+        _save(app)
+
+    app._vm_generating = True      # closed before this ends: reopening says Generate carries on from the finished terrain
+    _save(app)
+    _start(app, "voxel-map-plan", job, done, end)
 
 
 def _auto_render_ok(app: Any, plan: dict) -> str:

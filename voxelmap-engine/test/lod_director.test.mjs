@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { LEVELS, wantedTiles, parentKey, sampleHeight, tileKey, blockHeights, TILE_BLOCKS, FADE_BAND } from '../lib/lod.mjs';
+import { LEVELS, detailZoom, wantedTiles, parentKey, sampleHeight, tileKey, blockHeights, TILE_BLOCKS, FADE_BAND } from '../lib/lod.mjs';
 import { makeWorldData, addTile } from '../lib/world_data.mjs';
 import { chooseShot, shotFrames, moveKind, SHOTS, offset } from '../lib/director.mjs';
 import { softLinear, moveAt, cameraAt } from '../lib/camera3d.mjs';
@@ -106,4 +107,19 @@ test('the camera is continuous across every shot and move boundary', () => {
     assert.ok(Math.abs(before.lon - after.lon) < 1e-3 && Math.abs(before.lat - after.lat) < 1e-3, `jump at ${s.t0.toFixed(2)} (${s.type})`);
     assert.ok(Math.abs(Math.log(before.alt / after.alt)) < 0.01, `altitude jump at ${s.t0.toFixed(2)}`);
   }
+});
+
+test('detail zoom follows the world block size: base worlds unchanged, coarse worlds download coarser', () => {
+  for (const r of [0.025, 0.03, 0.045]) { assert.equal(detailZoom(1, r), 9); assert.equal(detailZoom(2, r), 10); }
+  assert.equal(detailZoom(1, 0.05), 8); assert.equal(detailZoom(2, 0.05), 9);
+  assert.equal(detailZoom(1, 0.08), 8); assert.equal(detailZoom(2, 0.08), 9);
+  assert.equal(detailZoom(1, 0.1), 7); assert.equal(detailZoom(2, 0.1), 8);
+  // the Python builder downloads with the same rule as the estimate
+  const tools = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'tools');
+  const res = [0.025, 0.03, 0.05, 0.08, 0.1, 0.2];
+  let py;
+  try {
+    py = execFileSync('python3', ['-c', `import sys; sys.path.insert(0, ${JSON.stringify(tools)}); from build_detail import detail_zoom; print([[detail_zoom(l, r) for l in (1, 2)] for r in ${JSON.stringify(res)}])`], { encoding: 'utf8' });
+  } catch { return; } // no python3 or numpy here: the JS side is still checked
+  assert.deepEqual(JSON.parse(py.trim()), res.map((r) => [detailZoom(1, r), detailZoom(2, r)]));
 });

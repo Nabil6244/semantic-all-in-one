@@ -9051,9 +9051,10 @@ class VideoGeneratorApp(ctk.CTk):
         self._reptheory_deactivate()   # Rep Theory likewise
         _pt_section.deactivate(self)   # Product Trailer likewise
         _rc_section.deactivate(self)   # Roblox Cinema likewise
-        _vm_section.deactivate(self)   # Voxel Map likewise
+        _vm_section.deactivate(self, remember=False)   # Voxel Map likewise, until resume_on_open below
         _kl_section.deactivate(self)   # Kids Learn likewise
         _rh_section.deactivate(self)   # Rules Horror likewise
+        _vm_section.resume_on_open(self)   # a project left on the Voxel Map page opens on it again; nothing runs until Generate
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()

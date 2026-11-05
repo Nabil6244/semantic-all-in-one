@@ -12,6 +12,7 @@ import json
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -58,6 +59,17 @@ def _run_node(args: list, *, progress=None, cancel=None, log=print, span=(0.0, 1
     timer = threading.Timer(timeout_s, proc.kill)
     timer.start()
     out: dict = {"warnings": [], "error": None}
+
+    def stop_when_asked() -> None:      # a step can be quiet for a long time: Stop must not wait for its next output line
+        while proc.poll() is None:
+            if cancel():
+                proc.kill()
+                return
+            time.sleep(0.3)
+
+    if cancel:
+        threading.Thread(target=stop_when_asked, daemon=True).start()
+    shown = {"fetch": -1, "tile": -1}
     try:
         for raw in proc.stdout:
             if cancel and cancel():
@@ -70,6 +82,15 @@ def _run_node(args: list, *, progress=None, cancel=None, log=print, span=(0.0, 1
             k = ev.get("event")
             if k == "progress" and progress:
                 progress(span[0] + (span[1] - span[0]) * ev["frame"] / max(1, ev["total"]), f"frame {ev['frame']}/{ev['total']}")
+            elif k in shown:      # terrain download (first half of the bar), then the tiles built from it
+                frac = ev["done"] / max(1, ev["total"])
+                word = "Downloading elevation data" if k == "fetch" else "Building terrain tile"
+                if progress:
+                    progress(0.5 * frac if k == "fetch" else 0.5 + 0.5 * frac, f"{word} {ev['done']}/{ev['total']}")
+                step = int(frac * 20)
+                if step != shown[k]:      # a log line each 5%: the log (and the stall watchdog) sees it moving
+                    shown[k] = step
+                    log(f"[Voxel Map] {word} {ev['done']}/{ev['total']}")
             elif k == "warning":
                 out["warnings"].append(ev.get("message"))
                 log(f"[Voxel Map] {ev.get('message')}")
@@ -110,8 +131,11 @@ def check(csv: str, *, cancel=None, log=print) -> dict:
 def prepare(csv: str, *, progress=None, cancel=None, log=print) -> dict:
     """Builds the detail tiles the story needs. This DOWNLOADS elevation tiles: only call it after the user agreed."""
     if progress:
-        progress(0.05, "Building the detail terrain (downloads elevation tiles)…")
-    r = _run_node([_abs(csv), "--prepare"], progress=None, cancel=cancel, log=log, timeout_s=3600.0)
+        progress(0.0, "Getting ready to download the terrain…")
+    r = _run_node([_abs(csv), "--prepare"], progress=progress, cancel=cancel, log=log)
+    failed = (r.get("done") or {}).get("failed")
+    if failed:
+        log(f"[Voxel Map] {failed} terrain tiles could not be built: those areas render with coarser terrain. Generate again to retry them.")
     if progress:
         progress(1.0, "Detail terrain ready")
     return r

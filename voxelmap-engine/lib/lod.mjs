@@ -17,6 +17,19 @@ export const LEVELS = [
   { level: 2, k: 16, tileCells: 10, zoom: 10, near: 12 },
 ];
 export const TILE_BLOCKS = 160;
+/** The world block size the level zooms above are set for (deg); a coarser world downloads coarser elevation. */
+export const BASE_RES = 0.025;
+
+/**
+ * Terrarium zoom a detail level downloads for a world of `worldRes` degrees per cell: the level's zoom, one step
+ * coarser per doubling of the world's block size over BASE_RES (finer pixels would be thrown away when sampled
+ * down to that block size). Mirrored in tools/build_detail.py detail_zoom().
+ */
+export function detailZoom(level, worldRes) {
+  const L = LEVELS.find((x) => x.level === level);
+  const shift = Math.max(0, Math.floor(Math.log2((worldRes || BASE_RES) / BASE_RES) + 1e-9));
+  return Math.max(1, L.zoom - shift);
+}
 export const FADE_BAND = 1.3;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, v) => { const k = clamp((v - a) / (b - a), 0, 1); return k * k * (3 - 2 * k); };

@@ -48,7 +48,8 @@ def tile_xy(lon: float, lat: float, z: int) -> tuple[float, float]:
     return x, y
 
 
-def fetch_tile(z: int, x: int, y: int, cache: Path) -> np.ndarray:
+def download_tile(z: int, x: int, y: int, cache: Path) -> Path:
+    """The elevation tile's file in the cache, downloaded when it is not there yet."""
     path = cache / str(z) / str(x) / f"{y}.png"
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +66,11 @@ def fetch_tile(z: int, x: int, y: int, cache: Path) -> np.ndarray:
                     raise
                 time.sleep(1.5 * (attempt + 1))
         time.sleep(0.05)
+    return path
+
+
+def fetch_tile(z: int, x: int, y: int, cache: Path) -> np.ndarray:
+    path = download_tile(z, x, y, cache)
     a = np.asarray(Image.open(path).convert("RGB"), dtype=np.float32)
     return a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
 
