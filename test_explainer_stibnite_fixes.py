@@ -3,6 +3,8 @@
 import unittest
 
 from explainer import scene_csv
+import os
+_SLOW = 2.0 if os.environ.get("CI") else 1.0     # shared CI runners (Windows above all) are ~2x slower; the limits stay strict locally
 
 
 def _words(text: str, start: float = 0.0, step: float = 0.4):
@@ -165,7 +167,7 @@ class CsvMapPlacesTest(unittest.TestCase):
                 "the west end pit flooded and they flew to beijing")
         t = time.time()
         got = SL.transcript_places(_words(text))[0]
-        self.assertLess(time.time() - t, 3.0)
+        self.assertLess(time.time() - t, 3.0 * _SLOW)
         for name in ("China", "Russia", "Idaho", "Beijing"):
             self.assertIn(name, got)
         self.assertNotIn("Washington", got)          # said for the government

@@ -308,7 +308,10 @@
       "                    csv_path, str(voiceover_path), str(output_path),",
       "        self.hint_var.set(\"Ready — click Generate to render the StarMap video.\" if self._starmap_ok is not False",
       "        self._details_actions = details_actions",
-      "        self.details_open_btn._inspector_show = False"
+      "        self.details_open_btn._inspector_show = False",
+      "from scene_qa import SceneQAState, preview_alternatives, save_qa_file, load_qa_file, summarize_alternative_preview, short_error",
+      "    def _run_overscaled_generation(self) -> None:",
+      "            textvariable=display,"
     ],
     "VideoGenerator.spec": []
   },

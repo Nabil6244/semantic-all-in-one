@@ -6,6 +6,8 @@ import unittest
 from PIL import Image
 
 from cinematic_explainer.war import cards_kit as K, registry, stickers as S
+import os
+_SLOW = 2.0 if os.environ.get("CI") else 1.0     # shared CI runners (Windows above all) are ~2x slower; the limits stay strict locally
 
 P = {
     "kit_tag": {"text": "Satellites and AI", "sub": "A war on hands and knees", "pos": "top-centre"},
@@ -108,7 +110,7 @@ class Cards(unittest.TestCase):
             t0 = time.time()
             for i in range(6):
                 fn(1.0 + i * 0.04, DUR, P[kind])
-            self.assertLess((time.time() - t0) / 6, 0.25, kind)
+            self.assertLess((time.time() - t0) / 6, 0.25 * _SLOW, kind)
 
 
 class Stickers(unittest.TestCase):

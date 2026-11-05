@@ -607,6 +607,17 @@ def _build_graph(j: dict, cam: dict, nl: int, N: int):
     parts.append(f"{cur}{finish},setsar=1,format=yuv420p[v]")
     return ";".join(parts)
 
+def _unlink_retry(p: Path, tries: int = 30):
+    """Delete a temp file. On Windows a just-killed ffmpeg keeps its output locked for a moment, so one failed try left .part files behind."""
+    for _ in range(tries):
+        try:
+            p.unlink(); return
+        except FileNotFoundError:
+            return
+        except OSError:
+            time.sleep(0.1)
+
+
 def _run(cmd, N, cancel, progress, tmp_err):
     with open(tmp_err, "wb") as ef:
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=ef, text=True, bufsize=1)
@@ -691,8 +702,6 @@ def render_shot(job: dict, out_path: str, cancel=None, progress=None) -> str:
         os.replace(part, cached)
     finally:
         for p in (part, Path(errf)):
-            try:
-                if p.exists(): p.unlink()
-            except OSError: pass
+            _unlink_retry(p)
     if progress: progress(1.0)
     return deliver()
