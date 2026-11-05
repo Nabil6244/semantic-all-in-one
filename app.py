@@ -106,6 +106,7 @@ from ui import style_pages as _style_pages
 from ui import product_trailer_section as _pt_section
 from ui import roblox_cinema_section as _rc_section   # Roblox Cinema (ui/roblox_cinema_section.py, roblox-cinema-engine/)
 from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_section.py, voxelmap-engine/)
+from ui import kids_learn_section as _kl_section   # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/)
 import editorial_timeline_edit as _tl_edit
 
 
@@ -3205,6 +3206,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._style_next_btn.configure(text=btn or "Continue", state=state)
 
     def _active_style(self) -> str:
+        if getattr(self, "_kl_active", False):   # Kids Learn (ui/kids_learn_section.py): opt-in, per session
+            return "Kids Learn"
         if getattr(self, "_vm_active", False):   # Voxel Map (ui/voxelmap_section.py): opt-in, per session
             return "Voxel Map"
         if getattr(self, "_rc_active", False):   # Roblox Cinema (ui/roblox_cinema_section.py): opt-in, per session
@@ -3274,6 +3277,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_kl_running", False):   # Kids Learn
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         choice, _look_only = _style_pages.pick_variant(self, choice)   # StarMap Cinema / Explainer: StarMap / Hybrid Map with their look on
         if _look_only:
             self._sync_style_picker()
@@ -3299,6 +3306,12 @@ class VideoGeneratorApp(ctk.CTk):
             _vm_section.deactivate(self)
         if choice == "Voxel Map":   # its own page (ui/voxelmap_section.py); nothing runs until Generate
             _vm_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Kids Learn":
+            _kl_section.deactivate(self)
+        if choice == "Kids Learn":   # its own page (ui/kids_learn_section.py); nothing runs until Generate
+            _kl_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Roblox Cinema":
@@ -3453,6 +3466,9 @@ class VideoGeneratorApp(ctk.CTk):
         vm_block = getattr(self, "_vm_block", None)
         if vm_block is not None:
             vm_block.grid() if active == "Voxel Map" else vm_block.grid_remove()
+        kl_block = getattr(self, "_kl_block", None)
+        if kl_block is not None:
+            kl_block.grid() if active == "Kids Learn" else kl_block.grid_remove()
         _style_pages.sync(self, active)   # the picker or the active style's page
 
     def _style_card_header(self, block, title: str, description: str) -> None:
@@ -7389,6 +7405,8 @@ class VideoGeneratorApp(ctk.CTk):
             _rc_section.cta(self, action)
         elif action in ("vm_generate", "vm_render", "vm_cancel"):
             _vm_section.cta(self, action)
+        elif action in ("kl_generate", "kl_render", "kl_cancel"):
+            _kl_section.cta(self, action)
         elif action in ("rt_render", "rt_cancel"):
             from reptheory import app_section as _rt
 
@@ -8170,6 +8188,8 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _sync_primary_cta(self, snap=None) -> None:
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
+        if getattr(self, "_kl_active", False) and getattr(self, "_kl_block", None) is not None:   # Kids Learn owns the button while its page is up
+            return _kl_section.sync_cta(self)
         if getattr(self, "_vm_active", False) and getattr(self, "_vm_block", None) is not None:   # Voxel Map owns the button while its page is up
             return _vm_section.sync_cta(self)
         if getattr(self, "_rc_active", False) and getattr(self, "_rc_block", None) is not None:   # Roblox Cinema owns the button while its page is up
@@ -9012,6 +9032,7 @@ class VideoGeneratorApp(ctk.CTk):
         _pt_section.deactivate(self)   # Product Trailer likewise
         _rc_section.deactivate(self)   # Roblox Cinema likewise
         _vm_section.deactivate(self)   # Voxel Map likewise
+        _kl_section.deactivate(self)   # Kids Learn likewise
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16801,6 +16822,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_pt_running", "_rt_running")   # Product Trailer: the stall watchdog and quit guard see it too
     _RUN_FLAGS = _RUN_FLAGS + ("_rc_running",)   # Roblox Cinema likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_vm_running",)   # Voxel Map likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long

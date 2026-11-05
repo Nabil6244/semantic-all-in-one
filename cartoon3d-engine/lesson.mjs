@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Kids Learn: lesson CSV -> Edge voice with word timings -> plan -> GPU Chromium frames -> mp4 (-14 LUFS).
 // Usage: node cartoon3d-engine/lesson.mjs --csv lesson.csv [--out out.mp4] [--w 1280 --h 720] [--world playroom|park]
-//        [--host tutor|toon|host3d] [--glb host.glb] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
+//        [--host tutor|toon|host3d] [--glb host.glb] [--work cache_dir] [--plan-file plan.json] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -16,6 +16,8 @@ const HERE = path.dirname(fileURLToPath(import.meta.url)), ROOT = path.dirname(H
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const flag = (k) => process.argv.includes(`--${k}`);
 const FPS = 30;
+// The app passes its own Python (LESSON_PYTHON); on the command line python3 (python on Windows) is used.
+const PY = process.env.LESSON_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 const log = (o) => console.log(JSON.stringify(o));
 const run = (cmd, a) => { const r = spawnSync(cmd, a, { encoding: 'utf8' }); if (r.status !== 0) throw new Error(`${cmd} failed: ${(r.stderr || '').slice(-500)}`); return r.stdout; };
 const dur = (f) => Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).trim());
@@ -23,7 +25,7 @@ const dur = (f) => Number(run('ffprobe', ['-v', 'error', '-show_entries', 'forma
 function voices(beats, work, voice, rate, bpm) {
   const lines = beats.map((b) => ({ text: b.text, out: path.join(work, `${crypto.createHash('sha1').update(`${voice}|${rate}|${b.text}`).digest('hex').slice(0, 16)}.mp3`) }));
   const job = path.join(work, 'tts_job.json'); fs.writeFileSync(job, JSON.stringify({ voice, rate, lines }));
-  run('python3', [path.join(HERE, 'tools', 'tts_words.py'), job]);
+  run(PY, [path.join(HERE, 'tools', 'tts_words.py'), job]);
   return lines.map((l, i) => {
     const v = { file: l.out, dur: dur(l.out), words: JSON.parse(fs.readFileSync(l.out + '.words.json', 'utf8')) };
     return beats[i].type === 'chant' ? chantLine(v, beats[i].text, bpm, work) : v;
@@ -35,7 +37,7 @@ function chantLine(v, text, bpm, work) {
   const out = v.file.replace(/\.mp3$/, `.chant${bpm}.wav`), meta = out + '.json';
   if (!fs.existsSync(meta)) {
     const job = out + '.job.json'; fs.writeFileSync(job, JSON.stringify({ voice: v.file, words: v.words, text, bpm, out }));
-    const r = spawnSync('python3', ['-m', 'kids_audio.chant', job], { encoding: 'utf8', cwd: ROOT });
+    const r = spawnSync(PY, ['-m', 'kids_audio.chant', job], { encoding: 'utf8', cwd: ROOT });
     if (r.status !== 0) throw new Error(`kids_audio chant failed: ${(r.stderr || '').slice(-500)}`);
     fs.writeFileSync(meta, r.stdout.trim().split('\n').pop());
   }
@@ -46,7 +48,7 @@ function chantLine(v, text, bpm, work) {
 // The music bed this lesson uses (or null) and its tempo; chants follow the tempo even with music off.
 function musicChoice(world) {
   const bedArg = arg('music', 'auto'), bed = bedArg === 'off' ? null : bedArg === 'auto' ? (world === 'park' ? 'sunny' : 'playroom') : bedArg;
-  const r = spawnSync('python3', ['-c', 'import json; from kids_audio import library as L; print(json.dumps({k: v["bpm"] for k, v in L.build()["beds"].items()}))'], { encoding: 'utf8', cwd: ROOT });
+  const r = spawnSync(PY, ['-c', 'import json; from kids_audio import library as L; print(json.dumps({k: v["bpm"] for k, v in L.build()["beds"].items()}))'], { encoding: 'utf8', cwd: ROOT });
   if (r.status !== 0) throw new Error(`kids_audio library failed: ${(r.stderr || '').slice(-500)}`);
   const bpms = JSON.parse(r.stdout.trim().split('\n').pop());
   if (bed && !bpms[bed]) throw new Error(`unknown --music "${bed}" (use ${Object.keys(bpms).join(', ')}, auto or off)`);
@@ -84,7 +86,7 @@ function loudnorm(wav) {
 }
 
 // The approved host from authoring (accepted at Gate 5). Override with --glb.
-const HOST_GLB = path.join(HERE, 'authoring', 'build', 'revisions', 'f1_gate5', 'f1', 'host.glb');
+const HOST_GLB = path.join(HERE, 'assets', 'host', 'host.glb');
 
 // Music and sound effects come from the reusable kids_audio engine (repo root). Lesson events -> named effects;
 // effects closer than 0.12 s to the previous one are dropped so nothing piles up.
@@ -106,7 +108,7 @@ function audioMix(plan, wav, work) {
   const voiceP = path.join(work, 'voice_processed.wav'), out = path.join(work, 'mix.wav'), job = path.join(work, 'mix_job.json');
   run('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-af', `${loudnorm(wav)},aresample=48000`, '-ac', '2', voiceP]);   // same voice processing as before
   fs.writeFileSync(job, JSON.stringify({ voice: voiceP, out, duration: plan.duration, voice_lufs: -14, music: bed ? { bed } : null, sfx: sfxOn ? audioEvents(plan) : [], duck_regions: plan.lines.filter((l) => l.type === 'chant').map((l) => ({ t0: l.t0 - 0.2, t1: l.t1, duck_db: -4 })) }));
-  const r = spawnSync('python3', ['-m', 'kids_audio.mixer', job], { encoding: 'utf8', cwd: ROOT });
+  const r = spawnSync(PY, ['-m', 'kids_audio.mixer', job], { encoding: 'utf8', cwd: ROOT });
   if (r.status !== 0) throw new Error(`kids_audio mixer failed: ${(r.stderr || '').slice(-500)}`);
   const rep = JSON.parse(r.stdout.trim().split('\n').pop());
   log({ event: 'audio', ...rep });
@@ -135,7 +137,8 @@ function server(planJson, glb) {
 async function main() {
   const csv = arg('csv'); if (!csv) throw new Error('--csv is required');
   const OUT = path.resolve(arg('out', path.join(HERE, 'out', path.basename(csv, '.csv') + '.mp4'))), W = Number(arg('w', 1280)), H = Number(arg('h', 720));
-  const work = path.join(path.dirname(OUT), '.voice_cache'); fs.mkdirSync(work, { recursive: true });
+  const work = path.resolve(arg('work', path.join(path.dirname(OUT), '.voice_cache'))); fs.mkdirSync(work, { recursive: true });
+  const PLAN = path.resolve(arg('plan-file', OUT + '.plan.json'));
   const { beats, problems } = normalizeRows(parseCsv(fs.readFileSync(csv, 'utf8')));
   for (const p of problems) log({ event: 'warning', message: p });
   if (!beats.length) throw new Error('the lesson CSV has no usable rows');
@@ -147,7 +150,7 @@ async function main() {
   const glb = plan.host === 'host3d' ? path.resolve(arg('glb', HOST_GLB)) : null;
   if (glb && !fs.existsSync(glb)) throw new Error(`host GLB not found: ${glb}`);
   if (glb) plan.visemeTrack = visemeTrack(lesson.lines.flatMap((l) => l.words), env, FPS, lesson.duration, FPS);
-  fs.writeFileSync(OUT + '.plan.json', JSON.stringify({ ...plan, envelope: `${env.length} values`, visemeTrack: plan.visemeTrack ? `${plan.visemeTrack.frames.length} frames x ${plan.visemeTrack.names.length}` : undefined }, null, 1));
+  fs.writeFileSync(PLAN, JSON.stringify({ ...plan, envelope: `${env.length} values`, visemeTrack: plan.visemeTrack ? `${plan.visemeTrack.frames.length} frames x ${plan.visemeTrack.names.length}` : undefined }, null, 1));
   log({ event: 'plan', duration: lesson.duration, lines: lesson.lines.length, props: lesson.props.length, cards: lesson.cards.length });
   if (flag('plan-only')) return;
   const srv = await server(JSON.stringify(plan), glb), origin = `http://127.0.0.1:${srv.address().port}`;
@@ -171,7 +174,7 @@ async function main() {
     for (let i = 0; i < n; i++) {
       await page.evaluate((t) => window.renderFrame(t), i / FPS);
       if (!ff.stdin.write(await shot())) await new Promise((r) => ff.stdin.once('drain', r));
-      if (i % 150 === 0) log({ event: 'progress', frame: i, total: n, ms_per_frame: Math.round((Date.now() - t0) / (i + 1)) });
+      if (i % 30 === 0) log({ event: 'progress', frame: i, total: n, ms_per_frame: Math.round((Date.now() - t0) / (i + 1)) });
     }
     ff.stdin.end(); if ((await closed) !== 0) throw new Error(`ffmpeg: ${ferr.slice(-300)}`);
     const mixed = audioMix(plan, wav, work);

@@ -93,3 +93,12 @@ GROUPS = tuple((title, names + (VOXEL_MAP,) if title == "Maps" else names) for t
 EXTRA_BLURBS[VOXEL_MAP] = ("A block-world 3D history map from a story CSV: real terrain, the camera flying from the globe down to ground scenes, "
                            "territory colours, captions, music, sound effects and your voice-over.")
 EXTRA_CARDS[VOXEL_MAP] = ("\u25A9", "History on a 3D block-world map", "A story CSV (+ voice-over)", "War and history map stories")
+
+
+# Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/): appended here so nothing above changes
+KIDS_LEARN = "Kids Learn"
+STANDALONE = STANDALONE + (KIDS_LEARN,)
+GROUPS = GROUPS + (("Kids", (KIDS_LEARN,)),)
+EXTRA_BLURBS[KIDS_LEARN] = ("Preschool lessons with a friendly 3D host in a toy playroom: she talks to the child, presents toys, counts, chants on the beat "
+                            "and waits for 'your turn', with captions, word cards, music and sound effects. From a lesson CSV; the voice is free.")
+EXTRA_CARDS[KIDS_LEARN] = ("\u2605", "A preschool lesson with a 3D host", "A lesson CSV", "First words, counting, colours, chants")
