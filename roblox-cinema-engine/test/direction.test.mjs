@@ -56,3 +56,19 @@ test('cast and effects follow the narration: a landing scene has boats, a night 
 test('the map scenes carry pins, a projection box and the honesty note', () => {
   for (const s of plan.scenes.filter((x) => x.env === 'map')) { assert.ok(s.map.pins.length >= 2 && s.map.bbox.length === 4); assert.match(s.map.note, /approximate/i); }
 });
+
+test('an unknown CSV place never falls back to a far place the narration names; long holds are split', async () => {
+  const { parseStory } = await import('../lib/csv.mjs');
+  const { direct, MAX_HOLD, MAX_MAP_HOLD } = await import('../lib/director.mjs');
+  const csv = 'row,id,chapter,text,date,location,event,environment,time,weather,characters,actions,vehicles,camera,transition,extra\n'
+    + 'plan,,,"T",2025,,,,,,,,,,,"{}"\n'
+    + 'beat,b1,,"Deep in the desert of Iran near Natanz stands a granite peak that planners in Washington fear.",,Natanz,map,map,,,,,,,,"{""map"":{""pins"":[""Natanz"",""Isfahan""],""dive"":""Natanz""}}"\n'
+    + 'beat,b2,,"Planners in Washington studied the mountain for months and the plan kept growing larger and larger every single week.",,Zzyzx Hollow,political_meeting,interior,,,,,,static_close,,"{}"\n';
+  const words = []; let t = 0;
+  for (const w of csv.split('\n').slice(2).map((l) => l.split('"')[1]).join(' ').split(/\s+/)) { words.push({ word: w.toLowerCase(), start: t, end: t + 0.9 }); t += 1.0; }
+  const p = direct(parseStory(csv), { words, fps: 24 });
+  assert.equal(p.scenes[0].place.name, 'Natanz');
+  assert.equal(p.scenes[1].place.name, 'Natanz', 'unknown location keeps the last CSV-located place, not Washington');
+  assert.ok(p.warnings.some((w) => /Zzyzx/.test(w)));
+  for (const s of p.scenes) for (const sh of s.shots) assert.ok(sh.t1 - sh.t0 <= (s.env === 'map' ? MAX_MAP_HOLD : MAX_HOLD) + 0.01 || (sh.t1 - sh.t0) / 2 < 3.6, `${s.id} holds ${sh.t1 - sh.t0}`);
+});

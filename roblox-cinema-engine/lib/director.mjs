@@ -6,7 +6,7 @@
 import { makeRng, hash } from './rng.mjs';
 import { analyseSentence, splitSentences, estimateTiming, alignTiming, wordTime, extractDates, dateLabel, formatCount } from './narration.mjs';
 import { makeGazetteer } from './gazetteer.mjs';
-import { eraOf, factionsIn, vehicleForEra, FACTIONS } from './eras.mjs';
+import { eraOf, ERAS, factionsIn, vehicleForEra, FACTIONS } from './eras.mjs';
 import { RECIPES, BIOME_ENV, EVENT_ENVS } from './recipes.mjs';
 import { ENVIRONMENTS } from './world.mjs';
 import { BEHAVIOURS } from './camera.mjs';
@@ -25,6 +25,8 @@ export const VOCAB = {
 };
 
 const TIME_PASS = /\b(that night|the next (?:day|morning)|weeks? later|in the weeks that followed|months? later|years? later|by nightfall|by dawn|at sunrise|later that)\b/i;
+/** Longest a ground framing may hold before the camera moves to a new angle (also applies when the CSV names one camera for a long beat). */
+export const MAX_HOLD = 6.5, MAX_MAP_HOLD = 8;
 const AERIAL = new Set(['establishing_wide', 'aerial_geo', 'descend', 'rise', 'flyover', 'pullback_reveal', 'map_overview', 'map_dive']);
 
 /** opts: {words (whisper words) | null, fps, width, height, extraPlaces} */
@@ -32,7 +34,7 @@ export function direct(story, opts = {}) {
   const fps = opts.fps || 24, gaz = makeGazetteer(opts.extraPlaces || []), warnings = [], report = [];
   const allText = story.beats.map((b) => b.text).join(' ');
   const planYear = (extractDates(story.plan.date || '')[0] || extractDates(allText)[0] || {}).year ?? null;
-  const era = eraOf(planYear);
+  const era = (story.plan.extra?.era && ERAS.find((e) => e.id === story.plan.extra.era)) || eraOf(planYear);   // extra.era forces a period (BC years cannot be read from dates)
   const mentioned = factionsIn(allText).filter((f) => f !== 'civilian');
   const sideA = story.plan.extra?.side_a || mentioned.find((f) => ['us', 'allied', 'uk', 'soviet', 'north_vietnam'].includes(f)) || mentioned[0] || 'allied';
   const sideB = story.plan.extra?.side_b || mentioned.find((f) => f !== sideA && f !== 'allied' && f !== 'us' && f !== 'uk') || 'germany';
@@ -40,11 +42,13 @@ export function direct(story, opts = {}) {
   // ---- timing: the voiceover's words when we have them, otherwise a planned read ------------------------------------------
   const timing = opts.words && opts.words.length ? alignTiming(story.beats, opts.words) : estimateTiming(story.beats);
   const sentences = timing.sentences;
+  if (timing.coverage !== undefined && timing.coverage < 0.6) warnings.push(`the voice-over matches only ${Math.round(timing.coverage * 100)}% of the CSV text: scene times are approximate (use the voice's own script as the CSV narration for exact timing)`);
+  if (opts.words && opts.words.length) { const spoken = opts.words[opts.words.length - 1].end || 0; if (spoken > timing.end + 8) warnings.push(`the voice-over runs ${Math.round(spoken - timing.end)} s past the last CSV beat (${Math.round(spoken)} s spoken, ${Math.round(timing.end)} s planned): the CSV does not cover the whole script`); }
   const tail = 2.6, duration = +(timing.end + tail).toFixed(3);
   const beatSent = story.beats.map((_, bi) => sentences.filter((s) => s.beat === bi));
 
   // ---- per-beat analysis and scene decisions --------------------------------------------------------------------------------
-  let carryTime = 'day', carryWeather = 'clear', carryDate = '', carryPlace = null, lastScene = null;
+  let carryCsvPlace = null, carryTime = 'day', carryWeather = 'clear', carryDate = '', carryPlace = null, lastScene = null;
   const scenes = [];
   story.beats.forEach((b, bi) => {
     const ss = beatSent[bi]; if (!ss.length) return;
@@ -61,7 +65,11 @@ export function direct(story, opts = {}) {
     if (!RECIPES[event]) { warnings.push(`beat ${b.id}: no recipe for event "${event}", using establishing`); event = 'establishing'; }
     const R = RECIPES[event];
     // place
-    const place = gaz.get(b.location) || A.flatMap((a) => a.places).find((p) => p.kind !== 'sea' && p.kind !== 'region') || A.flatMap((a) => a.places)[0] || carryPlace;
+    // A CSV location the gazetteer does not know must never fall through to a far-off place the narration happens to mention
+    // (a "Natanz" beat that names "Washington" once put the whole film in Washington): it keeps the last place the CSV itself located.
+    const csvPlace = b.location ? gaz.get(b.location) : null, unknownLoc = !!b.location && !csvPlace;
+    const place = csvPlace || (unknownLoc ? (carryCsvPlace || null) : null) || A.flatMap((a) => a.places).find((p) => p.kind !== 'sea' && p.kind !== 'region') || A.flatMap((a) => a.places)[0] || carryPlace;
+    if (csvPlace) carryCsvPlace = csvPlace;
     if (b.location && !gaz.get(b.location)) warnings.push(`beat ${b.id}: place "${b.location}" is not in the gazetteer (no map pin; set "lon,lat")`);
     // environment: CSV > words that suit the event > place biome (if it suits) > recipe default
     const words = A.flatMap((a) => a.environments);
@@ -166,9 +174,11 @@ export function direct(story, opts = {}) {
     const D = s.t1 - s.t0;
     if (s.env !== 'map') for (let k = 1; k < s.sentences.length; k++) { const c = (s.sentences[k - 1].end + s.sentences[k].start) / 2; if (c - cuts[cuts.length - 1] >= 3.6 && s.t1 - c >= 3.6) cuts.push(+c.toFixed(3)); }
     // a very long sentence still gets a second shot half-way (camera never parks for more than ~9 s)
-    for (let k = 0; k < cuts.length; k++) { const end = cuts[k + 1] ?? s.t1; if (end - cuts[k] > 9.5 && s.env !== 'map') cuts.splice(k + 1, 0, +(cuts[k] + (end - cuts[k]) / 2).toFixed(3)); }
+    for (let k = 0; k < cuts.length; k++) { const end = cuts[k + 1] ?? s.t1; if (end - cuts[k] > MAX_HOLD && s.env !== 'map') { cuts.splice(k + 1, 0, +(cuts[k] + (end - cuts[k]) / 2).toFixed(3)); k--; } }
     // a long map keeps moving: up to 3 continuous shots at sentence pauses, each one sinking a little lower
     if (s.env === 'map') for (let k = 1; k < s.sentences.length && cuts.length < 3; k++) { const c = (s.sentences[k - 1].end + s.sentences[k].start) / 2; if (c - cuts[cuts.length - 1] >= 6 && s.t1 - c >= 4) cuts.push(+c.toFixed(3)); }
+    // a long map is split too, each part sinking lower (one continuous descent)
+    if (s.env === 'map') for (let k = 0; k < cuts.length; k++) { const end = cuts[k + 1] ?? s.t1; if (end - cuts[k] > MAX_MAP_HOLD && cuts.length < 5) { cuts.splice(k + 1, 0, +(cuts[k] + (end - cuts[k]) / 2).toFixed(3)); k--; } }
     const requested = s.camera ? s.camera.split('>').map((x) => x.trim()) : [];
     const prefs = s.env === 'map' ? ['map_overview'] : [...R.shots];
     s.shots = cuts.map((c0, k) => {
