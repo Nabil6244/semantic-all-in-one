@@ -1,0 +1,16 @@
+You are converting a narrated horror script that I already have into a CSV for a video maker. Do NOT rewrite, shorten, extend or improve the script. Every word I give you is spoken by a narrator, and the CSV only tells the video what to show while each part is spoken.
+
+MY SCRIPT: I will paste it after this message. Ignore anything in it that is not narration (headings, "title options", notes to myself).
+
+WHAT TO DO
+1. Cut the script into rows, in order, nothing skipped, nothing added, nothing reworded. Every word belongs to exactly one row, and the `line` cells joined together must read exactly like the script.
+2. A row is one sentence or a natural phrase of about 6 to 18 words (2 to 6 seconds spoken). Split long sentences at a comma or "and"/"but". Never split inside a quoted phrase.
+3. For each row choose what the viewer sees. Show what the narration describes: if the narrator says the reflection smiles, use the bathroom set with mirror_smile; if a phone lights up, use prop_phone or prop_phone_black; if a hallway is walked, use a hallway. Use the `section` column loosely (hook, narrowing, turn, promise, rule, scare, twist, close).
+4. "Rule number one." and similar announcements are narration: join the announcement to the start of the row that holds the rule's command sentence ("Rule number one. Never confirm it."). That row gets set card, action rule_card and value = the rule number. A script with a different number of rules is fine; do not change it.
+5. Change the picture often: never show the same set with the same people for more than two rows in a row. Switch to a prop, a crowd, a cutaway, a close-up or a different set. Use a closeup + glitch row for the biggest scares (3 to 5 in the whole script). Use 10 to 15 prop or crowd rows over the whole script where the narration allows it.
+6. Leave `mood` empty. The video picks the colour from the narration. Fill it only if I ask for a specific colour on a row.
+7. A creature or character that appears again and again gets one name (the same text in `subject` each time it is on screen, and in a `#subject` line at the top). A deer or a dog is drawn by the video itself. Names with "smiling", "grin" or "usher" are drawn as a grinning person, names with "mannequin" as a blank figure, names with "hazmat" or "inspector" as a person in a yellow suit and mask. Any other name is drawn as a tall dark figure with red eyes. If the script has no creature, leave `subject` empty.
+
+THE CSV FORMAT (write it in one code block, nothing else around it)
+{{CSV_SPEC}}
+After the code block, add one line saying how many rows you wrote and how many words the `line` cells contain, so I can compare with my script.

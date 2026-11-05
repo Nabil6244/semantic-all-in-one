@@ -107,6 +107,7 @@ from ui import product_trailer_section as _pt_section
 from ui import roblox_cinema_section as _rc_section   # Roblox Cinema (ui/roblox_cinema_section.py, roblox-cinema-engine/)
 from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_section.py, voxelmap-engine/)
 from ui import kids_learn_section as _kl_section   # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/)
+from ui import rules_horror_section as _rh_section   # Rules Horror (ui/rules_horror_section.py, rules_horror/)
 import editorial_timeline_edit as _tl_edit
 
 
@@ -3208,6 +3209,8 @@ class VideoGeneratorApp(ctk.CTk):
     def _active_style(self) -> str:
         if getattr(self, "_kl_active", False):   # Kids Learn (ui/kids_learn_section.py): opt-in, per session
             return "Kids Learn"
+        if getattr(self, "_rh_active", False):   # Rules Horror (ui/rules_horror_section.py): opt-in, per session
+            return "Rules Horror"
         if getattr(self, "_vm_active", False):   # Voxel Map (ui/voxelmap_section.py): opt-in, per session
             return "Voxel Map"
         if getattr(self, "_rc_active", False):   # Roblox Cinema (ui/roblox_cinema_section.py): opt-in, per session
@@ -3281,6 +3284,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_rh_running", False):   # Rules Horror
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         choice, _look_only = _style_pages.pick_variant(self, choice)   # StarMap Cinema / Explainer: StarMap / Hybrid Map with their look on
         if _look_only:
             self._sync_style_picker()
@@ -3300,6 +3307,12 @@ class VideoGeneratorApp(ctk.CTk):
             _pt_section.deactivate(self)
         if choice == "Product Trailer":   # its own page (ui/product_trailer_section.py); nothing runs until Generate
             _pt_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Rules Horror":
+            _rh_section.deactivate(self)
+        if choice == "Rules Horror":   # its own page (ui/rules_horror_section.py); nothing runs until Generate
+            _rh_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Voxel Map":
@@ -3469,6 +3482,9 @@ class VideoGeneratorApp(ctk.CTk):
         kl_block = getattr(self, "_kl_block", None)
         if kl_block is not None:
             kl_block.grid() if active == "Kids Learn" else kl_block.grid_remove()
+        rh_block = getattr(self, "_rh_block", None)
+        if rh_block is not None:
+            rh_block.grid() if active == "Rules Horror" else rh_block.grid_remove()
         _style_pages.sync(self, active)   # the picker or the active style's page
 
     def _style_card_header(self, block, title: str, description: str) -> None:
@@ -7407,6 +7423,8 @@ class VideoGeneratorApp(ctk.CTk):
             _vm_section.cta(self, action)
         elif action in ("kl_generate", "kl_render", "kl_cancel"):
             _kl_section.cta(self, action)
+        elif action in ("rh_generate", "rh_render", "rh_cancel"):
+            _rh_section.cta(self, action)
         elif action in ("rt_render", "rt_cancel"):
             from reptheory import app_section as _rt
 
@@ -8190,6 +8208,8 @@ class VideoGeneratorApp(ctk.CTk):
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style
         if getattr(self, "_kl_active", False) and getattr(self, "_kl_block", None) is not None:   # Kids Learn owns the button while its page is up
             return _kl_section.sync_cta(self)
+        if getattr(self, "_rh_active", False) and getattr(self, "_rh_block", None) is not None:   # Rules Horror owns the button while its page is up
+            return _rh_section.sync_cta(self)
         if getattr(self, "_vm_active", False) and getattr(self, "_vm_block", None) is not None:   # Voxel Map owns the button while its page is up
             return _vm_section.sync_cta(self)
         if getattr(self, "_rc_active", False) and getattr(self, "_rc_block", None) is not None:   # Roblox Cinema owns the button while its page is up
@@ -9033,6 +9053,7 @@ class VideoGeneratorApp(ctk.CTk):
         _rc_section.deactivate(self)   # Roblox Cinema likewise
         _vm_section.deactivate(self)   # Voxel Map likewise
         _kl_section.deactivate(self)   # Kids Learn likewise
+        _rh_section.deactivate(self)   # Rules Horror likewise
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16823,6 +16844,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_rc_running",)   # Roblox Cinema likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_vm_running",)   # Voxel Map likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_rh_running",)   # Rules Horror likewise
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long

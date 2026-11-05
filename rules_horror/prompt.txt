@@ -1,0 +1,43 @@
+You are writing a "survival rules" horror story for a narrated video, and the matching CSV. The video is flat illustrated scenes whose colour follows the story (night, warm, cold, red for scares), with one red accent. A voice reads the story; the CSV tells the video what to draw while each sentence is spoken. Write an ORIGINAL story: your own creature, names and places.
+
+LENGTH AND VOICE
+- 900 to 1,150 spoken words (about 6 to 7 minutes at 165 words a minute). Second person ("you"). Short sentences. Plain words. No sound-effect words, no stage directions.
+
+STORY SHAPE (follow it in this order)
+1. HOOK: "If you ever [see or hear X], do [Y]. Do not [A]. Do not [B]." One or two sentences.
+2. NARROWING: "I am not talking about [the normal thing]. I am talking about [the wrong one]."
+3. TURN: the one detail that makes it wrong.
+4. PROMISE: "Follow these seven rules," and plant one line such as "most people break the third one". Rule 1 must start between 30 and 80 seconds in.
+5. SEVEN RULES. Each rule is a command, then the reason, then a scare or someone who broke it. Say each rule as its own short sentence ("Do not turn on the lights.") so it can be shown on a card.
+6. TWIST: from rule 7 on, 17 to 37 percent of all the words. Begin with something like "There is one thing I have not told you yet."
+7. CLOSING LINE: repeat the opening ("So if you ever ..."), then end on one last scare.
+
+THE CSV (write it in a code block, nothing else around it)
+First optional lines: #subject,<name>,"<short look: tall, thin legs ...>"  then  #location,<place>,<place>  then  #look,<one look name>
+Looks (pick the one that fits where the story happens, or leave #look out and the app picks from the places in the story):
+line_house (white line art on black: a house, yard, night), line_pet (line art: a pet at home), line_exam (line art: a test or classroom at night),
+night_flight (navy cartoon: plane, train, bus), night_cinema (navy cartoon: cinema, theatre, audience), bright_mall (bright filled rooms: mall, hotel, shops),
+bright_store (bright: supermarket, warehouse, fast cuts), bright_school (bright: school, office, hospital), deep_water (underwater teal: aquarium, sea, lake)
+Then this header and one row per spoken sentence or phrase, in order:
+order,section,line,set,shot,subject,pose,action,tag,value,prompt,mood
+
+- order: 1, 2, 3 ...
+- section: hook, narrowing, turn, promise, rule, scare, twist, close
+- line: the words the narrator says in this row, copied EXACTLY from the story, in order, nothing skipped. Every word of the story belongs to exactly one row.
+- set: bedroom, hallway, hall_lit (a hallway ending in a lit doorway), stairs, house_section, cutaway (a two-floor house in section), bathroom (sink, door, towel hook and a framed mirror), kitchen, hall_mirror (a hallway ending in a tall mirror), store (a shop aisle), cabin (an aircraft cabin), yard, street (lamp, tree), door, window, classroom, prop (one object fills the screen, see prop_ actions), crowd or cinema (rows of seated people, one marked), card (rule card), or closeup (a reveal close-up)
+- shot: wide, push_in, pull_out, static
+- subject: the creature's name when it is on screen (same name as #subject), else empty. A deer or a dog is drawn by the video itself (white in the line-art looks, bone-coloured in the colour looks); any other creature name is drawn as a tall dark figure with red eyes. The creature stays on screen in following rows of the same set until the set changes.
+- pose (creature only): stand_side, stand_front, head_turned, stare, walk, head_low, raise_paw, look_back, close_up_face
+- action: figure_stand, figure_look, figure_flinch, figure_sit, figure_sleep, figure_walk, figure_run (the person on screen); sight_line (a red dotted line from the creature to what it looks at); countdown (value = seconds); cross (a red danger mark); glitch (a short static burst, for scares); rule_card (the line is shown typed on a black card; value = the rule number). bubble (a speech bubble above the person; value = its words, 1-3 words); banner (a red banner across the top; value = its words, for example DO NOT PET IT); red_eyes (the creature's or the marked person's eyes turn red); prop_paper (a test sheet with a pencil; value = its title; prompt = up to 4 typed lines separated by |), prop_report (an incident report; same), prop_note (a folded note; value = the name on it), prop_clock (value = a time like 3:07), prop_phone (prompt = chat messages separated by |, each starting them: or me:), prop_eye (a giant eye), prop_cctv (security-camera frame over the current set; value = camera name), prop_door_feet (a door with two shadows of feet under it), prop_ring_hand (the back of a hand with a ring; value "left>right" makes it swap to the other hand mid-shot), prop_hair_part (a head from above; value "left>right" moves the parting), prop_handprint (a warm handprint pressed on fogged glass), prop_phone_black (a dark phone screen that works as a small mirror; value = a message line), prop_floorboards (floorboards counted one by one; value "11" or "11>12" adds a board that should not exist); mirror (in bathroom or hall_mirror: the reflection copies the person), mirror_early (the reflection moves half a second BEFORE the person), mirror_smile (the reflection smiles), mirror_press (the reflection's face presses against the glass), water (a tap runs on the real side only); crowd_turn (every head in a crowd turns to face you; value = the label on the marked person, for example NORMAL). Join two with "+", for example figure_sit+countdown.
+- mood (optional): the colour of the shot - night (default), warm (lamp-lit rooms), cold (tile, glass, water), red (danger, the scare), day, dawn. Leave empty and the video picks it from what the narrator says; fill it only to force a colour.
+- tag: YOU, PREY or NORMAL on the person or creature for this row; otherwise empty
+- value: a time or label shown as a tag ("3:00 AM"), the rule number on a card, or seconds for a countdown
+- prompt: on a closeup row, or on a prop_paper / prop_report / prop_phone row (see above): for a closeup, one sentence describing the picture, always ending "pure black background" (for example "a grinning white face filling the frame, pure black background")
+
+CSV RULES
+- A row is 2 to 6 seconds of speech (about 6 to 18 words). Change set, shot or action at least every second row. Never show the same set with the same people on more than two rows in a row: switch to a prop, a crowd, a cutaway, a close-up or a different set. Use 10 to 15 prop or crowd rows in the whole story (a test sheet, a clock, a phone chat, a document, a security camera, a crowd).
+- Use a closeup + glitch row for each big scare (3 to 5 in the whole story). Use at most 12 poses in total for the creature.
+- Seven rule_card rows, one per rule, with value 1 to 7.
+- Quote any field that contains a comma.
+
+Write the story as plain text first (so I can record it), then the CSV.

@@ -1,0 +1,18 @@
+#subject,deer,"tall deer, long thin legs, antlers"
+#location,house,yard
+order,section,line,set,shot,subject,pose,action,tag,value,prompt
+1,hook,If you ever wake up at three in the morning,bedroom,wide,,,figure_sleep,,3:00 AM,
+2,hook,and see a deer standing in your yard,window,push_in,deer,stand_side,figure_look,YOU,,
+3,hook,do not wave. Do not call out.,window,pull_out,deer,stare,sight_line,,,
+4,narrowing,I am not talking about a normal deer.,yard,wide,deer,walk,,,,
+5,narrowing,I am talking about one that is far too tall with legs that bend in the wrong places.,yard,push_in,deer,stand_front,,,,
+6,turn,And it is not looking at you.,hallway,wide,,,figure_walk,YOU,,
+7,turn,It is looking at something standing behind you.,hallway,push_in,,,figure_flinch,,,
+8,promise,Follow these three rules and you might see the sun come up.,house_section,wide,,,figure_sit+countdown,,5,
+9,rule,Do not turn on the lights.,card,,,,rule_card,,1,
+10,rule,Whatever is behind you wants you to look. Keep your eyes on the window.,window,push_in,deer,stand_side,figure_look,YOU,,
+11,rule,Do not count its legs.,card,,,,rule_card,,2,
+12,scare,A man down the street counted them. He got to nine.,closeup,push_in,deer,close_up_face,glitch,,,"a white face filling the frame, pure black background"
+13,rule,Do not answer the door.,card,,,,rule_card,,3,
+14,twist,It knocks with a voice you know.,door,push_in,deer,stand_front,figure_flinch,,,
+15,close,So if you ever see a tall deer in your yard stay in bed and keep the lights off.,bedroom,push_in,,,figure_sleep,,,

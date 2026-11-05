@@ -44,6 +44,13 @@ OWNERS: Dict[str, Tuple[str, Callable]] = {
 }
 
 
+def _rh_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "rules_horror" / "assets"
+
+
+OWNERS["rules_horror"] = ("_rh_active", _rh_dir)   # Rules Horror (ui/rules_horror_section.py)
+
+
 def _vm_dir(ws) -> Path:
     return Path(ws.root) / "state" / "voxel_map" / "assets"
 

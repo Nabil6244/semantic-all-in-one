@@ -95,6 +95,16 @@ EXTRA_BLURBS[VOXEL_MAP] = ("A block-world 3D history map from a story CSV: real 
 EXTRA_CARDS[VOXEL_MAP] = ("\u25A9", "History on a 3D block-world map", "A story CSV (+ voice-over)", "War and history map stories")
 
 
+# Rules Horror (ui/rules_horror_section.py, rules_horror/): appended here so nothing above changes
+RULES_HORROR = "Rules Horror"
+STANDALONE = STANDALONE + (RULES_HORROR,)
+GROUPS = GROUPS + (("Stories", (RULES_HORROR,)),)
+EXTRA_BLURBS[RULES_HORROR] = ("Narrated survival-rules horror in nine looks taken from nine reference videos: white line art on black, navy cartoon "
+                              "(plane, cinema), bright filled rooms (mall, store, school) and underwater teal. Auto picks the look from the story's places, "
+                              "with that reference's pacing and rule card. Cartoon people, filled rooms, glitches and a low sound bed, cut to your voice-over.")
+EXTRA_CARDS[RULES_HORROR] = ("\u25D0", "Survival-rules horror, nine looks", "A story CSV + voice-over", "Rules and creepypasta-style horror stories")
+
+
 # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/): appended here so nothing above changes
 KIDS_LEARN = "Kids Learn"
 STANDALONE = STANDALONE + (KIDS_LEARN,)
