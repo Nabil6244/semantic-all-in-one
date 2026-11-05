@@ -47,7 +47,7 @@
     "flow-engine/_scratch-two-launch-test.mjs": "e9869c1b869ad00b9e8181d3510af00742760b28c658ab1bac82b275bb947048",
     "flow-engine/_scratch-ui-dom-investigation.mjs": "ead65f9219679dd7cf945bc786cc2f1ef8fb145535e78c6d59fc9065f4d530a6",
     "flow-engine/_scratch-v4-extended.mjs": "1d4666128292ea3801c1adf1d3cdd64cfaf168e875299dbd60360371d18136ca",
-    "flow-engine/config.js": "980f0cd4c07db9264aa9264646f78621d6b606534cbc9d72ef147102cf2590cc",
+    "flow-engine/config.js": "6f54f8ef7ab373756832d1708db3d8a2ec2e6602b6c01816379fa56a343dc3ec",
     "flow-engine/docs/AUDIT-2026-10-05.md": "42f937732605ad8e6e5aede8d66e5cf906876cc93577d20330875fb0072ce435",
     "flow-engine/lib/account-lifecycle.js": "bfd7479a8c03707f5d81af388682b9875294b0c945557023ea3c2ad2ae356a09",
     "flow-engine/lib/accounts.js": "e1cd73b3f29d9bdd4e3003668e65eb7f1272627d5687bfeede0df092b2c3b505",
@@ -58,7 +58,7 @@
     "flow-engine/lib/batchexecute-config.js": "7423b0cd63064644b3ff6d7047948c412dc1075a3a0f7ba50c1a47d0d9c1f6de",
     "flow-engine/lib/extension-captcha.js": "a59a44f087df268e15c49aca76a64b0f2f93202107c773fdb54d7ea1036cff57",
     "flow-engine/lib/flow-api.js": "31f4e62c583023d4326e8562ff1349effdb2778ff2567118843ab2b5edbf4d3a",
-    "flow-engine/lib/flow-ui-agent.js": "11b7fc1120094df1e97dfb408c7c61e8e3baa69c27523ba0016f7e76aebd5855",
+    "flow-engine/lib/flow-ui-agent.js": "f22c9f6e29495a480fe71afe45a2ea26ed1bc80da8a16f422ffd663379d7cb1a",
     "flow-engine/lib/flow-ui-experiment.js": "93800cfb3bf4855aee9d3006870cc0992087803634d65460ee6366799776912b",
     "flow-engine/lib/generation-dispatch.js": "01dcee880fa7c4122daadf864873707dbe39f9db0e5bb6c3504164d989bf5f83",
     "flow-engine/lib/generation-ledger.js": "2e38fb9ea608e885cb36c67621c034ab5c3153a993bc114c59cf57ec07a754b6",
@@ -241,6 +241,6 @@
     "visual_allocation/validation.py": "b14df06404a2d168b2fadd29366afeb6fe1c6cde2eef24e1623d343acee845f4",
     "flow-engine/test/ui-agent-chat-copies.test.js": "13821cf15669d1e5ebbd3e40c7e6f8e26f74087c69a22dcdfb15e78e84c5f2a7",
     "flow-engine/test/ui-agent-no-picture-remake.test.js": "e8e1bb01e49f99323949157725edf07e378943b4a115233b658a40b4a4c87dd2",
-    "flow-engine/test/ui-agent-stall-handoff.test.js": "1b608738d1e78d956073f4521d324a482933a1aea66d4f9dc2bdaaafe0bd3d9d"
+    "flow-engine/test/ui-agent-stall-handoff.test.js": "959949d72589b4dc4c1448399784193b762963e7cf95bc84c3ea03b23f96a778"
   }
 }

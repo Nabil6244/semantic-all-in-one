@@ -101,18 +101,18 @@ def _src_hash():
 
 def write_wav(path, x):
     x = np.ascontiguousarray(np.asarray(x, np.float32).T)
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-c:a", "pcm_f32le", path], input=x.tobytes(), check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-c:a", "pcm_f32le", path], input=x.tobytes(), check=True, timeout=600)
 
 
 def read_audio(path, channels=2):
-    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-f", "f32le", "-ac", str(channels), "-ar", str(SR), "-"], capture_output=True, check=True).stdout
+    raw = subprocess.run(["ffmpeg", "-loglevel", "error", "-i", path, "-f", "f32le", "-ac", str(channels), "-ar", str(SR), "-"], capture_output=True, check=True, timeout=600).stdout
     return np.frombuffer(raw, np.float32).reshape(-1, channels).T.astype(np.float64)
 
 
 def lufs(x):
     """Integrated loudness (EBU R128) of a stereo array, via ffmpeg."""
     x = np.ascontiguousarray(np.asarray(x, np.float32).T)
-    r = subprocess.run(["ffmpeg", "-hide_banner", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-af", "ebur128", "-f", "null", "-"], input=x.tobytes(), capture_output=True)
+    r = subprocess.run(["ffmpeg", "-hide_banner", "-f", "f32le", "-ar", str(SR), "-ac", "2", "-i", "-", "-af", "ebur128", "-f", "null", "-"], input=x.tobytes(), capture_output=True, timeout=600)
     import re
     m = re.findall(r"I:\s+(-?[\d.]+) LUFS", r.stderr.decode())
     return float(m[-1]) if m else -70.0

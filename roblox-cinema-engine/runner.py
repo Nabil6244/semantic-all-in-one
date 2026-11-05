@@ -164,7 +164,9 @@ def _render_parallel(args: list, silent: str, n: int, *, progress=None, cancel=N
     log(f'[Roblox Cinema] rendering {total} frames in {n} parts at once')
     threads = [threading.Thread(target=work, args=(k,), daemon=True) for k in range(n)]
     for t in threads: t.start()
-    for t in threads: t.join()
+    for t in threads: t.join(timeout=6 * 3600.0 + 120)      # each renderer is killed at 6 h (_run_node), so this only guards a stuck thread
+    if any(t.is_alive() for t in threads):
+        failed.set(); errors.append(RuntimeError('Roblox Cinema: a renderer did not finish within 6 hours.'))
     if errors:
         for q in parts:
             try: os.remove(q)

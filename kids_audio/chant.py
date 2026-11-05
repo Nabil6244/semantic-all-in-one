@@ -29,7 +29,7 @@ def _norm(w):
 def _atempo(x, factor):
     with tempfile.TemporaryDirectory() as d:
         a, b = os.path.join(d, "a.wav"), os.path.join(d, "b.wav"); write_wav(a, x)
-        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", a, "-af", f"atempo={factor:.4f}", b], check=True)
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", a, "-af", f"atempo={factor:.4f}", b], check=True, timeout=600)
         return read_audio(b)
 
 
