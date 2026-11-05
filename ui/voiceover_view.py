@@ -31,11 +31,58 @@ VOICES = [
     ("Friendly explainer - female", "en-US-EmmaNeural"),
     ("News anchor - female", "en-US-JennyNeural"),
     ("Documentary narrator - female, British", "en-GB-SoniaNeural"),
-    ("Australian narrator - male", "en-AU-WilliamNeural"),
+    ("Australian narrator - male", "en-AU-WilliamMultilingualNeural"),   # en-AU-WilliamNeural left the list
     ("Australian narrator - female", "en-AU-NatashaNeural"),
     ("Indian English narrator - male", "en-IN-PrabhatNeural"),
     ("Indian English narrator - female", "en-IN-NeerjaNeural"),
 ]
+
+
+def _pair(*voices: tuple) -> list:
+    return [(f"{name} - {who}", vid) for name, who, vid in voices]
+
+
+# Other languages: every id checked against Microsoft's live voice list (2026-11-04). Punjabi has no voice there.
+LANGUAGES = [
+    ("English", VOICES),
+    ("Urdu", _pair(("Asad", "male, Pakistan", "ur-PK-AsadNeural"), ("Uzma", "female, Pakistan", "ur-PK-UzmaNeural"),
+                   ("Salman", "male, India", "ur-IN-SalmanNeural"), ("Gul", "female, India", "ur-IN-GulNeural"))),
+    ("Hindi", _pair(("Madhur", "male", "hi-IN-MadhurNeural"), ("Swara", "female", "hi-IN-SwaraNeural"))),
+    ("Arabic", _pair(("Hamed", "male, Saudi", "ar-SA-HamedNeural"), ("Zariyah", "female, Saudi", "ar-SA-ZariyahNeural"),
+                     ("Shakir", "male, Egypt", "ar-EG-ShakirNeural"), ("Salma", "female, Egypt", "ar-EG-SalmaNeural"))),
+    ("Pashto", _pair(("Gul Nawaz", "male", "ps-AF-GulNawazNeural"), ("Latifa", "female", "ps-AF-LatifaNeural"))),
+    ("Persian", _pair(("Farid", "male", "fa-IR-FaridNeural"), ("Dilara", "female", "fa-IR-DilaraNeural"))),
+    ("Bengali", _pair(("Pradeep", "male, Bangladesh", "bn-BD-PradeepNeural"), ("Nabanita", "female, Bangladesh", "bn-BD-NabanitaNeural"),
+                      ("Bashkar", "male, India", "bn-IN-BashkarNeural"), ("Tanishaa", "female, India", "bn-IN-TanishaaNeural"))),
+    ("Tamil", _pair(("Valluvar", "male", "ta-IN-ValluvarNeural"), ("Pallavi", "female", "ta-IN-PallaviNeural"))),
+    ("Spanish", _pair(("Alvaro", "male, Spain", "es-ES-AlvaroNeural"), ("Elvira", "female, Spain", "es-ES-ElviraNeural"),
+                      ("Jorge", "male, Mexico", "es-MX-JorgeNeural"), ("Dalia", "female, Mexico", "es-MX-DaliaNeural"))),
+    ("Portuguese", _pair(("Antonio", "male, Brazil", "pt-BR-AntonioNeural"), ("Francisca", "female, Brazil", "pt-BR-FranciscaNeural"))),
+    ("French", _pair(("Henri", "male", "fr-FR-HenriNeural"), ("Denise", "female", "fr-FR-DeniseNeural"))),
+    ("German", _pair(("Conrad", "male", "de-DE-ConradNeural"), ("Katja", "female", "de-DE-KatjaNeural"))),
+    ("Italian", _pair(("Diego", "male", "it-IT-DiegoNeural"), ("Elsa", "female", "it-IT-ElsaNeural"))),
+    ("Dutch", _pair(("Maarten", "male", "nl-NL-MaartenNeural"), ("Colette", "female", "nl-NL-ColetteNeural"))),
+    ("Polish", _pair(("Marek", "male", "pl-PL-MarekNeural"), ("Zofia", "female", "pl-PL-ZofiaNeural"))),
+    ("Russian", _pair(("Dmitry", "male", "ru-RU-DmitryNeural"), ("Svetlana", "female", "ru-RU-SvetlanaNeural"))),
+    ("Turkish", _pair(("Ahmet", "male", "tr-TR-AhmetNeural"), ("Emel", "female", "tr-TR-EmelNeural"))),
+    ("Indonesian", _pair(("Ardi", "male", "id-ID-ArdiNeural"), ("Gadis", "female", "id-ID-GadisNeural"))),
+    ("Malay", _pair(("Osman", "male", "ms-MY-OsmanNeural"), ("Yasmin", "female", "ms-MY-YasminNeural"))),
+    ("Filipino", _pair(("Angelo", "male", "fil-PH-AngeloNeural"), ("Blessica", "female", "fil-PH-BlessicaNeural"))),
+    ("Vietnamese", _pair(("Nam Minh", "male", "vi-VN-NamMinhNeural"), ("Hoai My", "female", "vi-VN-HoaiMyNeural"))),
+    ("Thai", _pair(("Niwat", "male", "th-TH-NiwatNeural"), ("Premwadee", "female", "th-TH-PremwadeeNeural"))),
+    ("Chinese (Mandarin)", _pair(("Yunxi", "male", "zh-CN-YunxiNeural"), ("Yunjian", "male, deep", "zh-CN-YunjianNeural"),
+                                 ("Xiaoxiao", "female", "zh-CN-XiaoxiaoNeural"))),
+    ("Japanese", _pair(("Keita", "male", "ja-JP-KeitaNeural"), ("Nanami", "female", "ja-JP-NanamiNeural"))),
+    ("Korean", _pair(("InJoon", "male", "ko-KR-InJoonNeural"), ("SunHi", "female", "ko-KR-SunHiNeural"))),
+    ("Swahili", _pair(("Rafiki", "male", "sw-KE-RafikiNeural"), ("Zuri", "female", "sw-KE-ZuriNeural"))),
+]
+
+
+def voices_for(language: str) -> list:
+    """The (label, voice id) list of one language; English when the name is unknown."""
+    return next((v for name, v in LANGUAGES if name == language), VOICES)
+
+
 _SECONDS_PER_WORD = 0.4   # ~150 spoken words a minute
 
 
@@ -73,6 +120,7 @@ def _find(name: str) -> str:
 def build(view: Any, app: Any) -> None:
     view._vo_busy = False
     view._vo_cancel = threading.Event()
+    view._vo_lang_var = ctk.StringVar(value=LANGUAGES[0][0])
     view._vo_voice_var = ctk.StringVar(value=VOICES[0][0])
     view._vo_speed_var = ctk.DoubleVar(value=1.0)
     view._vo_pitch_var = ctk.IntVar(value=0)
@@ -94,18 +142,24 @@ def build(view: Any, app: Any) -> None:
     voice = Card(view._body, title="Semantic voices")
     voice.grid(row=1, column=0, sticky="ew", pady=(0, 12))
     voice.body.grid_columnconfigure(3, weight=1)
-    ctk.CTkLabel(voice.body, text="Voice", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=4)
-    ctk.CTkOptionMenu(voice.body, values=[v[0] for v in VOICES], variable=view._vo_voice_var, width=330).grid(row=0, column=1, sticky="w", pady=4)
-    ctk.CTkLabel(voice.body, text="Speed", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=4)
+    ctk.CTkLabel(voice.body, text="Language", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=4)
+    ctk.CTkOptionMenu(voice.body, values=[name for name, _ in LANGUAGES], variable=view._vo_lang_var, width=330,
+                      command=lambda _v: _language_changed(view)).grid(row=0, column=1, sticky="w", pady=4)
+    ctk.CTkLabel(voice.body, text="Voice", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=4)
+    view._vo_voice_menu = ctk.CTkOptionMenu(voice.body, values=[v[0] for v in VOICES], variable=view._vo_voice_var, width=330)
+    view._vo_voice_menu.grid(row=1, column=1, sticky="w", pady=4)
+    ctk.CTkLabel(voice.body, text="Speed", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", padx=(0, 12), pady=4)
     ctk.CTkSlider(voice.body, from_=0.8, to=1.3, number_of_steps=10, variable=view._vo_speed_var, width=260,
-                  command=lambda _v: view._vo_speed_lbl.configure(text=f"{view._vo_speed_var.get():.2f}x")).grid(row=1, column=1, sticky="w", pady=4)
+                  command=lambda _v: view._vo_speed_lbl.configure(text=f"{view._vo_speed_var.get():.2f}x")).grid(row=2, column=1, sticky="w", pady=4)
     view._vo_speed_lbl = ctk.CTkLabel(voice.body, text="1.00x", text_color=T.MUTED, font=ctk.CTkFont(size=12))
-    view._vo_speed_lbl.grid(row=1, column=2, padx=8)
-    ctk.CTkLabel(voice.body, text="Pitch", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=2, column=0, sticky="w", padx=(0, 12), pady=4)
+    view._vo_speed_lbl.grid(row=2, column=2, padx=8)
+    ctk.CTkLabel(voice.body, text="Pitch", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=3, column=0, sticky="w", padx=(0, 12), pady=4)
     ctk.CTkSlider(voice.body, from_=-20, to=20, number_of_steps=8, variable=view._vo_pitch_var, width=260,
-                  command=lambda _v: view._vo_pitch_lbl.configure(text=f"{int(view._vo_pitch_var.get()):+d} Hz")).grid(row=2, column=1, sticky="w", pady=4)
+                  command=lambda _v: view._vo_pitch_lbl.configure(text=f"{int(view._vo_pitch_var.get()):+d} Hz")).grid(row=3, column=1, sticky="w", pady=4)
     view._vo_pitch_lbl = ctk.CTkLabel(voice.body, text="+0 Hz", text_color=T.MUTED, font=ctk.CTkFont(size=12))
-    view._vo_pitch_lbl.grid(row=2, column=2, padx=8)
+    view._vo_pitch_lbl.grid(row=3, column=2, padx=8)
+    ctk.CTkLabel(voice.body, text="Write the script in the language you pick: the voice reads it as written, it does not translate.",
+                 text_color=T.MUTED, font=ctk.CTkFont(size=11), anchor="w").grid(row=4, column=0, columnspan=4, sticky="w", pady=(4, 0))
 
     go = Card(view._body, title="Generate",
               subtitle="Semantic voices: natural narration. The audio is made online at about 2-3x real time, so a 10-minute script takes a few minutes.")
@@ -246,9 +300,17 @@ def _stop_play(view: Any) -> None:
         pass
 
 
+def _language_changed(view: Any) -> None:
+    """A new language shows its own voices and picks its first one. Only remembers the choice: nothing runs."""
+    voices = voices_for(view._vo_lang_var.get())
+    view._vo_voice_menu.configure(values=[v[0] for v in voices])
+    view._vo_voice_var.set(voices[0][0])
+
+
 def _voice_id(view: Any) -> str:
+    voices = voices_for(view._vo_lang_var.get()) if hasattr(view, "_vo_lang_var") else VOICES
     label = view._vo_voice_var.get()
-    return next((vid for lab, vid in VOICES if lab == label), VOICES[0][1])
+    return next((vid for lab, vid in voices if lab == label), voices[0][1])
 
 
 def _text(view: Any) -> str:
@@ -256,7 +318,8 @@ def _text(view: Any) -> str:
 
 
 def _update_count(view: Any) -> None:
-    n = len(_text(view).split())
+    import edge_voiceover as ev
+    n = ev.word_count(_text(view))
     mins = n * _SECONDS_PER_WORD / 60
     view._vo_count_var.set(f"{n:,} words, about {mins:.1f} min of speech")
 
@@ -304,8 +367,8 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
         return
     ws = getattr(app, "_workspace", None)
     if preview:
-        import re
-        text = " ".join(re.split(r"(?<=[.!?])\s+", text)[:3])
+        import edge_voiceover as ev
+        text = " ".join(ev.split_sentences(text)[:3])
         out = Path(ws.audio_dir if ws is not None else Path.home()) / "voiceover_preview.mp3"
     elif ws is not None:
         ws.ensure_dirs()

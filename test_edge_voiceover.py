@@ -95,3 +95,39 @@ class SynthesizeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Languages(unittest.TestCase):
+    """The Voiceover tab's other languages (2026-11-04): sentence ends of every script, and a voice list per language."""
+
+    def test_sentence_ends_of_each_script(self):
+        self.assertEqual(ev.split_sentences("یہ پہلا جملہ ہے۔ یہ دوسرا ہے۔کیا یہ تیسرا ہے؟ ٹھیک"),
+                         ["یہ پہلا جملہ ہے۔", "یہ دوسرا ہے۔", "کیا یہ تیسرا ہے؟", "ٹھیک"])
+        self.assertEqual(ev.split_sentences("यह पहला वाक्य है। यह दूसरा है।"), ["यह पहला वाक्य है।", "यह दूसरा है।"])
+        self.assertEqual(ev.split_sentences("这是第一句。这是第二句！对吗？"), ["这是第一句。", "这是第二句！", "对吗？"])
+        self.assertEqual(ev.split_sentences("It costs 3.5 dollars. Next!"), ["It costs 3.5 dollars.", "Next!"])
+
+    def test_long_urdu_and_chinese_scripts_split_on_their_own_sentence_ends(self):
+        urdu = "یہ ایک لمبا جملہ ہے جس میں بہت سے الفاظ ہیں۔ " * 40
+        pieces = ev.split_script(urdu, 300)
+        self.assertGreater(len(pieces), 1)
+        self.assertTrue(all(len(p) <= 300 and p.endswith("۔") for p in pieces), pieces[:2])
+        chinese = "这是一个很长的句子，里面有很多字。" * 60
+        pieces = ev.split_script(chinese, 300)
+        self.assertTrue(all(len(p) <= 300 and p.endswith("。") for p in pieces))
+
+    def test_word_count_for_scripts_without_spaces(self):
+        self.assertEqual(ev.word_count("one two three"), 3)
+        self.assertGreater(ev.word_count("这是第一句这是第二句这是第三句"), 3)
+
+    def test_every_language_has_its_own_voices_and_english_stays_first(self):
+        from ui.voiceover_view import LANGUAGES, VOICES, voices_for
+        import re
+        self.assertEqual(LANGUAGES[0], ("English", VOICES))
+        names = [n for n, _ in LANGUAGES]
+        self.assertTrue({"Urdu", "Hindi", "Arabic", "Spanish"} <= set(names))
+        ids = [vid for _, vs in LANGUAGES for _, vid in vs]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertTrue(all(re.fullmatch(r"[a-z]{2,3}-[A-Z]{2}-\w+Neural", v) for v in ids), ids)
+        self.assertTrue(all(v.startswith("ur-") for _, v in voices_for("Urdu")))
+        self.assertEqual(voices_for("Klingon"), VOICES)

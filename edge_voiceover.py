@@ -52,6 +52,24 @@ def ensure_installed(say=None) -> bool:
         return False
 
 
+# Sentence ends: . ! ? need a space after them (so 3.5 and U.S. stay whole); the Urdu/Arabic/Hindi/Chinese/Japanese marks
+# (۔ ؟ । ॥ 。 ！ ？) end a sentence even with no space, as those scripts are written.
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+|(?<=[\u06D4\u061F\u0964\u0965\u3002\uFF01\uFF1F])\s*")
+_NO_SPACE_SCRIPT = re.compile(r"[\u3040-\u30FF\u3400-\u9FFF\uAC00-\uD7AF\u0E00-\u0E7F]")
+
+
+def split_sentences(text: str) -> list[str]:
+    """The script's sentences, in any of the Voiceover tab's languages."""
+    return [s.strip() for s in _SENTENCE_END.split(re.sub(r"\s+", " ", text or "").strip()) if s and s.strip()]
+
+
+def word_count(text: str) -> int:
+    """Words for the length estimate; in scripts written without spaces (Chinese, Japanese, Korean, Thai) two characters count as one."""
+    t = text or ""
+    dense = len(_NO_SPACE_SCRIPT.findall(t))
+    return len(t.split()) + (dense // 2 if dense > len(t) * 0.3 else 0)
+
+
 def split_script(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
     """Split on sentence ends so no piece is longer than max_chars
     (a single oversize sentence is cut at spaces)."""
@@ -60,7 +78,7 @@ def split_script(text: str, max_chars: int = MAX_CHUNK_CHARS) -> list[str]:
         return []
     pieces: list[str] = []
     cur = ""
-    for sent in re.split(r"(?<=[.!?])\s+", text):
+    for sent in split_sentences(text):
         while len(sent) > max_chars:
             cut = sent.rfind(" ", 0, max_chars)
             cut = cut if cut > 0 else max_chars
