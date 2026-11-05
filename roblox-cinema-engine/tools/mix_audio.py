@@ -76,6 +76,7 @@ def ambience(plan, cues, total):
     N = int(total * SR); bus = np.zeros((N, 2), np.float32); used = []
     for k, seg in enumerate(cues['ambience']):
         spec = BEDS.get(seg['bed'], BEDS['wind']); t0, t1 = max(0, seg['t0'] - 0.8), min(total, seg['t1'] + 0.8); n = int((t1 - t0) * SR)
+        if n <= 0: continue
         f = pick_amb(spec[0], f"{seg['bed']}:{k}")
         layer = np.zeros((n, 2), np.float32)
         if f:

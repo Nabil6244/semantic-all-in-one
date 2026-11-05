@@ -74,7 +74,8 @@ export function makeCharacter({ role = 'soldier', faction = 'civilian', era = 'w
   let hat = pickOr(rng, kit.hat);
   if (hat === 'helmet' || hat === 'helmet_medic') hat = { type: (f.helmet && f.helmet[era]) || ERA_HELMET[era] || 'cap_soft', medic: hat === 'helmet_medic' };
   else if (hat) hat = { type: hat };
-  if (hat && ['m1', 'brodie', 'stahl', 'ssh', 'kabuto', 'adrian', 'pith', 'modern'].includes(hat.type)) {
+  if (era === 'ancient' && hat && hat.type === 'peaked') hat = { type: 'crest' };   // an officer's cap is a crested helmet
+  if (hat && ['m1', 'brodie', 'stahl', 'ssh', 'kabuto', 'adrian', 'pith', 'modern', 'crest'].includes(hat.type)) {
     hat.color = shade(f.gear || '#4d4a33', 0.95 + rng() * 0.1);
     hat.net = era === 'ww2' && (faction === 'us' || faction === 'uk' || faction === 'allied') && rng.chance(0.55);
     hat.strap = rng.chance(0.6);
@@ -83,10 +84,10 @@ export function makeCharacter({ role = 'soldier', faction = 'civilian', era = 'w
   const face = {
     eyes: rng.pick(FACES.eyes), brows: rng.pick(FACES.brows), mouth: rng.pick(moodMouth || kit.mouth),
     facial: role === 'child' ? 'none' : rng.pick(FACES.facial), glasses: rng.chance(role === 'journalist' || role === 'politician' || role === 'forecaster' ? 0.45 : 0.06),
-    hair: hat && ['m1', 'brodie', 'stahl', 'ssh', 'kabuto', 'adrian', 'modern'].includes(hat.type) ? 'none' : rng.pick(FACES.hair), hairColor, scar: rng.chance(0.04),
+    hair: hat && ['m1', 'brodie', 'stahl', 'ssh', 'kabuto', 'adrian', 'modern', 'crest'].includes(hat.type) ? 'none' : rng.pick(FACES.hair), hairColor, scar: rng.chance(0.04),
   };
-  const gear = [...kit.gear];
-  if ((role === 'soldier' || role === 'paratrooper') && rng.chance(0.25)) gear.push('radio');
+  const gear = era === 'ancient' || era === 'medieval' ? [] : [...kit.gear];   // no webbing, radios or holsters before gunpowder
+  if ((role === 'soldier' || role === 'paratrooper') && rng.chance(0.25) && era !== 'ancient' && era !== 'medieval') gear.push('radio');
   const weapon = kit.weapon ? (rng.chance(0.15) && era === 'ww2' ? 'smg' : WEAPON_BY_ERA[era] || 'rifle_semi') : null;
   return {
     id: name ? `p_${hash(name).toString(36)}` : `c_${hash(`${role}:${faction}:${seed}`).toString(36)}`, name, role, faction, era,

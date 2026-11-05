@@ -89,9 +89,11 @@ export function extractDates(text, contextYear = null) {
   while ((m = r4.exec(t))) out.push({ season: m[1].toLowerCase(), year: +m[2], index: m.index });
   const r5 = /\b(?:in\s+)?(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b/gi;
   while ((m = r5.exec(t))) if (!out.some((d) => Math.abs(d.index - m.index) < 12)) out.push({ month: mi(m[1]) + 1, year: +m[2], index: m.index });
+  const r7 = /\b(\d{1,4})\s*(BC|BCE|AD|CE)\b/g;   // ancient years: "753 BC", "476 AD"
+  while ((m = r7.exec(t))) { const bc = /^BC/.test(m[2]); out.push({ year: bc ? -(+m[1]) : +m[1], index: m.index, ancient: bc ? 'BC' : 'AD' }); }
   const r6 = /\b(1[0-9]{3}|20[0-9]{2})\b/g;
   // a bare four-digit number followed by a unit ("1200 years", "1500 men", "2000 miles") is an amount, not a year
-  while ((m = r6.exec(t))) if (!/^\s*(?:years?|men|soldiers|people|ships|miles|km|kilometres|kilometers|troops|dead|killed)\b/i.test(t.slice(m.index + m[0].length)) && !out.some((d) => d.year === +m[1])) out.push({ year: +m[1], index: m.index });
+  while ((m = r6.exec(t))) if (!/^\s*(?:years?|men|soldiers|people|ships|miles|km|kilometres|kilometers|troops|dead|killed)\b/i.test(t.slice(m.index + m[0].length)) && !out.some((d) => d.year === +m[1] || Math.abs(d.index - m.index) < 8)) out.push({ year: +m[1], index: m.index });
   return out.sort((a, b) => a.index - b.index).map((d) => ({ ...d, label: dateLabel(d) }));
 }
 
@@ -101,6 +103,7 @@ export function dateLabel(d) {
   if (d.day && d.month) return `${d.day} ${M(d.month)}${d.year ? ' ' + d.year : ''}`;
   if (d.month) return `${M(d.month)}${d.year ? ' ' + d.year : ''}`;
   if (d.season) return `${d.season.toUpperCase()} ${d.year}`;
+  if (d.ancient) return `${Math.abs(d.year)} ${d.ancient}`;
   return d.year ? String(d.year) : '';
 }
 
@@ -257,19 +260,39 @@ export function estimateTiming(beats, { wps = 2.6, sentenceGap = 0.45, beatGap =
   return { sentences, end: t };
 }
 
+const STOP = new Set('the a an of to and in on at for with by from as is was were be been it its this that these those he she they his her their we our you i not but or so if then than which who whom what when where while into over under about after before more most also had has have did does do will would could should can may might very just only'.split(' '));
+
 /** Align a real voiceover's words (whisper: [{word,start,end}]) to the beats' sentences by greedy token matching with
- *  look-ahead, so a misheard word or two never shifts the rest. Returns the same shape as estimateTiming. */
+ *  look-ahead, so a misheard word or two never shifts the rest. When the spoken script is longer or worded differently than the
+ *  CSV text (extra sentences, paraphrases), each sentence first re-syncs on a run of three words found further on in the voice
+ *  (never backwards), so the film cannot collapse onto the first minute. Times only ever move forward. Returns the same shape as
+ *  estimateTiming plus `coverage` (share of CSV words found in the voice) and `resyncs`. */
 export function alignTiming(beats, words) {
   const W = words.map((w) => ({ ...w, t: tok(w.word)[0] || '' })).filter((w) => w.t);
-  const sentences = []; let j = 0;
+  const same = (a, b) => a === b || (a.length > 4 && b.length > 4 && a.slice(0, 4) === b.slice(0, 4));
+  const sentences = []; let j = 0, found = 0, total = 0, resyncs = 0, lastEnd = 0;
+  const RESYNC = 700;
   beats.forEach((b, bi) => {
     for (const s of splitSentences(b.text)) {
       const ws = tok(s), matched = [];
+      // re-sync: where does a run of three of this sentence's words next occur in the voice?
+      let best = -1;
+      for (let i = 0; i + 2 < ws.length && i < 10 && best < 0; i++) {
+        if (ws.slice(i, i + 3).filter((x) => !STOP.has(x)).length < 2) continue;
+        for (let k = j; k + 2 < W.length && k < j + RESYNC; k++) {
+          if (!(same(W[k].t, ws[i]) && same(W[k + 1].t, ws[i + 1]) && same(W[k + 2].t, ws[i + 2]))) continue;
+          // verify: most of the next words of the sentence follow within a short stretch of the voice
+          let q = k + 3, ok = 3; for (let m = i + 3; m < Math.min(ws.length, i + 9); m++) for (let d = 0; d < 6 && q + d < W.length; d++) if (same(W[q + d].t, ws[m])) { q = q + d + 1; ok++; break; }
+          if (ok >= Math.min(6, ws.length - i) * 0.6) { best = Math.max(j, k - i); break; }
+        }
+      }
+      if (best > j + 8) { j = best; resyncs++; }
       for (const w of ws) {
         let k = -1;
-        for (let d = 0; d < 8 && j + d < W.length; d++) if (W[j + d].t === w || (w.length > 4 && W[j + d].t.slice(0, 4) === w.slice(0, 4))) { k = j + d; break; }
-        if (k >= 0) { matched.push({ word: w, start: W[k].start, end: W[k].end }); j = k + 1; }
+        for (let d = 0; d < 8 && j + d < W.length; d++) if (same(W[j + d].t, w)) { k = j + d; break; }
+        if (k >= 0) { matched.push({ word: w, start: W[k].start, end: W[k].end }); j = k + 1; found++; }
         else matched.push({ word: w, start: null, end: null });
+        total++;
       }
       // fill unmatched words by interpolation between matched neighbours
       for (let i = 0; i < matched.length; i++) if (matched[i].start === null) {
@@ -277,10 +300,12 @@ export function alignTiming(beats, words) {
         const a = prev ? prev.end : next ? next.start - 0.3 : (W[j] || W[W.length - 1] || { start: 0 }).start, c = next ? next.start : a + 0.3;
         matched[i].start = a; matched[i].end = Math.max(a + 0.05, Math.min(c, a + 0.35));
       }
+      // monotonic: nothing starts before the previous word ended
+      for (const m of matched) { m.start = Math.max(m.start, lastEnd); m.end = Math.max(m.end, m.start + 0.05); lastEnd = m.end; }
       sentences.push({ beat: bi, text: s, start: matched[0].start, end: matched[matched.length - 1].end, words: matched });
     }
   });
-  return { sentences, end: sentences.length ? sentences[sentences.length - 1].end : 0 };
+  return { sentences, end: sentences.length ? sentences[sentences.length - 1].end : 0, coverage: total ? found / total : 1, resyncs };
 }
 
 /** The spoken time of a word in a sentence (first word starting with `key`), or null. */

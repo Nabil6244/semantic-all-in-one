@@ -45,6 +45,8 @@ export const FACTIONS = {
   south_vietnam: { words: ['south vietnamese', 'arvn'], label: 'South Vietnamese', shirt: '#55663f', pants: '#4b5a37', helmet: { cold_war: 'm1' }, gear: '#3d4a2d', accent: '#6a7d50' },
   india: { words: ['indian', 'indians', 'india'], label: 'Indian', shirt: '#6f7448', pants: '#636840', helmet: { cold_war: 'm1', modern: 'modern' }, gear: '#4b4f31', accent: '#82875a' },
   pakistan: { words: ['pakistani', 'pakistanis', 'pakistan'], label: 'Pakistani', shirt: '#59693f', pants: '#4f5d38', helmet: { cold_war: 'm1', modern: 'modern' }, gear: '#3c4729', accent: '#6c7d4d' },
+  roman: { words: ['roman', 'romans', 'rome', 'legion', 'legions', 'legionaries'], label: 'Roman', shirt: '#9a3b2e', pants: '#8a6a4a', helmet: { ancient: 'crest' }, gear: '#b08a3c', accent: '#c9a24a' },
+  carthage: { words: ['carthaginian', 'carthaginians', 'carthage', 'hannibal'], label: 'Carthaginian', shirt: '#5e3f7a', pants: '#7a6a4a', helmet: { ancient: 'crest' }, gear: '#8a7a3c', accent: '#b49ad0' },
   civilian: { words: [], label: 'Civilians', shirt: null, pants: null, helmet: {}, gear: '#6b5a44', accent: '#8b7a64' },
 };
 

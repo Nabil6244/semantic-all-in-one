@@ -8,6 +8,7 @@ app.py only calls in here: activate / deactivate / sync_cta / cta, and reads `_r
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 import threading
 from pathlib import Path
@@ -69,11 +70,16 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                   placeholder_text="Choose the story CSV (plan / chapter / beat rows), or paste narration below")
     app._path_row(1, "Voice-over", app._rc_voice_var, lambda: _browse(app, "voice"), parent=body,
                   placeholder_text="Optional: your narration (the film is timed to its words; without it a planned read is used)")
+    tools = ctk.CTkFrame(body, fg_color="transparent")
+    tools.grid(row=3, column=0, sticky="w", pady=(6, 0))
+    app._rc_prompt_status = ctk.StringVar(value="")
+    make_button(tools, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=0, padx=(0, 10))
+    ctk.CTkLabel(tools, textvariable=app._rc_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=1, sticky="w")
     app._rc_text_box = ctk.CTkTextbox(body, height=120, font=ctk.CTkFont(size=12), wrap="word")
     app._rc_text_box.grid(row=2, column=0, sticky="ew", pady=(8, 0))
     ctk.CTkLabel(body, text="Maps show present-day borders and approximate positions (the film says so on screen). "
                             "Sample: roblox-cinema-engine/samples/dday_1944.csv.", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w",
-                 justify="left", wraplength=600).grid(row=3, column=0, sticky="w", pady=(4, 0))
+                 justify="left", wraplength=600).grid(row=4, column=0, sticky="w", pady=(4, 0))
 
     body = section(block, 1, 2, "Output")
     out = ctk.CTkFrame(body, fg_color="transparent")
@@ -96,6 +102,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     ctk.CTkLabel(body, textvariable=app._rc_status_var, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left",
                  wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
+    _wire_persistence(app)
     block.grid_remove()
 
 
@@ -114,6 +121,108 @@ def _browse(app: Any, kind: str) -> None:
         _sync_buttons(app)
 
 
+
+def copy_csv_prompt(app: Any) -> None:
+    """Put the story-CSV writing prompt on the clipboard (paste it into any AI chat with your topic)."""
+    p = _engine_dir().joinpath(*('docs', 'story_prompt.md'))
+    status = app._rc_prompt_status
+    try:
+        text = p.read_text(encoding="utf-8")
+    except Exception:
+        status.set(f"The CSV prompt is not there yet ({p.name}).")
+        return
+    try:
+        app.clipboard_clear()
+        app.clipboard_append(text)
+        status.set("Copied. Paste it into your AI chat with your topic.")
+    except Exception as exc:  # noqa: BLE001
+        status.set(f"Could not copy: {exc}")
+
+
+# ---- what a project keeps: its page choices and its planned film --------------------------------------------------------------
+# Saved to <project>/state/roblox_cinema/settings.json whenever a choice changes or Generate finishes, and put back when the project
+# is (re)opened. The plan is only put back while the story and voice files are exactly as they were at Generate (size + saved time).
+
+def _sig(path: str):
+    try:
+        st = Path(path).stat()
+        return [str(Path(path).resolve()), st.st_size, st.st_mtime_ns]
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _settings_file(app: Any) -> Optional[Path]:
+    ws = getattr(app, "_workspace", None)
+    return Path(ws.state_dir) / "roblox_cinema" / "settings.json" if ws is not None else None
+
+
+def _save(app: Any) -> None:
+    if getattr(app, "_rc_restoring", False) or getattr(app, "_rc_text_box", None) is None:
+        return
+    f = _settings_file(app)
+    if f is None:
+        return
+    try:
+        o = options(app)
+        planned = getattr(app, "_rc_planned", None)
+        data = {"csv": o["csv"], "voice": o["voice"], "text": o["text"], "res_label": app._rc_res_var.get(), "music": o["music"], "planned": None}
+        if planned:
+            src = planned["src"]
+            data["planned"] = {**planned, "sig_src": _sig(src.get("csv") or src.get("text_file") or ""), "sig_voice": _sig(planned["voice"]) if planned["voice"] else None}
+        f.parent.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
+        tmp.replace(f)
+    except Exception:  # noqa: BLE001 - remembering is a convenience, never a failure
+        pass
+
+
+def _restore(app: Any) -> None:
+    """Put back this project's page choices and, if nothing changed since, its planned film (so Render is ready after reopening)."""
+    ws = getattr(app, "_workspace", None)
+    key = str(getattr(ws, "state_dir", "")) if ws is not None else ""
+    if key == getattr(app, "_rc_restored_for", None) or getattr(app, "_rc_running", False) or getattr(app, "_rc_text_box", None) is None:
+        return
+    app._rc_restored_for = key
+    app._rc_planned = None            # a plan belongs to one project
+    f = _settings_file(app)
+    if f is None or not f.is_file():
+        return
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return
+    app._rc_restoring = True
+    try:
+        app._rc_csv_var.set(d.get("csv", "") or "")
+        app._rc_voice_var.set(d.get("voice", "") or "")
+        if d.get("res_label") in RESOLUTIONS:
+            app._rc_res_var.set(d["res_label"])
+        app._rc_music_var.set(bool(d.get("music", True)))
+        app._rc_text_box.delete("1.0", "end")
+        if d.get("text"):
+            app._rc_text_box.insert("1.0", d["text"])
+        p = d.get("planned")
+        if p and p.get("src") and Path(str(p.get("base", "")) + ".mp4.plan.json").is_file():
+            src = p["src"]
+            same_src = p.get("sig_src") is not None and _sig(src.get("csv") or src.get("text_file") or "") == p["sig_src"]
+            same_voice = (not p.get("voice")) or (p.get("sig_voice") is not None and _sig(p["voice"]) == p["sig_voice"])
+            if same_src and same_voice:
+                app._rc_planned = {k: p[k] for k in ("src", "voice", "res", "music", "base")}
+                app._rc_status_var.set("Restored: the film is planned. Click Render, or Generate to plan again.")
+    finally:
+        app._rc_restoring = False
+
+
+def _wire_persistence(app: Any) -> None:
+    for v in (app._rc_csv_var, app._rc_voice_var, app._rc_res_var, app._rc_music_var):
+        v.trace_add("write", lambda *_a: _save(app))
+    try:
+        app._rc_text_box.bind("<KeyRelease>", lambda _e: _save(app))
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def activate(app: Any) -> None:
     if getattr(app, "_rc_running", False):
         return
@@ -127,6 +236,7 @@ def activate(app: Any) -> None:
     if getattr(app, "_rc_block", None) is None:
         build(app, app._view_visual_director.content, row=9)
     app._rc_active = True
+    _restore(app)
     from .voiceover_view import adopt_project_voiceover
     adopt_project_voiceover(app, app._rc_voice_var)   # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
     app._rc_block.grid()
@@ -151,6 +261,7 @@ def _sync_buttons(app: Any) -> None:
 
 
 def sync_cta(app: Any) -> None:
+    _restore(app)                     # a different project was opened while this page is up
     _sync_buttons(app)
     if getattr(app, "_rc_running", False):
         app._cta_action = "rc_cancel"
@@ -219,7 +330,13 @@ def _source(app: Any, o: dict) -> dict:
 
 
 def _progress(app: Any):
+    last = {"t": 0.0}
+
     def cb(frac: float, msg: str = "") -> None:
+        import time as _time
+        if _time.monotonic() - last["t"] >= 30:      # a real log line every 30 s: shows the work is moving and keeps the stall watchdog quiet
+            last["t"] = _time.monotonic()
+            app.after(0, lambda m=f"{int(frac * 100)}% {msg}".strip(): app._append_log(f"{TAG} {m}\n"))
         app.after(0, lambda: (app._rc_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
                               app._export_progress(max(0.0, min(1.0, frac)), msg or "")))
     return cb
@@ -283,6 +400,7 @@ def on_generate(app: Any) -> None:
 
     def done(r) -> None:
         app._rc_planned = {"src": src, "voice": o["voice"], "res": o["res"], "music": o["music"], "base": base}
+        _save(app)
         warn = f"  {len(r['warnings'])} notes (see the log)." if r["warnings"] else ""
         msg = f"Planned {r['scenes']} scenes, {r['duration']:.0f} s ({'timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over'}).{warn}"
         app._rc_status_var.set(msg)

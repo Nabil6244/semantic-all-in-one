@@ -39,6 +39,20 @@ test('voice timing: words are matched in order, misheard words are interpolated,
   assert.ok(estimateTiming(beats).end > 3);
 });
 
+test('voice timing: a longer spoken script than the CSV text does not collapse the film onto its first minute', () => {
+  // the voice says three extra sentences between the CSV's; the CSV only has the sentences it keeps
+  const spoken = ['Rome began as a muddy village on seven hills.', 'So grab a snack because this is a long story and it is a mess.', 'The republic replaced the kings after the last king was thrown out.',
+    'Everyone argued about who should hold power in the city.', 'Carthage was destroyed by the Roman legions in the Third Punic War.', 'Caesar crossed the Rubicon and started a civil war.'];
+  const words = []; let t = 0;
+  for (const s of spoken) for (const w of s.split(' ')) { words.push({ word: w, start: t, end: t + 0.3 }); t += 0.35; }
+  const beats = [{ text: spoken[0] }, { text: spoken[2] }, { text: spoken[4] }, { text: spoken[5] }];
+  const r = alignTiming(beats, words);
+  const startOf = (txt) => words.find((w) => w.word === txt.split(' ')[0] && w.start > 0).start;
+  assert.ok(Math.abs(r.sentences[3].start - words[words.length - 8].start) < 1.5, 'the last sentence lands at the end of the voice, not near the start');
+  assert.ok(r.end > t * 0.9);
+  for (let i = 1; i < r.sentences.length; i++) assert.ok(r.sentences[i].start >= r.sentences[i - 1].end - 1e-9);
+});
+
 test('back-to-back beats on the same map are one continuous map scene, not the map re-opening per beat', async () => {
   const { direct } = await import('../lib/director.mjs');
   const m = '"{""map"": {""pins"": [""Rome"", ""Carthage""]}}"';
