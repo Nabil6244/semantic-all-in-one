@@ -66,8 +66,8 @@ function mouthAt(t) { const e = plan.envelope, k = t * plan.envFps, i = Math.flo
 function gestureAt(t) {
   let cur = null, prev = null; for (const g of plan.gestures) if (g.t <= t) { prev = cur; cur = g; }
   if (!cur) return { gesture: 'idle', turn: 0 };
-  const gw = Math.min(1, (t - cur.t) / 0.35), s = { gesture: cur.gesture, gt: t - cur.t, gw, emotion: cur.emotion || 'happy' };
-  if (gw < 1 && prev) s.prev = { gesture: prev.gesture, gt: t - prev.t };
+  const gw = Math.min(1, (t - cur.t) / 0.35), s = { gesture: cur.gesture, gt: t - cur.t, gw, emotion: cur.emotion || 'happy', beat: cur.beat };
+  if (gw < 1 && prev) s.prev = { gesture: prev.gesture, gt: t - prev.t, beat: prev.beat };
   // Glance at the props while presenting them, but come back to the child (camera) at the end of each line.
   const lookP = cur.look === 'props' ? 1 : 0, lookPrev = prev && prev.look === 'props' ? 1 : 0, line = plan.lines.find((l) => t >= l.t0 - 0.2 && t < l.t1);
   const glance = line ? (t - line.t0 < 1.1 || line.t1 - t > 0.6) : false;

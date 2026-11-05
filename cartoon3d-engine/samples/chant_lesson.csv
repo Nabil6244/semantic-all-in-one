@@ -1,0 +1,6 @@
+type,text,object,color,count,word,gesture,emotion,pause
+say,"Hi friend! Let's clap and count with me!",,,,,,happy,
+chant,"One, two, three, four! Clap, clap, clap with me!",,,,,,happy,
+chant,"Five, six, seven, eight! Clap your hands, we're doing great!",,,,,,laugh,
+repeat,"Can you clap with me?",,,,,,,
+cheer,"Yay! Great clapping!",,,,,,laugh,

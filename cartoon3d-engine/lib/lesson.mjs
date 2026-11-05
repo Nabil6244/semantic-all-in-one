@@ -17,14 +17,15 @@
 //   shape    object circle|square|triangle|star|heart
 //   letter   word = the letter ("A"); the object pops on its word ("A is for apple")
 //   feeling  word happy|sad|surprised|angry|sleepy; a feeling face appears and the tutor acts it
+//   chant    spoken in rhythm: every word lands on the music's beat (needs opts.beat); she claps on the beat
 
-export const TYPES = ['say', 'word', 'repeat', 'count', 'color', 'cheer', 'opposite', 'animal', 'shape', 'letter', 'feeling'];
+export const TYPES = ['say', 'word', 'repeat', 'count', 'color', 'cheer', 'opposite', 'animal', 'shape', 'letter', 'feeling', 'chant'];
 export const PAIRS = { 'up/down': ['up', 'down', 'balloon'], 'big/small': ['big', 'small', 'ball'], 'fast/slow': ['fast', 'slow', 'car'] };
 const FEEL = { happy: 'happy', sad: 'sad', surprised: 'surprised', angry: 'angry', sleepy: 'neutral' };
 const ONE_PROP = ['word', 'color', 'opposite', 'animal', 'shape', 'letter', 'feeling'];
 const NUMBER_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
-const DEFAULT_GESTURE = { say: 'idle', word: 'present', repeat: 'lean', count: 'present', color: 'present', cheer: 'cheer', opposite: 'present', animal: 'present', shape: 'present', letter: 'present', feeling: 'idle' };
-const DEFAULT_EMOTION = { say: 'happy', word: 'surprised', repeat: 'happy', count: 'happy', color: 'happy', cheer: 'laugh', opposite: 'happy', animal: 'laugh', shape: 'happy', letter: 'happy', feeling: 'happy' };
+const DEFAULT_GESTURE = { say: 'idle', word: 'present', repeat: 'lean', count: 'present', color: 'present', cheer: 'cheer', opposite: 'present', animal: 'present', shape: 'present', letter: 'present', feeling: 'idle', chant: 'clap' };
+const DEFAULT_EMOTION = { say: 'happy', word: 'surprised', repeat: 'happy', count: 'happy', color: 'happy', cheer: 'laugh', opposite: 'happy', animal: 'laugh', shape: 'happy', letter: 'happy', feeling: 'happy', chant: 'happy' };
 
 export function parseCsv(text) {
   const rows = []; let field = '', q = false, row = [];
@@ -86,11 +87,13 @@ export function buildLesson(beats, voices, opts = {}) {
   const lines = [], gestures = [], props = [], cards = [], badges = [];
   let t = lead, live = [];
   const endLive = (when) => { for (const p of live) p.t1 = when; live = []; };
+  const beat = opts.beat || 0;
   beats.forEach((b, i) => {
+    if (b.type === 'chant' && beat) t = Math.ceil((t - 1e-6) / (2 * beat)) * 2 * beat;      // chants start on a half-bar of the music
     const v = voices[i] || { dur: 1.5, words: [] }, t0 = t, t1 = t + v.dur;
     const words = (v.words.length ? v.words : spread(b.text, v.dur)).map((w) => ({ text: w.text, t0: +(t0 + w.t0).toFixed(3), t1: +(t0 + w.t1).toFixed(3) }));
     lines.push({ i, type: b.type, text: b.text, t0: +t0.toFixed(3), t1: +t1.toFixed(3), words: captionWords(b.text, words) });
-    gestures.push({ t: Math.max(0, +(t0 - 0.15).toFixed(3)), gesture: b.gesture, emotion: b.emotion, look: live.length || ['word', 'count', 'color'].includes(b.type) ? 'props' : 'camera' });
+    gestures.push({ t: Math.max(0, +(t0 - (b.type === 'chant' ? 0 : 0.15)).toFixed(3)), gesture: b.gesture, emotion: b.emotion, look: live.length || ['word', 'count', 'color'].includes(b.type) ? 'props' : 'camera', ...(b.type === 'chant' && beat ? { beat: +beat.toFixed(5) } : {}) });
     if (ONE_PROP.includes(b.type)) {
       endLive(t0 - 0.05);
       const find = (w) => words.find((x) => norm(x.text) === norm(w));

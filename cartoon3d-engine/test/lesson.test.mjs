@@ -92,3 +92,14 @@ test('two cards on one line: the first stays until the second appears', () => {
   assert.ok(Math.abs(up.t1 - (down.t0 - 0.02)) < 1e-6);
   for (let k = 1; k < L.cards.length; k++) assert.ok(L.cards[k].t0 >= L.cards[k - 1].t1, 'cards never overlap');
 });
+
+test('chant lines start on a half-bar of the music and clap on its beat', () => {
+  const { beats } = normalizeRows(parseCsv('type,text\nsay,Hello!\nchant,"One, two, three, four!"\n'));
+  const L = buildLesson(beats, [{ dur: 1.3, words: [] }, { dur: 2.4, words: [] }], { beat: 0.5 });
+  const c = L.lines.find((l) => l.type === 'chant');
+  assert.equal(c.t0 % 1, 0);                          // half-bar = 2 beats = 1 s at 120 bpm
+  assert.ok(c.t0 >= L.lines[0].t1);
+  const g = L.gestures.find((x) => x.gesture === 'clap'); assert.equal(g.t, c.t0); assert.equal(g.beat, 0.5);
+  const plain = buildLesson(beats, [{ dur: 1.3, words: [] }, { dur: 2.4, words: [] }]);      // no beat given: timing as before
+  assert.equal(plain.lines[1].t0, +(0.6 + 1.3 + 0.35).toFixed(3));
+});

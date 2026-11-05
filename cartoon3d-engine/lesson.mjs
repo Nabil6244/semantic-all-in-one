@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Kids Learn: lesson CSV -> Edge voice with word timings -> plan -> GPU Chromium frames -> mp4 (-14 LUFS).
 // Usage: node cartoon3d-engine/lesson.mjs --csv lesson.csv [--out out.mp4] [--w 1280 --h 720] [--world playroom|park]
-//        [--host tutor|toon|host3d] [--glb host.glb] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
+//        [--host tutor|toon|host3d] [--glb host.glb] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -20,11 +20,37 @@ const log = (o) => console.log(JSON.stringify(o));
 const run = (cmd, a) => { const r = spawnSync(cmd, a, { encoding: 'utf8' }); if (r.status !== 0) throw new Error(`${cmd} failed: ${(r.stderr || '').slice(-500)}`); return r.stdout; };
 const dur = (f) => Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).trim());
 
-function voices(beats, work, voice, rate) {
+function voices(beats, work, voice, rate, bpm) {
   const lines = beats.map((b) => ({ text: b.text, out: path.join(work, `${crypto.createHash('sha1').update(`${voice}|${rate}|${b.text}`).digest('hex').slice(0, 16)}.mp3`) }));
   const job = path.join(work, 'tts_job.json'); fs.writeFileSync(job, JSON.stringify({ voice, rate, lines }));
   run('python3', [path.join(HERE, 'tools', 'tts_words.py'), job]);
-  return lines.map((l) => ({ file: l.out, dur: dur(l.out), words: JSON.parse(fs.readFileSync(l.out + '.words.json', 'utf8')) }));
+  return lines.map((l, i) => {
+    const v = { file: l.out, dur: dur(l.out), words: JSON.parse(fs.readFileSync(l.out + '.words.json', 'utf8')) };
+    return beats[i].type === 'chant' ? chantLine(v, beats[i].text, bpm, work) : v;
+  });
+}
+
+// Chant rows: the kids_audio engine puts every spoken word on the beat (cached per line and tempo).
+function chantLine(v, text, bpm, work) {
+  const out = v.file.replace(/\.mp3$/, `.chant${bpm}.wav`), meta = out + '.json';
+  if (!fs.existsSync(meta)) {
+    const job = out + '.job.json'; fs.writeFileSync(job, JSON.stringify({ voice: v.file, words: v.words, text, bpm, out }));
+    const r = spawnSync('python3', ['-m', 'kids_audio.chant', job], { encoding: 'utf8', cwd: ROOT });
+    if (r.status !== 0) throw new Error(`kids_audio chant failed: ${(r.stderr || '').slice(-500)}`);
+    fs.writeFileSync(meta, r.stdout.trim().split('\n').pop());
+  }
+  const c = JSON.parse(fs.readFileSync(meta, 'utf8'));
+  return { file: c.file, dur: c.dur, words: c.words };
+}
+
+// The music bed this lesson uses (or null) and its tempo; chants follow the tempo even with music off.
+function musicChoice(world) {
+  const bedArg = arg('music', 'auto'), bed = bedArg === 'off' ? null : bedArg === 'auto' ? (world === 'park' ? 'sunny' : 'playroom') : bedArg;
+  const r = spawnSync('python3', ['-c', 'import json; from kids_audio import library as L; print(json.dumps({k: v["bpm"] for k, v in L.build()["beds"].items()}))'], { encoding: 'utf8', cwd: ROOT });
+  if (r.status !== 0) throw new Error(`kids_audio library failed: ${(r.stderr || '').slice(-500)}`);
+  const bpms = JSON.parse(r.stdout.trim().split('\n').pop());
+  if (bed && !bpms[bed]) throw new Error(`unknown --music "${bed}" (use ${Object.keys(bpms).join(', ')}, auto or off)`);
+  return { bed, bpm: bpms[bed || 'playroom'] };
 }
 
 function mixVoice(lesson, vo, work) {
@@ -60,6 +86,33 @@ function loudnorm(wav) {
 // The approved host from authoring (accepted at Gate 5). Override with --glb.
 const HOST_GLB = path.join(HERE, 'authoring', 'build', 'revisions', 'f1_gate5', 'f1', 'host.glb');
 
+// Music and sound effects come from the reusable kids_audio engine (repo root). Lesson events -> named effects;
+// effects closer than 0.12 s to the previous one are dropped so nothing piles up.
+function audioEvents(plan) {
+  const ev = [], add = (t, name, gain_db = 0) => ev.push({ t: +Math.max(0, t).toFixed(3), name, gain_db });
+  for (const p of plan.props) add(p.t0 + 0.02, p.n ? `ding_${Math.min(10, p.n)}` : 'pop', p.n ? -2 : 0);
+  for (const c of plan.cards) add(c.t0, 'sparkle', -5);
+  for (const b of plan.badges) add(b.t0, 'chime', -3);
+  for (const l of plan.lines) if (l.type === 'cheer') add(l.t0 - 0.45, 'success', -2);      // in the gap before she cheers, not over her first word
+  const NUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+  for (const l of plan.lines) if (l.type === 'chant') for (const w of l.words) { const n = NUM[w.text.toLowerCase().replace(/[^a-z]/g, '')]; if (n) add(w.t0, `ding_${n}`, -4); }
+  ev.sort((a, b) => a.t - b.t);
+  return ev.filter((e, i) => !ev.slice(0, i).some((x) => Math.abs(x.t - e.t) < 0.12));
+}
+
+function audioMix(plan, wav, work) {
+  const sfxOn = arg('sfx', 'on') !== 'off', bed = plan.music;
+  if (!bed && !sfxOn) return null;                                    // voice only: the old path, unchanged
+  const voiceP = path.join(work, 'voice_processed.wav'), out = path.join(work, 'mix.wav'), job = path.join(work, 'mix_job.json');
+  run('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-af', `${loudnorm(wav)},aresample=48000`, '-ac', '2', voiceP]);   // same voice processing as before
+  fs.writeFileSync(job, JSON.stringify({ voice: voiceP, out, duration: plan.duration, voice_lufs: -14, music: bed ? { bed } : null, sfx: sfxOn ? audioEvents(plan) : [], duck_regions: plan.lines.filter((l) => l.type === 'chant').map((l) => ({ t0: l.t0 - 0.2, t1: l.t1, duck_db: -4 })) }));
+  const r = spawnSync('python3', ['-m', 'kids_audio.mixer', job], { encoding: 'utf8', cwd: ROOT });
+  if (r.status !== 0) throw new Error(`kids_audio mixer failed: ${(r.stderr || '').slice(-500)}`);
+  const rep = JSON.parse(r.stdout.trim().split('\n').pop());
+  log({ event: 'audio', ...rep });
+  return out;
+}
+
 function server(planJson, glb) {
   const three = path.join(ROOT, 'starmap-engine', 'node_modules', 'three'), TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.ttf': 'font/ttf', '.json': 'application/json' };
   const safe = (base, rel) => { const f = path.resolve(base, decodeURIComponent(rel)); return f.startsWith(path.resolve(base) + path.sep) ? f : null; };
@@ -86,10 +139,11 @@ async function main() {
   const { beats, problems } = normalizeRows(parseCsv(fs.readFileSync(csv, 'utf8')));
   for (const p of problems) log({ event: 'warning', message: p });
   if (!beats.length) throw new Error('the lesson CSV has no usable rows');
-  const vo = voices(beats, work, arg('voice', 'en-US-JennyNeural'), arg('rate', '-6%'));
-  const lesson = buildLesson(beats, vo);
+  const music = musicChoice(arg('world', 'playroom'));
+  const vo = voices(beats, work, arg('voice', 'en-US-JennyNeural'), arg('rate', '-6%'), music.bpm);
+  const lesson = buildLesson(beats, vo, { beat: 60 / music.bpm });
   const wav = mixVoice(lesson, vo, work), env = envelope(wav, lesson.duration);
-  const plan = { width: W, height: H, fps: FPS, envFps: FPS, envelope: env, ...lesson, tutorX: TUTOR_X, host: arg('host', 'tutor'), look: arg('look', 'maya'), world: arg('world', 'playroom') };
+  const plan = { width: W, height: H, fps: FPS, envFps: FPS, envelope: env, ...lesson, tutorX: TUTOR_X, host: arg('host', 'tutor'), look: arg('look', 'maya'), world: arg('world', 'playroom'), music: music.bed, bpm: music.bpm };
   const glb = plan.host === 'host3d' ? path.resolve(arg('glb', HOST_GLB)) : null;
   if (glb && !fs.existsSync(glb)) throw new Error(`host GLB not found: ${glb}`);
   if (glb) plan.visemeTrack = visemeTrack(lesson.lines.flatMap((l) => l.words), env, FPS, lesson.duration, FPS);
@@ -120,7 +174,9 @@ async function main() {
       if (i % 150 === 0) log({ event: 'progress', frame: i, total: n, ms_per_frame: Math.round((Date.now() - t0) / (i + 1)) });
     }
     ff.stdin.end(); if ((await closed) !== 0) throw new Error(`ffmpeg: ${ferr.slice(-300)}`);
-    run('ffmpeg', ['-y', '-loglevel', 'error', '-i', silent, '-i', wav, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-af', `${loudnorm(wav)},aresample=48000`, '-shortest', '-movflags', '+faststart', OUT]);
+    const mixed = audioMix(plan, wav, work);
+    if (mixed) run('ffmpeg', ['-y', '-loglevel', 'error', '-i', silent, '-i', mixed, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', '-movflags', '+faststart', OUT]);
+    else run('ffmpeg', ['-y', '-loglevel', 'error', '-i', silent, '-i', wav, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-af', `${loudnorm(wav)},aresample=48000`, '-shortest', '-movflags', '+faststart', OUT]);
     fs.rmSync(silent, { force: true });
     log({ event: 'done', output: OUT, frames: n, wall_s: (Date.now() - t0) / 1000, errors });
   } finally { await browser.close(); srv.close(); }

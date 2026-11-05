@@ -36,7 +36,8 @@ const GESTURES = {
   pointDown: () => ({ L: { shZ: 0.65, shX: -0.55, elZ: 0.1 }, look: [0.3, -0.35] }),
   present: (g) => ({ L: { shZ: 0.95, shX: -0.6, elZ: 0.35 + Math.sin(g * 2.2) * 0.06, elX: -0.25 }, look: [0.35, 0.05], tilt: -0.03 }),
   open: (g) => { const b = Math.sin(g * 3) * 0.05; return { R: { shZ: 0.55 + b, shX: -0.5, elZ: 0.25, elX: -0.7 }, L: { shZ: 0.55 + b, shX: -0.5, elZ: 0.25, elX: -0.7 } }; },
-  clap: (g) => { const c = Math.abs(Math.sin(g * 6.5)); return { R: { shX: -1.15, shZ: 0.05 + c * 0.16, elZ: -0.45, elX: -0.5 }, L: { shX: -1.15, shZ: 0.05 + c * 0.16, elZ: -0.45, elX: -0.5 }, hop: Math.max(0, Math.sin(g * 13)) * 0.008 }; },
+  // clap: on a chant the hands meet on every beat
+  clap: (g, s) => { const c = Math.abs(Math.sin(g * (s && s.beat ? Math.PI / s.beat : 6.5))); return { R: { shX: -0.5, shZ: 0.08 + c * 0.2, elZ: -1.02 + c * 0.6, elX: -1.0 }, L: { shX: -0.5, shZ: 0.08 + c * 0.2, elZ: -1.02 + c * 0.6, elX: -1.0 }, hop: Math.max(0, Math.sin(g * 13)) * 0.006 }; },
   cheer: (g) => { const b = Math.sin(g * 8) * 0.1; return { R: { shZ: 2.6 + b, elZ: 0.2 }, L: { shZ: 2.6 + b, elZ: 0.2 }, hop: Math.max(0, Math.sin(g * 8)) * 0.02 }; },
   jump: (g) => { const p = (g % 0.9) / 0.9, h = Math.sin(p * Math.PI); return { R: { shZ: 0.3 + 2.2 * h }, L: { shZ: 0.3 + 2.2 * h }, hop: h * 0.12 }; },
   heart: () => ({ R: { shX: -0.9, shZ: 0.1, elZ: -0.9, elX: -1.2 }, L: { shX: -0.9, shZ: 0.1, elZ: -0.9, elX: -1.2 }, lean: 0.05, headTilt: 0.15 }),
@@ -61,8 +62,8 @@ export function poseHost3D(host, t, s, plan) {
   const H = host.userData;
   for (const v of Object.values(H.bones)) { v.b.quaternion.copy(v.q); v.b.position.copy(v.p); }
   host.updateMatrixWorld(true);
-  const g = GESTURES[s.gesture] ? GESTURES[s.gesture](s.gt || 0) : {}, w = s.gesture && s.gesture !== 'idle' ? ease(s.gw ?? 1) : 0;
-  const prev = s.prev && GESTURES[s.prev.gesture] ? GESTURES[s.prev.gesture](s.prev.gt || 0) : {}, pw = s.prev ? 1 - w : 0;
+  const g = GESTURES[s.gesture] ? GESTURES[s.gesture](s.gt || 0, s) : {}, w = s.gesture && s.gesture !== 'idle' ? ease(s.gw ?? 1) : 0;
+  const prev = s.prev && GESTURES[s.prev.gesture] ? GESTURES[s.prev.gesture](s.prev.gt || 0, s.prev) : {}, pw = s.prev ? 1 - w : 0;
   const mix = (key, rest = 0) => rest + ((g[key] ?? rest) - rest) * w + ((prev[key] ?? rest) - rest) * pw;
   const arm = (side, key) => REST[key] + (((g[side] || {})[key] ?? REST[key]) - REST[key]) * w + (((prev[side] || {})[key] ?? REST[key]) - REST[key]) * pw;
   const vis = visemesAt(plan, t), talk = Math.min(1, Object.values(vis).reduce((a, b) => a + b, 0));
