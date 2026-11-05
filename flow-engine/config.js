@@ -214,7 +214,7 @@ export const agent = {
   // A job with fewer NEW images than this uses the standard path (an agent request costs ~40-60 s however small).
   minScenes: 5,
   stopGraceMs: 30000,       // after Stop, images already made are still downloaded for this long
-  downloadParallel: 4,      // agent images downloaded at once per account (one at a time took ~30 s of a 24-scene batch)
+  downloadParallel: 8,      // agent images downloaded at once per account (4 left a 24-scene batch waiting on CDN; 8 overlaps better)
   coolDownMs: 600000,       // an account Flow asked to slow down gets no new agent batch for this long
 };
 

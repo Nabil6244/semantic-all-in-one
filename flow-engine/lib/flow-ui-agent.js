@@ -379,18 +379,42 @@ async function agentRefusals(page, marker) {
   return refusalsAfter(await bounded(page.evaluate(() => document.body?.innerText || ""), PAGE_CALL_TIMEOUT_MS, ""), marker);
 }
 
-async function agentStillBusy(page) {
-  // Timeout → still busy (not idle). A laggy but live tab used to fall back to
-  // false, then the wait loop could stop early after 12s of no new tiles.
+/**
+ * True while Flow is still working on this agent request.
+ * Live 2026-11-05 (sedi / Accounts 7–9): Flow showed Stop + gallery tiles stuck at
+ * "99%" for 90+ s with no "Thinking"/"Generating" text. The old busy check treated
+ * that as idle, ended the wait, and never downloaded the stills that finished later.
+ * Idle generate uses the arrow_forward icon; in-flight uses stop / Stop.
+ * Timeout → still busy (not idle).
+ */
+export async function agentStillBusy(page) {
   return bounded(
-    page.evaluate(() => /\bThinking\b|\bGenerating\b/i.test((document.body?.innerText || "").slice(0, 20000))),
+    page.evaluate(() => {
+      const text = (document.body?.innerText || "").slice(0, 20000);
+      if (/\bThinking\b|\bGenerating\b/i.test(text)) return true;
+      // Stop replaces Start generation while a run is in flight (aria-label or visible label).
+      // Material icon ligature on that button is "stop" while busy and "arrow_forward" when idle
+      // (confirmed in sedi stall dumps).
+      for (const btn of document.querySelectorAll("button")) {
+        const aria = (btn.getAttribute("aria-label") || "").trim();
+        const label = (btn.innerText || btn.textContent || "").trim();
+        if (/^stop(\s+generation)?$/i.test(aria) || /^stop$/i.test(label)) {
+          if (btn.offsetParent !== null || btn.getClientRects().length) return true;
+        }
+      }
+      // Incomplete gallery tiles (sedi screenshots: empty frames showing "99%").
+      for (const el of document.querySelectorAll("flow-grid-tile-container")) {
+        if (/\b\d{1,3}\s*%/.test(el.innerText || el.textContent || "")) return true;
+      }
+      return false;
+    }),
     PAGE_CALL_TIMEOUT_MS, true);
 }
 
 /**
  * A request whose agent shows no sign of life is over early instead of after the whole wait (live 2026-11-04: Accounts 6 and 7
  * sat 195 s and 5 min on requests Flow never started, while other accounts were idle). Signs of life: the busy text
- * ("Thinking"/"Generating") seen once, a new tile, or the chat growing after our message. Anything uncertain counts as life
+ * ("Thinking"/"Generating"/visible Stop), a new tile, or the chat growing after our message. Anything uncertain counts as life
  * (a page call that times out is "busy"), so a slow but working request always keeps its full wait.
  */
 export const NO_ACTIVITY_MS = 90000;
@@ -655,6 +679,15 @@ export async function generateAgentBatchViaUI(page, {
       // Some stills but not all: the agent paints in bursts and its busy text is not reliable, so allow a long quiet gap.
       if (ordered.length > 0 && ordered.length < n && !busy && Date.now() - lastNewAt > PARTIAL_QUIET_MS) break;
       await new Promise((r) => setTimeout(r, 1500));
+    }
+
+    // Last look before prompt reading: a tile can land in the same beat we would have given up
+    // (sedi 2026-11-05: Accounts 7–9 abandoned, then preExistingStillCount grew on the next try).
+    for (const url of await collectAllStillUrls(page)) {
+      const key = mediaKey(url);
+      if (!key || known.has(key) || seen.has(key)) continue;
+      seen.add(key);
+      ordered.push({ key, url });
     }
 
     diag.stage = "reading_tile_prompts";

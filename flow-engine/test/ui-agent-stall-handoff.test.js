@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const { agentLooksDead, NO_ACTIVITY_MS, saveStallEvidence } = await import("../lib/flow-ui-agent.js");
+const { agentLooksDead, agentStillBusy, NO_ACTIVITY_MS, saveStallEvidence } = await import("../lib/flow-ui-agent.js");
 const { runAgentPool, sceneStanding } = await import("../lib/agent-pool.js");
 const { LedgerState } = await import("../lib/generation-ledger.js");
 
@@ -24,6 +24,58 @@ test("no sign of life for NO_ACTIVITY_MS ends the wait; any sign of life keeps i
   assert.equal(agentLooksDead({ ...base, tiles: 1 }), false, "a tile appeared");
   assert.equal(agentLooksDead({ ...base, replyGrowth: 400 }), false, "the agent replied in the chat");
   assert.equal(agentLooksDead({ ...base, replyGrowth: null }), false, "chat unreadable: never taken for dead");
+});
+
+/** Fake page whose evaluate runs fn against a supplied document stub. */
+function pageWithDocument(doc) {
+  return {
+    evaluate: async (fn) => {
+      const prev = globalThis.document;
+      globalThis.document = doc;
+      try { return fn(); } finally { globalThis.document = prev; }
+    },
+  };
+}
+
+test("a visible Stop button counts as busy even without Thinking/Generating (sedi 2026-11-05)", async () => {
+  const stopBtn = {
+    getAttribute: (n) => (n === "aria-label" ? "Stop generation" : null),
+    innerText: "stop",
+    textContent: "stop",
+    offsetParent: {},
+    getClientRects: () => [{ width: 24, height: 24 }],
+  };
+  const idleBtn = {
+    getAttribute: (n) => (n === "aria-label" ? "Start generation" : null),
+    innerText: "arrow_forward",
+    textContent: "arrow_forward",
+    offsetParent: {},
+    getClientRects: () => [{ width: 24, height: 24 }],
+  };
+  assert.equal(await agentStillBusy(pageWithDocument({
+    body: { innerText: "What do you want to create?\nGoogle Flow can make mistakes" },
+    querySelectorAll: (sel) => (sel === "button" ? [stopBtn] : []),
+  })), true, "stop icon / Stop generation while painting");
+  assert.equal(await agentStillBusy(pageWithDocument({
+    body: { innerText: "What do you want to create?" },
+    querySelectorAll: (sel) => (sel === "button" ? [idleBtn] : []),
+  })), false, "arrow_forward alone is idle");
+  assert.equal(await agentStillBusy(pageWithDocument({
+    body: { innerText: "Thinking about your request…" },
+    querySelectorAll: () => [],
+  })), true, "Thinking text still counts");
+});
+
+test("gallery tiles stuck at 99% count as busy (sedi stall screenshots)", async () => {
+  const tile = { innerText: "99%", textContent: "99%" };
+  assert.equal(await agentStillBusy(pageWithDocument({
+    body: { innerText: "What do you want to create?" },
+    querySelectorAll: (sel) => {
+      if (sel === "button") return [];
+      if (sel === "flow-grid-tile-container") return [tile];
+      return [];
+    },
+  })), true);
 });
 
 test("a stall leaves a screenshot and the page text after our message next to the log", async () => {
