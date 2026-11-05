@@ -203,9 +203,9 @@ def render(base: str, *, csv: Optional[str] = None, text_file: Optional[str] = N
     if r is None:
         r = _run_node(args, progress=progress, cancel=cancel, log=log, span=(0.05, 0.9))
     if progress: progress(0.92, 'Mixing the sound…')
-    cmd = [sys.executable, str(HERE / 'tools' / 'mix_audio.py'), silent, '--video', silent, '--final', output] + (['--voice', voiceover] if voiceover else []) + ([] if music else ['--no-music'])
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
-    if p.returncode: raise RuntimeError('audio mix failed: ' + (p.stderr or p.stdout)[-500:])
+    sys.path.insert(0, str(ROOT)); from script_runner import run_script     # a child Python from source; in the installed app, in-process
+    rc, said = run_script(HERE / 'tools' / 'mix_audio.py', [silent, '--video', silent, '--final', output] + (['--voice', voiceover] if voiceover else []) + ([] if music else ['--no-music']), timeout=3600)
+    if rc: raise RuntimeError('audio mix failed: ' + said[-500:])
     mix = json.loads(Path(silent + '.mix.json').read_text()) if Path(silent + '.mix.json').is_file() else {}
     if progress: progress(1.0, 'Done')
     return {'output': output, 'perf': r['perf'], 'mix': mix, 'warnings': r['warnings']}

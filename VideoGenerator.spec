@@ -223,6 +223,13 @@ from explainer.packaging import data_files as explainer_data_files, python_modul
 datas += explainer_data_files(ROOT)
 hiddenimports += explainer_modules(ROOT)   # app.py imports the Explainer director only inside methods
 
+# Roblox Cinema, Voxel Map, Kids Learn (cartoon3d-engine): engine folders loaded by path at run time, the music beds they mix in,
+# the Rules Horror prompts/samples and the extra three.js add-ons (engine_packaging.py, tested by test_engine_packaging.py).
+from engine_packaging import data_files as engine_data_files_new, HIDDEN_IMPORTS as engine_hidden_new  # noqa: E402
+
+datas += engine_data_files_new(ROOT)
+hiddenimports += engine_hidden_new
+
 # App logo (UI) + platform icons
 # logo.png  = square "S" mark (topbar avatar + icon source)
 # logo_wordmark.png = full lockup (login dialog, About & Ownership); _light = the light-theme lettering
