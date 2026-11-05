@@ -15,6 +15,7 @@ from typing import Any, Optional
 
 import customtkinter as ctk
 
+from . import auto_render
 from . import theme as T
 from .style_kit import render_panel, section
 from .widgets import make_button
@@ -146,6 +147,7 @@ def _browse(app: Any, kind: str) -> None:
     if path:
         var.set(path)   # remembered only: nothing is read or planned until Generate
         app._vm_planned = None
+        auto_render.stop(app, "vm")
         _sync_buttons(app)
 
 
@@ -212,7 +214,8 @@ def _sync_buttons(app: Any) -> None:
     running = getattr(app, "_vm_running", False)
     app._vm_generate_btn.configure(state="disabled" if running else "normal")
     app._vm_render_btn.configure(state="normal" if (app._vm_planned and not running) else "disabled")
-    app._vm_stop_btn.configure(state="normal" if running and not app._vm_cancel.is_set() else "disabled")
+    waiting = auto_render.pending(app, "vm")      # Stop also cancels the auto-render countdown
+    app._vm_stop_btn.configure(state="normal" if (running and not app._vm_cancel.is_set()) or waiting else "disabled")
 
 
 def sync_cta(app: Any) -> None:
@@ -252,6 +255,10 @@ def cta(app: Any, action: str) -> None:
 
 
 def cancel(app: Any) -> None:
+    if auto_render.stop(app, "vm", note="Auto-render cancelled: click Render when ready."):
+        app._append_log(f"{TAG} Auto-render cancelled.\n")
+        app._sync_primary_cta()
+        return
     if not getattr(app, "_vm_running", False) or app._vm_cancel.is_set():
         return
     app._vm_cancel.set()
@@ -316,6 +323,7 @@ def on_generate(app: Any) -> None:
 
     if getattr(app, "_vm_running", False):
         return
+    auto_render.stop(app, "vm")
     if app._workspace is None:
         messagebox.showerror("Cannot start", "Create or choose a project first.")
         return
@@ -403,8 +411,22 @@ def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
         msg = (f"Planned {r['beats']} scenes, {r['duration']:.0f} s ({'camera timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over: the video has no sound'}).{warn}")
         app._vm_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
+        auto_render.start(app, "vm", status_var=app._vm_status_var, still_ok=lambda p=app._vm_planned: _auto_render_ok(app, p),
+                          render=lambda: on_render(app), tag=TAG)
 
     _start(app, "voxel-map-plan", job, done)
+
+
+def _auto_render_ok(app: Any, plan: dict) -> str:
+    """Why the auto-render must not start ("" = it may): the same plan is still there, nothing runs, the options match it."""
+    if app._vm_planned is not plan or app._workspace is None:
+        return "the plan changed; click Generate again."
+    if getattr(app, "_vm_running", False):
+        return "another job is running."
+    o = options(app)
+    if (o["csv"], o["voice"], o["res"]) != (plan["csv"], plan["voice"], plan["res"]):
+        return "the story or options changed after Generate; click Generate again."
+    return ""
 
 
 def on_render(app: Any) -> None:
@@ -412,6 +434,7 @@ def on_render(app: Any) -> None:
 
     if getattr(app, "_vm_running", False):
         return
+    auto_render.stop(app, "vm")
     ws, plan = app._workspace, app._vm_planned
     if ws is None or not plan:
         messagebox.showerror("Cannot start", "Click Generate first: Render needs the planned film.")

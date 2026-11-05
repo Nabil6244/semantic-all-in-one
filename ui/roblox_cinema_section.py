@@ -16,6 +16,7 @@ from typing import Any, Optional
 
 import customtkinter as ctk
 
+from . import auto_render
 from . import theme as T
 from .style_kit import render_panel, section
 from .widgets import make_button
@@ -118,6 +119,7 @@ def _browse(app: Any, kind: str) -> None:
     if path:
         var.set(path)   # remembered only: nothing is read or planned until Generate
         app._rc_planned = None
+        auto_render.stop(app, "rc")
         _sync_buttons(app)
 
 
@@ -257,7 +259,8 @@ def _sync_buttons(app: Any) -> None:
     running = getattr(app, "_rc_running", False)
     app._rc_generate_btn.configure(state="disabled" if running else "normal")
     app._rc_render_btn.configure(state="normal" if (app._rc_planned and not running) else "disabled")
-    app._rc_stop_btn.configure(state="normal" if running and not app._rc_cancel.is_set() else "disabled")
+    waiting = auto_render.pending(app, "rc")      # Stop also cancels the auto-render countdown
+    app._rc_stop_btn.configure(state="normal" if (running and not app._rc_cancel.is_set()) or waiting else "disabled")
 
 
 def sync_cta(app: Any) -> None:
@@ -298,6 +301,10 @@ def cta(app: Any, action: str) -> None:
 
 
 def cancel(app: Any) -> None:
+    if auto_render.stop(app, "rc", note="Auto-render cancelled: click Render when ready."):
+        app._append_log(f"{TAG} Auto-render cancelled.\n")
+        app._sync_primary_cta()
+        return
     if not getattr(app, "_rc_running", False) or app._rc_cancel.is_set():
         return
     app._rc_cancel.set()
@@ -378,6 +385,7 @@ def on_generate(app: Any) -> None:
 
     if getattr(app, "_rc_running", False):
         return
+    auto_render.stop(app, "rc")
     if app._workspace is None:
         messagebox.showerror("Cannot start", "Create or choose a project first.")
         return
@@ -405,8 +413,22 @@ def on_generate(app: Any) -> None:
         msg = f"Planned {r['scenes']} scenes, {r['duration']:.0f} s ({'timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over'}).{warn}"
         app._rc_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
+        auto_render.start(app, "rc", status_var=app._rc_status_var, still_ok=lambda p=app._rc_planned: _auto_render_ok(app, p),
+                          render=lambda: on_render(app), tag=TAG)
 
     _start(app, "roblox-cinema-plan", job, done)
+
+
+def _auto_render_ok(app: Any, plan: dict) -> str:
+    """Why the auto-render must not start ("" = it may): the same plan is still there, nothing runs, the options match it."""
+    if app._rc_planned is not plan or app._workspace is None:
+        return "the plan changed; click Generate again."
+    if getattr(app, "_rc_running", False):
+        return "another job is running."
+    o = options(app)
+    if ((o["csv"], o["voice"], o["res"], o["music"]) != (plan["src"].get("csv", ""), plan["voice"], plan["res"], plan["music"]) and o["csv"]):
+        return "the story or options changed after Generate; click Generate again."
+    return ""
 
 
 def on_render(app: Any) -> None:
@@ -414,6 +436,7 @@ def on_render(app: Any) -> None:
 
     if getattr(app, "_rc_running", False):
         return
+    auto_render.stop(app, "rc")
     ws, plan = app._workspace, app._rc_planned
     if ws is None or not plan:
         messagebox.showerror("Cannot start", "Click Generate first: Render needs the planned film.")
