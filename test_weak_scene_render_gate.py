@@ -112,7 +112,7 @@ inst._overscaled_csv_var.set(str(p)); inst._load_overscaled_csv(str(p))
 voice = tmp / "vo.wav"; voice.write_bytes(b"RIFF")
 inst._current_voiceover_path = lambda: voice
 inst._get_flow_engine_manager = lambda: None
-inst.after = lambda ms, fn=None, *a: fn(*a) if fn else None
+inst.after = lambda ms, fn=None, *a: fn(*a) if (fn and not (isinstance(ms, (int, float)) and ms >= 1000)) else None   # run short hops now; skip long timers (the 30 s heartbeat re-arms itself forever)
 nav = []
 inst._goto_workflow_view = lambda key: nav.append(key)
 import threading as _th

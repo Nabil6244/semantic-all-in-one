@@ -11,6 +11,7 @@ from pathlib import Path
 
 _SCRIPT = r'''
 import os, sys, tempfile, time, json, threading
+import faulthandler; faulthandler.dump_traceback_later(100, exit=True)   # a hang prints every thread's stack and ends, instead of eating the CI time limit
 from pathlib import Path
 sys.stdout.reconfigure(line_buffering=True)
 sys.path.insert(0, os.getcwd())
@@ -29,6 +30,9 @@ _iso = Path(tempfile.mkdtemp()) / "settings.json"
 _app._settings_path = lambda: _iso
 try:
     inst = _app.VideoGeneratorApp(); inst.withdraw()
+    # Windows: CustomTkinter's first mainloop() sets the title-bar colour and calls update(), which never returns while the app's
+    # after(0) animation runs, so the test hung there on Windows CI. The window counts as shown already, which skips that step.
+    inst._window_exists = True
 except Exception as exc:
     print(f"SKIP:{exc}"); os._exit(0)
 infos = []
@@ -111,7 +115,7 @@ os._exit(0)
 class KidsLearnAppTest(unittest.TestCase):
     def test_kids_learn_page_in_the_real_app(self):
         root = Path(__file__).resolve().parent
-        r = subprocess.run([sys.executable, "-c", _SCRIPT], cwd=str(root), capture_output=True, text=True, timeout=300)
+        r = subprocess.run([sys.executable, "-c", _SCRIPT], cwd=str(root), capture_output=True, text=True, timeout=130)
         out = r.stdout
         if "SKIP:" in out:
             self.skipTest(out.split("SKIP:", 1)[1].splitlines()[0])

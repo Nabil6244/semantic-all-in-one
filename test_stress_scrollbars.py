@@ -171,11 +171,12 @@ class Scrollbars(unittest.TestCase):
             if drawn:
                 self.assertNotEqual(t2, t1, "thumb not redrawn after moveto")
             # click on the scrollbar track near the bottom
-            sb._canvas.event_generate("<Button-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
-            sb._canvas.event_generate("<ButtonRelease-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
-            self._settle()
-            y3 = box.yview()
-            self.assertGreater(y3[0], y2[0], "clicking the scrollbar track did not move the view")
+            if drawn:          # an unmapped scrollbar (headless Windows CI) is ~1 px tall: there is no track to click
+                sb._canvas.event_generate("<Button-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
+                sb._canvas.event_generate("<ButtonRelease-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
+                self._settle()
+                y3 = box.yview()
+                self.assertGreater(y3[0], y2[0], "clicking the scrollbar track did not move the view")
             # end / home
             box.see("end")
             self._settle()
