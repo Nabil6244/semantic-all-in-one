@@ -31,6 +31,8 @@ async function setup() {
     container: 'map',
     style: {
       version: 8,
+      // No 300 ms paint fade: styleAt sets paint values every frame, and a fade made every frame wait ~17 repaints.
+      transition: { duration: 0, delay: 0 },
       // imagery === false: no satellite tiles (offline tests only).
       sources: scene.imagery === false ? {} : { sat: { type: 'raster', tiles: [`${location.origin}/tiles/{z}/{y}/{x}.jpg`], tileSize: 256, maxzoom: 8 } },
       layers: [
