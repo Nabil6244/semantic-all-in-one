@@ -1,0 +1,450 @@
+[
+{
+"name": "v_neutral",
+"keys": {},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_blink",
+"keys": {
+"eyeBlinkLeft": 1,
+"eyeBlinkRight": 1,
+"eyeBlinkArcLeft": 0,
+"eyeBlinkArcRight": 0
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_smile",
+"keys": {
+"smile": 1
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_laugh",
+"keys": {
+"laugh": 1
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_surprise",
+"keys": {
+"surprise": 1
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_curious",
+"keys": {
+"curious": 1
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_smile_blink",
+"keys": {
+"smile": 1,
+"eyeBlinkLeft": 1,
+"eyeBlinkRight": 1,
+"eyeBlinkArcLeft": 0,
+"eyeBlinkArcRight": 0
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_smile_talk",
+"keys": {
+"smile": 0.6,
+"viseme_aa": 0.6
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_curious_talk",
+"keys": {
+"curious": 1,
+"viseme_E": 0.7
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "v_smile_45",
+"keys": {
+"smile": 0.45
+},
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58
+},
+{
+"name": "c_neutral",
+"keys": {},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_aa",
+"keys": {
+"viseme_aa": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_E",
+"keys": {
+"viseme_E": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_I",
+"keys": {
+"viseme_I": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_O",
+"keys": {
+"viseme_O": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_U",
+"keys": {
+"viseme_U": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_PP",
+"keys": {
+"viseme_PP": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_FF",
+"keys": {
+"viseme_FF": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_TH",
+"keys": {
+"viseme_TH": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_SS",
+"keys": {
+"viseme_SS": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_CH",
+"keys": {
+"viseme_CH": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_DD",
+"keys": {
+"viseme_DD": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_kk",
+"keys": {
+"viseme_kk": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_nn",
+"keys": {
+"viseme_nn": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_RR",
+"keys": {
+"viseme_RR": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_smile",
+"keys": {
+"smile": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_surprise",
+"keys": {
+"surprise": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_curious",
+"keys": {
+"curious": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_browInnerUp",
+"keys": {
+"browInnerUp": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_browDown",
+"keys": {
+"browDownLeft": 1,
+"browDownRight": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "c_browOuterUpLeft",
+"keys": {
+"browOuterUpLeft": 1
+},
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "q_FF",
+"keys": {
+"viseme_FF": 1
+},
+"az": 30,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "q_TH",
+"keys": {
+"viseme_TH": 1
+},
+"az": 30,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+},
+{
+"name": "q_surprise",
+"keys": {
+"surprise": 1
+},
+"az": 30,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62
+}
+]

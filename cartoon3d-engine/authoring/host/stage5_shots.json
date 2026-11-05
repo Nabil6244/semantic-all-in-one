@@ -1,0 +1,160 @@
+[
+{
+"name": "front_neutral",
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58,
+"keys": {}
+},
+{
+"name": "q_neutral",
+"az": 35,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58,
+"keys": {}
+},
+{
+"name": "side_neutral",
+"az": 90,
+"target": [
+0.1,
+0.035,
+1.43
+],
+"dist": 1.58,
+"keys": {}
+},
+{
+"name": "front_smile",
+"az": 0,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58,
+"keys": {
+"smile": 1
+}
+},
+{
+"name": "q_smile",
+"az": 35,
+"target": [
+0,
+-0.05,
+1.475
+],
+"dist": 1.58,
+"keys": {
+"smile": 1
+}
+},
+{
+"name": "c_neutral",
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62,
+"keys": {}
+},
+{
+"name": "c_smile",
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62,
+"keys": {
+"smile": 1
+}
+},
+{
+"name": "c_aa",
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62,
+"keys": {
+"viseme_aa": 1
+}
+},
+{
+"name": "c_FF",
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62,
+"keys": {
+"viseme_FF": 1
+}
+},
+{
+"name": "c_blink",
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62,
+"keys": {
+"eyeBlinkLeft": 1,
+"eyeBlinkRight": 1
+}
+},
+{
+"name": "c_surprise",
+"az": 0,
+"target": [
+0,
+-0.11,
+1.43
+],
+"dist": 0.62,
+"keys": {
+"surprise": 1
+}
+},
+{
+"name": "body_front",
+"az": 0,
+"target": [
+0,
+0,
+0.85
+],
+"dist": 4.7,
+"keys": {}
+},
+{
+"name": "body_q",
+"az": 35,
+"target": [
+0,
+0,
+0.85
+],
+"dist": 4.7,
+"keys": {}
+}
+]

@@ -1,0 +1,12 @@
+type,text,object,color,count,word,gesture,emotion,pause
+say,"Hi friend! It's time to play and learn!",,,,,,happy,
+word,"Look! A ball! Ball!",ball,red,,Ball,,surprised,
+repeat,"Can you say ball?",,,,,,,
+cheer,"Yes! Ball! Great job!",,,,,heart,laugh,
+word,"What's this? It's a duck! Quack quack!",duck,,,Duck,,surprised,
+repeat,"Your turn. Say duck!",,,,,,,
+count,"Let's count the stars. One, two, three!",star,,3,,,happy,
+cheer,"Three stars! Yay!",,,,,cheer,laugh,
+color,"Blue! This balloon is blue.",balloon,blue,,,,happy,
+repeat,"Can you say blue?",,,,,,,
+say,"You did so well today. Bye bye, friend!",,,,,wave,happy,

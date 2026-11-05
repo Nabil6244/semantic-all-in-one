@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Cartoon 3D lesson</title>
+<style>
+@font-face { font-family: 'Outfit'; font-weight: 800; src: url('/fonts/Outfit-ExtraBold.ttf'); }
+html, body { margin: 0; background: #000; overflow: hidden; }
+#stage { position: relative; overflow: hidden; }
+#gl { position: absolute; left: 0; top: 0; }
+#cap { position: absolute; left: 6%; right: 6%; bottom: calc(var(--u) * 56); text-align: center; font-family: 'Outfit', sans-serif; font-weight: 800;
+  font-size: calc(var(--u) * 64); color: #fff; -webkit-text-stroke: calc(var(--u) * 10) #2a1e2e; paint-order: stroke fill; letter-spacing: 0.01em; }
+#cap .w { display: inline-block; margin: 0 calc(var(--u) * 8); transition: none; }
+#cap .w.on { color: #ffd43b; }
+#card { position: absolute; right: calc(var(--u) * 150); top: calc(var(--u) * 70); padding: calc(var(--u) * 14) calc(var(--u) * 48); background: #fff; border: calc(var(--u) * 10) solid #ff922b; border-radius: calc(var(--u) * 60);
+  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 110); color: #2a1e2e; box-shadow: 0 calc(var(--u) * 10) 0 rgba(42,30,46,0.18); display: none; transform-origin: 50% 60%; white-space: nowrap; }
+#card .sw { display: inline-block; width: calc(var(--u) * 70); height: calc(var(--u) * 70); border-radius: 50%; margin-right: calc(var(--u) * 22); vertical-align: middle; border: calc(var(--u) * 6) solid #2a1e2e; position: relative; top: calc(var(--u) * -8); }
+#badge { position: absolute; left: 50%; top: calc(var(--u) * 60); transform-origin: 50% 50%; padding: calc(var(--u) * 12) calc(var(--u) * 44); background: #51cf66; color: #fff; border-radius: calc(var(--u) * 50);
+  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 72); -webkit-text-stroke: calc(var(--u) * 6) #2a1e2e; paint-order: stroke fill; border: calc(var(--u) * 8) solid #2a1e2e; display: none; white-space: nowrap; }
+.num { position: absolute; width: calc(var(--u) * 84); height: calc(var(--u) * 84); margin: calc(var(--u) * -42) 0 0 calc(var(--u) * -42); border-radius: 50%; background: #ffd43b; border: calc(var(--u) * 7) solid #2a1e2e;
+  font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 54); line-height: calc(var(--u) * 70); text-align: center; color: #2a1e2e; display: none; }
+</style></head>
+<body><script type="importmap">{"imports":{"three":"/three/three.module.min.js","three/addons/":"/three/addons/"}}</script>
+<div id="stage"><canvas id="gl"></canvas><div id="cap"></div><div id="card"></div><div id="badge"></div><div id="nums"></div></div>
+<script type="module" src="/web/lesson.js"></script></body></html>

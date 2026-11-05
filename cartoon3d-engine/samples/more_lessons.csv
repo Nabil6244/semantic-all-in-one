@@ -1,0 +1,14 @@
+type,text,object,color,count,word,gesture,emotion,pause,sound
+say,"Hi friend! Let's play a fun game today!",,,,,,happy,,
+opposite,"Look at the balloon. Up, up, up! And now down, down, down.",balloon,red,,up/down,,,,
+repeat,"Can you say up?",,,,,,,,
+opposite,"This ball is small. Now it's big!",ball,,,small/big,,,,
+animal,"Who is this? A cow! The cow says moo! Moo!",cow,,,Cow,,,,moo
+repeat,"Your turn. Say moo!",,,,,,,,
+animal,"And this is a frog. Ribbit! Ribbit!",frog,,,Frog,,,,ribbit
+shape,"This is a triangle. Triangle!",triangle,,,,,,,
+letter,"A. A is for apple!",apple,,,A,,,,
+feeling,"When I play, I feel happy!",,,,happy,heart,,,
+feeling,"Oh no. I feel sad.",,,,sad,,,,
+cheer,"You learned so much! Yay!",,,,,cheer,laugh,,
+say,"Bye bye, friend! See you soon!",,,,,wave,happy,,

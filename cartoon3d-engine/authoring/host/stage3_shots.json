@@ -1,0 +1,18 @@
+[
+ {"name": "rest", "az": 0, "target": [0, -0.05, 1.475], "dist": 1.58},
+ {"name": "turn_left", "az": 0, "target": [0, -0.05, 1.475], "dist": 1.58, "pose": {"neck01": [["z", 6]], "neck02": [["z", 8]], "neck03": [["z", 8]], "head": [["z", 12]]}},
+ {"name": "turn_right", "az": 0, "target": [0, -0.05, 1.475], "dist": 1.58, "pose": {"neck01": [["z", -6]], "neck02": [["z", -8]], "neck03": [["z", -8]], "head": [["z", -12]]}},
+ {"name": "nod_down", "az": 90, "target": [0.1, 0.0, 1.43], "dist": 1.58, "pose": {"neck02": [["x", 5]], "neck03": [["x", 5]], "head": [["x", 10]]}},
+ {"name": "nod_up", "az": 90, "target": [0.1, 0.0, 1.43], "dist": 1.58, "pose": {"neck02": [["x", -4]], "neck03": [["x", -4]], "head": [["x", -8]]}},
+ {"name": "jaw", "az": 0, "target": [0, -0.05, 1.475], "dist": 1.58, "pose": {"jaw": [["x", 12]]}},
+ {"name": "jaw_q", "az": 35, "target": [0, -0.05, 1.475], "dist": 1.58, "pose": {"jaw": [["x", 12]]}},
+ {"name": "look_left", "az": 0, "target": [0, -0.08, 1.46], "dist": 1.05, "pose": {"eye.L": [["z", 18]], "eye.R": [["z", 18]]}},
+ {"name": "look_right", "az": 0, "target": [0, -0.08, 1.46], "dist": 1.05, "pose": {"eye.L": [["z", -18]], "eye.R": [["z", -18]]}},
+ {"name": "look_up", "az": 0, "target": [0, -0.08, 1.46], "dist": 1.05, "pose": {"eye.L": [["x", -12]], "eye.R": [["x", -12]]}},
+ {"name": "pony_back", "az": 180, "target": [0, 0.05, 1.38], "dist": 1.9, "pose": {"ponytail01": [["y", 14]], "ponytail02": [["y", 14]], "ponytail03": [["y", 10]]}},
+ {"name": "pony_q", "az": 145, "target": [0, 0.05, 1.38], "dist": 1.9, "pose": {"head": [["z", -15]], "ponytail01": [["y", -12]], "ponytail02": [["y", -12]], "ponytail03": [["y", -8]]}},
+ {"name": "neck_seam", "az": 35, "target": [0, -0.02, 1.36], "dist": 1.0, "pose": {"neck01": [["z", 6]], "neck02": [["z", 8], ["x", 5]], "neck03": [["z", 8], ["x", 5]], "head": [["z", 12], ["x", 6]]}},
+ {"name": "body_front", "az": 0, "target": [0, 0, 0.85], "dist": 4.7},
+ {"name": "body_q", "az": 35, "target": [0, 0, 0.85], "dist": 4.7},
+ {"name": "body_side", "az": 90, "target": [0, 0, 0.85], "dist": 4.7}
+]
