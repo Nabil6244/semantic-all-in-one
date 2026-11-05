@@ -15,6 +15,7 @@ import { VEHICLES } from './vehicles.mjs';
 import { EFFECTS } from './fx.mjs';
 import { ROLES } from './characters.mjs';
 import { bboxAround } from './mapproj.mjs';
+import { flagCues } from './flags.mjs';
 
 export const TRANSITIONS = ['cut', 'dissolve', 'dip', 'clouds', 'map_dive', 'match', 'continuous'];
 export const TIMES = ['dawn', 'day', 'sunset', 'dusk', 'night'];
@@ -225,7 +226,7 @@ export function direct(story, opts = {}) {
   });
 
   // ---- HUD: subtitles, dates, places, chapter cards, statistics ------------------------------------------------------------
-  const hud = { subtitles: [], dates: [], places: [], chapters: [], stats: [], labels: [], credit: null };
+  const hud = { flags: flagCues(sentences), subtitles: [], dates: [], places: [], chapters: [], stats: [], labels: [], credit: null };
   for (const s of sentences) hud.subtitles.push(...captionCards(s));
   let lastDate = '';
   scenes.forEach((s) => {

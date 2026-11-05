@@ -1,5 +1,6 @@
 // On-screen text: subtitles with the spoken word lit, date tile, place tag, chapter card, statistic callouts, map labels and the
 // music credit. Plain DOM over the canvas; every element is a pure function of the film time t (frames render in any order).
+import { flagSvg } from '../lib/flags.mjs';
 const $ = (tag, cls, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (parent) parent.appendChild(e); return e; };
 const fade = (t, a, b, f = 0.3) => Math.max(0, Math.min(1, Math.min((t - a) / f, (b - t) / f)));
 const find = (list, t, fn) => { for (const x of list) if (fn(x, t)) return x; return null; };
@@ -7,7 +8,7 @@ const find = (list, t, fn) => { for (const x of list) if (fn(x, t)) return x; re
 export function makeHud(root, hud, opts = {}) {
   const el = {
     sub: $('div', 'sub', root), date: $('div', 'date', root), place: $('div', 'place', root), chapter: $('div', 'chapter', root),
-    stat: $('div', 'stat', root), note: $('div', 'note', root), label: $('div', 'label', root), credit: $('div', 'credit', root), pins: $('div', 'pins', root),
+    stat: $('div', 'stat', root), note: $('div', 'note', root), label: $('div', 'label', root), credit: $('div', 'credit', root), pins: $('div', 'pins', root), flags: $('div', 'flags', root),
   };
   el.chapter.innerHTML = '<div class="k"></div><div class="h"></div><div class="d"></div>';
   el.stat.innerHTML = '<div class="v"></div><div class="l"></div>';
@@ -15,6 +16,8 @@ export function makeHud(root, hud, opts = {}) {
   const last = {}; // what each element currently shows, so the DOM is only touched on change
   const setText = (e, key, text) => { if (last[key] !== text) { last[key] = text; e.textContent = text; } };
   const show = (e, key, o) => { const v = o.toFixed(2); if (last[key + 'o'] !== v) { last[key + 'o'] = v; e.style.opacity = v; e.style.display = o > 0.003 ? 'block' : 'none'; } };
+  const flagEls = new Map();   // one chip per flag cue, built once
+  (hud.flags || []).forEach((f, i) => { const c = $('div', 'flag', el.flags); c.innerHTML = `<div class="fi">${flagSvg(f.code)}</div><div class="fn"></div>`; c.lastChild.textContent = f.name.toUpperCase(); c.style.opacity = 0; flagEls.set(i, c); });
   let subCard = null, subSpans = [], pinPool = [];
   const duration = opts.duration || 1e9;
 
@@ -35,6 +38,7 @@ export function makeHud(root, hud, opts = {}) {
     }
     show(el.sub, 'sub', card ? fade(t, card.t0 - 0.05, card.t1, 0.14) : 0);
 
+    (hud.flags || []).forEach((f, i) => { const c = flagEls.get(i), o = t >= f.t0 - 0.01 && t < f.t1 ? fade(t, f.t0, f.t1, 0.35) : 0, v = o.toFixed(2); if (c._o !== v) { c._o = v; c.style.opacity = v; c.style.display = o > 0.003 ? 'flex' : 'none'; c.style.transform = `translateX(${((1 - o) * 40).toFixed(1)}px)`; } });
     const d = find(hud.dates, t, (x, tt) => tt >= x.t0 && tt < x.t0 + 4.8);
     if (d) setText(el.date, 'date', d.label);
     show(el.date, 'date', d ? fade(t, d.t0, d.t0 + 4.8, 0.45) : 0);

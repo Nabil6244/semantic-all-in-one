@@ -72,3 +72,13 @@ test('an unknown CSV place never falls back to a far place the narration names; 
   assert.ok(p.warnings.some((w) => /Zzyzx/.test(w)));
   for (const s of p.scenes) for (const sh of s.shots) assert.ok(sh.t1 - sh.t0 <= (s.env === 'map' ? MAX_MAP_HOLD : MAX_HOLD) + 0.01 || (sh.t1 - sh.t0) / 2 < 3.6, `${s.id} holds ${sh.t1 - sh.t0}`);
 });
+
+test('flags: a country named in the narration gets its flag on that word, not repeated too soon', async () => {
+  const { flagCues, flagSvg } = await import('../lib/flags.mjs');
+  const w = (t, ...ws) => ({ text: ws.join(' '), start: t, end: t + 5, words: ws.map((x, i) => ({ word: x, start: t + i * 0.5, end: t + i * 0.5 + 0.4 })) });
+  const cues = flagCues([w(0, 'Israel', 'and', 'Iran', 'traded', 'strikes'), w(6, 'the', 'United', 'States', 'watched'), w(8, 'Israeli', 'jets'), w(30, 'Iranian', 'missiles')]);
+  assert.deepEqual(cues.map((c) => c.code), ['il', 'ir', 'us', 'ir']);
+  assert.equal(cues[0].t0, 0); assert.equal(cues[2].t0, 6.5);   // "United States" starts on "united"
+  assert.ok(flagSvg('ir').startsWith('<svg') && flagSvg('xx') === '');
+  assert.ok(plan.hud.flags && Array.isArray(plan.hud.flags));
+});

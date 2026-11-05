@@ -14,6 +14,10 @@ html, body { margin: 0; background: #000; overflow: hidden; }
 .sub .w { color: rgba(255,244,205,0.78); text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,0.9), 0 0 calc(var(--u)*2) rgba(0,0,0,0.95), 0 0 calc(var(--u)*14) rgba(0,0,0,0.55); -webkit-text-stroke: calc(var(--u)*1.2) rgba(0,0,0,0.55); paint-order: stroke fill; white-space: pre-wrap; }
 .sub .w.on { color: #fff6cf; }
 .date { left: calc(var(--u) * 56); top: calc(var(--u) * 48); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 54); letter-spacing: 0.06em; padding: calc(var(--u)*10) calc(var(--u)*24); background: rgba(14,16,20,0.62); border-left: calc(var(--u)*7) solid #e0b24a; border-radius: calc(var(--u)*4); text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,.6); }
+.flags { right: calc(var(--u) * 56); top: calc(var(--u) * 48); display: flex !important; flex-direction: column; align-items: flex-end; gap: calc(var(--u) * 12); }
+.flag { display: none; align-items: center; gap: calc(var(--u) * 16); font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 30); letter-spacing: 0.14em; padding: calc(var(--u)*8) calc(var(--u)*20) calc(var(--u)*8) calc(var(--u)*8); background: rgba(14,16,20,0.62); border-right: calc(var(--u)*6) solid #e0b24a; text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,.7); }
+.flag .fi { width: calc(var(--u) * 84); height: calc(var(--u) * 56); box-shadow: 0 0 0 calc(var(--u)*2) rgba(255,255,255,.55), 0 calc(var(--u)*4) calc(var(--u)*10) rgba(0,0,0,.6); }
+.flag .fi svg { width: 100%; height: 100%; display: block; }
 .place { left: calc(var(--u) * 56); bottom: calc(var(--u) * 210); font-family: 'Outfit', sans-serif; }
 .place .h { font-weight: 800; font-size: calc(var(--u) * 40); letter-spacing: 0.12em; text-shadow: 0 calc(var(--u)*2) calc(var(--u)*8) rgba(0,0,0,.75); }
 .place .s { font-weight: 700; font-size: calc(var(--u) * 24); letter-spacing: 0.2em; color: #e0b24a; margin-top: calc(var(--u)*4); text-shadow: 0 calc(var(--u)*2) calc(var(--u)*6) rgba(0,0,0,.75); }
