@@ -147,21 +147,28 @@ def draw_aside(cv, ctx, c, t):
             (ax, ay), (bx, by) = pts[-2], pts[-1]; ang = math.atan2(by - ay, bx - ax); h = ctx.px(26)
             for s in (-0.5, 0.5): d.line((bx, by, bx - h * math.cos(ang + s), by - h * math.sin(ang + s)), fill=YELLOW + (255,), width=ctx.px(6))
 
+def measure_side(ctx) -> str:
+    """The ruler and weight chip go on the left edge unless the scene's text column is on the left (full-frame picture): then the right edge, so they never type under the headline."""
+    cx = getattr(ctx, "col_x", None)
+    return "right" if cx is not None and cx < 960 else "left"
+
 def draw_measure(cv, ctx, c, t):
-    d = ImageDraw.Draw(cv, "RGBA"); h = c.get("height"); w = c.get("weight")
+    d = ImageDraw.Draw(cv, "RGBA"); h = c.get("height"); w = c.get("weight"); right = measure_side(ctx) == "right"
     if h:
         p = T.ease_out(_p(t, h["at"], 0.6))
         if p > 0:
-            x, y0, y1 = ctx.W * 0.07, ctx.H * 0.18, ctx.H * 0.80; ym = (y0 + y1) / 2; ya, yb = ym - (ym - y0) * p, ym + (y1 - ym) * p; col = T.SOFT_WHITE + (240,)
+            x, y0, y1 = ctx.W * (0.93 if right else 0.07), ctx.H * 0.18, ctx.H * 0.80; ym = (y0 + y1) / 2; ya, yb = ym - (ym - y0) * p, ym + (y1 - ym) * p; col = T.SOFT_WHITE + (240,)
             d.line((x, ya, x, yb), fill=col, width=ctx.px(4))
             for yy in (ya, yb): d.line((x - ctx.px(18), yy, x + ctx.px(18), yy), fill=col, width=ctx.px(4))
             if p >= 0.9:
-                f = ctx.font(T.HEAD_FONT, 40); tw = D._text_w(d, h["text"], f, ctx.px(1)); d.rounded_rectangle((x + ctx.px(18), ym - ctx.px(30), x + ctx.px(46) + tw, ym + ctx.px(32)), radius=ctx.px(10), fill=(14, 14, 16, 220))
-                D.text_spaced(d, (x + ctx.px(32), ym - ctx.px(26)), h["text"], f, T.ORANGE + (255,), ctx.px(1))
+                f = ctx.font(T.HEAD_FONT, 40); tw = D._text_w(d, h["text"], f, ctx.px(1)); lx = x - ctx.px(46) - tw if right else x + ctx.px(18)      # the label sits on the inner side of the ruler
+                d.rounded_rectangle((lx, ym - ctx.px(30), lx + ctx.px(28) + tw, ym + ctx.px(32)), radius=ctx.px(10), fill=(14, 14, 16, 220))
+                D.text_spaced(d, (lx + ctx.px(14), ym - ctx.px(26)), h["text"], f, T.ORANGE + (255,), ctx.px(1))
     if w:
         q = T.ease_back(_p(t, w["at"], 0.4))
         if q > 0:
             f = ctx.font(T.HEAD_FONT, 44); tw = D._text_w(d, w["text"], f, ctx.px(1)); x, y = ctx.W * 0.07 + (ctx.px(18) if h else 0), ctx.H * (0.56 if h else 0.46)      # under the height label, clear of the safety chip
+            if right: x = ctx.W * 0.93 - (ctx.px(18) if h else 0) - tw - ctx.px(40)      # mirrored: right-aligned to the right-hand ruler
             d.rounded_rectangle((x, y, x + tw + ctx.px(40), y + ctx.px(66)), radius=ctx.px(12), fill=T.ORANGE + (int(255 * min(1, q)),)); D.text_spaced(d, (x + ctx.px(20), y + ctx.px(8)), w["text"], f, (20, 20, 22, 255), ctx.px(1))
 
 def draw_hazard(cv, ctx, c, t):

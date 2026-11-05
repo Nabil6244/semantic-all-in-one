@@ -34,6 +34,7 @@ def callouts(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float, x: float, anchor_y
     """The page the narration is on; when the next sentence's page arrives the old one fades out over PAGE_OUT_S as the new one slides in."""
     pages = sc["pages"]
     if not pages: return
+    ctx.col_x = x
     live = [i for i, p in enumerate(pages) if _rel(sc, p["at"]) <= t + 1e-6] or [0]; i = live[-1]
     if i > 0 and t - _rel(sc, pages[i]["at"]) < PAGE_OUT_S: D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y, width), 1 - (t - _rel(sc, pages[i]["at"])) / PAGE_OUT_S)      # the old page is gone before the new one has typed a word over it
     D.overlay_paste(cv, _page_layer(ctx, sc, pages[i], t, x, anchor_y, width))
@@ -49,6 +50,7 @@ def _live_ring(sc, t):
 
 def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -> Image.Image:
     cv = ctx.backdrop(); kind = sc["kind"]; zoom, dx, dy = _camera(sc, t)
+    ctx.col_x = None      # where this frame's callout column starts (1080p px), set by callouts(); on-picture tricks keep clear of it
     if sc.get("tint"): _tint(cv, ctx, (t - _rel(sc, sc["tint"]["at"])) / 0.7)
     if kind != "tier": D.ghost_word(cv, ctx, sc.get("topic", ""), t)
     if kind == "hold" and sc["art"] and sc["prop"]:

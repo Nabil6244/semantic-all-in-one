@@ -44,6 +44,17 @@ if __name__ == "__main__":
 
 
 class FirstRenderFixes(unittest.TestCase):      # found in the first 1-minute render, 2026-11-02
+    def test_measure_clear_of_left_text_column(self):
+        """haseeb_rep 00:02: the "140 LB" chip landed on the left headline ("MOTORCYCLE") of a full-frame picture. A left column moves the ruler + chip to the right edge."""
+        ctx = D.Ctx(1920, 1080); c = {"height": {"text": "180 CM", "at": 0.0}, "weight": {"text": "140 LB", "at": 0.0}}
+        def orange_cols(col_x):
+            ctx.col_x = col_x; cv = Image.new("RGB", (1920, 1080), (0, 0, 0)); TR.draw_measure(cv, ctx, c, 5.0)
+            px = cv.load(); return [x for x in range(0, 1920, 4) for y in range(0, 1080, 6) if px[x, y][0] > 200 and 80 < px[x, y][1] < 200 and px[x, y][2] < 80]
+        xs = orange_cols(None); self.assertTrue(xs and max(xs) < 960)      # no column / column on the right: left edge as before
+        xs = orange_cols(1130); self.assertTrue(xs and max(xs) < 960)
+        xs = orange_cols(110); self.assertTrue(xs and min(xs) > 1300)      # column on the left: nothing orange left of it
+        ctx.col_x = None
+
     def test_strike_headline_not_repeated_and_bubble_on_verb(self):
         sc = scene("A planche isn't a strength trick."); sc["pages"] = [{"headline": "STRENGTH TRICK", "at": 10.5}]; TR.plan([sc]); self.assertEqual(sc["pages"][0]["headline"], "")
         sc = scene("When the wrists hurt, your body says stop."); TR.plan([sc]); self.assertLess(sc["bubble"]["at"], sc["words"][-1]["t0"])
