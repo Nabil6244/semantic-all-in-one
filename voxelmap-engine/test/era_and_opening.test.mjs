@@ -60,3 +60,17 @@ test('a long hold keeps moving: no framing lasts past MAX_SHOT and every part st
   for (const m of moves) assert.ok(m.t1 - m.t0 <= MAX_SHOT + 1e-6);
   for (let k = 1; k < moves.length; k++) assert.deepEqual(moves[k].from, moves[k - 1].to);
 });
+
+test('a minute on one map place is a one-way dive: lower every part, new heading, no framing shown twice', () => {
+  const spec = { beats: [{ id: 'm', rung: 'map', lon: 12.5, lat: 41.9, sentences: ['x'], chapter: 'c', seed: 3 }] };
+  const { camera } = direct(spec, [{ i: 0, travelT0: 0, travelT1: 0, speakT0: 0, speakT1: 60, holdT1: 60 }], 62);
+  const moves = camera.filter((c) => c.type === 'move');
+  for (let k = 1; k < moves.length; k++) {
+    assert.ok(moves[k].to.alt < moves[k - 1].to.alt, `part ${k} is lower than the one before`);
+    assert.notEqual(moves[k].to.heading, moves[k - 1].to.heading);
+    assert.equal(moves[k].ease, 'linear', 'steady speed through the junction');
+  }
+  const keys = moves.map((m) => [m.to.alt.toFixed(1), m.to.heading.toFixed(0)].join('/'));
+  assert.equal(new Set(keys).size, keys.length);
+  assert.ok(moves.at(-1).to.alt <= 430 && moves.at(-1).to.alt >= 400, 'ends close over the place');
+});

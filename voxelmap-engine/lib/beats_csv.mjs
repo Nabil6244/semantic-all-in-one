@@ -2,17 +2,23 @@
 // beat rows, rarely edited values as JSON in `extra`), with this engine's own columns. Hybrid's parser is not used: its
 // rows carry Hybrid camera modes and layers that mean nothing here.
 //
-//   row        plan | chapter | territory | label | beat
+//   row        plan | chapter | territory | label | beat | card
 //   plan       id = title, extra = {world, width, height, fps, wpm, subtitle (shown under the title on a globe opening)}
 //   chapter    id, text = title (the beats after it belong to it)
 //   territory  id = key, date = YYYY-MM it starts, extra = {legend: [{label, color}], rules: [...]}   (see lib/territory.mjs)
 //   label      text = name, lon, lat, extra = {kind: country|city, min_alt, max_alt}
+//   card       id = the beat it belongs to, text = caption, lon/lat = place a leader line points to (optional),
+//              extra = {asset: image file or folder-relative path, words: a few words of the sentence it shows, t: seconds after the
+//              beat starts to speaking (wins over words), hold: seconds on screen, anchor: tl|tr|ml|mr|center, kind: portrait|artefact|document|painting}
 //   beat       id, date = YYYY-MM, place, lon, lat, rung = globe|map|oblique|ground, alt, heading, site = recipe, gap = seconds of
 //              silence before it (planned narration gap), text = the narration (sentences),
 //              extra = {territory, seed, shot (see lib/director.mjs), path: [[lon, lat], ...] for an aerial track,
 //                       factions: [..] (lib/figures.mjs), names: ["Gen. X"], signs: ["WELCOME"], light: day|sunset|night|fog|dawn,
 //                       effects: [{kind: blasts|smoke|fires|planes, at: [lon, lat], to?: [lon, lat]}], museum: {item, name, note}}
 import { landmarkFor } from './landmarks.mjs';
+
+export const CARD_ANCHORS = ['tl', 'tr', 'ml', 'mr', 'center'];
+export const MAX_CARDS = 3;   // photo cards one beat may show
 
 export function parseCsv(text) {
   const rows = []; let row = [], cell = '', q = false;
@@ -40,6 +46,7 @@ export const splitSentences =(s) => (s.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) 
 export function parseStory(text) {
   const spec = { title: '', world: '', width: 1280, height: 720, fps: 30, wpm: 140, chapters: [], territories: [], labels: [], beats: [] };
   let chapter = null;
+  const cardRows = [];
   parseCsv(text).forEach((r, n) => {
     const at = `row ${n + 2} (${r.row})`, x = json(r.extra, at);
     if (r.row === 'plan') Object.assign(spec, { title: r.id, ...x });
@@ -56,9 +63,21 @@ export function parseStory(text) {
         alt: num(r.alt), heading: num(r.heading), site: r.site || null, gap: num(r.gap), sentences: splitSentences(r.text), territory: x.territory || null,
         orbit: x.orbit ?? null, seed: x.seed ?? seedOf(r.id, r.place, r.date), shot: x.shot ?? null, path: x.path ?? null,
         landmark: null, landmarkAsked: x.landmark ?? null, factions: x.factions ?? null, names: x.names ?? null, signs: x.signs ?? null, light: x.light ?? null, effects: x.effects ?? null, museum: x.museum ?? null });
+    } else if (r.row === 'card') {
+      if (!r.id) throw new Error(`${at}: a card needs the id of its beat`);
+      if (!x.asset) throw new Error(`${at}: a card needs extra.asset (an image file)`);
+      if (x.anchor && !CARD_ANCHORS.includes(x.anchor)) throw new Error(`${at}: card anchor must be ${CARD_ANCHORS.join(', ')}`);
+      cardRows.push({ at, beat: r.id, asset: String(x.asset), label: r.text || '', lon: num(r.lon), lat: num(r.lat), t: x.t ?? null, hold: x.hold ?? null, anchor: x.anchor || '', words: x.words || '', kind: x.kind || 'photo' });
     } else if (r.row) throw new Error(`${at}: unknown row type`);
   });
   if (!spec.beats.length) throw new Error('the story has no beat rows');
+  for (const bt of spec.beats) bt.cards = [];
+  for (const c of cardRows) {   // a card row may sit anywhere in the file: it joins the beat it names
+    const bt = spec.beats.find((b) => b.id === c.beat);
+    if (!bt) throw new Error(`${c.at}: card names beat "${c.beat}", which does not exist`);
+    if (bt.cards.length >= MAX_CARDS) throw new Error(`${c.at}: beat ${bt.id} already has ${MAX_CARDS} photo cards (the most a beat shows)`);
+    bt.cards.push({ asset: c.asset, label: c.label, lon: c.lon, lat: c.lat, t: c.t, hold: c.hold, anchor: c.anchor, words: c.words, kind: c.kind });
+  }
   for (const t of spec.territories) if (!t.date) t.date = spec.beats[0].date;
   // a territory row with no date starts with the story; a ground scene gets its real place (lib/landmarks.mjs)
   for (const bt of spec.beats) bt.landmark = landmarkFor(bt, { landmark: bt.landmarkAsked });

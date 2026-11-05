@@ -96,6 +96,42 @@ export function shotFrames(b, shot, seed) {
   return { start: { ...offset(base, h - 90, span / 2), alt: alt0, heading: h, tilt: 60 }, end: { ...offset(base, h + 90, span / 2), alt: alt0, heading: h, tilt: 60 }, ease: 'linear' };
 }
 
+
+/**
+ * End framing of each of the k parts of a long hold. A wide (map / oblique) hold is a one-way DIVE toward the place: lower, turning,
+ * drifting forward along the beat's path or heading, so every part shows something new and none returns to a view already shown (the
+ * old cycle of the same three framings bobbed in place for a minute). A ground hold keeps to the set but changes shot and heading.
+ */
+export function holdEnds(b, shot, fr, seed, k) {
+  const ends = [fr.end];
+  if (k <= 1) return ends;
+  const wide = b.rung === 'map' || b.rung === 'oblique';
+  if (wide) {
+    const floor = b.rung === 'map' ? RUNG.oblique.alt : 140, a0 = fr.end.alt, a1 = Math.min(a0, floor);
+    const dir = (seed % 2 ? 1 : -1), h0 = fr.end.heading ?? 0;
+    const pts = b.path && b.path.length >= 2 ? b.path : null;
+    for (let s = 1; s < k; s++) {
+      const f = s / (k - 1), alt = a0 * Math.pow(a1 / a0, f);
+      let at;
+      if (pts) {   // travel along the path as the camera comes down
+        const x = f * (pts.length - 1), j = Math.min(pts.length - 2, Math.floor(x)), u = x - j;
+        at = { lon: pts[j][0] + (pts[j + 1][0] - pts[j][0]) * u, lat: pts[j][1] + (pts[j + 1][1] - pts[j][1]) * u };
+      } else at = offset({ lon: b.lon, lat: b.lat }, h0 + dir * 70, alt * 0.35 * Math.sin(Math.PI * f) * 0.5);   // swing out and back onto the place
+      ends.push({ lon: at.lon, lat: at.lat, alt, heading: h0 + dir * 38 * s, tilt: null });
+    }
+    return ends;
+  }
+  const alts = altShots(b).filter((x) => x !== shot);
+  for (let s = 1; s < k; s++) { const sh = alts.length ? alts[(s - 1) % alts.length] : shot; ends.push(shotFrames(b, sh, seed + s * 3).end); }
+  return ends;
+}
+
+/** Where the camera is when a hold of `dur` seconds on beat b ends (the move to the next beat starts from here). */
+export function holdEndFrame(b, shot, seed, dur) {
+  const fr = shotFrames(b, shot, seed), k = b.rung === 'globe' ? 1 : Math.max(1, Math.ceil(dur / MAX_SHOT));
+  return holdEnds(b, shot, fr, seed, k).at(-1);
+}
+
 /** What kind of move joins two framings (for reports and tests). */
 export function moveKind(a, b) {
   const d = distanceKm(a, b);
@@ -124,11 +160,13 @@ export function direct(spec, timed, end) {
     // same place (each starts where the last ended, so there is never a jump)
     const dur = holdEnd - tb.travelT1, k = b.rung === 'globe' ? 1 : Math.max(1, Math.ceil(dur / MAX_SHOT));
     let from = fr.start, end = fr.end;
+    const ends = holdEnds(b, shot, fr, b.seed ?? tb.i, k);
+    if (k > 1 && shot === 'pullback' && b.rung !== 'ground') { const e0 = shotFrames(b, 'establishing', b.seed ?? tb.i); ends.splice(0, ends.length, ...holdEnds(b, 'establishing', e0, b.seed ?? tb.i, k)); }   // a long read dives in; it does not open by rising away
     for (let s = 0; s < k; s++) {
       const t0 = tb.travelT1 + (dur * s) / k, t1 = tb.travelT1 + (dur * (s + 1)) / k;
-      const alts = altShots(b).filter((x) => x !== shot), sh = s === 0 ? shot : alts[(s - 1) % alts.length] || shot;
-      end = s === 0 ? fr.end : shotFrames(b, sh, (b.seed ?? tb.i) + s * 3).end;
-      camera.push({ type: 'move', t0, t1, from, to: end, ease: s === 0 && k === 1 ? fr.ease : 'inout' });
+      end = ends[s];
+      // several parts glide at a steady speed through each junction (an eased stop at every one read as a camera that keeps freezing)
+      camera.push({ type: 'move', t0, t1, from, to: end, ease: k === 1 ? fr.ease : 'linear' });
       from = end;
     }
     shots.push({ beat: b.id, shot, move: prev ? moveKind(prev, fr.start) : 'open', parts: k });

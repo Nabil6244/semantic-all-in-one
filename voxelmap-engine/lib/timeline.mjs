@@ -5,7 +5,7 @@
 // see tools/narration_timing.py) or, with none, is planned here from word counts with the beat's `gap` as the silence.
 
 import { travelSeconds } from './camera3d.mjs';
-import { chooseShot, shotFrames, direct, RUNG } from './director.mjs';
+import { chooseShot, shotFrames, direct, holdEndFrame, RUNG } from './director.mjs';
 
 export { RUNG };
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -19,6 +19,7 @@ const words = (s) => s.split(/\s+/).filter(Boolean).length;
 export const CAPTION_CLEAR_GAP = 8;   // a silence longer than this empties the caption log...
 export const CAPTION_LINGER = 3;      // ...this long after the last word
 export const CARD_HOLD = 4.2;
+export const CARD_SHOW = 5.5;     // seconds a photo card stays on screen when the story gives no hold
 export const LIGHTS = ['day', 'dawn', 'sunset', 'night', 'fog'];
 export const DEFAULT_CREDITS = ['Elevation: Terrain Tiles on AWS Open Data (Mapzen Terrarium)', 'Coastlines, countries and provinces: Natural Earth', 'Font: Monocraft by Idrees Hassan (SIL OFL 1.1)'];
 export const MAX_SQUEEZE = 0.15;
@@ -118,7 +119,7 @@ export function buildTimeline(spec, narration = null) {
       }
     }
     const longGlobe = b.rung === 'globe' && i < spec.beats.length - 1 && l.end - Math.max(f.start, travelT1) > GLOBE_HOLD + 1;
-    prevEnd = longGlobe ? Math.max(f.start, travelT1) + GLOBE_HOLD : Math.max(l.end, travelT1 + 0.5); prevFrame = frames[i].end; leftEarly = longGlobe;
+    prevEnd = longGlobe ? Math.max(f.start, travelT1) + GLOBE_HOLD : Math.max(l.end, travelT1 + 0.5); prevFrame = longGlobe ? frames[i].end : holdEndFrame(b, frames[i].shot, b.seed ?? i, prevEnd - travelT1); leftEarly = longGlobe;
     beats.push({ i, holdT1: prevEnd, id: b.id, date: b.date, rung: b.rung, shot: frames[i].shot, travelT0, travelT1, speakT0: f.start, speakT1: l.end, site: b.site, lon: b.lon, lat: b.lat, seed: b.seed, chapter: b.chapter, territory: b.territory, place: b.place });
   });
   const { camera, shots } = direct(spec, beats, end);
@@ -166,11 +167,30 @@ export function buildTimeline(spec, narration = null) {
   // museum objects: an inset while their beat is spoken; the item bar keeps every object shown so far
   const museum = [];
   beats.forEach((bb) => { const m = spec.beats[bb.i].museum; if (m) museum.push({ ...m, t0: bb.speakT0, t1: bb.speakT1 + 1.5, beat: bb.id }); });
+  // photo cards: a card appears on the sentence it shows (found by its words), else at its stated second, else spread over the beat
+  const cards = [];
+  beats.forEach((bb) => {
+    const list = spec.beats[bb.i].cards || [];
+    list.forEach((c, k) => {
+      const mine = said.filter((x) => x.beat === bb.i), ct = tokens(c.words || '');
+      let t0 = null;
+      if (c.t != null) t0 = bb.speakT0 + Number(c.t);
+      else if (ct.size) { let best = 0; for (const x of mine) { const o = overlap(tokens(x.text || ''), ct); if (o > best) { best = o; t0 = x.start; } } }
+      const hold = c.hold ?? CARD_SHOW;
+      if (t0 == null) t0 = bb.speakT0 + 1 + Math.max(0, bb.speakT1 - bb.speakT0 - hold - 1) * (list.length > 1 ? k / (list.length - 1) : 0.15);
+      const t1 = Math.min(t0 + hold, bb.speakT1 + 1.5);
+      if (t1 - t0 < 2) { warnings.push(`beat ${bb.id}: photo card "${c.label || c.asset}" has under 2 s on screen and is dropped`); return; }
+      cards.push({ id: `${bb.id}.${k + 1}`, beat: bb.id, asset: c.asset, label: c.label, kind: c.kind, lon: c.lon, lat: c.lat, anchor: c.anchor, t0: +t0.toFixed(2), t1: +t1.toFixed(2) });
+    });
+  });
+  // a card with no anchor takes the first of the two free sides that no other card uses at the same time
+  cards.sort((a, b) => a.t0 - b.t0);
+  for (const c of cards) if (!c.anchor) { const used = cards.filter((o) => o !== c && o.anchor && o.t0 < c.t1 && o.t1 > c.t0).map((o) => o.anchor); c.anchor = ['mr', 'ml'].find((a) => !used.includes(a)) || 'mr'; }
   // a globe ending carries the credits panel and the end card
   const last = beats[beats.length - 1];
   const credits = last && last.rung === 'globe' && spec.credits !== false
     ? { t0: last.travelT1, t1: end, lines: [...(spec.credits_lines || []), ...DEFAULT_CREDITS], endcard: spec.endcard || '' } : null;
-  return { duration: +end.toFixed(3), narration: said, camera, shots, beats, dates, chapters, captions, territory: terr, title, lights, effects, museum, credits, warnings, notes };
+  return { duration: +end.toFixed(3), narration: said, camera, shots, beats, dates, chapters, captions, territory: terr, title, lights, effects, museum, cards, credits, warnings, notes };
 }
 
 // ---- queries used by the page (and the tests) ----

@@ -23,11 +23,45 @@ STYLE = "Voxel Map"
 TAG = "[VOXEL MAP]"
 RESOLUTIONS = {"720p preview (1280x720)": 720, "1080p final (1920x1080)": 1080}
 _ROOT = Path(__file__).resolve().parent.parent
+OWNER = "voxel_map"      # its photo cards in the Visuals tab (visual_bridge)
 
 
 def _engine_dir() -> Path:
     base = Path(getattr(sys, "_MEIPASS", _ROOT)) if getattr(sys, "frozen", False) else _ROOT
     return base / "voxelmap-engine"
+
+
+def _cards():
+    """voxelmap-engine/cards.py (photo cards), loaded once."""
+    mod = sys.modules.get("vme_cards")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location("vme_cards", _engine_dir() / "cards.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["vme_cards"] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+def _assets_dir(app: Any) -> Path:
+    import visual_bridge
+
+    return visual_bridge.folder(OWNER, app._workspace)
+
+
+def _story_with_cards(app: Any, o: dict, work: str, reqs: list) -> str:
+    """The story CSV the engine reads: the user's rows + a card row for every picture the Visuals tab holds now (a picture swapped there is used).
+    No cards, or none with a picture: the user's own CSV, unchanged."""
+    if not reqs:
+        return o["csv"]
+    import visual_bridge
+
+    cards = _cards()
+    folder = _assets_dir(app)
+    recs = visual_bridge.records(folder, visual_bridge.rows(app, OWNER) or cards.table_rows(reqs))
+    paths = cards.paths_from(reqs, recs)
+    if not paths:
+        return o["csv"]
+    return cards.write_story(o["csv"], str(Path(work) / "story_cards.csv"), reqs, paths, cards.credits(reqs, recs))
 
 
 def _runner():
@@ -149,12 +183,24 @@ def activate(app: Any) -> None:
     from .voiceover_view import adopt_project_voiceover
     adopt_project_voiceover(app, app._vm_voice_var)   # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
     app._vm_block.grid()
+    try:
+        import visual_bridge
+
+        visual_bridge.restore(app, OWNER)      # the photo cards of the last Generate, back in the Visuals tab
+    except Exception:
+        pass
     _sync_buttons(app)
 
 
 def deactivate(app: Any) -> None:
     if getattr(app, "_vm_active", False):
         app._vm_active = False
+        try:
+            import visual_bridge
+
+            visual_bridge.clear(app, OWNER)
+        except Exception:
+            pass
         block = getattr(app, "_vm_block", None)
         if block is not None:
             block.grid_remove()
@@ -311,14 +357,36 @@ def on_generate(app: Any) -> None:
 
 def _plan(app: Any, vm: Any, o: dict, work: str, *, prepare: bool) -> None:
     app._vm_status_var.set("Planning…")
+    # photo cards: the CSV's own card rows, or cards planned from the narration; their pictures are fetched into the Visuals tab (no Gemini)
+    reqs, manager, cards = [], None, None
+    try:
+        cards = _cards()
+        reqs = cards.requests(o["csv"])
+        if any(c.get("query") and not c.get("local") for c in reqs):
+            manager = app._build_asset_manager(_assets_dir(app), [])      # built here: it reads Tk variables
+    except Exception as exc:  # noqa: BLE001 - cards are an extra; the film is planned without them
+        app._append_log(f"{TAG} photo cards skipped: {type(exc).__name__}: {exc}\n")
+        reqs, manager = [], None
+    holder: dict = {}
 
     def job():
         if prepare:
             vm.prepare(o["csv"], progress=_progress(app), cancel=app._vm_cancel.is_set, log=_log(app))
-        return vm.plan(o["csv"], work, voiceover=o["voice"] or None, progress=_progress(app), cancel=app._vm_cancel.is_set, log=_log(app))
+        story = o["csv"]
+        if reqs:
+            if manager is not None:
+                holder["rows"] = cards.fetch(reqs, manager, _assets_dir(app), log=_log(app), cancel=app._vm_cancel.is_set)
+            else:
+                holder["rows"] = cards.table_rows(reqs)
+            story = _story_with_cards(app, o, work, reqs)
+        return vm.plan(story, work, voiceover=o["voice"] or None, progress=_progress(app), cancel=app._vm_cancel.is_set, log=_log(app))
 
     def done(r) -> None:
-        app._vm_planned = {"csv": o["csv"], "voice": o["voice"], "res": o["res"], "work": work}
+        if holder.get("rows"):
+            import visual_bridge
+
+            visual_bridge.fill(app, OWNER, holder["rows"])      # check or change the pictures there; Render uses what the tab holds
+        app._vm_planned = {"csv": o["csv"], "voice": o["voice"], "res": o["res"], "work": work, "cards": reqs}
         warn = f"  {len(r['warnings'])} notes (see the log)." if r["warnings"] else ""
         msg = (f"Planned {r['beats']} scenes, {r['duration']:.0f} s ({'camera timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over: the video has no sound'}).{warn}")
         app._vm_status_var.set(msg)
@@ -357,7 +425,8 @@ def on_render(app: Any) -> None:
                                   message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
     def job():
-        return vm.render(plan["csv"], plan["work"], voiceover=plan["voice"] or None, output=str(out_path), resolution=plan["res"],
+        story = _story_with_cards(app, o, plan["work"], plan.get("cards") or [])      # the pictures the Visuals tab holds now
+        return vm.render(story, plan["work"], voiceover=plan["voice"] or None, output=str(out_path), resolution=plan["res"],
                          progress=_progress(app), cancel=app._vm_cancel.is_set, log=_log(app))
 
     def done(r) -> None:

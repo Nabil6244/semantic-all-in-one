@@ -387,6 +387,13 @@ async function main() {
     globe.clouds.rotation.y = t * 0.012; // clouds drift slowly around the planet
     renderer.setRenderTarget(rtScene); renderer.setClearColor(globe.scene.background); renderer.clear(); renderer.render(globe.scene, globe.cam);
   }
+  // photo cards: every picture is loaded before the first frame (a card with no readable picture is simply not shown)
+  const cardImgs = new Map();
+  for (const c of tl.cards || []) {
+    if (!c.url) continue;
+    try { const r = await fetch(c.url); if (r.ok) cardImgs.set(c.id, await createImageBitmap(await r.blob())); } catch { /* the card is skipped */ }
+  }
+  const cardTilt = (id) => { let h = 7; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0; return ((Math.abs(h) % 5) - 2) * 0.6; };
   // museum objects: each one turns on a plinth in its own small scene, drawn into the HUD inset; a still of each is its
   // item-bar icon
   const museum = [];
@@ -613,7 +620,14 @@ async function main() {
     const mNow = museum.find((m) => t >= m.t0 && t <= m.t1);
     if (mNow) mNow.shoot(0.7 + (t - mNow.t0) * 0.35);
     const items = museum.filter((m) => t >= m.t0).map((m) => ({ icon: m.icon, name: m.name, current: m === mNow }));
-    drawHud(g2, W, H, tl, legendAt, t, { tags, letterbox: 1 - smooth(9, 22, c.alt), noDate: c.alt > 4500,
+    const cards = (tl.cards || []).filter((cd) => t >= cd.t0 - 0.1 && t <= cd.t1 && cardImgs.has(cd.id)).map((cd) => {
+      let lead = null;
+      if (cd.lon != null && cd.lat != null && c.alt >= 20) { const q = geo.toWorld(cd.lon, cd.lat); v.set(q.x, ground(q.x, q.z) + 0.6, q.z).project(camera);   // a leader line only at map scale; a ground set has its own scale
+        if (v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1) lead = { x: (v.x * 0.5 + 0.5) * W, y: (-v.y * 0.5 + 0.5) * H }; }
+      return { img: cardImgs.get(cd.id), label: cd.label, anchor: cd.anchor, lead, tilt: cardTilt(cd.id), p: (t - cd.t0) / Math.max(0.1, cd.t1 - cd.t0),
+        a: Math.min(smooth(cd.t0, cd.t0 + 0.7, t), 1 - smooth(cd.t1 - 0.6, cd.t1, t)) };
+    });
+    drawHud(g2, W, H, tl, legendAt, t, { tags, cards, letterbox: 1 - smooth(9, 22, c.alt), noDate: c.alt > 4500,
       museum: mNow ? { image: mNow.canvas, name: mNow.name || mNow.item, note: mNow.note || '', a: smooth(mNow.t0, mNow.t0 + 0.6, t) * (1 - smooth(mNow.t1 - 0.6, mNow.t1, t)) } : null, items });
     stats.frames++; stats.frameMs.push(performance.now() - f0); stats.subframes.push(S);
     stats.last = { t, alt: +c.alt.toFixed(2), L1: info.lod.L1, L2: info.lod.L2, S };

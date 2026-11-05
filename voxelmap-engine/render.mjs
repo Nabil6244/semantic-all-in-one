@@ -24,7 +24,7 @@ const smoothstep = (a, b, v) => { const k = Math.max(0, Math.min(1, (v - a) / (b
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
 const emit = (o) => process.stdout.write(JSON.stringify(o) + '\n');
-const TYPES = { '.mjs': 'text/javascript', '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf' };
+const TYPES = { '.mjs': 'text/javascript', '.js': 'text/javascript', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 
 function args(argv) {
   const a = { story: argv[0] };
@@ -32,9 +32,20 @@ function args(argv) {
   return a;
 }
 const loadPlaywright = () => createRequire(path.join(REPO, 'flow-engine', 'package.json'))('playwright');
+const IMAGE_EXT = /\.(png|jpe?g|webp)$/i;
+/** Photo cards -> readable image files. An asset is an absolute path, or relative to --cards, else to the story's own folder (and its cards/ folder). */
+function resolveCards(tl, storyPath, dir) {
+  const files = {}, missing = [], bases = [dir, path.dirname(path.resolve(storyPath)), path.join(path.dirname(path.resolve(storyPath)), 'cards')].filter(Boolean);
+  tl.cards = (tl.cards || []).filter((c) => {
+    const f = IMAGE_EXT.test(c.asset) ? (path.isAbsolute(c.asset) ? [c.asset] : bases.map((b) => path.join(b, c.asset))).find((x) => fs.existsSync(x)) : null;
+    if (!f) { missing.push(c); return false; }
+    const name = `${c.id}${path.extname(f).toLowerCase()}`; files[name] = f; c.url = `/card/${name}`; return true;
+  });
+  return { files, missing };
+}
 const threeDir = () => [path.join(HERE, 'node_modules', 'three'), path.join(REPO, 'starmap-engine', 'node_modules', 'three')].find((d) => fs.existsSync(d));
 
-function serve(config, worldDir) {
+function serve(config, worldDir, cardFiles = {}) {
   const body = JSON.stringify(config), three = threeDir();
   const server = http.createServer((req, res) => {
     const p = new URL(req.url, 'http://x').pathname;
@@ -45,6 +56,7 @@ function serve(config, worldDir) {
     else if (/^\/lib\/[\w-]+\.mjs$/.test(p)) file = path.join(HERE, p);
     else if (/^\/world\/[\w.-]+$/.test(p)) file = path.join(worldDir, path.basename(p));
     else if (/^\/world\/L[12]\/\d+_\d+\.bin$/.test(p)) file = path.join(worldDir, p.slice(7));
+    else if (/^\/card\/[\w.-]+$/.test(p)) file = cardFiles[path.basename(p)];
     else if (/^\/globe\/[\w.-]+$/.test(p)) file = path.join(HERE, 'worlds', '_globe', path.basename(p));
     else if (p === '/three/three.module.min.js' && three) file = path.join(three, 'build', 'three.module.min.js');
     else if (/^\/fonts\/[\w.-]+\.ttf$/.test(p)) file = [path.join(HERE, 'assets', 'fonts', path.basename(p)), path.join(REPO, 'whatif-engine', 'assets', 'fonts', path.basename(p))].find((f) => fs.existsSync(f));
@@ -212,6 +224,8 @@ async function main() {
   const narration = a.narration ? JSON.parse(fs.readFileSync(a.narration, 'utf8')).sentences : null;
   snapGroundBeats(story);
   const tl = buildTimeline(story, narration);
+  const cardRes = resolveCards(tl, a.story, typeof a.cards === 'string' ? a.cards : '');
+  for (const c of cardRes.missing) tl.warnings.push(`beat ${c.beat}: photo card "${c.label || c.asset}" has no readable image (${c.asset}); it is left out`);
   for (const w of tl.warnings) emit({ event: 'warning', message: w });
   for (const n of tl.notes || []) emit({ event: 'note', message: n });
   emit({ event: 'plan', duration: tl.duration, beats: tl.beats.length, chapters: tl.chapters.length, sentences: tl.captions.length });
@@ -241,7 +255,7 @@ async function main() {
   if (onDisk.length < needs.length) emit({ event: 'warning', message: `${needs.length - onDisk.length} planned detail tiles are not built; those areas use a coarser level` });
   const aimGround = groundTable(tl, data, meta);
   const clearance = clearanceTable(tl, data, meta, aimGround);
-  const server = await serve({ W, H, fps, timeline: tl, story, tiles: onDisk, clearance, aimGround, blur: a.blur !== 'off' }, worldDir);
+  const server = await serve({ W, H, fps, timeline: tl, story, tiles: onDisk, clearance, aimGround, blur: a.blur !== 'off' }, worldDir, cardRes.files);
   const { chromium } = loadPlaywright();
   const soft = process.env.VOXEL_GL === 'software';
   const browser = await chromium.launch({ headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] });
