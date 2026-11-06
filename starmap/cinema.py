@@ -249,10 +249,9 @@ def plates(plan: Any, cat: Any, res: Any, clock: Dict[str, Any], notes: List[str
             evs = sorted(((parse_iso(e.utc), n) for n, e in ds.events.items() if e.utc and (not now or e.utc <= now)),
                          key=lambda x: x[0])
             evs = [(d, n) for d, n in evs if not n.lower().startswith("t+")][:7]
-            if len(evs) >= 3:
-                y0, y1 = evs[0][0].year, max(evs[-1][0].year, parse_iso(now).year if now else evs[-1][0].year)
-                step = 10 if y1 - y0 <= 60 else 20
-                layer = {"type": "tm_timeline", "from": (y0 // 10) * 10, "to": int(math.ceil(y1 / 10.0)) * 10, "step": step,
+            span = _timeline_years(evs, now) if len(evs) >= 3 else None
+            if span:
+                layer = {"type": "tm_timeline", **span,
                          "events": [{"t": round(t0 + 0.5 + 0.55 * i, 3), "year": d.year, "label": n.replace("_", " ").upper()} for i, (d, n) in enumerate(evs)]}
                 cite = f"DIAGRAM · {ds.name.upper()} TIMELINE · DATES: {ds.source.upper() or 'MISSION RECORD'}"[:110]
         if layer is None:
@@ -544,12 +543,12 @@ def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str,
                 now = _clock_utc(clock, t)
                 evs = sorted(((parse_iso(e.utc), n) for n, e in ds.events.items() if e.utc and (not now or e.utc <= now)), key=lambda x: x[0])
                 evs = [(d, n) for d, n in evs if not n.lower().startswith("t+")][:7]
-                if len(evs) < 3:
+                span = _timeline_years(evs, now)
+                if len(evs) < 3 or not span:
                     continue
-                y0, y1 = evs[0][0].year, max(evs[-1][0].year, parse_iso(now).year if now else evs[-1][0].year)
                 layers.append({"type": "cinema_plate", "start": round(t, 3), "end": round(t1, 3), "fade_in": 0.2, "fade_out": 0.3,
                                "_cite": f"DIAGRAM · {ds.name.upper()} TIMELINE"[:100]})
-                layers.append({"type": "tm_timeline", "from": (y0 // 10) * 10, "to": int(math.ceil(y1 / 10.0)) * 10, "step": 10 if y1 - y0 <= 60 else 20,
+                layers.append({"type": "tm_timeline", **span,
                                "events": [{"t": round(t + 0.5 + 0.55 * i, 3), "year": d.year, "label": n.replace("_", " ").upper()} for i, (d, n) in enumerate(evs)],
                                "start": round(t, 3), "end": round(t1, 3), "fade_in": 0.2, "fade_out": 0.3})
             elif kind == "craft":
@@ -825,6 +824,19 @@ def _globe_for(text: str) -> Optional[Tuple[str, str, str, bool]]:
         return None
     tex, name, rim = got
     return tex, name, rim, False
+
+
+def _timeline_years(evs: List[Any], now: Any) -> Optional[Dict[str, int]]:
+    """The year axis of a timeline of dated events: from/to rounded out to decades, and its tick step. None when the events (up to now)
+    fall in a single year: every dot would sit on one spot, and from == to stops the engine (Apollo 13: all events in 1970)."""
+    from .temporal import parse_iso
+
+    y0 = evs[0][0].year
+    y1 = max(evs[-1][0].year, parse_iso(now).year if now else evs[-1][0].year)
+    if y1 <= y0:
+        return None
+    lo, hi = (y0 // 10) * 10, int(math.ceil(y1 / 10.0)) * 10
+    return {"from": lo, "to": hi if hi > lo else lo + 10, "step": 10 if y1 - y0 <= 60 else 20}
 
 
 def variety(spec: Dict[str, Any], plan: Any, notes: List[str]) -> None:
@@ -1232,6 +1244,40 @@ def close_slivers(spec: Dict[str, Any], notes: List[str]) -> None:
         notes.append(f"Cinema: {held} sliver(s) of map between shots closed, {len(gone)} card(s) too short to read left out")
 
 
+FOOTAGE_DISSOLVE_S = 0.5      # starmap-engine/lib/footage.mjs DISSOLVE_S: a clip dissolves in/out over this, centred on its start/end
+_COVER_3D = ("cinema_globe", "cinema_craft", "cinema_scene", "cinema_hero")
+
+
+def cover_hidden_footage(spec: Dict[str, Any], notes: List[str]) -> None:
+    """A full-screen 3D shot laid over a clip hides that clip, but the clip dissolves in at its start and the 3D shot fades in after it,
+    so for half a second the hidden clip shows through (project 028: a NASA clip that was a page of text flashed before the Moon globe).
+    The 3D shot is made fully opaque before the clip starts to appear and stays until the clip has gone: it dissolves over what was
+    there before (the map), and out over what comes after. The clip itself is kept, since the map's timing depends on it."""
+    foot = [f for f in spec.get("footage", []) if f.get("start") is not None and f.get("end") is not None]
+    if not foot:
+        return
+    d_of = lambda f, k: 0.0 if f.get(k) == "cut" else float(f.get("dissolve_s", spec.get("dissolve_s", FOOTAGE_DISSOLVE_S)))
+    moved = 0
+    for L in spec["layers"]:
+        if L.get("type") not in _COVER_3D or L.get("start") is None or L.get("end") is None:
+            continue
+        for f in foot:
+            if abs(float(L["start"]) - float(f["start"])) <= 0.1:
+                new = round(max(0.0, float(f["start"]) - d_of(f, "transition_in") / 2 - float(L.get("fade_in") or 0.0)), 3)
+                if new < L["start"]:
+                    L["start"], moved = new, moved + 1
+            if abs(float(L["end"]) - float(f["end"])) <= 0.1:
+                nxt = next((g for g in foot if g is not f and abs(float(g["start"]) - float(f["end"])) < 1e-3), None)
+                gone = float(f["end"]) + (d_of(nxt, "transition_in") if nxt else d_of(f, "transition_out")) / 2
+                new = round(gone + float(L.get("fade_out") or 0.0), 3)
+                if spec.get("duration"):
+                    new = min(new, float(spec["duration"]))
+                if new > L["end"]:
+                    L["end"], moved = new, moved + 1
+    if moved:
+        notes.append(f"Cinema: {moved} edge(s) of a 3D shot moved so the clip hidden under it never shows through the fade")
+
+
 def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, Any], fl: Dict[str, bool], notes: List[str]) -> None:
     """Cinema's changes to a compiled spec (in place)."""
     spec["cinema"] = dict(fl)
@@ -1293,6 +1339,7 @@ def apply(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str, 
     declutter(spec, notes)
     pace(spec, notes)
     close_slivers(spec, notes)
+    cover_hidden_footage(spec, notes)
     # layering as in What If: instruments and the citation line stay over a hero scene; they step back over a diagram plate (What If's
     # plateAlpha reads spec.shots); a fade covers everything; a title card leaves when a plate, a hero scene or a survival intro opens
     spec["shots"] = [{"start": L["start"], "end": L["end"], "kind": "plate"} for L in layers if L.get("type") == "cinema_plate"]

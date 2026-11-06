@@ -102,3 +102,43 @@ class HandOvers(unittest.TestCase):
         g = {"type": "cinema_globe", "start": 5.3, "end": 9.0, "fade_in": 0.55, "fade_out": 0.6}
         close_slivers({"footage": [f], "layers": [g], "camera": {"moves": []}}, [])
         self.assertEqual((f["end"], f.get("transition_out"), g["fade_in"]), (5.3, "cut", 0.0))
+
+
+class HiddenClipUnder3D(unittest.TestCase):
+    """Project 028: a NASA clip (a page of text) under the Moon globe showed through the globe's fade-in for half a second."""
+
+    def test_the_globe_is_opaque_before_the_hidden_clip_appears_and_until_it_is_gone(self):
+        from starmap.cinema import cover_hidden_footage
+        f1 = {"id": "b2_1", "start": 5.98, "end": 11.87, "file": "002_001.mp4"}
+        f2 = {"id": "b2_2", "start": 11.87, "end": 17.76, "image": "003_002.jpg"}
+        g = {"type": "cinema_globe", "start": 5.98, "end": 11.87, "fade_in": 0.55, "fade_out": 0.6}
+        notes = []
+        cover_hidden_footage({"footage": [f1, f2], "layers": [g], "duration": 150.0}, notes)
+        self.assertLessEqual(g["start"] + g["fade_in"], f1["start"] - 0.25 + 1e-6)   # clip starts dissolving in at 5.73
+        self.assertGreaterEqual(g["end"] - g["fade_out"], f1["end"] + 0.25 - 1e-6)   # next clip has covered it at 12.12
+        self.assertTrue(notes)
+
+    def test_a_3d_shot_that_does_not_line_up_with_a_clip_is_left_alone(self):
+        from starmap.cinema import cover_hidden_footage
+        f = {"id": "f", "start": 1.0, "end": 5.0}
+        g = {"type": "cinema_globe", "start": 20.0, "end": 24.4, "fade_in": 0.55, "fade_out": 0.6}
+        cover_hidden_footage({"footage": [f], "layers": [g]}, [])
+        self.assertEqual((g["start"], g["end"]), (20.0, 24.4))
+
+
+class TimelineYears(unittest.TestCase):
+    """Ahmed's MacBook, Apollo 13: every event was in 1970, so the timeline ran 1970 -> 1970 and the render stopped ('needs from < to')."""
+
+    def test_events_in_one_year_make_no_timeline(self):
+        from datetime import datetime
+        from starmap.cinema import _timeline_years
+        evs = [(datetime(1970, 4, d), n) for d, n in ((11, "launch"), (14, "explosion"), (17, "splashdown"))]
+        self.assertIsNone(_timeline_years(evs, None))
+
+    def test_events_across_years_get_an_axis_with_from_below_to(self):
+        from datetime import datetime
+        from starmap.cinema import _timeline_years
+        evs = [(datetime(1969, 7, 16), "a"), (datetime(1970, 4, 11), "b"), (datetime(1972, 12, 7), "c")]
+        span = _timeline_years(evs, None)
+        self.assertLess(span["from"], span["to"])
+        self.assertEqual((span["from"], span["to"]), (1960, 1980))
