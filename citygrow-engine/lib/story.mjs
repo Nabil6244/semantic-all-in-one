@@ -68,6 +68,9 @@ export function parseStory(text) {
   rows.slice(1).forEach((cells, k) => {
     const r = {}; head.forEach((h, i) => { r[h] = (cells[i] ?? '').trim(); });
     const line = k + 2, type = r.row.toLowerCase(), extra = json(r.extra, warn, `line ${line}`);
+    if (cells.length > head.length && cells.slice(head.length).some((c) => c.trim())) {
+      warn(`line ${line}: more cells than the header has columns — a comma inside a cell that is not in quotes? The row's columns are shifted.`);
+    }
     if (type === 'plan') {
       Object.assign(story.plan, { city: r.era_name || r.title || extra.city, center: parseLonLat(r.focus), ...extra });
       if (r.title) story.plan.title = r.title;

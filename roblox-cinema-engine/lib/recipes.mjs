@@ -8,6 +8,8 @@
 //   intent     what the scene must show (for the plan report and the relevance check)
 //   ambience   ambience bed ; cues: sound cues fired by the scene's events
 
+import { HORROR_RECIPES, HORROR_EVENT_ENVS } from './horror.mjs';
+
 export const RECIPES = {
   establishing: { env: 'farmland', intent: 'show the place and its scale', cast: [{ role: 'civilian', count: 6, side: 'civ', formation: 'scatter', action: 'walk' }], vehicles: [], fx: ['clouds'], shots: ['aerial_geo', 'establishing_wide', 'descend', 'flyover'], ambience: 'nature' },
   troop_deployment: { env: 'military_base', intent: 'many soldiers and supplies gathering', cast: [{ role: 'soldier', count: 26, side: 'a', formation: 'files', action: 'march' }, { role: 'officer', count: 2, side: 'a', formation: 'front', action: 'point' }, { role: 'soldier', count: 10, side: 'a', formation: 'scatter', action: 'carry' }],
@@ -50,6 +52,9 @@ export const RECIPES = {
 // the narration classifier's "establishing" also covers these when the sentence is about consequence or scale
 RECIPES.consequence = { ...RECIPES.establishing, intent: 'the larger consequence', shots: ['rise', 'pullback_reveal', 'aerial_geo'] };
 
+// horror story beats (lib/horror.mjs): only chosen when the plan row's genre is horror or the CSV names one
+Object.assign(RECIPES, HORROR_RECIPES);
+
 export const EVENT_TYPES = Object.keys(RECIPES);
 
 /** biome of a place -> environment for events that happen "somewhere" (the recipe's env applies when no place is known) */
@@ -60,4 +65,5 @@ export const EVENT_ENVS = {
   political_meeting: ['interior'], peace_agreement: ['interior'], naval_operation: ['sea', 'port'], natural_disaster: ['sea', 'city', 'village', 'farmland', 'port'],
   landing_operation: ['beach', 'island', 'river'], airborne_drop: ['farmland', 'forest', 'jungle', 'town', 'village'], troop_deployment: ['military_base', 'port', 'airfield', 'farmland'],
   city_occupation: ['town', 'city', 'village'], liberation: ['city', 'town', 'village'], industrial_production: ['factory'],
+  ...HORROR_EVENT_ENVS,
 };

@@ -51,9 +51,22 @@ def _runner():
 
 
 # Labels -> engine values. Kept here too so building the page never imports the engine.
-HOSTS = {"3D host": "host3d", "Maya (simple)": "tutor"}
-WORLDS = {"Playroom": "playroom", "Park": "park"}
-MUSIC = {"Auto (matches the set)": "auto", "Playroom": "playroom", "Calm": "calm", "Sunny": "sunny", "Off": "off"}
+def _puppet_hosts() -> dict:
+    """One Host choice per folder in assets/puppets that holds a spec: a host made from a drawn picture."""
+    out = {}
+    root = _engine_dir() / "assets" / "puppets"
+    for spec in sorted(root.glob("*/spec.json")) if root.is_dir() else ():
+        try:
+            label = json.loads(spec.read_text(encoding="utf-8")).get("name") or spec.parent.name
+        except (OSError, ValueError):
+            continue
+        out[str(label)] = f"puppet:{spec.parent.name}"
+    return out
+
+
+HOSTS = {"3D host": "host3d", "Maya (simple)": "tutor", **_puppet_hosts()}
+WORLDS = {"Playroom": "playroom", "Park": "park", "Farm": "farm", "Beach": "beach", "Bedroom": "bedroom", "Space": "space"}
+MUSIC = {"Auto (follows the set)": "auto", "Playroom": "playroom", "Calm": "calm", "Sunny": "sunny", "Off": "off"}
 VOICES = {"Jenny (US)": "en-US-JennyNeural", "Ana (US, child)": "en-US-AnaNeural", "Sonia (UK)": "en-GB-SoniaNeural"}
 _VARS = ("csv", "vo", "host", "world", "voice", "music", "res")
 
@@ -84,13 +97,14 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                   placeholder_text="Optional: your recording of the lesson (the video follows it; without it the free voice reads the CSV)")
     ctk.CTkLabel(body, text="Row types: say, word, repeat, count, color, cheer, opposite, animal, shape, letter, feeling, chant. "
                             "With your voice-over, record the CSV lines in order; toys, cards and her mouth follow your words. "
+                            "The scene changes when a line names a place (park, farm, beach, bedtime, rocket...) or by the CSV 'set' column. "
                             "Samples: cartoon3d-engine/samples/first_words.csv and chant_lesson.csv.", font=ctk.CTkFont(size=11),
                  text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(4, 0))
 
     body = section(block, 1, 2, "Look and sound")
     grid = ctk.CTkFrame(body, fg_color="transparent")
     grid.grid(row=0, column=0, sticky="w")
-    for i, (label, var, values) in enumerate((("Host", app._kl_host_var, HOSTS), ("Set", app._kl_world_var, WORLDS), ("Voice", app._kl_voice_var, VOICES),
+    for i, (label, var, values) in enumerate((("Host", app._kl_host_var, HOSTS), ("Starting set", app._kl_world_var, WORLDS), ("Voice", app._kl_voice_var, VOICES),
                                               ("Music", app._kl_music_var, MUSIC), ("Resolution", app._kl_res_var, RESOLUTIONS))):
         ctk.CTkLabel(grid, text=label, font=ctk.CTkFont(size=12), text_color=T.MUTED).grid(row=i // 2, column=(i % 2) * 2, padx=(0, 8), pady=3, sticky="w")
         ctk.CTkOptionMenu(grid, values=list(values), variable=var, width=220).grid(row=i // 2, column=(i % 2) * 2 + 1, padx=(0, 16), pady=3, sticky="w")

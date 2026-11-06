@@ -49,6 +49,8 @@ test('story rows parse, gaps in population are filled, bad rows warn', () => {
   assert.equal(s.landmarks[1].until, 1800);
   assert.equal(s.events[0].radius, 300);
   assert.throws(() => parseStory('row,year\nplan,'), /no era rows/);
+  const shifted = parseStory('row,year,era_name,caption,style\nera,1700,Town,One, two,south_asian\n');
+  assert.ok(shifted.warnings.some((w) => /comma inside a cell/.test(w)), 'an unquoted comma is reported');
 });
 
 test('lots line the streets, stay off water and out of each other', () => {

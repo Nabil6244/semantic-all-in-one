@@ -267,45 +267,69 @@ const STOP = new Set('the a an of to and in on at for with by from as is was wer
  *  CSV text (extra sentences, paraphrases), each sentence first re-syncs on a run of three words found further on in the voice
  *  (never backwards), so the film cannot collapse onto the first minute. Times only ever move forward. Returns the same shape as
  *  estimateTiming plus `coverage` (share of CSV words found in the voice) and `resyncs`. */
+/** the same word written the way both sides can agree on: curly apostrophes straight (It’s = It's), a clock time one word (9:30 = 930) */
+const alignForm = (s) => String(s).replace(/[’‘]/g, "'").replace(/\b(\d{1,2}):(\d{2})\b/g, '$1$2');
+
+/**
+ * Word times for the CSV's sentences from the voice-over. The whole script is lined up against the whole voice at once (a best-match path through
+ * both, weighted so real words count more than "the" and "of"), so one word the transcript writes differently can never send the film off to a
+ * later repeat of the same words and strand it there. CSV words the voice did not say share the time between their matched neighbours.
+ */
 export function alignTiming(beats, words) {
-  const W = words.map((w) => ({ ...w, t: tok(w.word)[0] || '' })).filter((w) => w.t);
-  const same = (a, b) => a === b || (a.length > 4 && b.length > 4 && a.slice(0, 4) === b.slice(0, 4));
-  const sentences = []; let j = 0, found = 0, total = 0, resyncs = 0, lastEnd = 0;
-  const RESYNC = 700;
-  beats.forEach((b, bi) => {
-    for (const s of splitSentences(b.text)) {
-      const ws = tok(s), matched = [];
-      // re-sync: where does a run of three of this sentence's words next occur in the voice?
-      let best = -1;
-      for (let i = 0; i + 2 < ws.length && i < 10 && best < 0; i++) {
-        if (ws.slice(i, i + 3).filter((x) => !STOP.has(x)).length < 2) continue;
-        for (let k = j; k + 2 < W.length && k < j + RESYNC; k++) {
-          if (!(same(W[k].t, ws[i]) && same(W[k + 1].t, ws[i + 1]) && same(W[k + 2].t, ws[i + 2]))) continue;
-          // verify: most of the next words of the sentence follow within a short stretch of the voice
-          let q = k + 3, ok = 3; for (let m = i + 3; m < Math.min(ws.length, i + 9); m++) for (let d = 0; d < 6 && q + d < W.length; d++) if (same(W[q + d].t, ws[m])) { q = q + d + 1; ok++; break; }
-          if (ok >= Math.min(6, ws.length - i) * 0.6) { best = Math.max(j, k - i); break; }
-        }
+  const W = words.flatMap((w) => tok(alignForm(w.word)).map((t) => ({ ...w, t })));
+  const sents = []; const T = [];   // the script's words in order; each knows its sentence
+  beats.forEach((b, bi) => { for (const s of splitSentences(b.text)) { const ws = tok(alignForm(s)), k = sents.length; sents.push({ beat: bi, text: s, words: ws.map((word) => ({ word, start: null, end: null })) }); ws.forEach((word, n) => T.push({ word, sent: k, n })); } });
+  const n = T.length, m = W.length;
+  // words as numbers: an exact id, and a shared id for long words with the same first four letters (a misheard ending is still the word)
+  const ids = new Map(), idOf = (x) => { let v = ids.get(x); if (v === undefined) { v = ids.size + 1; ids.set(x, v); } return v; };
+  const code = (x) => [idOf(x), x.length > 4 ? idOf(`~${x.slice(0, 4)}`) : 0], A = T.map((t) => code(t.word)), B = W.map((w) => code(w.t));
+  const value = T.map((t) => (STOP.has(t.word) ? 1 : 3));
+  const band = Math.min(Math.max(400, Math.ceil(Math.max(n, m) * 0.25)), Math.ceil(250e6 / Math.max(1, n)));
+  const width = 2 * band + 1, back = new Uint8Array((n + 1) * width);
+  const centre = (i) => Math.round((i * m) / Math.max(1, n));
+  const SKIP_VOICE = 0.02, SKIP_SCRIPT = 0.2;
+  let prev = new Float32Array(width + 2).fill(-1e9), cur = new Float32Array(width + 2);
+  for (let i = 0; i <= n; i++) {
+    const c = centre(i), cPrev = i ? centre(i - 1) : 0; cur.fill(-1e9);
+    for (let d = 0; d < width; d++) {
+      const j = c - band + d; if (j < 0 || j > m) continue;
+      let best = i === 0 && j === 0 ? 0 : -1e9, from = 0;
+      if (j > 0 && d > 0 && cur[d] - SKIP_VOICE > best) { best = cur[d] - SKIP_VOICE; from = 1; }   // cur[d] = this row, j - 1 (the array is offset by one)
+      if (i > 0) {
+        const dp = j - cPrev + band;   // the same j in the row before
+        if (dp >= 0 && dp < width && prev[dp + 1] - SKIP_SCRIPT > best) { best = prev[dp + 1] - SKIP_SCRIPT; from = 2; }
+        if (j > 0 && dp >= 1 && dp <= width && (A[i - 1][0] === B[j - 1][0] || (A[i - 1][1] && A[i - 1][1] === B[j - 1][1])) && prev[dp] + value[i - 1] > best) { best = prev[dp] + value[i - 1]; from = 3; }
       }
-      if (best > j + 8) { j = best; resyncs++; }
-      for (const w of ws) {
-        let k = -1;
-        for (let d = 0; d < 8 && j + d < W.length; d++) if (same(W[j + d].t, w)) { k = j + d; break; }
-        if (k >= 0) { matched.push({ word: w, start: W[k].start, end: W[k].end }); j = k + 1; found++; }
-        else matched.push({ word: w, start: null, end: null });
-        total++;
-      }
-      // fill unmatched words by interpolation between matched neighbours
-      for (let i = 0; i < matched.length; i++) if (matched[i].start === null) {
-        const prev = matched.slice(0, i).reverse().find((m) => m.start !== null), next = matched.slice(i + 1).find((m) => m.start !== null);
-        const a = prev ? prev.end : next ? next.start - 0.3 : (W[j] || W[W.length - 1] || { start: 0 }).start, c = next ? next.start : a + 0.3;
-        matched[i].start = a; matched[i].end = Math.max(a + 0.05, Math.min(c, a + 0.35));
-      }
-      // monotonic: nothing starts before the previous word ended
-      for (const m of matched) { m.start = Math.max(m.start, lastEnd); m.end = Math.max(m.end, m.start + 0.05); lastEnd = m.end; }
-      sentences.push({ beat: bi, text: s, start: matched[0].start, end: matched[matched.length - 1].end, words: matched });
+      cur[d + 1] = best; back[i * width + d] = from;
     }
-  });
-  return { sentences, end: sentences.length ? sentences[sentences.length - 1].end : 0, coverage: total ? found / total : 1, resyncs };
+    [prev, cur] = [cur, prev];
+  }
+  // walk back from the best place the script can end (the voice may run on after it)
+  let i = n, j = -1, top = -1e9; const cEnd = centre(n);
+  for (let d = 0; d < width; d++) { const q = cEnd - band + d; if (q >= 0 && q <= m && prev[d + 1] > top) { top = prev[d + 1]; j = q; } }
+  let found = 0;
+  while (j >= 0 && (i > 0 || j > 0)) {
+    const d = j - centre(i) + band, from = d >= 0 && d < width ? back[i * width + d] : 0;
+    if (from === 3) { const t = T[i - 1], w = W[j - 1]; sents[t.sent].words[t.n].start = w.start; sents[t.sent].words[t.n].end = w.end; found++; i--; j--; }
+    else if (from === 1) j--;
+    else if (from === 2) i--;
+    else break;
+  }
+  // words the voice did not say: spread after the matched word before them, up to the next matched word (or just before it, at the very start)
+  const flat = sents.flatMap((s) => s.words);
+  for (let a = 0; a < flat.length; a++) {
+    if (flat[a].start !== null) continue;
+    let b = a; while (b < flat.length && flat[b].start === null) b++;
+    const count = b - a, left = a ? flat[a - 1].end : null, right = b < flat.length ? flat[b].start : null;
+    const from = left ?? (right !== null ? Math.max(0, right - count * 0.3) : (W[0] ? W[0].start : 0)), room = right !== null ? Math.max(0, right - from) : count * 0.3, step = Math.min(0.35, room / count);
+    for (let k = a; k < b; k++) { flat[k].start = from + (k - a) * step; flat[k].end = flat[k].start + Math.max(0.05, step); }
+    a = b - 1;
+  }
+  // monotonic: nothing starts before the previous word ended
+  let lastEnd = 0;
+  for (const m2 of flat) { m2.start = Math.max(m2.start, lastEnd); m2.end = Math.max(m2.end, m2.start + 0.05); lastEnd = m2.end; }
+  const sentences = sents.filter((s) => s.words.length).map((s) => ({ beat: s.beat, text: s.text, start: s.words[0].start, end: s.words[s.words.length - 1].end, words: s.words }));
+  return { sentences, end: sentences.length ? sentences[sentences.length - 1].end : 0, coverage: n ? found / n : 1 };
 }
 
 /** The spoken time of a word in a sentence (first word starting with `key`), or null. */

@@ -3,7 +3,7 @@
 //   { "type": "pt_coststack", "start": 0, "end": 6, "title": "BILL OF MATERIALS", "total": "$466", "unit": "$",
 //     "rows": [{ "label": "Display", "value": 90 }, { "label": "Camera", "value": 120 }, { "label": "Processor", "value": 160 }, { "label": "Memory", "value": 96 }] }
 import { tm, clamp01, glideOut, quartOut } from './tm_theme.mjs';
-import { ptMotion, ptFont } from './pt_feature.mjs';
+import { ptMotion, ptFont, cueAge } from './pt_feature.mjs';
 
 const PAL = ['#2f6df6', '#e8a21a', '#1fb86a', '#d6455d', '#8a5cf6', '#14a8c4'];
 
@@ -24,8 +24,8 @@ export default {
     const sx = W * 0.5, sw = W * 0.12, sh = H * 0.6, sy = H * 0.2;                // the stack, right of the phone, built from the bottom up
     let acc = 0, lastEnd = 0;
     rows.forEach((r, i) => {
-      const v = Math.max(0, Number(r.value) || 0), h = sh * v / sum, a = glideOut((m.age - 0.3 - 0.55 * i) / 0.6), y = sy + sh - sh * acc / sum - h;
-      acc += v; lastEnd = 0.3 + 0.55 * i + 0.6;
+      const v = Math.max(0, Number(r.value) || 0), h = sh * v / sum, a = glideOut(cueAge(m.age, r, i, 0.55, 0.3) / 0.6), y = sy + sh - sh * acc / sum - h;
+      acc += v; lastEnd = Math.max(lastEnd, (Number.isFinite(r.at) ? r.at : 0.3 + 0.55 * i) + 0.6);
       if (a <= 0) return;
       const col = r.color || PAL[i % PAL.length], hh = h * a;
       g.fillStyle = col; g.beginPath(); g.roundRect(sx, y + h - hh, sw, Math.max(1, hh - 3 * S), 6 * S); g.fill();

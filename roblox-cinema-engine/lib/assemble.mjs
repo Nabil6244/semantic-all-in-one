@@ -7,6 +7,7 @@ import { makeWorld } from './world.mjs';
 import { stageScene, evaluateActor } from './stage.mjs';
 import { vehicleState, VEHICLES } from './vehicles.mjs';
 import { shotCamera, roomCamera, constrain } from './camera.mjs';
+import { dryCircles } from './horror.mjs';
 import { particlesAt } from './fx.mjs';
 import { propsIn, SMALL_FOCUS } from './rooms.mjs';
 import { mirrorStateAt, AHEAD } from './mirrorplay.mjs';
@@ -16,7 +17,7 @@ const HEADING = { beach: 0, sea: 0, port: 0, island: 0, interior: 0 };
 const ROOM_FORMATIONS = new Set(['head', 'table', 'table_far']), WALKING = new Set(['walk', 'run', 'march']);
 export function assembleScene(scene) {
   const wanted = scene.env === 'interior' ? propsIn(`${(scene.props || []).join('; ')} ${scene.text || ''}`) : [];
-  const W = makeWorld(scene.env === 'map' ? 'map' : scene.env, { room: scene.room, wanted, seed: scene.seed, culture: scene.culture, era: scene.era, time: scene.time, weather: scene.weather, damaged: ['battle', 'aftermath', 'city_occupation', 'airstrike', 'landing_operation'].includes(scene.event), variant: scene.extra.variant });
+  const W = makeWorld(scene.env === 'map' ? 'map' : scene.env, { room: scene.room, wanted, seed: scene.seed, culture: scene.culture, era: scene.era, time: scene.time, weather: scene.weather, damaged: ['battle', 'aftermath', 'city_occupation', 'airstrike', 'landing_operation'].includes(scene.event), variant: scene.extra.variant, ...(scene.set ? { set: scene.set, setLabel: scene.setLabel } : {}), ...(scene.wet ? { wet: true } : {}), ...(scene.pumpkin ? { pumpkin: true } : {}), ...(scene.tidy ? { tidy: true } : {}) });
   const heading = scene.extra.heading ?? HEADING[scene.env] ?? (W.roads.length ? Math.PI / 2 : 0);
   scene.heading = heading;
   const rampAt = scene.event === 'landing_operation' ? (scene.actionsTimed.find((a) => a.word && /ramp|dropped/.test(a.word))?.time ?? (scene.sentences.map((s) => s.words.find((w) => /^ramp/.test(w.word))).find(Boolean)?.start) ?? scene.t0 + (scene.t1 - scene.t0) * 0.35) : null;
@@ -34,6 +35,12 @@ export function assembleScene(scene) {
   // while the glass grins, the person in the room does not, unless the narration says they do
   if (scene.mirrorPlay?.length && !/\b(he|she)\b.{0,40}\bsmil/i.test(scene.text)) for (const a of stage.actors) a.look = { ...a.look, face: { ...a.look.face, mouth: 'flat' } };
   A.vehicleAt = (v, t) => vehicleState(v, t, W);
+  // horror: the rain never touches the stranger. Her feet stand on a dry patch, no puddle under her, and rain streaks skip her circle
+  A.dryAt = (t) => dryCircles(A, t);
+  if (scene.dry) for (const c of dryCircles(A, scene.t0)) {
+    W.props = W.props.filter((p) => !(p.kind === 'puddle' && Math.hypot(p.x - c.x, p.z - c.z) < c.r + 2.5));
+    W.props.push({ kind: 'dry_patch', x: c.x, z: c.z, y: W.heightAt(c.x, c.z), rot: 0, sx: c.r, sz: c.r });
+  }
   const fxp = planFx(A);
   A.emitters = fxp.emitters; A.cues = fxp.cues; A.lights = fxp.lights;
   A.subjectAt = (sub, t) => subjectPoint(A, sub, t);
@@ -59,6 +66,12 @@ function vehicleAnchor(kind, scene, W) {
 function rawSubject(A, sub, t) {
   if (!sub) return A.world.anchorY('center');
   if (sub.type === 'anchor') return A.world.anchorY(sub.name);
+  if (sub.type === 'between') {   // the point between two people's hands
+    const a = A.stage.actors.find((x) => x.role === sub.a), b = A.stage.actors.find((x) => x.role === sub.b);
+    if (!a || !b) return A.world.anchorY('center');
+    const p = handPoint(A.actorAt(a, t), 'R'), q = handPoint(A.actorAt(b, t), 'R');
+    return [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2];
+  }
   if (sub.type === 'vehicles') {
     const vs = A.stage.vehicles.filter((v) => v.kind === sub.kind); if (!vs.length) return A.world.anchorY('center');
     if (sub.pick === 'middle') { const v = vs[Math.floor(vs.length / 2)], s = A.vehicleAt(v, t); return [s.x, s.y + VEHICLES[v.kind].hgt * 0.4, s.z]; }
@@ -68,12 +81,36 @@ function rawSubject(A, sub, t) {
   const list = pool.length ? pool : A.stage.actors;
   if (!list.length) return A.world.anchorY('center');
   if (sub.type === 'actor') { const s = A.actorAt(list[Math.min(sub.index || 0, list.length - 1)], t); return [s.x, s.y, s.z]; }
+  if (sub.type === 'hand') return handPoint(A.actorAt(list[0], t), sub.hand);
   const ps = list.slice(0, 40).map((a) => A.actorAt(a, t));
   if (sub.pick === 'front') { const h = A.heading, f = (p) => p.x * Math.sin(h) + p.z * Math.cos(h); const ground = ps.filter((p) => !p.riding) ; const pp = ground.length ? ground : ps; const fm = Math.max(...pp.map(f)), wts = pp.map((p) => Math.exp((f(p) - fm) / 6)), ws = wts.reduce((a, b) => a + b, 0); const best = { x: pp.reduce((s, p, i) => s + p.x * wts[i], 0) / ws, y: pp.reduce((s, p, i) => s + p.y * wts[i], 0) / ws, z: pp.reduce((s, p, i) => s + p.z * wts[i], 0) / ws }; /* soft-max, not argmax: the point glides as people move instead of jumping to whoever is now in front */ const c = [avg(pp.map((p) => p.x)), avg(pp.map((p) => p.y)), avg(pp.map((p) => p.z))]; return [lerp(c[0], best.x, 0.5), lerp(c[1], best.y, 0.5), lerp(c[2], best.z, 0.5)]; }
   if (sub.pick === 'nearest') return [ps[0].x, ps[0].y, ps[0].z];
   return [avg(ps.map((p) => p.x)), avg(ps.map((p) => p.y)), avg(ps.map((p) => p.z))];
 }
 const avg = (xs) => xs.reduce((s, x) => s + x, 0) / Math.max(1, xs.length);
+/** side on to the two people: from whichever of the two sides has open ground (not from inside the house behind them). Chosen once per shot. */
+function handoverYaw(A, sh, a, b) {
+  A.giveYaw = A.giveYaw || new Map();
+  if (A.giveYaw.has(sh)) return A.giveYaw.get(sh);
+  const p = A.actorAt(a, sh.t0), q = A.actorAt(b, sh.t0), base = Math.atan2(q.x - p.x, q.z - p.z), mid = [(p.x + q.x) / 2, Math.max(p.y, q.y) + 3.4, (p.z + q.z) / 2];
+  const open = (y) => { const pos = [mid[0] + Math.sin(y) * 11, mid[1] + 1.4, mid[2] + Math.cos(y) * 11], c = constrain({ pos, target: mid, fov: 38, roll: 0 }, A.world); return c.pos[1] <= pos[1] + 2 && !viewBlock(A, { pos: c.pos, target: mid }, sh.t0, sh); };
+  const yaw = open(base + Math.PI / 2) ? base + Math.PI / 2 : base - Math.PI / 2;
+  A.giveYaw.set(sh, yaw); return yaw;
+}
+/** the hand shot stands in front of the person, a little to the side: the side toward the other person (the giver), so both share the moment */
+function handYaw(A, sub, t) {
+  const a = A.stage.actors.find((x) => x.role === sub.role); if (!a) return 0;
+  const st = A.actorAt(a, t), y = st.yaw || 0, other = A.stage.actors.find((x) => x !== a);
+  if (!other) return y + 0.55;
+  const o = A.actorAt(other, t), side = (k) => Math.hypot(st.x + Math.sin(y + k) * 4 - o.x, st.z + Math.cos(y + k) * 4 - o.z);
+  return side(0.55) <= side(-0.55) ? y + 0.55 : y - 0.55;
+}
+/** where a held thing is in the world: the right hand held out in front (a gift, a letter), the left hanging at the side (a bag) */
+export const HAND_LOCAL = { R: [1.5, 2.85, 1.55], L: [-1.5, 1.5, 0.15] };   // web/character.js: shoulder (1.5, 3.78), arm 1.75 long, raised 1 rad for R
+export function handPoint(st, hand = 'R') {
+  const [lx, ly, lz] = HAND_LOCAL[hand] || HAND_LOCAL.R, y = st.yaw || 0;
+  return [st.x + lx * Math.cos(y) + lz * Math.sin(y), st.y + ly, st.z - lx * Math.sin(y) + lz * Math.cos(y)];
+}
 function subjectPoint(A, sub, t) {
   // averaged over +-0.6 s: walking bodies and bobbing boats do not shake the frame
   const ks = [-0.6, -0.3, 0, 0.3, 0.6], ps = ks.map((k) => rawSubject(A, sub, t + k));
@@ -82,7 +119,7 @@ function subjectPoint(A, sub, t) {
 function subjectScale(A, sub) {
   if (!sub) return 1;
   if (sub.type === 'vehicles') { const s = VEHICLES[sub.kind]; return s ? clamp(Math.sqrt(s.len / 14), 0.8, 2.6) : 1; }
-  if (sub.type === 'actor') return 1;
+  if (sub.type === 'actor' || sub.type === 'hand' || sub.type === 'between') return 1;
   if (sub.type === 'group') { const n = A.stage.actors.filter((a) => a.role === sub.role).length; return 1 + Math.min(1.6, n / 26); }
   return 1.5;
 }
@@ -100,6 +137,11 @@ function rawCam(A, sh, t) {
   // a formation of aircraft is seen from far enough to read as aircraft, not as one wing filling the frame
   if (sub && sub.type === 'vehicles' && VEHICLES[sub.kind]?.cls === 'air' && sh.behaviour === 'vehicle_follow') { shot.dist = sh.dist || 150 * shot.scale; shot.height = sh.height ?? 60 * shot.scale; }
   if (sh.behaviour === 'over_shoulder' && sub && sub.lookAt) shot.lookAt = A.subjectAt(sub.lookAt, t);
+  if (sh.behaviour === 'hand_close' && sub && sub.type === 'hand') shot.yaw = handYaw(A, sub, sh.t0);
+  if (sh.behaviour === 'handover' && sub && sub.type === 'between') {   // side on to the two of them
+    const a = A.stage.actors.find((x) => x.role === sub.a), b = A.stage.actors.find((x) => x.role === sub.b);
+    if (a && b) shot.yaw = handoverYaw(A, sh, a, b);
+  }
   if (A.scene.env === 'map') { const c = A.mapFocus ? A.mapFocus(t) : [0, 0, 0]; return shotCamera(shot, t, () => c, dirAt); }
   return shotCamera(shot, t, subj, dirAt);
 }
@@ -126,6 +168,9 @@ function glassPoint(A, sh, t) {
 const sceneFocus = (wanted, W) => W.focus[wanted.find((k) => W.focus[k])] || W.focus[W.mainFocus] || null;
 /** What a shot inside a room is about: the prop spoken during it, then the scene's props, then the other person, then the room's main feature. */
 function shotFocus(A, sh, t) {
+  // a horror shot that ends in a picture card looks at the thing the card shows (lib/horror.mjs cardPush)
+  if (sh.focus === 'hands') return { small: true, point: (P) => [P[0], P[1] + 3.2, P[2]] };
+  if (sh.focus && A.world.focus[sh.focus]) return { small: true, point: () => A.world.focus[sh.focus] };
   const W = A.world, s = A.scene, spoken = s.sentences.filter((x) => x.start < sh.t1 && x.end > sh.t0).map((x) => x.text).join(' ');
   const keys = [...propsIn(spoken), ...propsIn((s.props || []).join('; '))].filter((k) => k === 'hands' || W.focus[k]);
   const key = keys[0];
@@ -135,9 +180,51 @@ function shotFocus(A, sh, t) {
   if (other) return { small: false, point: () => { const p = A.actorAt(other, t); return [p.x, p.y + 4.4, p.z]; } };
   return { small: false, beside: W.mainFocus === 'mirror', point: () => W.focus[W.mainFocus] };
 }
+// ---- is anything in the way? Every horror shot, any script: a person or a building between the camera and what the shot is about -----------------
+const VIEW_TRIES = [0, 0.25, -0.25, 0.45, -0.45, 0.7, -0.7, 1, -1, 1.35, -1.35, 1.7, -1.7, 2.2, -2.2, Math.PI];
+const turnAbout = (cam, a) => { if (!a) return cam; const dx = cam.pos[0] - cam.target[0], dz = cam.pos[2] - cam.target[2], c = Math.cos(a), s = Math.sin(a); return { ...cam, pos: [cam.target[0] + dx * c + dz * s, cam.pos[1], cam.target[2] - dx * s + dz * c] }; };
+/** what stands between the camera and its target at time t: a person (not the one being looked at) or a building. null = a clear view. */
+export function viewBlock(A, cam, t, sh = null) {
+  const P = cam.pos, T = cam.target, D = [T[0] - P[0], T[1] - P[1], T[2] - P[2]], L2 = D[0] * D[0] + D[1] * D[1] + D[2] * D[2] || 1;
+  for (const a of A.stage.actors.slice(0, 8)) {
+    const st = A.actorAt(a, t), k = a.look?.scale || 1;
+    if (Math.hypot(st.x - T[0], st.z - T[2]) < 3) continue;   // the person the shot looks at, or at whose hand it looks
+    if (sh && sh.subject?.role === a.role && sh.behaviour !== 'over_shoulder') continue;   // the shot is about this person, even when it aims past them at a prop
+    for (const h of [5.2, 3.4]) {
+      const y = st.y + h * k, Q = [st.x - P[0], y - P[1], st.z - P[2]], u = (Q[0] * D[0] + Q[1] * D[1] + Q[2] * D[2]) / L2;
+      if (u < 0.02 || u > 0.95) continue;
+      if (Math.hypot(Q[0] - D[0] * u, Q[1] - D[1] * u, Q[2] - D[2] * u) < 1.7) return { type: 'person', role: a.role };
+    }
+  }
+  if (!A.world.room) for (const c of A.world.colliders) { if (c.inside) continue; for (let f = 0.1; f < 0.95; f += 0.1) { const x = P[0] + D[0] * f, y = P[1] + D[1] * f, z = P[2] + D[2] * f; if (x > c.x0 && x < c.x1 && z > c.z0 && z < c.z1 && y < (c.y1 ?? 1e9)) return { type: 'building' }; } }
+  return null;
+}
+/** the smallest turn of the camera around its target that keeps the whole shot clear. Chosen once per shot, so the camera never jumps inside a shot. */
+function clearViewTurn(A, sh) {
+  A.viewTurns = A.viewTurns || new Map();
+  if (A.viewTurns.has(sh)) return A.viewTurns.get(sh);
+  const ts = [sh.t0 + 0.05, (sh.t0 + sh.t1) / 2, sh.t1 - 0.05], room = A.world.room;
+  let turn = null;
+  for (const a of VIEW_TRIES) {
+    const fits = ts.every((t) => {
+      const cam = turnAbout(rawCam(A, sh, t), a), c = constrain(cam, A.world);
+      if (room && (c.pos[0] !== cam.pos[0] || c.pos[2] !== cam.pos[2])) return false;   // would stand outside the room
+      if (!room && c.pos[1] > cam.pos[1] + 3) return false;                             // would be pushed up over a roof
+      return !viewBlock(A, c, t, sh);
+    });
+    if (fits) { turn = a; break; }
+  }
+  const out = { turn: turn ?? 0, clear: turn !== null }; A.viewTurns.set(sh, out);
+  return out;
+}
+/** the film's shots with no clear view from anywhere (reported at Generate; the shot still plays) */
+export const blockedShots = (A) => (A.scene.clearView && A.scene.env !== 'map' ? A.scene.shots.filter((sh) => !clearViewTurn(A, sh).clear) : []);
+export const usesClearView = (A, sh) => clearViewTurn(A, sh).turn;
+
 export function sceneCamera(A, t) {
   const i = shotAt(A, t), sh = A.scene.shots[i];
   let cam = rawCam(A, sh, t);
+  if (A.scene.clearView && A.scene.env !== 'map' && !A.scene.mirrorPlay?.length) cam = turnAbout(cam, clearViewTurn(A, sh).turn);
   if (sh.transition === 'continuous' && !A.world.room && i > 0 && t - sh.t0 < 1.4) { // indoors a shot cuts, so a moment lands on its word
     const prev = rawCam(A, A.scene.shots[i - 1], t), k = smooth((t - sh.t0) / 1.4);
     cam = { pos: cam.pos.map((v, j) => lerp(prev.pos[j], v, k)), target: cam.target.map((v, j) => lerp(prev.target[j], v, k)), fov: lerp(prev.fov, cam.fov, k), roll: 0 };

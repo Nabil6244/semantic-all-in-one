@@ -269,6 +269,9 @@ export function makeWorld(env, opts = {}) {
     default: W.anchors = { center: [0, 0] };
   }
   if (!W.anchors.center) W.anchors.center = [0, 0];
+  if (opts.tidy) W.props = W.props.filter((p) => !['cart', 'crates', 'barrel', 'well', 'hay', 'fence', 'sandbags'].includes(p.kind));
+  if (opts.set && (env === 'town' || env === 'city' || env === 'village')) streetSet(W, env, opts, prop, heightAt);
+  if (opts.wet && env !== 'interior' && env !== 'map' && env !== 'sea') puddles(W, opts, prop, heightAt);
   W.anchorY = (name) => { const a = W.anchors[name] || W.anchors.center; return [a[0], heightAt(a[0], a[1]), a[1]]; };
   /** surface type at a point (for footstep sounds, dust colour and wading) */
   W.surfaceAt = (x, z) => {
@@ -279,6 +282,45 @@ export function makeWorld(env, opts = {}) {
   };
   W.shoreZ = shoreZ;
   return W;
+}
+
+// ---- street sets for stories (lib/horror.mjs): a bus shelter or a shop at the roadside, where the people stand ----------------
+// The set sits on the near side of the main road at x = 0; whatever the town put there (houses, trees, carts) is moved out of the way.
+const ROAD_EDGE = { city: -15.5, town: -12, village: -10.5 };
+export const STREET_SETS = ['bus_stop', 'shop', 'porch'];
+function streetSet(W, env, opts, prop, heightAt) {
+  const z0 = ROAD_EDGE[env], clear = { x0: -16, x1: 16, z0: z0 - 12, z1: z0 + 3 };
+  const inBox = (x, z, r = 0) => x > clear.x0 - r && x < clear.x1 + r && z > clear.z0 - r && z < clear.z1 + r;
+  const hit = (b) => b.x + b.w / 2 > clear.x0 && b.x - b.w / 2 < clear.x1 && b.z + b.d / 2 > clear.z0 && b.z - b.d / 2 < clear.z1;
+  const gone = W.buildings.filter(hit);
+  W.buildings = W.buildings.filter((b) => !hit(b));
+  W.colliders = W.colliders.filter((c) => c.inside || !gone.some((b) => Math.abs((c.x0 + c.x1) / 2 - b.x) < 0.01 && Math.abs((c.z0 + c.z1) / 2 - b.z) < 0.01));
+  W.props = W.props.filter((p) => !inBox(p.x, p.z, 1)); W.trees = W.trees.filter((t) => !inBox(t.x, t.z, 2));
+  if (opts.set === 'bus_stop') {
+    prop('bus_shelter', 0, z0, 0); prop('bus_stop_sign', 7.6, z0 + 2.8); prop('lamp', -9, z0 + 2.4);
+    W.anchors.shelter = [0, z0]; W.anchors.center = [0.8, z0 + 0.9];      // the hero waits under the roof, in front of the bench
+  } else if (opts.set === 'shop') {
+    prop('shop_front', 0, z0 - 1, 0, { label: opts.setLabel || 'SHOP' }); prop('lamp', 10.5, z0 + 2.4); prop('bench', -12, z0 + 0.5);
+    W.colliders.push({ x0: -9.5, x1: 9.5, z0: z0 - 9.5, z1: z0 - 0.5, y1: heightAt(0, z0) + 14 });
+    W.anchors.shop = [0, z0 - 1]; W.anchors.center = [-2, z0 + 4.5];    // on the pavement in front of the lit window
+  } else if (opts.set === 'porch') {
+    prop('porch_front', 0, z0 - 1, 0);
+    W.colliders.push({ x0: -9.5, x1: 9.5, z0: z0 - 9.5, z1: z0 - 1.2, y1: heightAt(0, z0) + 15 });
+    if (opts.pumpkin) { prop('pumpkin', 4.4, z0 + 2.6, 0.2); prop('pumpkin', -6, z0 + 1.6, -0.3, { scale: 0.8 }); }
+    W.anchors.porch = [0, z0 - 1]; W.anchors.center = [-1.5, z0 + 5];    // on the mat, far enough out that a close camera is not pushed up onto the roof
+  }
+  W.set = opts.set;
+}
+
+/** rain at night: dark puddles on the road and the pavement around the action (own generator: the town's layout is untouched) */
+function puddles(W, opts, prop, heightAt) {
+  const rng = makeRng(`wet:${opts.seed ?? 0}`), [cx, cz] = W.anchors.center;
+  for (let i = 0; i < 16; i++) {
+    const x = cx + rng.range(-34, 34), z = cz + rng.range(-10, 18);
+    if (W.buildings.some((b) => Math.abs(x - b.x) < b.w / 2 + 1 && Math.abs(z - b.z) < b.d / 2 + 1)) continue;
+    const r = rng.range(1.2, 3.2); prop('puddle', x, z, rng() * 6.28, { sx: r * rng.range(1, 1.8), sz: r });
+  }
+  W.wet = true;
 }
 
 /** Ground height the camera may not go below at (x,z): terrain or water (+ building tops when over one). */

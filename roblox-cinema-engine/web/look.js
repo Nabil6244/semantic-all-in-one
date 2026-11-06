@@ -23,6 +23,12 @@ export const PRESETS = {
             exp: 1.0, sat: 1.0, con: 1.08, tint: [1.04, 1, 0.94], vig: 0.34, interior: true, lamp: '#ffcf8a', lampI: 180 },
   interior_storm: { top: '#303030', hor: '#303030', sun: '#8ea0b8', sunI: 0.3, el: 40, az: 280, hemiSky: '#9aa3b2', hemiGnd: '#5a4430', hemiI: 0.8, fog: '#15171a', fogN: 400, fogF: 900, clouds: 0, cloudCol: '#fff',
             exp: 1.0, sat: 0.85, con: 1.12, tint: [0.98, 1, 1.04], vig: 0.38, interior: true, lamp: '#ffc47a', lampI: 170 },
+  // horror story (lib/horror.mjs): a deep blue-green night where the subject stands in a warm street-light pool (pool follows the
+  // action, so the person is always readable), and a room lit by one warm lamp with dark corners
+  night_horror:   { top: '#05080f', hor: '#141c2a', sun: '#8fa6c8', sunI: 1.15, el: 34, az: 300, hemiSky: '#3e5070', hemiGnd: '#1a1f26', hemiI: 1.45, fog: '#0f1620', fogN: 50, fogF: 380, clouds: 0.5, cloudCol: '#1c2430',
+            exp: 1.22, sat: 0.7, con: 1.16, tint: [0.94, 1.0, 1.03], vig: 0.48, night: true, stars: false, water: '#0e1a24', pool: '#ffb15e', poolI: 240 },
+  interior_night: { top: '#202020', hor: '#202020', sun: '#7f8fa8', sunI: 0.2, el: 40, az: 280, hemiSky: '#a89c88', hemiGnd: '#3a2c20', hemiI: 0.62, fog: '#0c0d0f', fogN: 400, fogF: 900, clouds: 0, cloudCol: '#fff',
+            exp: 1.04, sat: 0.8, con: 1.14, tint: [1.02, 0.99, 0.96], vig: 0.46, interior: true, lamp: '#ffc27a', lampI: 165 },
   map:      { top: '#6e7f93', hor: '#a9b6c4', sun: '#fff4e0', sunI: 3.0, el: 50, az: 215, hemiSky: '#cfd8e2', hemiGnd: '#8a8f86', hemiI: 1.25, fog: '#a9b6c4', fogN: 2400, fogF: 6000, clouds: 0, cloudCol: '#fff',
             exp: 1.0, sat: 1.05, con: 1.06, tint: [1, 1, 1], vig: 0.2, map: true, water: '#3f7f9f' },
 };
@@ -63,6 +69,7 @@ export function makeAtmosphere(scene, presetName, weather, opts = {}) {
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.5; scene.add(sun, sun.target);
   out.sun = sun; out.sunDir = sunDir; out.shadowR = R;
   if (P.interior) { const lamp = new THREE.PointLight(C(P.lamp), P.lampI, 60, 1.6); lamp.position.set(0, 12, 0); lamp.castShadow = false; scene.add(lamp); out.lamp = lamp; }
+  if (P.pool) { const pool = new THREE.PointLight(C(P.pool), P.poolI, 48, 1.6); pool.castShadow = false; scene.add(pool); out.pool = pool; }   // a street lamp over the action
   // blocky clouds: a few chunky boxes per cloud, one instanced mesh, drifting with time
   const amount = Math.round(18 * (P.clouds || 0) * (weather === 'clear' ? 0.9 : 1.2));
   if (amount > 0 && !P.interior) {
@@ -91,6 +98,7 @@ export function makeAtmosphere(scene, presetName, weather, opts = {}) {
     const fx = Math.round(f.x / q) * q, fy = Math.round(f.y / q) * q, fz = Math.round(f.z / q) * q;
     sun.target.position.set(fx, fy, fz); sun.position.set(fx + sunDir.x * 300, fy + sunDir.y * 300, fz + sunDir.z * 300);
     sun.target.updateMatrixWorld();
+    if (out.pool) out.pool.position.set(f.x + 2.5, f.y + 12, f.z + 1.5);
   };
   return out;
 }
@@ -100,6 +108,7 @@ const postFS = `varying vec2 vUv; uniform sampler2D tCur, tPrev; uniform int uMo
 uniform vec4 gC, gP;      // exposure, saturation, contrast, vignette
 uniform vec3 tC, tP;      // tint
 uniform vec2 uRes;
+uniform sampler2D tCard; uniform float uCardA, uCardZoom, uCardT, uCardDim;   // a picture card over the film (horror story): zero when there is none
 float hash(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }
 float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f); return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
 float fbm(vec2 p){ return vn(p)*.5 + vn(p*2.03)*.25 + vn(p*4.1)*.125 + vn(p*8.3)*.0625; }
@@ -130,6 +139,17 @@ void main(){
       o = mix(base, cloud, cover);
     }
   }
+  if (uCardA > 0.001) {   // the card is already display colour: it only takes the scene's grade, a slow push, a slight gate weave and film grain
+    vec3 k = texture2D(tCard, (vUv - 0.5) * uCardZoom + 0.5 + vec2(sin(uCardT*0.7), cos(uCardT*0.53))*0.0012).rgb;
+    k = mix(vec3(dot(k, vec3(0.2126, 0.7152, 0.0722))), k, gC.y);
+    k = (k - 0.5) * gC.z + 0.5;
+    k *= tC * uCardDim;
+    k *= mix(0.42, 1.0, smoothstep(0.02, 0.30, vUv.y));   // darker under the subtitles: white words stay readable on white paper
+    vec2 kd = vUv - 0.5; kd.x *= uRes.x/uRes.y;
+    k *= 1.0 - max(gC.w, 0.35) * smoothstep(0.25, 0.95, length(kd)*1.25);
+    k += (hash(floor(vUv*uRes/1.5) + fract(uCardT*7.13)*vec2(97.0, 61.0)) - 0.5) * 0.055;
+    o = mix(o, clamp(k, 0.0, 1.0), uCardA);
+  }
   gl_FragColor = vec4(o, 1.0);
 }`;
 
@@ -141,7 +161,8 @@ export function makePost(renderer, W, H) {
   geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
   geom.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 2, 0, 0, 2]), 2));
   const u = { tCur: { value: null }, tPrev: { value: null }, uMode: { value: 0 }, uP: { value: 0 }, gC: { value: new THREE.Vector4(1, 1, 1, 0) }, gP: { value: new THREE.Vector4(1, 1, 1, 0) },
-    tC: { value: new THREE.Vector3(1, 1, 1) }, tP: { value: new THREE.Vector3(1, 1, 1) }, uRes: { value: new THREE.Vector2(W, H) } };
+    tC: { value: new THREE.Vector3(1, 1, 1) }, tP: { value: new THREE.Vector3(1, 1, 1) }, uRes: { value: new THREE.Vector2(W, H) },
+    tCard: { value: null }, uCardA: { value: 0 }, uCardZoom: { value: 1 }, uCardT: { value: 0 }, uCardDim: { value: 1 } };
   const mat = new THREE.ShaderMaterial({ vertexShader: postVS, fragmentShader: postFS, uniforms: u, depthTest: false, depthWrite: false });
   const quad = new THREE.Mesh(geom, mat); quad.frustumCulled = false;
   const sc = new THREE.Scene(); sc.add(quad);
@@ -149,7 +170,9 @@ export function makePost(renderer, W, H) {
   const setGrade = (v, t, P) => { v.set(P.exp, P.sat, P.con, P.vig); t.set(...P.tint); };
   return {
     targets,
-    composite(cur, prev, mode, p, Pcur, Pprev) {
+    composite(cur, prev, mode, p, Pcur, Pprev, card = null) {
+      u.uCardA.value = card ? card.a : 0;
+      if (card) { u.tCard.value = card.tex; u.uCardZoom.value = card.zoom; u.uCardT.value = card.t; u.uCardDim.value = card.dim ?? 1; }
       u.tCur.value = cur.texture; u.tPrev.value = prev ? prev.texture : cur.texture; u.uMode.value = mode; u.uP.value = p;
       setGrade(u.gC.value, u.tC.value, Pcur); setGrade(u.gP.value, u.tP.value, Pprev || Pcur);
       renderer.setRenderTarget(null); renderer.render(sc, cam);

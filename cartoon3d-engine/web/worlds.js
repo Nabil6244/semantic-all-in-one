@@ -137,5 +137,98 @@ function park() {
   };
 }
 
-export const WORLDS = { playroom, park };
+// ---- more sets (added for scene changes): same rules: primitives and canvas textures only, the host at x≈-0.5, props stage right
+const daySky = (top, mid, low) => canvasTex(4, 256, (g) => { const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, top); gr.addColorStop(0.6, mid); gr.addColorStop(1, low); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); });
+function sunLight(scene, col, inten, pos, box = 6) {
+  const sun = new THREE.DirectionalLight(col, inten); sun.position.set(...pos); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -box, right: box, top: box, bottom: -box, near: 1, far: 30 }); sun.shadow.bias = -0.0005; sun.shadow.radius = 4;
+  scene.add(sun); const fill = new THREE.DirectionalLight('#fff0e6', 0.9); fill.position.set(0, 2, 8); scene.add(fill);
+}
+
+function farm() {
+  const root = new THREE.Group();
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 64), toonMat('#8bd65e')); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; root.add(ground);
+  const dirt = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 30), toonMat('#d9b27c')); dirt.rotation.x = -Math.PI / 2; dirt.rotation.z = 0.35; dirt.position.set(3.2, 0.004, -8); dirt.receiveShadow = true; root.add(dirt);
+  // Red barn with white trim, a round silo and a wooden fence across the field.
+  const barn = new THREE.Group(); barn.position.set(-3.4, 0, -5.5); root.add(barn);
+  const body = box('#d64545', 3.2, 2.2, 2.4, { outline: 0.03 }); body.position.y = 1.1; body.castShadow = true; barn.add(body);
+  for (const sx of [-1, 1]) { const r = box('#8e3b3b', 1.95, 0.14, 2.6, { outline: 0.03 }); r.rotation.z = sx * -0.62; r.position.set(sx * 0.78, 2.72, 0); r.castShadow = true; barn.add(r); }
+  const gable = new THREE.Mesh(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.6, 2.2, 1.2), new THREE.Vector3(1.6, 2.2, 1.2), new THREE.Vector3(0, 3.3, 1.2)]), toonMat('#d64545')); gable.geometry.computeVertexNormals(); barn.add(gable);
+  const door = box('#ffffff', 1.1, 1.4, 0.05, { outline: 0 }); door.position.set(0, 0.7, 1.22); barn.add(door);
+  const doorIn = box('#b83a3a', 0.96, 1.26, 0.06, { outline: 0 }); doorIn.position.set(0, 0.7, 1.23); barn.add(doorIn);
+  for (const r of [0.6, -0.6]) { const x = box('#ffffff', 1.5, 0.06, 0.07, { outline: 0 }); x.rotation.z = r; x.position.set(0, 0.7, 1.27); barn.add(x); }
+  const silo = part(CYL, '#cfd8dc', { outline: 0.03 }); silo.scale.set(0.7, 3.2, 0.7); silo.position.set(-1.0, 1.6, -5.9); root.add(silo);
+  const cap = part(SPH, '#90a4ae', { outline: 0.03 }); cap.scale.set(0.7, 0.45, 0.7); cap.position.set(-1.0, 3.2, -5.9); root.add(cap);
+  for (let k = -6; k <= 6; k++) { const p = box('#c8955f', 0.1, 0.8, 0.1); p.position.set(k * 1.1 + 0.4, 0.4, -2.6); p.castShadow = true; root.add(p); }
+  for (const y of [0.32, 0.62]) { const r = box('#c8955f', 14, 0.08, 0.06); r.position.set(0.4, y, -2.6); root.add(r); }
+  // Hay bales and far hills.
+  for (const [x, z] of [[2.6, -4.2], [3.4, -4.6], [3.0, -4.2]]) { const h = part(CYL, '#f2c94c', { outline: 0.05 }); h.scale.set(0.45, 0.6, 0.45); h.rotation.z = Math.PI / 2; h.position.set(x, 0.45, z); h.castShadow = true; root.add(h); }
+  for (const [x, z, s, c] of [[-14, -26, 9, '#74c95a'], [6, -30, 12, '#69bf52'], [22, -26, 8, '#7ed06a']]) { const m = part(SPH, c, { outline: 0 }); m.scale.set(s, s * 0.35, s * 0.6); m.position.set(x, 0, z); root.add(m); }
+  return { root, setup(scene) { scene.background = daySky('#62bdfc', '#b5e2ff', '#eef9ff'); scene.fog = new THREE.Fog('#dff3ff', 20, 50); scene.add(new THREE.HemisphereLight('#ffffff', '#9edb7c', 1.4)); sunLight(scene, '#fff1d6', 2.1, [5, 9, 6]); } };
+}
+
+function beach() {
+  const root = new THREE.Group();
+  const sand = new THREE.Mesh(new THREE.PlaneGeometry(80, 14), toonMat('#f6dfa6')); sand.rotation.x = -Math.PI / 2; sand.position.z = 2; sand.receiveShadow = true; root.add(sand);
+  const wet = new THREE.Mesh(new THREE.PlaneGeometry(80, 1.2), toonMat('#e7c98a')); wet.rotation.x = -Math.PI / 2; wet.position.set(0, 0.003, -4.4); root.add(wet);
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(120, 60), toonMat('#3db4e8')); sea.rotation.x = -Math.PI / 2; sea.position.set(0, -0.02, -35); root.add(sea);
+  for (let k = 0; k < 3; k++) { const f = new THREE.Mesh(new THREE.PlaneGeometry(80, 0.18), toonMat('#ffffff')); f.rotation.x = -Math.PI / 2; f.position.set(0, 0.006, -5.0 - k * 1.6); f.name = `foam${k}`; root.add(f); }
+  // Striped umbrella, a bucket and spade, shells, a palm tree.
+  const um = new THREE.Group(); um.position.set(2.8, 0, -1.8); root.add(um);
+  const pole = part(CYL, '#ffffff', { outline: 0.05 }); pole.scale.set(0.04, 2.2, 0.04); pole.position.y = 1.1; um.add(pole);
+  const canopy = new THREE.Mesh(new THREE.ConeGeometry(1.3, 0.55, 12, 1, true), new THREE.MeshToonMaterial({ map: canvasTex(256, 32, (g, w, h) => { for (let k = 0; k < 12; k++) { g.fillStyle = k % 2 ? '#ffffff' : '#ff5a5f'; g.fillRect(k * w / 12, 0, w / 12 + 1, h); } }), gradientMap: toonMat('#fff').gradientMap, side: THREE.DoubleSide }));
+  canopy.position.y = 2.35; canopy.castShadow = true; um.add(canopy);
+  const bucket = part(CYL, '#ffd43b', { outline: 0.06 }); bucket.scale.set(0.16, 0.24, 0.16); bucket.position.set(2.1, 0.12, -0.6); root.add(bucket);
+  for (const [x, z, c] of [[1.4, 0.4, '#ffb4a2'], [-2.6, 0.8, '#ffe0b2'], [0.6, 1.2, '#f8bbd0']]) { const s = part(SPH, c, { outline: 0.08 }); s.scale.set(0.09, 0.04, 0.07); s.position.set(x, 0.03, z); root.add(s); }
+  const palm = new THREE.Group(); palm.position.set(-3.6, 0, -2.6); root.add(palm);
+  for (let k = 0; k < 6; k++) { const seg = part(CYL, '#b07a45', { outline: 0.06 }); seg.scale.set(0.16 - k * 0.012, 0.5, 0.16 - k * 0.012); seg.position.set(k * 0.06, 0.25 + k * 0.48, 0); seg.rotation.z = -0.06; palm.add(seg); }
+  for (let k = 0; k < 7; k++) { const a = (k / 7) * Math.PI * 2, l = part(SPH, k % 2 ? '#2fa84f' : '#43c264', { outline: 0.04 }); l.scale.set(1.0, 0.07, 0.24); l.position.set(0.36 + Math.cos(a) * 0.75, 3.0 - 0.15, Math.sin(a) * 0.75); l.rotation.set(0, -a, -0.35); palm.add(l); }
+  return { root, setup(scene) { scene.background = daySky('#3fb0ff', '#9fdcff', '#e8f8ff'); scene.fog = new THREE.Fog('#d8f2ff', 25, 70); scene.add(new THREE.HemisphereLight('#ffffff', '#f3e1b0', 1.5)); sunLight(scene, '#fff3dc', 2.2, [4, 9, 6]); } };
+}
+
+function bedroom() {
+  const root = new THREE.Group(), BACK = -2.4;
+  const carpet = new THREE.Mesh(new THREE.PlaneGeometry(14, 10), toonMat('#c9b8e8')); carpet.rotation.x = -Math.PI / 2; carpet.position.z = 1.5; carpet.receiveShadow = true; root.add(carpet);
+  const paper = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#e8eaf6'; g.fillRect(0, 0, w, h); g.fillStyle = '#ffffff'; for (let k = 0; k < 18; k++) { const x = (k * 97) % w, y = (k * 53) % h; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill(); } });
+  paper.wrapS = paper.wrapT = THREE.RepeatWrapping; paper.repeat.set(6, 2);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(14, 5), flatMat(paper)); back.position.set(0, 2.5, BACK); back.receiveShadow = true; root.add(back);
+  // Bed with a quilt and pillow, a moon-and-stars window, a night lamp.
+  const bed = new THREE.Group(); bed.position.set(2.2, 0, BACK + 1.0); root.add(bed);
+  const frameB = box('#b48a64', 1.5, 0.35, 2.2); frameB.position.y = 0.3; bed.add(frameB);
+  const quilt = box('#7e9cf5', 1.45, 0.16, 1.6, { outline: 0.03 }); quilt.position.set(0, 0.55, 0.25); bed.add(quilt);
+  const pillow = box('#ffffff', 0.9, 0.18, 0.45, { outline: 0.04 }); pillow.position.set(0, 0.6, -0.75); bed.add(pillow);
+  const head = box('#b48a64', 1.6, 1.1, 0.12); head.position.set(0, 0.6, -1.12); bed.add(head);
+  const win = new THREE.Group(); win.position.set(-1.0, 1.9, BACK + 0.01); root.add(win);
+  const night = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#1a2366'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff6c2'; g.beginPath(); g.arc(w * 0.68, h * 0.32, 34, 0, Math.PI * 2); g.fill(); g.fillStyle = '#1a2366'; g.beginPath(); g.arc(w * 0.6, h * 0.27, 30, 0, Math.PI * 2); g.fill(); g.fillStyle = '#ffffff'; for (const [x, y] of [[0.2, 0.2], [0.35, 0.55], [0.15, 0.7], [0.82, 0.75], [0.5, 0.15]]) { g.beginPath(); g.arc(w * x, h * y, 3, 0, Math.PI * 2); g.fill(); } });
+  win.add(new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.1), new THREE.MeshBasicMaterial({ map: night })));
+  for (const [x, y, w, h] of [[0, 0.58, 1.42, 0.07], [0, -0.58, 1.42, 0.07], [-0.68, 0, 0.07, 1.2], [0.68, 0, 0.07, 1.2], [0, 0, 0.04, 1.1]]) { const b = box('#ffffff', w, h, 0.05, { outline: 0 }); b.position.set(x, y, 0.02); win.add(b); }
+  const lamp = new THREE.Group(); lamp.position.set(-2.4, 0, BACK + 0.5); root.add(lamp);
+  const table = box('#d7b48e', 0.6, 0.6, 0.5); table.position.y = 0.3; lamp.add(table);
+  const shade = part(new THREE.CylinderGeometry(0.6, 1, 1, 16), '#ffe9a8', { outline: 0.05 }); shade.scale.set(0.22, 0.28, 0.22); shade.position.y = 0.95; lamp.add(shade);
+  const glow = new THREE.PointLight('#ffd27a', 1.4, 4, 2); glow.position.set(-2.4, 1.0, BACK + 0.6); root.add(glow);
+  return { root, setup(scene) { scene.background = new THREE.Color('#e8eaf6'); scene.add(new THREE.HemisphereLight('#e6e8ff', '#b9a8d8', 1.25)); const k = new THREE.DirectionalLight('#ffe8c4', 1.2); k.position.set(3, 5, 4); k.castShadow = true; k.shadow.mapSize.set(2048, 2048); Object.assign(k.shadow.camera, { left: -5, right: 5, top: 5, bottom: -2, near: 1, far: 20 }); k.shadow.bias = -0.0005; k.shadow.radius = 6; scene.add(k); const f = new THREE.DirectionalLight('#dfe4ff', 0.8); f.position.set(0, 2, 8); scene.add(f); } };
+}
+
+function space() {
+  const root = new THREE.Group();
+  const moonT = canvasTex(512, 512, (g, w, h) => { g.fillStyle = '#d6d9e6'; g.fillRect(0, 0, w, h); g.fillStyle = '#c3c7d8'; for (let k = 0; k < 26; k++) { const x = (k * 151) % w, y = (k * 89) % h, r = 10 + (k * 37) % 40; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); } });
+  moonT.wrapS = moonT.wrapT = THREE.RepeatWrapping; moonT.repeat.set(4, 4);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(40, 64), flatMat(moonT)); ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; root.add(ground);
+  // A friendly rocket, a ringed planet, the Earth and lots of stars.
+  const rk = new THREE.Group(); rk.position.set(1.7, 0, -3.6); root.add(rk);
+  const hull = part(CYL, '#f5f5f5', { outline: 0.04 }); hull.scale.set(0.45, 2.2, 0.45); hull.position.y = 1.5; hull.castShadow = true; rk.add(hull);
+  const nose = part(new THREE.ConeGeometry(1, 1, 16), '#ff5a5f', { outline: 0.04 }); nose.scale.set(0.45, 0.8, 0.45); nose.position.y = 3.0; rk.add(nose);
+  for (const a of [0, 2.09, 4.19]) { const fin = box('#ff5a5f', 0.08, 0.6, 0.5, { outline: 0.04 }); fin.position.set(Math.cos(a) * 0.45, 0.55, Math.sin(a) * 0.45); fin.rotation.y = -a; rk.add(fin); }
+  const port = part(SPH, '#7fd3ff', { outline: 0.06 }); port.scale.set(0.18, 0.18, 0.05); port.position.set(0, 2.0, 0.44); rk.add(port);
+  const planet = part(SPH, '#ffb86b', { outline: 0 }); planet.scale.setScalar(2.4); planet.position.set(-9, 7, -26); root.add(planet);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.25, 8, 48), toonMat('#ffe3a3')); ring.rotation.set(1.2, 0, 0.3); ring.position.copy(planet.position); root.add(ring);
+  const earth = new THREE.Mesh(SPH, new THREE.MeshToonMaterial({ map: canvasTex(256, 128, (g, w, h) => { g.fillStyle = '#2f8ef0'; g.fillRect(0, 0, w, h); g.fillStyle = '#4ccf6a'; for (const [x, y, r] of [[0.2, 0.4, 26], [0.55, 0.55, 34], [0.8, 0.3, 20]]) { g.beginPath(); g.arc(w * x, h * y, r, 0, Math.PI * 2); g.fill(); } }), gradientMap: toonMat('#fff').gradientMap }));
+  earth.scale.setScalar(1.6); earth.position.set(10, 9, -28); root.add(earth);
+  const stars = new THREE.Group(); stars.name = 'stars';
+  for (let k = 0; k < 160; k++) { const s = new THREE.Mesh(SPH, new THREE.MeshBasicMaterial({ color: k % 9 ? '#ffffff' : '#ffe08a' })); const a = k * 2.399, r = 30 + (k % 13) * 2; s.scale.setScalar(0.06 + (k % 5) * 0.03); s.position.set(Math.cos(a) * r, 3 + ((k * 37) % 22), -20 - Math.abs(Math.sin(a)) * 20); stars.add(s); }
+  root.add(stars);
+  return { root, setup(scene) { scene.background = new THREE.Color('#14193d'); scene.add(new THREE.HemisphereLight('#c7d2ff', '#4b4f72', 1.1)); sunLight(scene, '#ffffff', 1.9, [5, 8, 6]); } };
+}
+
+export const WORLDS = { playroom, park, farm, beach, bedroom, space };
 export function buildWorld(name) { return (WORLDS[name] || playroom)(); }

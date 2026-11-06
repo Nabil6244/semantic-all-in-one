@@ -18,6 +18,8 @@ import { buildTimeline } from './lib/timeline.mjs';
 import { makeTerrain } from './lib/terrain.mjs';
 import { makeLots, rankLots, makeTrees, roadRanks, needed, cityExtent, fallbackLanes, hash } from './lib/growth.mjs';
 import { pathToXZ, footprint } from './lib/landmarks.mjs';
+import { styleOf } from './lib/styles.mjs';
+import { styleForYear } from './lib/story.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(HERE, '..');
@@ -92,13 +94,13 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
   const extentCache = new Map();
   const city = {
     toXZ, landmarkXZ,
-    extent: (year, pop) => { const k = `${year}|${pop}`; if (!extentCache.has(k)) extentCache.set(k, cityExtent(lots, needed(pop, year, lots.length))); return extentCache.get(k); },
+    extent: (year, pop, style) => { const k = `${year}|${pop}|${style}`; if (!extentCache.has(k)) extentCache.set(k, cityExtent(lots, needed(pop, year, lots.length, styleOf(style).pph))); return extentCache.get(k); },
   };
   const tl = buildTimeline(story, city);
   const events = story.events.map((e) => ({ ...toXZ(e.lon, e.lat), r: e.radius, year: e.year, regrow: e.regrow ?? 25, down: e.down ?? 2 }));
   for (const e of tl.captions) if (e.text.split(/\s+/).length > 28) warnings.push(`caption too long to read comfortably: "${e.text.slice(0, 40)}…"`);
   for (const h of tl.holds) {
-    const n = needed(h.pop, h.year, lots.length);
+    const n = needed(h.pop, h.year, lots.length, styleOf(h.style).pph);
     if (n >= lots.length * 0.999) warnings.push(`era ${h.year}: population fills every lot in the area (${lots.length.toLocaleString('en-US')}); a bigger --size world would show more`);
   }
   return { story, meta, worldDir: dir, worldId: id, T, lots, trees, roads, landmarks, events, tl, warnings };
@@ -154,7 +156,7 @@ async function main() {
   const name = path.basename(a.story).replace(/\.csv$/i, '');
   const outDir = a.outdir ? path.resolve(a.outdir) : path.join(HERE, 'out'); fs.mkdirSync(outDir, { recursive: true });
   if (a.plan) {
-    const rows = tl.holds.map((h) => ({ year: h.year, from: +h.tr0.toFixed(1), hold: [+h.h0.toFixed(1), +h.h1.toFixed(1)], pop: h.pop, houses: Math.round(needed(h.pop, h.year, lots.length)), style: h.style }));
+    const rows = tl.holds.map((h) => ({ year: h.year, from: +h.tr0.toFixed(1), hold: [+h.h0.toFixed(1), +h.h1.toFixed(1)], pop: h.pop, houses: Math.round(needed(h.pop, h.year, lots.length, styleOf(h.style).pph)), style: h.style }));
     fs.writeFileSync(path.join(outDir, a.outdir ? 'timeline.json' : `${name}_timeline.json`), JSON.stringify({ ...tl, rows, world: plan.worldId, credits: meta.credits }, null, 1));
     rows.forEach((r) => emit({ event: 'era', ...r }));
     return;

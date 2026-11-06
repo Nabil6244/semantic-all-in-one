@@ -11,6 +11,9 @@ export function ptMotion(d, t, S, { inDur = 0.7, outDur = 0.45, rise = 26 } = {}
   return { k: Math.min(kin, kout), kin, age, rise: (1 - kin) * rise * S, blur: (1 - kin) * 14 * S };
 }
 
+/** An item's own age: from the word that names it (`at`, s after the layer's start, written by product_trailer/wordcue.py), else the layer's stagger. */
+export const cueAge = (age, item, i, step, lead = 0) => (Number.isFinite(item?.at) ? age - item.at : age - lead - step * i);
+
 /** Bold display font (Montserrat variable) with weight; Inter for small lines. px at 1920. */
 export const ptFont = (S, px, w = 800, fam = 'display') => `${w} ${Math.round(px * S)}px ${fam === 'display' ? DISPLAY : SANS}, ${DISPLAY}, sans-serif`;
 

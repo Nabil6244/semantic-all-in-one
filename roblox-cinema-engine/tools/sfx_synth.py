@@ -137,10 +137,55 @@ def bells(dur, seed):
     return x
 
 
+# ---- horror story sounds (lib/horror.mjs) ---------------------------------------------------------------------------------
+def drone(dur, seed):
+    """a low uneasy bed: two close sines beating slowly, a breath of filtered noise, swelling and falling"""
+    r = _rng(seed); n = int(max(dur, 4) * SR); t = np.arange(n) / SR
+    x = np.sin(2 * np.pi * 55 * t) + 0.7 * np.sin(2 * np.pi * 55.6 * t) + 0.35 * np.sin(2 * np.pi * 82.4 * t + 0.7)
+    return (x * (0.65 + 0.35 * np.sin(2 * np.pi * t / 13 + 1.1)) + _bp(_noise(n, r), 80, 400) * 0.25)
+
+
+def phone_ring(dur, seed):
+    """an old double ring: 440 + 480 Hz, two short bursts"""
+    n = int(2.4 * SR); t = np.arange(n) / SR; on = ((t < 0.4) | ((t > 0.6) & (t < 1.0))).astype(float)
+    return (np.sin(2 * np.pi * 440 * t) + np.sin(2 * np.pi * 480 * t)) * on * (1 + 0.3 * np.sin(2 * np.pi * 20 * t))
+
+
+def paper_rustle(dur, seed):
+    """dry paper: bursts of bright crackle"""
+    r = _rng(seed); n = int(1.6 * SR); x = np.zeros(n)
+    for k in range(14):
+        m = int(r.uniform(0.02, 0.09) * SR); place(x, _bp(_noise(m, r), 2000, 9000) * _env(m, 0.002, 0.03) * r.uniform(0.3, 1.0), r.uniform(0, 1.4), 1.0)
+    return x * np.sin(np.pi * np.arange(n) / n) ** 0.6
+
+
+def door_chime(dur, seed):
+    n = int(3 * SR); t = np.arange(n) / SR; x = np.zeros(n)
+    for k, f in enumerate((1318.5, 1046.5)):
+        place(x, np.sin(2 * np.pi * f * t[: n - int(k * 0.35 * SR)]) * np.exp(-t[: n - int(k * 0.35 * SR)] / 0.9), k * 0.35, 0.8)
+    return x
+
+
+def footsteps_slow(dur, seed):
+    """unhurried steps on wet pavement, one every ~0.9 s"""
+    r = _rng(seed); n = int(max(dur, 3) * SR); x = np.zeros(n)
+    for k in range(int(n / SR / 0.9) + 1):
+        m = int(0.12 * SR); place(x, (_lp(_noise(m, r), 500) * 1.4 + _bp(_noise(m, r), 1500, 5000) * 0.3) * _env(m, 0.002, 0.04), k * 0.9 + r.uniform(-0.04, 0.04), 1.0)
+    return x
+
+
+def whisper_name(dur, seed):
+    """a breathy, voiceless two-syllable whisper (formant-shaped noise, no words)"""
+    r = _rng(seed); n = int(1.3 * SR); t = np.arange(n) / SR; nz = _noise(n, r)
+    env = np.exp(-((t - 0.3) / 0.14) ** 2) + 0.8 * np.exp(-((t - 0.75) / 0.18) ** 2)
+    return (_bp(nz, 700, 1400) + 0.7 * _bp(nz, 2200, 3200) + 0.3 * _hp(nz, 5000)) * env
+
+
 CUES = {
     'gunfire_near': lambda d, s: gunfire(d, s, 1.0), 'gunfire': lambda d, s: gunfire(d, s, 1.0), 'gunfire_far': lambda d, s: gunfire(d, s, 0.7, far=True), 'distant_gunfire': lambda d, s: gunfire(d, s, 0.5, far=True),
     'shot_single': lambda d, s: shot(_rng(s)), 'explosion': lambda d, s: explosion(d, s), 'water_explosion': lambda d, s: explosion(d, s, wet=True), 'flak': flak, 'ship_guns': ship_guns,
     'ramp_drop': ramp_drop, 'whoosh': whoosh, 'chapter_hit': chapter_hit, 'planes_pass': planes_pass, 'tanks': tanks, 'marching': marching, 'thunder': thunder, 'clock': clock, 'bells': bells, 'surf': surf, 'wind': wind,
+    'drone': drone, 'phone_ring': phone_ring, 'paper_rustle': paper_rustle, 'door_chime': door_chime, 'footsteps_slow': footsteps_slow, 'whisper_name': whisper_name,
 }
 
 

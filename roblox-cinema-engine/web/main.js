@@ -4,7 +4,7 @@
 import * as THREE from '/three/three.module.min.js';
 import { assembleScene } from '../lib/assemble.mjs';
 import { buildWorld } from './world3d.js';
-import { buildCharacter, poseRig, setFace } from './character.js';
+import { buildCharacter, buildHeld, poseRig, setFace } from './character.js';
 import { buildVehicle, poseVehicle } from './vehicle.js';
 import { buildMap } from './map3d.js';
 import { makeFxLayer } from './fx3d.js';
@@ -12,6 +12,8 @@ import { makeAtmosphere, makePost, PRESETS } from './look.js';
 import { makeHud } from './hud.js';
 import { stats as gfxStats, isSharedGeo } from './gfx.js';
 import { makeProj } from '../lib/mapproj.mjs';
+import { cardAt } from '../lib/horror.mjs';
+import { drawCard, drawPicture } from './card_art.js';
 
 const q = new URLSearchParams(location.search);
 let plan, geo, renderer, post, camera, hud, W, H;
@@ -19,6 +21,8 @@ const runtimes = new Map();
 const perf = { builds: [], frames: 0, maxDraw: 0, maxTris: 0, maxLive: 0, errors: [] };
 const MAP_HEIGHT = 780;
 const LAYER_ROOM = 3, LAYER_GLASS = 4; // people the film camera sees / doubles only a mirror sees
+const cardImages = new Map();   // picture cards, loaded before the first frame: frames are drawn in one go and cannot wait for a file
+let cardTex = null;             // the card on screen now; freed when the next one comes
 
 async function init() {
   plan = await (await fetch('/plan.json')).json();
@@ -37,6 +41,11 @@ async function init() {
   plan.hud.credit = plan.hud.credit || null;
   hud = makeHud(document.getElementById('hud'), plan.hud, { duration: plan.duration });
   for (const s of plan.scenes) if (s.env === 'map') { const v = mapView(s); s.mapView = v; for (const sh of s.shots) sh.height = v.h * (sh.zoom || 1); }
+  await Promise.all((plan.cards || []).filter((c) => c.image).map((c) => new Promise((done) => {
+    const img = new Image(); img.onload = () => { cardImages.set(c.id, img); done(); };
+    img.onerror = () => { console.warn(`card ${c.id}: the picture did not load, using the code-made card`); done(); };
+    img.src = c.image;
+  })));
   await document.fonts.ready;
   try { await document.fonts.load('700 40px Outfit'); await document.fonts.load('700 40px Inter'); } catch { /* fallback font */ }
 }
@@ -66,7 +75,12 @@ function ensure(i) {
     const root = buildWorld(A.world, { night: !!P.night, water: P.water });
     root.traverse((o) => { if (o.userData && o.userData.animate) rt.animates.push(o.userData.animate); });
     sc.add(root);
-    for (const a of A.stage.actors) { const rig = buildCharacter(a.look); rig.userData.actor = a; sc.add(rig); rt.rigs.push(rig); }
+    for (const a of A.stage.actors) {
+      const rig = buildCharacter(a.look); rig.userData.actor = a; sc.add(rig); rt.rigs.push(rig);
+      // horror: what this person holds, and when (plan scene.holds); the first person of the role holds it
+      rig.userData.held = (s.holds || []).filter((h) => h.role === a.role && A.stage.actors.find((x) => x.role === a.role) === a)
+        .map((h) => { const m = buildHeld(h.item, h.color); (h.hand === 'L' ? rig.userData.armL : rig.userData.armR).add(m); m.visible = false; return { h, m }; });
+    }
     const glass = []; root.traverse((o) => { if (o.isReflector) glass.push(o); });
     if (glass.length && s.mirrorPlay?.length) {
       rt.doubles = A.stage.actors.map((a) => { const d = buildCharacter(a.look); d.userData.actor = a; d.traverse((o) => o.layers.set(LAYER_GLASS)); sc.add(d); return d; });
@@ -103,6 +117,7 @@ function drawScene(rt, t, target) {
     const st = A.actorAt(rig.userData.actor, t), dx = st.x - camPos.x, dz = st.z - camPos.z;
     if (dx * dx + dz * dz > 650 * 650) { rig.visible = false; continue; }
     rig.visible = true; rig.position.set(st.x, st.y, st.z); rig.rotation.y = st.yaw; poseRig(rig, st.pose, t);
+    for (const { h, m } of rig.userData.held || []) { m.visible = t >= h.t0 && t < h.t1; if (m.visible && h.hand === 'R') rig.userData.armR.rotation.set(-1.0, 0, 0.04); else if (m.visible) rig.userData.armL.rotation.set(-0.05, 0, -0.06); }
   }
   for (const d of rt.doubles || []) {
     const v = A.reflectionAt(d.userData.actor, t); d.visible = v.visible; if (!v.visible) continue;
@@ -135,6 +150,18 @@ function mapPins(rt, t) {
     .filter((p) => { const r = { x0: p.x - bw(p.text) / 2, x1: p.x + bw(p.text) / 2, y0: p.y - bh, y1: p.y }; if (placed.some((o) => r.x0 < o.x1 && r.x1 > o.x0 && r.y0 < o.y1 && r.y1 > o.y0)) return false; placed.push(r); return true; });
 }
 
+/** a card as a texture in display colour, painted once. A picture that fails to paint falls back to the code-made card, so it is never blank. */
+function cardTexture(card) {
+  if (cardTex && cardTex.id === card.id) return cardTex.tex;
+  if (cardTex) cardTex.tex.dispose();
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), img = cardImages.get(card.id);
+  try { if (img) drawPicture(g, W, H, img); else drawCard(g, W, H, card); } catch (e) { perf.errors.push(`card ${card.id}: ${e.message}`); drawCard(g, W, H, { ...card, kind: 'note', text: card.text || card.what || card.time || '…' }); }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.NoColorSpace; tex.generateMipmaps = false; tex.minFilter = THREE.LinearFilter;
+  cardTex = { id: card.id, tex };
+  return tex;
+}
+
 function renderFrame(t) {
   const t0 = performance.now();
   renderer.info.reset();
@@ -154,7 +181,8 @@ function renderFrame(t) {
   const curRt = cur;
   if (prev) drawScene(prev, t, post.targets[1]);
   else if (mode === 2 && i === 0 && p >= 0.5) { /* fade up from black: the same target as both sides */ }
-  post.composite(post.targets[0], prev ? post.targets[1] : post.targets[0], mode, p, curRt.P, prev ? prev.P : curRt.P);
+  const cd = plan.cards ? cardAt(plan.cards, t) : null;
+  post.composite(post.targets[0], prev ? post.targets[1] : post.targets[0], mode, p, curRt.P, prev ? prev.P : curRt.P, cd ? { tex: cardTexture(cd.card), a: cd.a, zoom: 1 - 0.05 * cd.u, t, dim: cd.card.kind === 'phone_screen' || cd.card.kind === 'clock' ? 1 : /night/.test(s.light) ? 0.62 : 0.92 } : null);   // paper is lit by the night it lies in; a screen gives its own light
   hud.update(t, { pins });
   const inf = renderer.info.render;
   perf.frames++; perf.maxDraw = Math.max(perf.maxDraw, inf.calls); perf.maxTris = Math.max(perf.maxTris, inf.triangles); perf.maxLive = Math.max(perf.maxLive, live);

@@ -159,7 +159,7 @@ export function cameraPath(story, city, tl) {
   let heading = story.plan.heading ?? 20, prevKind = null, prevEnd = null, cyc = 0;
   tl.holds.forEach((h, i) => {
     const e = story.eras[h.era];
-    const ext = city.extent(h.year, h.pop);
+    const ext = city.extent(h.year, h.pop, h.style);
     let f = { x: ext.x, z: ext.z };
     if (e.focus) f = city.toXZ(e.focus.lon, e.focus.lat);
     else if (e.focusId && city.landmarkXZ?.[e.focusId]) f = city.landmarkXZ[e.focusId];

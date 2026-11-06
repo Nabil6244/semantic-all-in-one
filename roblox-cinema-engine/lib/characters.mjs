@@ -8,7 +8,9 @@ import { FACTIONS } from './eras.mjs';
 export const BODY = { legH: 2, legW: 1, torsoW: 2, torsoH: 2, torsoD: 1, armW: 1, armH: 2, headW: 1.25, headH: 1.15, height: 5.15 };
 
 export const ROLES = ['soldier', 'officer', 'commander', 'leader', 'politician', 'civilian', 'farmer', 'worker', 'police', 'pilot', 'sailor', 'medic',
-  'journalist', 'crowd', 'paratrooper', 'tank_crew', 'child', 'forecaster', 'guard'];
+  'journalist', 'crowd', 'paratrooper', 'tank_crew', 'child', 'forecaster', 'guard',
+  // horror story people (lib/horror.mjs)
+  'hero', 'stranger', 'mother', 'parent'];
 
 const SKIN = ['#f1c9a5', '#e8b48f', '#d9a074', '#c68a5e', '#a86f45', '#8a5734', '#6b4127', '#f5d3b5', '#e0a982', '#b77b52'];
 const HAIR = ['#2b2018', '#3d2a1c', '#5a3b22', '#7a5230', '#a87b45', '#c9a86a', '#1c1c1c', '#6d6d6d', '#b8b2a6'];
@@ -45,6 +47,12 @@ const KITS = {
   sailor: { torso: 'sailor', hat: 'sailor_cap', gear: [], weapon: false, mouth: ['flat', 'smile'] },
   medic: { torso: 'uniform', hat: 'helmet_medic', gear: ['medbag'], weapon: false, mouth: ['worried', 'determined'] },
   journalist: { torso: 'jacket', hat: ['fedora', null], gear: ['camera', 'notepad'], weapon: false, mouth: ['open', 'flat'] },
+  // horror story people. Optional kit fields: shirts (colour choices), hair/hairColor (forced looks), scale (body size)
+  hero: { torso: 'jacket', hat: null, gear: [], weapon: false, mouth: ['flat', 'frown'], shirts: ['#3a4250', '#4a3f36', '#2f3b33', '#55504a'] },
+  stranger: { torso: 'jacket', hat: null, gear: [], weapon: false, mouth: ['smile'], shirts: ['#7d5a4a', '#6a5e7a', '#8a6a4a', '#5a6a5e'],
+    hair: ['bun'], hairColor: ['#b8b2a6', '#d6d2c8', '#9a958c'], scale: 0.93 },
+  mother: { torso: 'shirt', hat: null, gear: [], weapon: false, mouth: ['smile', 'flat'], hair: ['long', 'bun'], hairColor: ['#6d6d6d', '#5a3b22', '#b8b2a6'] },
+  parent: { torso: 'shirt', hat: null, gear: [], weapon: false, mouth: ['flat', 'smile'] },
 };
 
 const WEAPON_BY_ERA = { ancient: 'spear', medieval: 'sword', early_modern: 'musket', nineteenth: 'musket', ww1: 'rifle_bolt', interwar: 'rifle_bolt', ww2: 'rifle_semi', cold_war: 'rifle_assault', modern: 'rifle_assault' };
@@ -59,7 +67,7 @@ export function makeCharacter({ role = 'soldier', faction = 'civilian', era = 'w
   const f = FACTIONS[faction] || FACTIONS.civilian;
   const civ = !['uniform', 'uniform_officer', 'coveralls', 'flight_jacket', 'sailor', 'police'].includes(kit.torso) || faction === 'civilian';
   const skin = rng.pick(SKIN);
-  const hairColor = rng.pick(HAIR);
+  const hairColor = rng.pick(kit.hairColor || HAIR);
   const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); const c = (s) => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * k))); return `#${((c(16) << 16) | (c(8) << 8) | c(0)).toString(16).padStart(6, '0')}`; };
   // small per-person colour drift so a squad in one uniform is not a row of clones
   const drift = 0.94 + rng() * 0.12;
@@ -68,7 +76,7 @@ export function makeCharacter({ role = 'soldier', faction = 'civilian', era = 'w
   else if (kit.torso === 'sailor') { shirt = '#e9ecef'; pants = '#20283a'; }
   else if (kit.torso === 'police') { shirt = '#25324a'; pants = '#1f2738'; }
   else if (kit.torso === 'flight_jacket') { shirt = '#6a4a2e'; pants = f.pants ? shade(f.pants, drift) : '#4a4a40'; }
-  else if (civ && !f.shirt) { shirt = rng.pick(CIV_SHIRT); pants = rng.pick(CIV_PANTS); }
+  else if (civ && !f.shirt) { shirt = rng.pick(kit.shirts || CIV_SHIRT); pants = rng.pick(CIV_PANTS); }
   else if (kit.torso === 'overalls') { shirt = rng.pick(['#c9c2ae', '#9fb3c8', '#b5a17f']); pants = rng.pick(['#3f5a7a', '#5a4a33']); }
   else { shirt = shade(f.shirt || '#6b6a45', drift); pants = shade(f.pants || '#5d5b3c', drift * (0.97 + rng() * 0.06)); }
   let hat = pickOr(rng, kit.hat);
@@ -84,7 +92,7 @@ export function makeCharacter({ role = 'soldier', faction = 'civilian', era = 'w
   const face = {
     eyes: rng.pick(FACES.eyes), brows: rng.pick(FACES.brows), mouth: rng.pick(moodMouth || kit.mouth),
     facial: role === 'child' ? 'none' : rng.pick(FACES.facial), glasses: rng.chance(role === 'journalist' || role === 'politician' || role === 'forecaster' ? 0.45 : 0.06),
-    hair: hat && ['m1', 'brodie', 'stahl', 'ssh', 'kabuto', 'adrian', 'modern', 'crest'].includes(hat.type) ? 'none' : rng.pick(FACES.hair), hairColor, scar: rng.chance(0.04),
+    hair: hat && ['m1', 'brodie', 'stahl', 'ssh', 'kabuto', 'adrian', 'modern', 'crest'].includes(hat.type) ? 'none' : rng.pick(kit.hair || FACES.hair), hairColor, scar: rng.chance(0.04),
   };
   const gear = era === 'ancient' || era === 'medieval' ? [] : [...kit.gear];   // no webbing, radios or holsters before gunpowder
   if ((role === 'soldier' || role === 'paratrooper') && rng.chance(0.25) && era !== 'ancient' && era !== 'medieval') gear.push('radio');
@@ -93,7 +101,7 @@ export function makeCharacter({ role = 'soldier', faction = 'civilian', era = 'w
     id: name ? `p_${hash(name).toString(36)}` : `c_${hash(`${role}:${faction}:${seed}`).toString(36)}`, name, role, faction, era,
     skin, shirt, pants, torso: kit.torso, tie: kit.torso === 'suit' ? rng.pick(['#7a1f24', '#1f3a7a', '#2a2a2a', '#5a4a1f']) : null,
     belt: kit.torso.startsWith('uniform') || kit.torso === 'police' ? shade(f.gear || '#3a3020', 0.8) : null, hat, face, gear, weapon,
-    scale: role === 'child' ? 0.78 : 0.97 + rng() * 0.06, gearColor: f.gear || '#4d4a33', accent: f.accent || '#7a7a5a',
+    scale: role === 'child' ? 0.78 : (kit.scale || 1) * (0.97 + rng() * 0.06), gearColor: f.gear || '#4d4a33', accent: f.accent || '#7a7a5a',
   };
 }
 

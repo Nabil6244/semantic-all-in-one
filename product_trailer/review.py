@@ -35,6 +35,21 @@ MAX_HOLD_S = 5.0
 HOLD_STEP_S = 4.5
 MAX_SCENE_S = 9.0          # a scene stays on screen for the sentences that follow it for at most this long, then the film moves on to other pictures
 CHUNK_WORDS = 7
+SWATCH_MAX_S = 20.0        # colour cards stay up while the narration keeps talking colours (each sentence adds a card, a "?" or an older colour)
+COLOUR_TALK = re.compile(r"\b(colou?rs?|shades?|finish(?:es)?|exclusive|variant|online only)\b", re.I)
+
+
+def _colour_talk(text: str) -> bool:
+    from .director import COLOURS
+    t = text.lower()
+    return bool(COLOUR_TALK.search(t)) or any(re.search(r"(?<![a-z])" + c + r"(?![a-z])", t) for c in COLOURS)
+
+
+def _canvas_talk():
+    from .lenses import is_camera_talk
+    return {"pt_swatches": _colour_talk, "pt_lenses": is_camera_talk}
+
+
 MAX_CARD_S = 6.0           # a flat card (paper, phones, document, quote) stays at most this long, then the film cuts to moving 3D: never a frozen screen
 FLAT_LOOK = {"saturate": 1.0, "contrast": 1.0, "vignette": 0.0, "grain": 0.0}
 LOOK = {"saturate": 0.97, "contrast": 1.05, "lift": "#05070B", "vignette": 0.25, "grain": 0.025}
@@ -79,7 +94,7 @@ POSES = ["back", "fan", "mixed", "back"]
 ALL_ROOMS = ("loft", "gallery", "studio", "terrace", "desk")      # every room an author may name in [lineup: ...]                             # backs first: the camera bar is what the narration talks about
 MACRO_MOVES = ["island", "edge", "port", "buttons", "screen", "monolith"]
 DIRECTIVE_SECONDS = {"bars": 7.0, "curve": 8.0, "compare": 7.0, "stat": 4.0, "xray": 5.0, "fold": 5.0, "lineup": 5.0, "chip": 5.0, "macro": 4.0,
-                     "bigtype": 3.5, "intro": 5.0, "outro": 5.0, "flat": 5.0, "gauge": 5.5, "tweet": 6.0, "thermal": 5.5, "cost": 6.0, "scene": 4.0, "bench": 5.5, "feature": 4.5, "callout": 4.0,
+                     "bigtype": 3.5, "intro": 5.0, "outro": 5.0, "flat": 5.0, "gauge": 5.5, "tweet": 6.0, "thermal": 5.5, "cost": 6.0, "scene": 4.0, "bench": 5.5, "feature": 4.5, "callout": 4.0, "sides": 4.5,
                      "ui": 6.0, "icon": 5.0, "wall": 5.0}
 PAPER_SHOT = {"kind": "black"}
 STYLES = ("mixed", "cinematic", "infographic", "follow", "news")
@@ -223,6 +238,15 @@ def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int
         return ui_visual(it, phone, cols, k, product, flat=style in ("infographic", "news"))
     if kind == "bench":
         return bench_visual(it, phone, k)
+    if kind == "sides":                              # two figures either side of one phone, each on its word (REVIEW_REFERENCE_5 gap 17)
+        items = [dict(x) for x in it.get("items") or []]
+        sec = DIRECTIVE_SECONDS["sides"]
+        if style in ("infographic", "news"):
+            return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_flatphones", "phones": [{"label": phone.title(), "color": "#2b2b2e", "cams": 3}], "start": round(a + 0.05, 3), "end": round(b - 0.03, 3)},
+                                                     {"type": "pt_sides", "items": [dict(x) for x in items], "ink": "dark", "start": round(a + 0.15, 3), "end": round(b - 0.05, 3)}]), sec
+        shot = {"kind": "product", "object": "phone", "phone": phone, "move": "hero_back", "backdrop": REVIEW_SET, "seed": 61 + k}
+        return shot, lambda a, b: [{"type": "pt_sides", "items": [dict(x) for x in items], "ink": "dark" if REVIEW_SET == "daylight" else "light",
+                                    "start": round(a + 0.15, 3), "end": round(b - 0.05, 3)}], sec
     if kind in ("feature", "callout"):
         if style in ("infographic", "news"):
             return paper_form(it, phone, cols, k)
@@ -259,6 +283,10 @@ def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int
     if kind == "macro":
         move = it.get("move") if it.get("move") in MACRO_MOVES else MACRO_MOVES[k % len(MACRO_MOVES)]
         shot = {"kind": "product", "object": "phone", "phone": phone, "move": move, "backdrop": REVIEW_SET, "seed": 41 + k}
+        rg = it.get("ring")
+        if rg:                                   # a ring round the named lens, tracked on the 3D phone (layers/pt_ring.mjs), drawn on its word
+            return shot, lambda a, b: cap(it.get("text"), a, b) + [{"type": "pt_ring", "part": "lens", "index": int(rg.get("index", -1)), "phrase": str(rg.get("phrase") or ""),
+                                                                    "x": 0.5, "y": 0.42, "r": 0.07, "start": round(a + 0.1, 3), "end": round(b - 0.05, 3)}], sec
         return shot, lambda a, b: cap(it.get("text"), a, b), sec
     if kind == "bigtype":
         shot = {"kind": "product", "object": "phone", "phone": phone, "move": "monolith", "backdrop": REVIEW_SET, "seed": 51 + k}
@@ -440,7 +468,7 @@ def place_features(parsed: Dict[str, Any], features: Sequence[Dict[str, Any]]) -
     return out
 
 
-NEWS_KEEP = ("scene", "tweet", "bench", "curve", "compare", "bars", "feature", "gauge", "thermal", "cost")
+NEWS_KEEP = ("scene", "sides", "tweet", "bench", "curve", "compare", "bars", "feature", "gauge", "thermal", "cost")
 NEWS_BEAT_S = 2.6
 
 
@@ -998,7 +1026,9 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
             continue_line = False
         held = [L for L in layers[last_dir["first"]:last_dir["last"]]] if last_dir else []
         limit = MAX_CARD_S if last_dir and last_dir["shot"].get("kind") == "black" else MAX_SCENE_S
-        if style in ("follow", "news") and not units and last_dir and shots and shots[-1] is last_dir["shot"] and b - last_dir.get("t0", 0.0) <= limit:
+        swatch_hold = (not units and bool(last_dir) and bool(shots) and shots[-1] is last_dir["shot"] and b - last_dir.get("t0", 0.0) <= SWATCH_MAX_S
+                       and any(fn(f["line"]["text"]) for typ, fn in _canvas_talk().items() if any(L["type"] == typ for L in held)))   # colour cards / lens callouts keep building (gaps 3-4)
+        if (style in ("follow", "news") and not units and last_dir and shots and shots[-1] is last_dir["shot"] and b - last_dir.get("t0", 0.0) <= limit) or swatch_hold:
             prev = shots[-1]                             # a line with no picture of its own keeps the scene before it on screen (as the references do)
             if b - prev["start"] > MAX_HOLD_S and all(L["type"] in ("pt_paper", "pt_flatphones") for L in held):
                 n0 = prev["end"]                         # a long hold continues as a settled copy of the same scene (a cut between identical frames is invisible)
@@ -1049,6 +1079,17 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
                 add(a2, b2, fs)
                 k3 += 1
         chunks += voiceover.chunks(f["line"]["text"], spans[i], words, ranges[i], ok)
+    from .canvas import build as build_canvases
+    if words and ok:
+        from .swatches import follow as swatch_follow
+        swatch_follow(layers, voiceover._wtimes(words))   # colour cards: an added colour, a "?" for unknown shades, an older model's colour (gap 3)
+        from .lenses import follow as lens_follow, resolve_later
+        lens_follow(layers, voiceover._wtimes(words))     # lens callouts: named on their words, "??" when asked, the answer when said (gap 4)
+        resolve_later(shots, layers, voiceover._wtimes(words))
+    build_canvases(shots, layers)                    # flat scenes of the same phones keep building on one canvas (REVIEW_REFERENCE_4 gap 2)
+    if words and ok:                                 # each label, badge, bar and card lands on the word that names it (REVIEW_REFERENCE_4 gap 1)
+        from .wordcue import cue_layers
+        cue_layers(layers, voiceover._wtimes(words))
     layers.append({"type": "pt_subtitle", "chunks": chunks, "box": True})
     t = D
     card_lines = [x for x in (prod.get("disclaimer"),) if x]

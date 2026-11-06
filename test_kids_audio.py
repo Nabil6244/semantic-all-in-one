@@ -100,6 +100,46 @@ def _check_chant_puts_every_word_on_the_beat(tmp_path, man):
     four = x[int(1.5 * SR):int(2.0 * SR)]; assert four.max() > 0.1 and x[int(1.995 * SR):int(2.0 * SR)].max() < 0.05, "a long word is fitted into its beat"
 
 
+def _check_music_follows_the_set_with_a_crossfade(tmp_path, man):
+    out = str(tmp_path / "segs.wav")
+    rep = mixer.mix({"voice": None, "out": out, "duration": 12.0, "target_lufs": None, "sfx": [],
+                     "music": {"segments": [{"t0": 0, "t1": 6, "bed": "playroom"}, {"t0": 6, "t1": 12, "bed": "calm"}], "fade_in": 0.1, "fade_out": 0.1}})
+    assert rep["music"]["bed"] == ["playroom", "calm"]
+    x = L.read_audio(out)
+    calm = L.read_audio(os.path.join(L.LIB, man["beds"]["calm"]["file"]))
+    i0, i1 = int(8 * SR), int(10 * SR)                                   # after the change: exactly the calm bed, in time from 0 s
+    c = np.tile(calm, (1, 2))[:, i0:i1]; g = (x[:, i0:i1] * c).sum() / (c * c).sum()
+    assert np.abs(x[:, i0:i1] - g * c).max() < 1e-3
+    play = np.tile(L.read_audio(os.path.join(L.LIB, man["beds"]["playroom"]["file"])), (1, 2))[:, : x.shape[1]]; calm2 = np.tile(calm, (1, 2))[:, : x.shape[1]]
+    w = lambda a, s=0.5: slice(int(a * SR), int((a + s) * SR))
+    off = _rms_db(x[:, w(1.0, 3.0)]) - _rms_db(play[:, w(1.0, 3.0)])          # the bed level the mixer set (before the change)
+    for a in np.arange(5.25, 6.75, 0.25):                                     # no dip through the crossfade: never under the quieter bed
+        assert _rms_db(x[:, w(a)]) > min(_rms_db(play[:, w(a)]), _rms_db(calm2[:, w(a)])) + off - 3, a
+
+
+def _check_singing_lands_on_the_notes(tmp_path):
+    from kids_audio import sing as S
+    # a plain voiced "speech" with a drifting pitch: 8 words, 0.3 s each
+    t = np.arange(int(2.6 * SR)) / SR
+    f = 190 + 25 * np.sin(2 * np.pi * 0.7 * t)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    v = sum(np.sin(ph * k) / k for k in range(1, 12)) * 0.2
+    wav = str(tmp_path / "voice.wav"); L.write_wav(wav, np.vstack([v, v]))
+    notes = [67, 64, 67, 64, 69, 67, 65, 64]
+    words = [{"text": f"w{i}", "t0": 0.1 + i * 0.3, "t1": 0.38 + i * 0.3} for i in range(8)]
+    out = str(tmp_path / "sung.wav")
+    r = S.sing({"voice": wav, "words": words, "tune": [[[n, 1]] for n in notes], "bpm": 100, "out": out})
+    assert abs(r["dur"] - 8 * 0.6) < 1e-6 and len(r["words"]) == 8
+    y = L.read_audio(out).mean(0); got = S.f0_track(y); bad = []
+    for i, n in enumerate(notes):
+        a, b = int((i * 0.6 + 0.2) / S._HOP), int((i * 0.6 + 0.45) / S._HOP)
+        seg = got[a:b]; seg = seg[seg > 0]
+        cents = 1200 * np.log2(np.median(seg) / S.midi_hz(n + r["transpose"])) if len(seg) else 9999
+        if abs(cents) > 40:
+            bad.append((i, round(float(cents))))
+    assert not bad, bad
+
+
 class KidsAudio(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -127,6 +167,12 @@ class KidsAudio(unittest.TestCase):
 
     def test_chant_puts_every_word_on_the_beat(self):
         _check_chant_puts_every_word_on_the_beat(self.tmp, _man())
+
+    def test_singing_lands_on_the_notes(self):
+        _check_singing_lands_on_the_notes(self.tmp)
+
+    def test_music_follows_the_set_with_a_crossfade(self):
+        _check_music_follows_the_set_with_a_crossfade(self.tmp, _man())
 
 
 if __name__ == "__main__":

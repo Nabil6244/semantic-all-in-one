@@ -139,9 +139,11 @@ export function peoplePerLot(year, pop = 0) {
   return base * densityOf(pop, year);
 }
 
-/** How many lots stand at population `pop` in `year` (capped by the lots there are). */
-export function needed(pop, year, total) {
-  return Math.min(total, Math.max(0, pop / peoplePerLot(year, pop)));
+/** How many lots stand at population `pop` in `year` (capped by the lots there are). `pph` (a house style's own people per
+ *  lot, e.g. low-rise South Asian family houses) replaces the period's default. */
+export function needed(pop, year, total, pph = null) {
+  const per = pph ? pph * densityOf(pop, year) : peoplePerLot(year, pop);
+  return Math.min(total, Math.max(0, pop / per));
 }
 
 /** 0..1: how far lot of `rank` has risen when `need` lots stand (a soft edge, so growth reads as a wave). */

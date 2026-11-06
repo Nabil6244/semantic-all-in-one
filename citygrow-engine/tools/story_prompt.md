@@ -30,12 +30,12 @@ Rows (the `row` column says which kind):
    - population: the best historical estimate as a plain number (e.g. 450000). It drives how many houses stand.
    - caption: ONE sentence, 8–20 words, what changed in this era. Plain, factual.
    - title + kicker: ONLY for the 2–4 biggest moments (e.g. title "THE GOLDEN AGE", kicker "Eastern Rome"); else leave empty
-   - style: house look: ancient, medieval, ottoman, nordic, early_modern, industrial or modern
+   - style: house look: ancient, medieval, ottoman, nordic, early_modern, industrial, modern, south_asian (flat-roofed brick and mud) or south_asian_modern
    - leave shot, focus, hold empty unless you have a reason (the camera picks its own moves; a new landmark gets a close orbit)
 
 4. 6–14 `landmark` rows: the buildings that make this city recognisable.
    - year = when built; until = when destroyed (empty if it still stands); era_name = its name; focus = "lon,lat" (exact!)
-   - kind: dome_church, mosque, church, cathedral, temple, forum, market, amphitheatre, hippodrome, castle, palace, tower,
+   - kind: dome_church, mosque, church, cathedral, temple, forum, market, amphitheatre, hippodrome, castle, palace, station, tower,
      lighthouse, column, skyscraper, or a path kind: wall, harbour, aqueduct, bridge
    - extra JSON: {"size": length in metres, "rot": degrees the long side is turned (0 = east–west), "minarets": n,
      "color": "marble"|"stone"|"brick"|"#hex", "roof": "terracotta"|"slate"|"lead"|"#hex", "dome": "lead"|"gold"}

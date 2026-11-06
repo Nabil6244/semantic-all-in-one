@@ -24,6 +24,10 @@ from .widgets import make_button
 STYLE = "Roblox Cinema"
 TAG = "[ROBLOX CINEMA]"
 RESOLUTIONS = {"720p preview (1280x720)": 720, "1080p final (1920x1080)": 1080}
+# Story type: a history/war film, or a quiet modern horror story (engine lib/horror.mjs). A CSV plan row's own genre wins.
+GENRES = {"History film": "history", "Horror story": "horror"}
+PROMPTS = {"history": "story_prompt.md", "horror": "story_prompt_horror.md"}
+OWNER = "roblox_cinema"   # its horror picture cards in the Visuals tab (visual_bridge)
 _ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -51,11 +55,83 @@ def _runner():
         return None
 
 
+def _cards():
+    """roblox-cinema-engine/cards.py (horror picture cards), loaded once."""
+    mod = sys.modules.get("rce_cards")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location("rce_cards", _engine_dir() / "cards.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["rce_cards"] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+def _assets_dir(app: Any) -> Path:
+    import visual_bridge
+
+    return visual_bridge.folder(OWNER, app._workspace)
+
+
+def _fetch_cards(app: Any, base: str, src: dict, after) -> None:
+    """After Generate: the plan's picture cards go through the Visuals tab, then `after()` runs. No cards (every history film): the tab is left
+    empty and `after()` runs at once. No Gemini; a picture that is not fetched only means the film shows the code-made card."""
+    import visual_bridge
+
+    reqs, manager, cards = [], None, None
+    try:
+        cards = _cards()
+        reqs = cards.requests(base + ".mp4.plan.json", _assets_dir(app))
+        if reqs and cards.missing(reqs, _assets_dir(app)):
+            manager = app._build_asset_manager(_assets_dir(app), [])      # built here: it reads Tk variables
+    except Exception as exc:  # noqa: BLE001 - cards are an extra; the film is planned without them
+        app._append_log(f"{TAG} picture cards skipped: {type(exc).__name__}: {exc}\n")
+    if not reqs:
+        if getattr(app, "_scene_rows_owner", None) == OWNER or visual_bridge.load(_assets_dir(app)):
+            visual_bridge.save(_assets_dir(app), [])
+            visual_bridge.clear(app, OWNER)
+        after()
+        return
+    log = lambda m: app.after(0, lambda: app._append_log(f"{TAG} {m}\n"))
+    holder: dict = {"rows": cards.table_rows(reqs)}
+    planned_msg = app._rc_status_var.get()
+
+    def job():
+        holder["rows"] = cards.fetch(reqs, manager, _assets_dir(app), base_dir=str(Path(src.get("csv") or base).parent), log=log, cancel=app._rc_cancel.is_set)
+
+    def end(error: str) -> None:
+        visual_bridge.fill(app, OWNER, holder["rows"])      # check or change the pictures there; Render uses what the tab holds
+        msg = cards.summary(reqs, visual_bridge.records(_assets_dir(app), holder["rows"]))
+        app._rc_status_var.set(f"{planned_msg}  {msg}" if not error else f"{error}  {msg}")
+        app._append_log(f"{TAG} {msg}\n")
+        if not error:
+            after()
+
+    app._rc_status_var.set(f"Fetching {len(reqs)} picture cards for the Visuals tab…")
+    _start(app, "roblox-cinema-cards", job, lambda _r: None, end)
+
+
+def _card_pictures(app: Any, plan: dict) -> Optional[str]:
+    """The pictures the Visuals tab holds now, as the file the renderer reads; None when the film has no picture cards. Never stops a render."""
+    try:
+        import visual_bridge
+
+        cards = _cards()
+        reqs = cards.requests(plan["base"] + ".mp4.plan.json", _assets_dir(app))
+        if not reqs:
+            return None
+        recs = visual_bridge.records(_assets_dir(app), visual_bridge.rows(app, OWNER) or cards.table_rows(reqs))
+        return cards.write_pictures(plan["base"] + ".cards.json", reqs, recs)
+    except Exception as exc:  # noqa: BLE001
+        app.after(0, lambda: app._append_log(f"{TAG} picture cards: using the code-made ones ({type(exc).__name__}: {exc})\n"))
+        return None
+
+
 def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._rc_csv_var = ctk.StringVar(value="")
     app._rc_voice_var = ctk.StringVar(value="")
     app._rc_res_var = ctk.StringVar(value=next(iter(RESOLUTIONS)))
     app._rc_music_var = ctk.BooleanVar(value=True)
+    app._rc_genre_var = ctk.StringVar(value=next(iter(GENRES)))
     app._rc_status_var = ctk.StringVar(value="")
     app._rc_cancel = threading.Event()
     app._rc_running = getattr(app, "_rc_running", False)
@@ -74,8 +150,10 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     tools = ctk.CTkFrame(body, fg_color="transparent")
     tools.grid(row=3, column=0, sticky="w", pady=(6, 0))
     app._rc_prompt_status = ctk.StringVar(value="")
-    make_button(tools, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=0, padx=(0, 10))
-    ctk.CTkLabel(tools, textvariable=app._rc_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=1, sticky="w")
+    ctk.CTkLabel(tools, text="Story type", font=ctk.CTkFont(size=12), text_color=T.MUTED).grid(row=0, column=0, padx=(0, 8))
+    ctk.CTkOptionMenu(tools, values=list(GENRES), variable=app._rc_genre_var, width=150).grid(row=0, column=1, padx=(0, 12))
+    make_button(tools, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=2, padx=(0, 10))
+    ctk.CTkLabel(tools, textvariable=app._rc_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=3, sticky="w")
     app._rc_text_box = ctk.CTkTextbox(body, height=120, font=ctk.CTkFont(size=12), wrap="word")
     app._rc_text_box.grid(row=2, column=0, sticky="ew", pady=(8, 0))
     ctk.CTkLabel(body, text="Maps show present-day borders and approximate positions (the film says so on screen). "
@@ -126,7 +204,7 @@ def _browse(app: Any, kind: str) -> None:
 
 def copy_csv_prompt(app: Any) -> None:
     """Put the story-CSV writing prompt on the clipboard (paste it into any AI chat with your topic)."""
-    p = _engine_dir().joinpath(*('docs', 'story_prompt.md'))
+    p = _engine_dir().joinpath('docs', PROMPTS.get(GENRES.get(app._rc_genre_var.get(), "history"), "story_prompt.md"))
     status = app._rc_prompt_status
     try:
         text = p.read_text(encoding="utf-8")
@@ -167,7 +245,7 @@ def _save(app: Any) -> None:
     try:
         o = options(app)
         planned = getattr(app, "_rc_planned", None)
-        data = {"csv": o["csv"], "voice": o["voice"], "text": o["text"], "res_label": app._rc_res_var.get(), "music": o["music"], "planned": None}
+        data = {"csv": o["csv"], "voice": o["voice"], "text": o["text"], "res_label": app._rc_res_var.get(), "music": o["music"], "genre_label": app._rc_genre_var.get(), "planned": None}
         if planned:
             src = planned["src"]
             data["planned"] = {**planned, "sig_src": _sig(src.get("csv") or src.get("text_file") or ""), "sig_voice": _sig(planned["voice"]) if planned["voice"] else None}
@@ -201,6 +279,8 @@ def _restore(app: Any) -> None:
         if d.get("res_label") in RESOLUTIONS:
             app._rc_res_var.set(d["res_label"])
         app._rc_music_var.set(bool(d.get("music", True)))
+        if d.get("genre_label") in GENRES:
+            app._rc_genre_var.set(d["genre_label"])
         app._rc_text_box.delete("1.0", "end")
         if d.get("text"):
             app._rc_text_box.insert("1.0", d["text"])
@@ -210,14 +290,14 @@ def _restore(app: Any) -> None:
             same_src = p.get("sig_src") is not None and _sig(src.get("csv") or src.get("text_file") or "") == p["sig_src"]
             same_voice = (not p.get("voice")) or (p.get("sig_voice") is not None and _sig(p["voice"]) == p["sig_voice"])
             if same_src and same_voice:
-                app._rc_planned = {k: p[k] for k in ("src", "voice", "res", "music", "base")}
+                app._rc_planned = {**{k: p[k] for k in ("src", "voice", "res", "music", "base")}, "genre": p.get("genre", "history")}
                 app._rc_status_var.set("Restored: the film is planned. Click Render, or Generate to plan again.")
     finally:
         app._rc_restoring = False
 
 
 def _wire_persistence(app: Any) -> None:
-    for v in (app._rc_csv_var, app._rc_voice_var, app._rc_res_var, app._rc_music_var):
+    for v in (app._rc_csv_var, app._rc_voice_var, app._rc_res_var, app._rc_music_var, app._rc_genre_var):
         v.trace_add("write", lambda *_a: _save(app))
     try:
         app._rc_text_box.bind("<KeyRelease>", lambda _e: _save(app))
@@ -242,12 +322,24 @@ def activate(app: Any) -> None:
     from .voiceover_view import adopt_project_voiceover
     adopt_project_voiceover(app, app._rc_voice_var)   # the project voiceover (Voiceover tab / Audio & Effects) if this box is empty
     app._rc_block.grid()
+    try:
+        import visual_bridge
+
+        visual_bridge.restore(app, OWNER)      # the picture cards of the last Generate, back in the Visuals tab
+    except Exception:  # noqa: BLE001
+        pass
     _sync_buttons(app)
 
 
 def deactivate(app: Any) -> None:
     if getattr(app, "_rc_active", False):
         app._rc_active = False
+        try:
+            import visual_bridge
+
+            visual_bridge.clear(app, OWNER)
+        except Exception:  # noqa: BLE001
+            pass
         block = getattr(app, "_rc_block", None)
         if block is not None:
             block.grid_remove()
@@ -320,7 +412,7 @@ def _work_dir(app: Any) -> Path:
 
 def options(app: Any) -> dict:
     return {"csv": app._rc_csv_var.get().strip(), "voice": app._rc_voice_var.get().strip(), "text": app._rc_text_box.get("1.0", "end-1c").strip(),
-            "res": RESOLUTIONS.get(app._rc_res_var.get(), 720), "music": bool(app._rc_music_var.get())}
+            "res": RESOLUTIONS.get(app._rc_res_var.get(), 720), "music": bool(app._rc_music_var.get()), "genre": GENRES.get(app._rc_genre_var.get(), "history")}
 
 
 def _source(app: Any, o: dict) -> dict:
@@ -403,18 +495,18 @@ def on_generate(app: Any) -> None:
     app._append_log(f"{TAG} Generate: planning the film\n")
 
     def job():
-        return rc.plan(base, voiceover=o["voice"] or None, resolution=o["res"], progress=_progress(app), cancel=app._rc_cancel.is_set,
+        return rc.plan(base, voiceover=o["voice"] or None, resolution=o["res"], genre=o["genre"], progress=_progress(app), cancel=app._rc_cancel.is_set,
                        log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **src)
 
     def done(r) -> None:
-        app._rc_planned = {"src": src, "voice": o["voice"], "res": o["res"], "music": o["music"], "base": base}
+        app._rc_planned = {"src": src, "voice": o["voice"], "res": o["res"], "music": o["music"], "base": base, "genre": o["genre"]}
         _save(app)
         warn = f"  {len(r['warnings'])} notes (see the log)." if r["warnings"] else ""
         msg = f"Planned {r['scenes']} scenes, {r['duration']:.0f} s ({'timed to your voice-over' if r['voiceTimed'] else 'planned read, no voice-over'}).{warn}"
         app._rc_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
-        auto_render.start(app, "rc", status_var=app._rc_status_var, still_ok=lambda p=app._rc_planned: _auto_render_ok(app, p),
-                          render=lambda: on_render(app), tag=TAG)
+        _fetch_cards(app, base, src, lambda: auto_render.start(app, "rc", status_var=app._rc_status_var, still_ok=lambda p=app._rc_planned: _auto_render_ok(app, p),
+                                                               render=lambda: on_render(app), tag=TAG))
 
     _start(app, "roblox-cinema-plan", job, done)
 
@@ -426,7 +518,8 @@ def _auto_render_ok(app: Any, plan: dict) -> str:
     if getattr(app, "_rc_running", False):
         return "another job is running."
     o = options(app)
-    if ((o["csv"], o["voice"], o["res"], o["music"]) != (plan["src"].get("csv", ""), plan["voice"], plan["res"], plan["music"]) and o["csv"]):
+    if (((o["csv"], o["voice"], o["res"], o["music"]) != (plan["src"].get("csv", ""), plan["voice"], plan["res"], plan["music"]) and o["csv"])
+            or o["genre"] != plan.get("genre", "history")):
         return "the story or options changed after Generate; click Generate again."
     return ""
 
@@ -445,7 +538,8 @@ def on_render(app: Any) -> None:
     if rc is None:
         return
     o = options(app)
-    if (o["csv"], o["voice"], o["res"], o["music"]) != (plan["src"].get("csv", ""), plan["voice"], plan["res"], plan["music"]) and o["csv"]:
+    if ((o["csv"], o["voice"], o["res"], o["music"]) != (plan["src"].get("csv", ""), plan["voice"], plan["res"], plan["music"]) and o["csv"]) \
+            or o["genre"] != plan.get("genre", "history"):
         messagebox.showinfo("Click Generate first", "You changed the story or options after Generate. Click Generate again, then Render.")
         return
     out_path = ws.next_final_path()
@@ -462,7 +556,7 @@ def on_render(app: Any) -> None:
                                   message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
     def job():
-        return rc.render(plan["base"], voiceover=plan["voice"] or None, output=str(out_path), resolution=plan["res"], music=plan["music"],
+        return rc.render(plan["base"], voiceover=plan["voice"] or None, output=str(out_path), resolution=plan["res"], music=plan["music"], genre=plan.get("genre", "history"), cards=_card_pictures(app, plan),
                          progress=_progress(app), cancel=app._rc_cancel.is_set, log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **plan["src"])
 
     def done(r) -> None:

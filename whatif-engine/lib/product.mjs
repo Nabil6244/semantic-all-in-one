@@ -349,12 +349,13 @@ function buildPhone(THREE, shot, envMap, screenMap = null) {
     dome.geometry.scale(1, 0.42, 1); dome.geometry.rotateX(-Math.PI / 2); dome.geometry.translate(0, 0, -0.004); l.add(dome);
     const coat = new THREE.Mesh(new THREE.RingGeometry(R * 0.3, R * 0.36, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color('#3c58ff').multiplyScalar(0.9), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
     coat.position.z = -0.027; coat.rotation.y = Math.PI; l.add(coat);
+    l.userData.lensR = R * 1.12;                 // a lens part: its screen position is reported for a ring drawn round it (layers/pt_ring.mjs)
     return l;
   };
   if (gal) {   // the leaked layout: a raised horizontal bar with two round lenses, a pill-shaped periscope lens and the flash at the end (arrangement inside the bar is not in the leak)
     island.add(lens(-0.27, 0.0, 0.1), lens(-0.04, 0.0, 0.1));
     const pill = slab(THREE, 0.12, 0.215, 0.058, 0.04, 0.008, darkMetal); pill.position.set(0.2, 0, -pd - 0.01); island.add(pill);
-    const pillGlass = slab(THREE, 0.088, 0.185, 0.042, 0.012, 0.003, lensGlass); pillGlass.position.set(0.2, 0, -pd - 0.028); island.add(pillGlass);
+    const pillGlass = slab(THREE, 0.088, 0.185, 0.042, 0.012, 0.003, lensGlass); pillGlass.position.set(0.2, 0, -pd - 0.028); pillGlass.userData.lensR = 0.11; island.add(pillGlass);
     const flash = new THREE.Mesh(new THREE.CircleGeometry(0.02, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd9a0').multiplyScalar(0.55), toneMapped: false }));
     flash.position.set(0.345, 0.065, -pd - 0.0015); flash.rotation.y = Math.PI; island.add(flash);
     const sens = new THREE.Mesh(new THREE.CircleGeometry(0.014, 24), new THREE.MeshBasicMaterial({ color: '#05060a' }));
@@ -368,7 +369,7 @@ function buildPhone(THREE, shot, envMap, screenMap = null) {
   } else {
     island.add(lens(-0.12, 0.15, 0.1), lens(-0.12, -0.14, 0.1));
     const oval = slab(THREE, 0.115, 0.27, 0.055, 0.04, 0.008, darkMetal); oval.position.set(0.13, 0.15, -0.06 - 0.01); island.add(oval);
-    const ovalGlass = slab(THREE, 0.085, 0.24, 0.04, 0.012, 0.003, lensGlass); ovalGlass.position.set(0.13, 0.15, -0.0805); island.add(ovalGlass);
+    const ovalGlass = slab(THREE, 0.085, 0.24, 0.04, 0.012, 0.003, lensGlass); ovalGlass.position.set(0.13, 0.15, -0.0805); ovalGlass.userData.lensR = 0.13; island.add(ovalGlass);
     const flash = new THREE.Mesh(new THREE.CircleGeometry(0.02, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffb347').multiplyScalar(1.6), toneMapped: false }));
     flash.position.set(0.13, 0.08, -0.0868); flash.rotation.y = Math.PI; island.add(flash);
     const dot = new THREE.Mesh(new THREE.CircleGeometry(0.011, 24), new THREE.MeshBasicMaterial({ color: '#9fb0e8', toneMapped: false }));
@@ -873,9 +874,30 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
     fin.addPass(new mods.UnrealBloomPass(new THREE.Vector2(W, H), (shot.bloom ?? (bd === 'daylight' ? 0.1 : 0.55)) * (glareCap < 1 ? 0.35 + 0.4 * glareCap : NEAR ? 0.7 : 1), 0.65, glareCap < 1 ? 0.95 : 0.88));
     fin.addPass(new mods.OutputPass());
   };
+  const lensParts = [];
+  phone.traverse((o) => { if (o.userData && o.userData.lensR) lensParts.push(o); });
+  const wp = new THREE.Vector3(), wr = new THREE.Vector3(), camX = new THREE.Vector3();
   return {
     scene,
     place,
+    // where each lens lands on screen for the camera as placed (view offset included): [{ x, y, r }] in pixels, null for a lens behind the camera
+    // or facing away; a ring layer (pt_ring) draws round one of them. Lenses in the order the phone is built: wide, main, then the zoom lens.
+    parts(camera) {
+      holder.updateMatrixWorld(true); camera.updateMatrixWorld(true);
+      camX.set(1, 0, 0).applyQuaternion(camera.quaternion);
+      const lenses = lensParts.map((o) => {
+        o.getWorldPosition(wp);
+        if (wp.clone().applyMatrix4(camera.matrixWorldInverse).z > -0.01) return null;
+        const n = new THREE.Vector3(0, 0, -1).applyQuaternion(o.getWorldQuaternion(new THREE.Quaternion()));
+        if (n.dot(new THREE.Vector3().subVectors(camera.position, wp)) <= 0) return null;     // the back faces away (a front shot)
+        const r = o.userData.lensR * o.getWorldScale(new THREE.Vector3()).x;
+        wr.copy(wp).addScaledVector(camX, r);
+        wp.project(camera); wr.project(camera);
+        const x = (wp.x + 1) / 2 * W, y = (1 - wp.y) / 2 * H, rx = (wr.x + 1) / 2 * W, ry = (1 - wr.y) / 2 * H;
+        return { x, y, r: Math.hypot(rx - x, ry - y) };
+      });
+      return { lenses };
+    },
     // N sub-frames spread over the shutter (k and t evaluated at each sub-time) with a subpixel jitter, averaged in linear light, then
     // bloom and the output transform once. Without k/t (an older caller) the frame placed last is drawn N times with jitter only.
     render(renderer, camera, k, t) {

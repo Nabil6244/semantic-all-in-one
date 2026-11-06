@@ -3,6 +3,7 @@
 //   { "type": "pt_compare3", "title": "PEAK BRIGHTNESS", "note": "OUTDOORS, AS TESTED", "unit": "NIT",
 //     "cols": [{ "label": "FOLDABLE", "value": 300, "highlight": true }, { "label": "MAX", "value": 300 }, { "label": "PRO", "value": 300 }], "max": 350, "start": 5, "end": 11 }
 import { C, tm, glideOut, quartOut, colour } from './tm_theme.mjs';
+import { cueAge } from './pt_feature.mjs';
 
 export default {
   type: 'pt_compare3',
@@ -24,7 +25,7 @@ export default {
     const top = py + 250 * S, base = py + ph - 120 * S;
     T.line(left - 30 * S, base, right + 30 * S, base, { color: '#6F7A88', width: 2, alpha: 0.9 });
     cols.forEach((c, i) => {
-      const k = glideOut((age - 0.4 - 0.25 * i) / 1.0), cx = left + slot * (i + 0.5), h = (base - top) * Math.max(0, Number(c.value)) / max * k;
+      const k = glideOut(cueAge(age, c, i, 0.25, 0.4) / 1.0), cx = left + slot * (i + 0.5), h = (base - top) * Math.max(0, Number(c.value)) / max * k;
       const col = c.highlight ? C.cyan : colour(c.color, '#C9B79A');
       g.save(); g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.roundRect(cx - bw / 2, top, bw, base - top, 10 * S); g.fill();
       g.fillStyle = col; g.shadowColor = c.highlight ? C.cyan : 'transparent'; g.shadowBlur = c.highlight ? 24 * S : 0;

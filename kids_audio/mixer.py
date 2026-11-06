@@ -50,8 +50,17 @@ def mix(job):
     mus = np.zeros_like(out)
     m = job.get("music")
     if m:
-        bed = man["beds"][m.get("bed", "playroom")]; x = L.read_audio(os.path.join(L.LIB, bed["file"]))
-        reps = int(np.ceil(N / x.shape[1])); x = np.tile(x, (1, reps))[:, :N]
+        segs = m.get("segments") or [{"t0": 0, "t1": dur, "bed": m.get("bed", "playroom")}]
+        tile = {}
+        for name in {sg["bed"] for sg in segs}:                                  # every bed runs in time from the start of the video,
+            y = L.read_audio(os.path.join(L.LIB, man["beds"][name]["file"]))     # so a bed that comes back (or a chant on its beat) stays on its grid
+            tile[name] = np.tile(y, (1, int(np.ceil(N / y.shape[1]))))[:, :N]
+        x = np.zeros((2, N)); t = np.arange(N) / SR; XF = float(m.get("crossfade", 1.5))
+        for k, sg in enumerate(segs):                                            # equal-power crossfade centred on each change
+            a0 = np.ones(N) if k == 0 else np.clip((t - (sg["t0"] - XF / 2)) / XF, 0, 1)
+            a1 = np.ones(N) if k == len(segs) - 1 else 1 - np.clip((t - (sg["t1"] - XF / 2)) / XF, 0, 1)
+            x += tile[sg["bed"]] * np.sin(np.minimum(a0, a1) * np.pi / 2)
+        bed = man["beds"][segs[0]["bed"]]
         gap = vlufs + float(m.get("gap_db", -12)) - bed["lufs"]                    # level in the gaps, relative to the voice
         duck = float(m.get("duck_db", -10))
         dk = np.full(N, duck)                                                    # regions (chants) can duck less: the music carries the beat
@@ -62,7 +71,7 @@ def mix(job):
         fi, fo = float(m.get("fade_in", 1.5)), float(m.get("fade_out", 2.5)); t = np.arange(N) / SR
         g *= np.clip(t / max(fi, 1e-3), 0, 1) * np.clip((dur - t) / max(fo, 1e-3), 0, 1)
         mus = x * g; out += mus
-        rep["music"] = {"bed": m.get("bed", "playroom"), "gap_db": m.get("gap_db", -12), "duck_db": duck}
+        rep["music"] = {"bed": m.get("bed") or [sg["bed"] for sg in segs], "gap_db": m.get("gap_db", -12), "duck_db": duck}
     fx = np.zeros_like(out)
     for e in job.get("sfx") or []:
         s = man["sfx"].get(e["name"])

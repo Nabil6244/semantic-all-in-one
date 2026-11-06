@@ -13,13 +13,14 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseStory, storyFromText, validateStory } from './lib/csv.mjs';
 import { direct, VOCAB } from './lib/director.mjs';
-import { assembleScene } from './lib/assemble.mjs';
+import { assembleScene, blockedShots } from './lib/assemble.mjs';
 import { makeProj } from './lib/mapproj.mjs';
+import { attachCardPictures } from './lib/horror.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 const emit = (o) => process.stdout.write(JSON.stringify(o) + '\n');
-const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf', '.png': 'image/png' };
+const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
 
 function args() {
   const a = process.argv.slice(2), o = { fps: 24, res: 720 };
@@ -30,6 +31,7 @@ function args() {
     else if (k === '--preview') o.res = 720; else if (k === '--final') o.res = 1080; else if (k === '--plan-only') o.planOnly = true;
     else if (k === '--workers') o.workers = Number(a[++i]); else if (k === '--fps') o.fps = Number(a[++i]); else if (k === '--soft') o.soft = true;
     else if (k === '--range') o.range = a[++i].split(',').map(Number); else if (k === '--credit') o.credit = a[++i]; else if (k === '--crf') o.crf = Number(a[++i]);
+    else if (k === '--genre') o.genre = a[++i]; else if (k === '--cards') o.cards = a[++i];
     else if (k === '--no-music') o.noMusic = true; else if (k === '--preset') o.preset = a[++i]; else if (k === '--title') o.title = a[++i];
   }
   return o;
@@ -38,10 +40,15 @@ function args() {
 export function buildPlan(opts) {
   const text = fs.readFileSync(opts.csv || opts.text, 'utf8');
   const story = opts.csv ? parseStory(text) : storyFromText(text, opts.title || '');
+  if (opts.genre && opts.genre !== 'history' && !story.plan.extra.genre) story.plan.extra.genre = opts.genre;   // the app's Story type switch; a CSV plan row wins
   const errs = validateStory(story, VOCAB);
   const words = opts.words ? JSON.parse(fs.readFileSync(opts.words, 'utf8')) : null;
   const H = opts.res === 1080 ? 1080 : 720, Wd = H === 1080 ? 1920 : 1280;
   const plan = direct(story, { fps: opts.fps, width: Wd, height: H, words: words && (words.words || words) });
+  if (plan.cards) {   // horror: the pictures the Visuals tab holds, {card id: file}; a card with none stays code-made
+    const files = opts.cards ? JSON.parse(fs.readFileSync(opts.cards, 'utf8')) : null, base = opts.csv ? path.dirname(path.resolve(opts.csv)) : process.cwd();
+    plan.warnings.push(...attachCardPictures(plan.cards, files, { exists: (f) => fs.existsSync(f), resolve: (f) => path.resolve(base, f) }));
+  }
   return { story, plan, errs };
 }
 
@@ -81,7 +88,7 @@ export function mapGeo(plan, features) {
 
 export function sceneCues(plan) {
   const cues = [];
-  for (const s of plan.scenes) { try { const A = assembleScene(JSON.parse(JSON.stringify(s))); for (const c of A.cues) cues.push({ ...c, scene: s.id }); } catch (e) { emit({ event: 'warning', message: `cues for ${s.id}: ${e.message}` }); } }
+  for (const s of plan.scenes) { try { const A = assembleScene(JSON.parse(JSON.stringify(s))); for (const c of A.cues) cues.push({ ...c, scene: s.id }); for (const sh of blockedShots(A)) emit({ event: 'warning', message: `${s.id}: no clear view of the ${sh.behaviour} shot at ${sh.t0.toFixed(1)} s from any side` }); } catch (e) { emit({ event: 'warning', message: `cues for ${s.id}: ${e.message}` }); } }
   return cues.sort((a, b) => a.t - b.t);
 }
 
@@ -94,7 +101,7 @@ function loadPlaywright() {
   throw new Error('Playwright not found (expected in flow-engine/node_modules)');
 }
 
-function startServer(planJson, geoJson) {
+function startServer(planJson, geoJson, cardFiles = {}) {
   const three = threeRoot();
   const safe = (base, rel) => { const f = path.resolve(base, decodeURIComponent(rel)); return f.startsWith(path.resolve(base) + path.sep) ? f : null; };
   const server = http.createServer((req, res) => {
@@ -102,7 +109,8 @@ function startServer(planJson, geoJson) {
     let file = null;
     if (p === '/plan.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(planJson); }
     if (p === '/geo.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(geoJson); }
-    if (p === '/' || p === '/index.html') file = path.join(HERE, 'web', 'page.html');
+    if (p.startsWith('/card/')) file = cardFiles[p.slice(6)] || null;
+    else if (p === '/' || p === '/index.html') file = path.join(HERE, 'web', 'page.html');
     else if (p.startsWith('/web/')) file = safe(path.join(HERE, 'web'), p.slice(5));
     else if (p.startsWith('/lib/')) file = safe(path.join(HERE, 'lib'), p.slice(5));
     else if (p.startsWith('/fonts/')) file = safe(path.join(HERE, 'assets', 'fonts'), p.slice(7));
@@ -150,7 +158,7 @@ async function main() {
   if (o.planOnly) { emit({ event: 'done', plan: out + '.plan.json' }); return; }
 
   const { width: W, height: H, fps } = plan, total = Math.ceil(plan.duration * fps);
-  const server = await startServer(JSON.stringify(plan), JSON.stringify(geo));
+  const server = await startServer(JSON.stringify(plan), JSON.stringify(geo), Object.fromEntries((plan.cards || []).filter((c) => c.imageFile).map((c) => [c.id, c.imageFile])));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const { chromium } = loadPlaywright(), pageErrors = [];
   let { browser, page } = await openPage(chromium, origin, W, H, o.soft || process.env.RCE_GL === 'software', pageErrors);

@@ -6,11 +6,13 @@ import { clamp, lerp, smooth, smoother, easeInOut } from './rng.mjs';
 import { clearanceAt } from './world.mjs';
 
 export const BEHAVIOURS = ['establishing_wide', 'aerial_geo', 'low_angle', 'follow', 'over_shoulder', 'ground_track', 'vehicle_follow', 'flyover', 'orbit',
-  'dolly_in', 'dolly_out', 'crane_up', 'descend', 'rise', 'side_track', 'push_in', 'pullback_reveal', 'establishing_interior', 'map_overview', 'map_dive', 'static_close'];
+  'dolly_in', 'dolly_out', 'crane_up', 'descend', 'rise', 'side_track', 'push_in', 'pullback_reveal', 'establishing_interior', 'map_overview', 'map_dive', 'static_close',
+  // slow horror moves (lib/horror.mjs): creep toward a face, hold and breathe (never frozen), walk just behind the hero
+  'creep_in', 'hold_breathe', 'behind_follow', 'hand_close', 'handover'];
 
 // lens per behaviour (vertical fov, degrees) and how far it may go below the subject's scale
 const FOV = { establishing_wide: 38, aerial_geo: 34, low_angle: 46, follow: 44, over_shoulder: 40, ground_track: 42, vehicle_follow: 42, flyover: 46, orbit: 40,
-  dolly_in: 38, dolly_out: 40, crane_up: 42, descend: 40, rise: 42, side_track: 38, push_in: 30, pullback_reveal: 42, establishing_interior: 52, map_overview: 30, map_dive: 34, static_close: 32 };
+  dolly_in: 38, dolly_out: 40, crane_up: 42, descend: 40, rise: 42, side_track: 38, push_in: 30, pullback_reveal: 42, establishing_interior: 52, map_overview: 30, map_dive: 34, static_close: 32, creep_in: 34, hold_breathe: 32, behind_follow: 46, hand_close: 30, handover: 38 };
 
 const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const polar = (yaw, dist, h) => [Math.sin(yaw) * dist, h, Math.cos(yaw) * dist];
@@ -47,6 +49,12 @@ export function shotCamera(shot, t, subj, dirAt = () => 0) {
     case 'pullback_reveal': { const d0 = (shot.dist || 10) * S, d1 = (shot.far || 150) * S; pos = add(P, polar(yaw + e * 0.3, lerp(d0, d1, ee), lerp(3.5, d1 * 0.42, ee))); tgt = [P[0], P[1] + lerp(3, 0, e), P[2]]; break; }
     case 'establishing_interior': { pos = [lerp(-17, -12, e), 10.5, lerp(11, 9, e)]; tgt = [2, 2.5, -3]; break; }
     case 'static_close': { pos = add(P, polar(yaw, (shot.dist || 9) * S, 4.4 * S)); tgt = [P[0], P[1] + 4.3 * S, P[2]]; pos = add(pos, [Math.sin(t * 0.3) * 0.15, Math.sin(t * 0.21) * 0.1, 0]); break; }
+    case 'creep_in': { const d0 = (shot.dist || 20) * S; pos = add(P, polar(yaw + e * 0.05, lerp(d0, d0 * 0.72, smooth(u)), lerp(5, 4.6, u) * S)); tgt = [P[0], P[1] + 4.3 * S, P[2]]; break; }
+    case 'hold_breathe': { const d = (shot.dist || 11) * S * lerp(1, 0.96, u); pos = add(P, polar(yaw, d, 4.6 * S)); tgt = [P[0], P[1] + 4.3 * S, P[2]];
+      pos = add(pos, [Math.sin(t * 0.5) * 0.35, Math.sin(t * 0.37) * 0.2, Math.cos(t * 0.43) * 0.25]); break; }
+    case 'behind_follow': { const dy = dirAt(t) + Math.PI, d = (shot.dist || 10) * S; pos = add(P, polar(dy + 0.12, d, (shot.height || 4.8) * S)); tgt = add(P, polar(dy + Math.PI, 14 * S, 3.2)); break; }
+    case 'handover': { pos = add(P, polar(yaw + e * 0.06, lerp(12, 10, ee), 1.4)); tgt = [P[0], P[1] + 0.8, P[2]]; break; }   // side on: both people and the thing passing between them
+    case 'hand_close': { const d = lerp(4.4, 3.3, ee) * S; pos = add(P, polar(yaw + e * 0.08, d, 1.3 * S)); tgt = P; pos = add(pos, [Math.sin(t * 0.5) * 0.08, Math.sin(t * 0.37) * 0.05, 0]); break; }   // a small thing in a hand
     case 'map_overview': { const h = shot.height || 520; pos = add(P, [0, h * lerp(1, 0.9, ee), h * 0.32 * lerp(1, 0.85, ee)]); tgt = P; break; }
     case 'map_dive': { const h0 = shot.height || 420, h1 = shot.low || 30; const h = h0 * Math.pow(h1 / h0, ee); pos = add(P, [0, h, h * 0.36]); tgt = P; break; }
     default: pos = add(P, polar(yaw, 40, 12)); break;
@@ -58,7 +66,8 @@ export function shotCamera(shot, t, subj, dirAt = () => 0) {
 // Outdoor distances (70, 150...) only pinned the camera to a wall, so a room gets its own table and every move stays in the room.
 const ROOM_MOVES = { dolly_in: [1, 0.62, 6.4, 5.8, 0.25, 0.1], push_in: [0.7, 0.45, 5.6, 5.4, 0.12, 0.05], dolly_out: [0.5, 1, 5.6, 7.5, 0.1, 0.3], pullback_reveal: [0.42, 1, 5, 8.5, 0.35, 0.1],
   crane_up: [0.7, 0.85, 2.6, 11, 0.3, 0.4], rise: [0.55, 0.9, 4, 11, -0.2, 0.2], descend: [0.9, 0.55, 11, 5, 0.3, 0.1], low_angle: [0.62, 0.55, 1.5, 1.5, 0.5, 0.6], follow: [0.6, 0.6, 6.5, 6.5, 0.2, 0.2],
-  ground_track: [0.65, 0.65, 4.5, 4.5, 0.7, 0.35], side_track: [0.75, 0.75, 6, 6, -0.65, 0.65], orbit: [0.72, 0.72, 7, 7, -0.5, 0.5], static_close: [0.46, 0.42, 5.3, 5.3, 0.2, 0.17] };
+  ground_track: [0.65, 0.65, 4.5, 4.5, 0.7, 0.35], side_track: [0.75, 0.75, 6, 6, -0.65, 0.65], orbit: [0.72, 0.72, 7, 7, -0.5, 0.5], static_close: [0.46, 0.42, 5.3, 5.3, 0.2, 0.17],
+  creep_in: [0.8, 0.5, 5.6, 5.3, 0.1, 0.04], hold_breathe: [0.5, 0.47, 5.3, 5.2, 0.18, 0.15], behind_follow: [0.6, 0.6, 6, 6, 0.15, 0.15] };
 const ROOM_NEAR = 6.5, ROOM_FAR = 18;
 const rayToWall = (room, P, ang) => {
   const dx = Math.sin(ang), dz = Math.cos(ang); let d = 1e9;
@@ -94,7 +103,8 @@ export function roomCamera(shot, t, room, P, Q, small = false, beside = false, g
   const clear = beside && rayToWall(room, P, base + sign * 0.6) >= ROOM_NEAR ? sign * 0.6 : 0, ang = base + clear + swing * lerp(M[4], M[5], e), reach = Math.min(ROOM_FAR, rayToWall(room, P, ang));
   const d = Math.min(reach, Math.max(ROOM_NEAR, reach * lerp(M[0], M[1], ee)));
   const look = apart > 1 ? Math.min(0.3, 0.3 * d / apart) : 0; // the aim leans toward the prop but the person stays in frame
-  return { pos: [P[0] + Math.sin(ang) * d, clamp(P[1] + lerp(M[2], M[3], ee), room.y0, room.y1), P[2] + Math.cos(ang) * d], target: head.map((v, i) => lerp(v, Q[i], look)), fov: 40, roll: 0 };
+  const breathe = beh === 'hold_breathe' ? [Math.sin(t * 0.5) * 0.25, Math.sin(t * 0.37) * 0.15, Math.cos(t * 0.43) * 0.2] : [0, 0, 0];   // alive, never frozen
+  return { pos: [P[0] + Math.sin(ang) * d + breathe[0], clamp(P[1] + lerp(M[2], M[3], ee) + breathe[1], room.y0, room.y1), P[2] + Math.cos(ang) * d + breathe[2]], target: head.map((v, i) => lerp(v, Q[i], look)), fov: 40, roll: 0 };
 }
 
 /** Keep the camera above ground/water/roofs (with margin) and the line of sight clear; inside rooms keep it in the room. */

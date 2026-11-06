@@ -22,6 +22,8 @@ BEDS = {
     'town_night': (['city'], 'wind', -31), 'crowd': (['crowd'], None, -29), 'battle': (['fire', 'atmospheric'], 'gunfire_far', -30), 'convoy': (['traffic', 'transport'], None, -30),
     'factory': (['technology'], None, -31), 'port': (['water', 'transport'], None, -30), 'jungle': (['nature'], None, -29), 'village': (['nature', 'crowd'], None, -31),
     'nature': (['nature'], None, -30), 'wind': (['atmospheric'], 'wind', -31),
+    # horror story beds: the place's own sound with a low drone under it
+    'horror_street': (['city'], 'drone', -31), 'horror_rain': (['rain'], 'drone', -29), 'horror_room': (['room'], 'drone', -33), 'horror_room_rain': (['room', 'rain'], 'drone', -32),
 }
 LOOPING = {'gunfire': ('gunfire_near', -22), 'distant_gunfire': ('distant_gunfire', -26), 'tanks': ('tanks', -25), 'marching': ('marching', -27), 'planes_pass': ('planes_pass', -22), 'clock': ('clock', -34)}
 ONESHOT = {'thunder': -18, 'bells': -24, 'shot_single': -20, 'explosion': -15, 'ramp_drop': -18, 'ship_guns': -17}

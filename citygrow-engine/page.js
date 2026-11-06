@@ -187,11 +187,10 @@ async function main() {
       const hgt = (S.h[0] + (S.h[1] - S.h[0]) * hash(i, 9)) * (flat ? 1.15 : 1) * (1 + 0.45 * (dens - 1) * (0.5 + hash(i, 13))) * s;
       const a = -lotsA[o + 2], cos = Math.cos(a), sin = Math.sin(a), w = lotsA[o + 3], d = lotsA[o + 4], y = lotsA[o + 5] - 0.6;
       writeM(wm, k * 16, cos, sin, w, hgt + 0.6, d, x, y, z);
-      const rh = flat ? 0.0001 : Math.min(w, d) * S.roofH * s * 1.6;
-      writeM(rm, k * 16, cos, sin, w * 1.06, rh, d * 1.06, x, y + hgt + 0.6, z);
+      if (flat) writeM(rm, k * 16, 1, 0, 0, 0, 0, x, y, z);   // a flat roof is the wall's own top: no roof piece at all
+      else writeM(rm, k * 16, cos, sin, w * 1.06, Math.min(w, d) * S.roofH * s * 1.6, d * 1.06, x, y + hgt + 0.6, z);
       wallC.setHex(S.walls[Math.floor(hash(i, 1) * S.walls.length)]).multiplyScalar(0.92 + hash(i, 2) * 0.12);
       roofC.setHex(S.roofs[Math.floor(hash(i, 3) * S.roofs.length)]).multiplyScalar(0.9 + hash(i, 4) * 0.15);
-      if (flat) roofC.copy(wallC).multiplyScalar(0.85);
       wc[k * 3] = wallC.r; wc[k * 3 + 1] = wallC.g; wc[k * 3 + 2] = wallC.b;
       rc[k * 3] = roofC.r; rc[k * 3 + 1] = roofC.g; rc[k * 3 + 2] = roofC.b;
       k++;
@@ -286,9 +285,11 @@ async function main() {
 
   window.renderFrame = (t) => {
     const s = stateAt(tl, t), ei = eraIndexAt(tl, t), hold = tl.holds[ei];
-    const need = needed(s.pop, s.year, NL);
     const prevStyle = tl.holds[Math.max(0, ei - 1)].style, curStyle = hold.style;
     const mixK = ei === 0 ? 1 : smooth((t - hold.tr0) / Math.max(0.1, hold.tr1 - hold.tr0));
+    // a style's own people per lot, blended through the skip so no houses vanish at once when the style changes
+    const pa = styleOf(prevStyle).pph, pb = styleOf(curStyle).pph;
+    const need = pa || pb ? (1 - mixK) * needed(s.pop, s.year, NL, pa) + mixK * needed(s.pop, s.year, NL, pb) : needed(s.pop, s.year, NL);
     updateHouses(need, s.year, prevStyle, curStyle, mixK, densityOf(s.pop, s.year));
     updateTrees(need, s.year);
     updateLandmarks(t);

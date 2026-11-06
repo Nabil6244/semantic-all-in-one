@@ -2,7 +2,7 @@
 // are instanced (one draw per part type, however many there are); buildings share geometries and facade textures.
 import * as THREE from '/three/three.module.min.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
-import { plastic, rbox, box, cyl, sphere, cone, geo, studTexture, facadeTexture, grainTexture, stats } from './gfx.js';
+import { plastic, rbox, box, cyl, sphere, cone, geo, studTexture, facadeTexture, grainTexture, signTexture, stats } from './gfx.js';
 import { distToPolyline, SIZE } from '../lib/world.mjs';
 import { makeRng, fbm2 } from '../lib/rng.mjs';
 import { buildVehicle } from './vehicle.js';
@@ -229,6 +229,36 @@ const PROPS = (night) => ({
   well: [part(cyl(2, 2, 2, 12), plastic('#8a8478', { rough: 1 }), 0, 1, 0), part(box(0.3, 4, 0.3), plastic('#5a4632'), 1.8, 3, 0), part(box(0.3, 4, 0.3), plastic('#5a4632'), -1.8, 3, 0), part(gableGeo(4.4, 3, 1.4), plastic('#7a3b2e'), 0, 5, 0)],
   hay: [part(cyl(1.6, 1.6, 2.6, 12), plastic('#d2b86a', { rough: 1 }), 0, 1.6, 0, 0, 0, Math.PI / 2)],
   pier: [part(box(10, 1, 60), plastic('#7a5c3c', { map: studTexture('#7a5c3c'), rough: 0.8 }), 0, 1.6, 0), ...[-24, -8, 8, 24].flatMap((z) => [part(cyl(0.6, 0.6, 6, 6), plastic('#4a3a2a'), -4, -1, z), part(cyl(0.6, 0.6, 6, 6), plastic('#4a3a2a'), 4, -1, z)])],
+  // ---- street sets for stories (lib/horror.mjs streetSet): open side of the shelter and the shop window face +z (the road)
+  bus_shelter: [
+    ...[[-5.8, -2.2], [5.8, -2.2], [-5.8, 2.2], [5.8, 2.2]].map(([x, z]) => part(box(0.35, 8, 0.35), plastic('#2c3036', { metal: 0.5, rough: 0.4 }), x, 4, z)),
+    part(box(12.4, 0.45, 5.2), plastic('#262a30', { metal: 0.4, rough: 0.5 }), 0, 8.2, 0),
+    part(box(11.6, 6.6, 0.12), plastic('#a9c0cf', { transparent: true, opacity: 0.22, rough: 0.08, depthWrite: false }), 0, 4.3, -2.2, 0, 0, 0, 1, 1, 1, false),
+    part(box(0.12, 6.6, 4.2), plastic('#a9c0cf', { transparent: true, opacity: 0.22, rough: 0.08, depthWrite: false }), -5.8, 4.3, 0, 0, 0, 0, 1, 1, 1, false),
+    part(box(0.12, 6.6, 4.2), plastic('#a9c0cf', { transparent: true, opacity: 0.22, rough: 0.08, depthWrite: false }), 5.8, 4.3, 0, 0, 0, 0, 1, 1, 1, false),
+    part(box(10, 0.18, 0.4), plastic('#fff4dc', { emissive: night ? '#ffe2b0' : null, emissiveIntensity: 2.2 }), 0, 7.9, 1.6, 0, 0, 0, 1, 1, 1, false),
+    part(box(7, 0.35, 1.6), plastic('#4a3f36', { rough: 0.7 }), 0, 2.1, -1.2), part(box(7, 1.6, 0.25), plastic('#4a3f36', { rough: 0.7 }), 0, 3.3, -1.95),
+    part(box(0.3, 2, 0.3), plastic('#2c3036'), -3, 1, -1.2), part(box(0.3, 2, 0.3), plastic('#2c3036'), 3, 1, -1.2),
+    part(box(2.6, 3.4, 0.15), plastic('#ffffff', { map: signTexture('TIMETABLE\n· · ·\n· · ·', '#e8eef2', '#27313b', { w: 256, h: 320 }), emissive: night ? '#cfd8e0' : null, emissiveIntensity: 0.6 }), 4.4, 4.6, -2.05)],
+  bus_stop_sign: [part(cyl(0.12, 0.12, 9, 6), plastic('#7d848c', { metal: 0.6, rough: 0.4 }), 0, 4.5, 0), part(cyl(1.2, 1.2, 0.15, 20), plastic('#ffffff', { map: signTexture('BUS', '#2f5fa8', '#ffffff', { w: 256, h: 256 }) }), 0, 8.6, 0, Math.PI / 2, 0, 0)],
+  // the front of a house at night: an open door with warm light behind it, lit windows, a porch light, a mat
+  porch_front: [
+    part(box(18, 12, 8), plastic('#6d6256', { rough: 0.9 }), 0, 6, -4), part(box(19, 0.8, 9), plastic('#2b2622'), 0, 12.4, -4),
+    part(box(4, 8, 0.3), plastic('#2e2622'), 0, 4, 0.05), part(box(3.2, 7.4, 0.12), plastic('#c99a62', { emissive: night ? '#b57f42' : null, emissiveIntensity: 0.75 }), 0, 3.8, 0.22, 0, 0, 0, 1, 1, 1, false),
+    part(box(0.2, 7.4, 3), plastic('#4a2420', { rough: 0.6 }), -1.75, 3.8, 1.5),
+    ...[-6.4, 6.4].map((x) => part(box(4, 4.2, 0.2), plastic('#c49a68', { emissive: night ? '#a97c48' : null, emissiveIntensity: 0.6 }), x, 5.4, 0.1, 0, 0, 0, 1, 1, 1, false)),
+    part(box(14, 0.15, 8), plastic('#7d7468', { rough: 0.95 }), 0, 0.08, 4), part(box(3.2, 0.06, 2), plastic('#5b4a30', { rough: 1 }), -1.5, 0.18, 6),
+    part(box(14, 0.4, 3.4), plastic('#2b2622'), 0, 9.2, 1.7), ...[-6.6, 6.6].map((x) => part(box(0.4, 9, 0.4), plastic('#d8d2c4'), x, 4.5, 3.2)),
+    part(sphere(0.4, 10, 8), plastic('#fff0cc', { emissive: night ? '#ffe2a8' : null, emissiveIntensity: 3 }), 2.8, 8.2, 0.5, 0, 0, 0, 1, 1, 1, false),
+  ],
+  pumpkin: [
+    part(sphere(1.15, 14, 10), plastic('#c8641c', { rough: 0.7 }), 0, 0.95, 0, 0, 0, 0, 1, 0.82, 1), part(cyl(0.13, 0.2, 0.5, 6), plastic('#4a5a26'), 0, 2.05, 0),
+    ...[[-0.42, 1.25], [0.42, 1.25]].map(([x, y]) => part(box(0.34, 0.3, 0.1), plastic('#ffc05a', { emissive: '#ff9a2a', emissiveIntensity: 2.4 }), x, y, 1.08, 0, 0, 0, 1, 1, 1, false)),
+    part(box(1.05, 0.2, 0.1), plastic('#ffc05a', { emissive: '#ff9a2a', emissiveIntensity: 2.4 }), 0, 0.68, 1.1, 0, 0, 0, 1, 1, 1, false),
+  ],
+  bench: [part(box(5, 0.35, 1.5), plastic('#5a4632', { rough: 0.8 }), 0, 1.9, 0), part(box(5, 1.3, 0.25), plastic('#5a4632', { rough: 0.8 }), 0, 3, -0.7), part(box(0.3, 1.9, 1.3), plastic('#2a2a2a'), -2.2, 0.95, 0), part(box(0.3, 1.9, 1.3), plastic('#2a2a2a'), 2.2, 0.95, 0)],
+  dry_patch: [part(cyl(1, 1, 0.03, 28), plastic('#77746c', { rough: 1 }), 0, 0.05, 0, 0, 0, 0, 1, 1, 1, false)],
+  puddle: [part(cyl(1, 1, 0.04, 18), plastic('#0e141c', { metal: 0.6, rough: 0.06 }), 0, 0.06, 0, 0, 0, 0, 1, 1, 1, false)],
   crane: [part(box(2, 30, 2), plastic('#9a7a3a'), 0, 15, 0), part(box(2, 2, 30), plastic('#9a7a3a'), 0, 30, 8), part(box(6, 4, 6), plastic('#7a5a2a'), 0, 2, 0)],
   warehouse: [],
   chimney: [part(cyl(1.6, 2.2, 30, 10), plastic('#8a4a36'), 0, 15, 0)],
@@ -281,10 +311,31 @@ function props(W, night) {
   for (const p of W.props) {
     if (p.kind === 'wreck') { const v = buildVehicle('tank', '#2e2a26'); v.position.set(p.x, p.y - 0.4, p.z); v.rotation.set(0.08, p.rot, 0.12); g.add(v); continue; }
     if (p.kind === 'warehouse') continue;
-    (by[p.kind] = by[p.kind] || []).push({ x: p.x, y: p.y, z: p.z, rot: p.rot || 0, scale: p.scale || 1 });
+    if (p.kind === 'shop_front') { g.add(instanced(shopFront(p.label || 'SHOP', night), [{ x: p.x, y: p.y, z: p.z, rot: p.rot || 0 }])); continue; }
+    (by[p.kind] = by[p.kind] || []).push({ x: p.x, y: p.y, z: p.z, rot: p.rot || 0, scale: p.scale || 1, ...(p.sx ? { sx: p.sx, sy: 1, sz: p.sz } : {}) });
   }
   for (const [k, pl] of Object.entries(by)) if (propParts[k]) g.add(instanced(propParts[k], pl));
   return g;
+}
+
+/** A shop on the street: a lit window full of shelves and jars, a hand-lettered OPEN card, a glass door, a painted fascia. */
+const shopCache = new Map();
+function shopFront(label, night) {
+  const key = `${label}:${night}`; if (shopCache.has(key)) return shopCache.get(key);
+  const glow = night ? '#ffcf8a' : null, wall = '#5b3a35';
+  const parts = [
+    part(box(18, 13, 8), plastic(wall, { rough: 0.85 }), 0, 6.5, -4),
+    part(box(18.6, 0.6, 8.6), plastic('#2e2420'), 0, 13.3, -4),
+    part(box(18.4, 2.2, 0.3), plastic('#ffffff', { map: signTexture(label, '#2d4a3a', '#f3e2b8', { w: 768, h: 128 }) }), 0, 10.6, 0.15),
+    part(box(10, 5.6, 0.2), plastic('#ffe7c2', { emissive: glow, emissiveIntensity: 1.5 }), -3, 4.6, 0.1, 0, 0, 0, 1, 1, 1, false),
+    ...[2.8, 4.6, 6.4].map((y) => part(box(9.6, 0.18, 0.5), plastic('#6b4a32'), -3, y, 0.25, 0, 0, 0, 1, 1, 1, false)),
+    ...[-7, -5.6, -4.2, -2.8, -1.4, 0.2].flatMap((x, k) => [3.3, 5.1].map((y, j) => part(cyl(0.38, 0.38, 1.1, 10), plastic(['#d0574a', '#e0b04a', '#7aa7c7', '#9ac76a', '#d68ab8', '#e6d27a'][(k + j * 2) % 6], { emissive: glow ? '#553322' : null, emissiveIntensity: 0.3 }), x, y + 0.2, 0.35, 0, 0, 0, 1, 1, 1, false))),
+    part(box(2.6, 1.4, 0.08), plastic('#ffffff', { map: signTexture('OPEN', '#fff6e6', '#b0302a', { w: 256, h: 128, hand: true, glow: night }), emissive: night ? '#ffd0a0' : null, emissiveIntensity: 0.7 }), -0.4, 6.4, 0.45, 0, 0, 0.06, 1, 1, 1, false),
+    part(box(3.4, 7.6, 0.25), plastic('#3a2a22'), 5.4, 3.8, 0.1), part(box(2.2, 4.2, 0.1), plastic('#ffe7c2', { emissive: glow, emissiveIntensity: 1.1 }), 5.4, 4.9, 0.3, 0, 0, 0, 1, 1, 1, false),
+    part(box(0.5, 0.5, 0.5), plastic('#d9b25a', { metal: 0.7, rough: 0.3 }), 6.4, 7.9, 0.5),
+    part(box(18, 0.3, 3.2), plastic('#7a2f2a'), 0, 8.6, 1.5, -0.25, 0, 0),
+  ];
+  shopCache.set(key, parts); return parts;
 }
 
 function interior(W, look) {

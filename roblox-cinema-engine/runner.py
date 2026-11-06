@@ -79,6 +79,11 @@ def _source_args(csv: Optional[str], text: Optional[str]) -> list:
     raise ValueError('Choose a story CSV or paste the narration first.')
 
 
+def _genre_args(genre: Optional[str]) -> list:
+    """The app's Story type: 'horror' plans a quiet modern story (lib/horror.mjs); a CSV plan row's own genre wins."""
+    return ['--genre', genre] if genre and genre != 'history' else []
+
+
 def _voice_sig(voiceover: str) -> list:
     st = os.stat(voiceover)
     return [os.path.abspath(voiceover), st.st_size, st.st_mtime_ns, 'base']      # path, size, saved time, whisper model
@@ -105,10 +110,10 @@ def _voice_words(voiceover: str, words: str, progress=None, log=print) -> int:
 
 
 def plan(base: str, *, csv: Optional[str] = None, text_file: Optional[str] = None, voiceover: Optional[str] = None, resolution: int = 720,
-         progress: Optional[Callable] = None, cancel: Optional[Callable] = None, log=print) -> dict:
+         progress: Optional[Callable] = None, cancel: Optional[Callable] = None, log=print, genre: Optional[str] = None) -> dict:
     """Writes <base>.plan.json (+ .cues.json, words.json) and returns {scenes, duration, voiceTimed, warnings, plan}."""
     Path(base).parent.mkdir(parents=True, exist_ok=True)
-    args = _source_args(csv, text_file) + ['--out', base + '.mp4', '--plan-only', '--final' if resolution >= 1080 else '--preview']
+    args = _source_args(csv, text_file) + ['--out', base + '.mp4', '--plan-only', '--final' if resolution >= 1080 else '--preview'] + _genre_args(genre)
     if voiceover:
         words = base + '.words.json'
         n = _voice_words(voiceover, words, progress, log)
@@ -187,17 +192,19 @@ def _render_parallel(args: list, silent: str, n: int, *, progress=None, cancel=N
 
 
 def render(base: str, *, csv: Optional[str] = None, text_file: Optional[str] = None, voiceover: Optional[str] = None, output: str, resolution: int = 720,
-           music: bool = True, progress: Optional[Callable] = None, cancel: Optional[Callable] = None, log=print, workers: Optional[int] = None) -> dict:
+           music: bool = True, progress: Optional[Callable] = None, cancel: Optional[Callable] = None, log=print, workers: Optional[int] = None,
+           genre: Optional[str] = None, cards: Optional[str] = None) -> dict:
     """Silent video, then the audio mix muxed in. Returns {output, perf, mix}. `workers` > 1 renders the film in that many frame ranges at once
     (same frames, same encoder settings, joined without re-encoding); None = automatic."""
     Path(output).parent.mkdir(parents=True, exist_ok=True)
     silent = base + '.silent.mp4'
-    args = _source_args(csv, text_file) + ['--out', silent, '--final' if resolution >= 1080 else '--preview']
+    args = _source_args(csv, text_file) + ['--out', silent, '--final' if resolution >= 1080 else '--preview'] + _genre_args(genre)
     if voiceover:
         words = base + '.words.json'
         _voice_words(voiceover, words, progress, log)
         args += ['--words', words]
     if not music: args += ['--no-music']
+    if cards: args += ['--cards', cards]      # horror: {card id: picture file} from the Visuals tab (cards.py); a card with none stays code-made
     n = auto_workers() if workers is None else max(1, int(workers))
     r = _render_parallel(args, silent, n, progress=progress, cancel=cancel, log=log) if n > 1 else None
     if r is None:

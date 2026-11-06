@@ -4,7 +4,7 @@
 //     "cards": [{ "title": "iPhone 18 Pro", "value": 1.2, "unit": "ms", "delta": "-98%", "tint": "teal", "x": 0.27, "y": 0.2, "w": 0.24 }, { "title": "iPhone 17 Pro", "value": 59.2, "unit": "ms", "tint": "green", "x": 0.73, "y": 0.2 }] }
 // x, y are the card's centre as fractions of the frame; w is its width as a fraction of the frame width; the cards enter 0.18 s apart.
 import { tm, clamp01, glideOut, overshoot } from './tm_theme.mjs';
-import { ptMotion, ptFont } from './pt_feature.mjs';
+import { ptMotion, ptFont, cueAge } from './pt_feature.mjs';
 
 const TINT = { teal: ['rgba(120,220,235,0.92)', 'rgba(30,110,140,0.86)'], green: ['rgba(130,235,170,0.92)', 'rgba(26,120,86,0.86)'], blue: ['rgba(140,180,255,0.92)', 'rgba(34,66,170,0.86)'],
   amber: ['rgba(255,214,130,0.92)', 'rgba(170,96,20,0.86)'], pink: ['rgba(255,170,200,0.92)', 'rgba(160,36,96,0.86)'], slate: ['rgba(190,200,215,0.9)', 'rgba(48,58,76,0.88)'] };
@@ -19,7 +19,7 @@ export default {
     g.save(); g.globalAlpha = (f.alpha ?? 1) * m.k;
     if (d.heading) T.text(String(d.heading).toUpperCase(), W / 2, H * 0.09, { font: ptFont(S, 30, 700, 'sans'), track: 5, align: 'center', color: 'rgba(255,255,255,0.8)', shadow: 0.5 });
     cards.forEach((c, i) => {
-      const age = m.age - 0.18 * i, a = clamp01(age / 0.3);
+      const age = cueAge(m.age, c, i, 0.18), a = clamp01(age / 0.3);
       if (a <= 0) return;
       const sc = 0.88 + 0.12 * Math.min(1.06, overshoot(age / 0.5)), w = W * (c.w ?? 0.24), h = w * 0.56, cx = W * (c.x ?? (i + 0.5) / cards.length), cy = H * (c.y ?? 0.22) + (1 - a) * 18 * S;
       const [c0, c1] = TINT[c.tint] || TINT.teal;

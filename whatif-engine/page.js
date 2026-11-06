@@ -114,6 +114,7 @@ const grainTile = (() => {
 
 // the journey's own craft (V3 0:38 "YOU / ON BOARD"): a thin ring on it and a short leader line to its label, faded in as the shot settles
 let markerAt = null;
+let partsAt = null;          // the 3D phone's lens positions this frame, for pt_ring
 function drawMarker(s, t, at) {
   const k = Math.min(1, Math.max(0, (t - s.start - 0.5) / 0.4)) * Math.min(1, Math.max(0, (s.end - t) / 0.3));
   if (k <= 0.01) return;
@@ -172,6 +173,8 @@ async function drawShotRaw(s, t) {
     const cv = await scene3d.draw(s, t);
     ctx.translate(W / 2, H / 2); ctx.scale(d.scale, d.scale); ctx.translate(-W / 2, -H / 2); ctx.drawImage(cv, 0, 0);
     const a = s.marker && scene3d.anchor ? scene3d.anchor() : null;
+    const pr = scene3d.parts ? scene3d.parts() : null, at = (p) => (p ? { x: W / 2 + (p.x - W / 2) * d.scale, y: H / 2 + (p.y - H / 2) * d.scale, r: p.r * d.scale } : null);
+    partsAt = pr ? { lenses: (pr.lenses || []).map(at) } : null;      // the 3D phone's lenses on screen, with the frame's drift (layers/pt_ring.mjs)
     markerAt = a ? { x: W / 2 + (a.x - W / 2) * d.scale, y: H / 2 + (a.y - H / 2) * d.scale } : null;
   }
   ctx.filter = 'none';
@@ -204,6 +207,7 @@ const reservedAt = (t) => layers.filter((L) => HUD_BOXES[L.def.type] && (L.def.t
 // Frames outside a dissolve take the plain path below, so a spec without dissolve_in renders exactly as before.
 const dissA = document.createElement('canvas'), dissB = document.createElement('canvas'); dissA.width = dissB.width = W; dissA.height = dissB.height = H;
 async function drawFrame(t) {
+  partsAt = null;
   const s = shotAt(spec.shots, t), i = spec.shots.indexOf(s), nx = i >= 0 ? spec.shots[i + 1] : null;
   const d = nx && nx.dissolve_in > 0 ? Math.min(nx.dissolve_in, (s.end - s.start) * 0.9) : 0;
   if (!(d > 0 && t > s.end - d && t < s.end)) { await drawShot(s, t); return s; }
@@ -226,7 +230,7 @@ async function drawFrame(t) {
 window.renderFrame = async (t) => {
   const s = await drawFrame(t);
   const reserved = reservedAt(t);
-  runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [], reserved }, 'draw', (L) => L.def.type !== 'tm_fade', warn);
+  runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [], reserved, parts: partsAt }, 'draw', (L) => L.def.type !== 'tm_fade', warn);
   finish(t);
   runLayers(layers, { t, W, H, g: ctx, spec, shot: s, claims: [] }, 'draw', (L) => L.def.type === 'tm_fade', warn);   // a fade covers everything, grain too
   return out.toDataURL('image/jpeg', 0.92).slice('data:image/jpeg;base64,'.length);

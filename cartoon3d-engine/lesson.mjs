@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Kids Learn: lesson CSV -> Edge voice with word timings -> plan -> GPU Chromium frames -> mp4 (-14 LUFS).
 // Usage: node cartoon3d-engine/lesson.mjs --csv lesson.csv [--out out.mp4] [--w 1280 --h 720] [--world playroom|park]
-//        [--host tutor|toon|host3d] [--glb host.glb] [--work cache_dir] [--plan-file plan.json] [--voiceover your_recording.mp3] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
+//        [--host tutor|toon|host3d|puppet:NAME] [--glb host.glb] (--world is the starting set: playroom|park|farm|beach|bedroom|space)
+//        [--work cache_dir] [--plan-file plan.json] [--voiceover your_recording.mp3] [--music auto|playroom|calm|sunny|off] [--sfx on|off] [--look maya|sam] [--voice en-US-JennyNeural] [--rate -6%] [--stills 2,5] [--plan-only]
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -9,9 +10,11 @@ import crypto from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
-import { parseCsv, normalizeRows, buildLesson, TUTOR_X } from './lib/lesson.mjs';
+import { parseCsv, normalizeRows, buildLesson, resolveSets, TUTOR_X } from './lib/lesson.mjs';
 import { visemeTrack } from './lib/visemes.mjs';
 import { alignLines, fillMissing } from './lib/align.mjs';
+import { signsForLines } from './lib/signs.mjs';
+import { SIGN_NAMES } from './web/puppet_rules.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url)), ROOT = path.dirname(HERE);
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
@@ -23,13 +26,13 @@ const log = (o) => console.log(JSON.stringify(o));
 const run = (cmd, a) => { const r = spawnSync(cmd, a, { encoding: 'utf8' }); if (r.status !== 0) throw new Error(`${cmd} failed: ${(r.stderr || '').slice(-500)}`); return r.stdout; };
 const dur = (f) => Number(run('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).trim());
 
-function voices(beats, work, voice, rate, bpm) {
+function voices(beats, work, voice, rate, bpmOf) {
   const lines = beats.map((b) => ({ text: b.text, out: path.join(work, `${crypto.createHash('sha1').update(`${voice}|${rate}|${b.text}`).digest('hex').slice(0, 16)}.mp3`) }));
   const job = path.join(work, 'tts_job.json'); fs.writeFileSync(job, JSON.stringify({ voice, rate, lines }));
   run(PY, [path.join(HERE, 'tools', 'tts_words.py'), job]);
   return lines.map((l, i) => {
     const v = { file: l.out, dur: dur(l.out), words: JSON.parse(fs.readFileSync(l.out + '.words.json', 'utf8')) };
-    return beats[i].type === 'chant' ? chantLine(v, beats[i].text, bpm, work) : v;
+    return beats[i].type === 'chant' ? chantLine(v, beats[i].text, bpmOf(i), work) : v;
   });
 }
 
@@ -47,18 +50,22 @@ function chantLine(v, text, bpm, work) {
 }
 
 // The music bed this lesson uses (or null) and its tempo; chants follow the tempo even with music off.
-function musicChoice(world) {
-  const bedArg = arg('music', 'auto'), bed = bedArg === 'off' ? null : bedArg === 'auto' ? (world === 'park' ? 'sunny' : 'playroom') : bedArg;
+// Music: 'auto' gives each set its bed (crossfaded on set changes), a bed name keeps that bed, 'off' none. Chants follow the
+// tempo of the bed playing at their line (playroom's when music is off).
+const SET_BED = { playroom: 'playroom', park: 'sunny', farm: 'sunny', beach: 'sunny', bedroom: 'calm', space: 'calm' };
+function musicChoice() {
+  const bedArg = arg('music', 'auto'), mode = bedArg === 'off' ? 'off' : bedArg === 'auto' ? 'auto' : 'fixed', bed = mode === 'fixed' ? bedArg : null;
   const r = spawnSync(PY, ['-c', 'import json; from kids_audio import library as L; print(json.dumps({k: v["bpm"] for k, v in L.build()["beds"].items()}))'], { encoding: 'utf8', cwd: ROOT });
   if (r.status !== 0) throw new Error(`kids_audio library failed: ${(r.stderr || '').slice(-500)}`);
   const bpms = JSON.parse(r.stdout.trim().split('\n').pop());
   if (bed && !bpms[bed]) throw new Error(`unknown --music "${bed}" (use ${Object.keys(bpms).join(', ')}, auto or off)`);
-  return { bed, bpm: bpms[bed || 'playroom'] };
+  const bedFor = (set) => (mode === 'auto' ? SET_BED[set] || 'playroom' : bed);
+  return { mode, bed, bedFor, bpmFor: (set) => bpms[bedFor(set) || 'playroom'] };
 }
 
 // A recorded voice-over: word times (local faster-whisper, cached per file), each CSV line matched to where it was said,
 // and the recording itself as the voice track. The free Edge voice is not used.
-function voiceoverLesson(file, beats, work) {
+function voiceoverLesson(file, beats, work, sets) {
   if (!fs.existsSync(file)) throw new Error(`voice-over not found: ${file}`);
   const wj = path.join(work, 'voiceover_words.json');
   const r = spawnSync(PY, [path.join(HERE, 'tools', 'voice_words.py'), path.resolve(file), wj], { encoding: 'utf8' });
@@ -67,7 +74,7 @@ function voiceoverLesson(file, beats, work) {
   const found = alignLines(beats.map((b) => b.text), spoken.words), timed = fillMissing(found, duration, beats.map((b) => b.text));
   found.forEach((x, i) => { if (!x) log({ event: 'warning', message: `line ${i + 1} ("${beats[i].text.slice(0, 40)}") was not found in the voice-over; it is placed between its neighbours` }); });
   log({ event: 'voiceover', words: spoken.words.length, lines: beats.length, lines_found: found.filter(Boolean).length, seconds: +duration.toFixed(2) });
-  const lesson = buildLesson(beats, [], { timed, voiceDuration: duration });
+  const lesson = buildLesson(beats, [], { timed, voiceDuration: duration, sets });
   const wav = path.join(work, 'voice.wav');
   run('ffmpeg', ['-y', '-loglevel', 'error', '-i', path.resolve(file), '-af', `aresample=48000,apad,atrim=0:${lesson.duration.toFixed(3)}`, '-ac', '1', '-ar', '48000', wav]);
   return { lesson, wav };
@@ -121,11 +128,14 @@ function audioEvents(plan) {
 }
 
 function audioMix(plan, wav, work) {
-  const sfxOn = arg('sfx', 'on') !== 'off', bed = plan.music;
-  if (!bed && !sfxOn) return null;                                    // voice only: the old path, unchanged
+  const sfxOn = arg('sfx', 'on') !== 'off', M = plan.music;
+  if (M.mode === 'off' && !sfxOn) return null;                     // voice only: the old path, unchanged
+  const segs = (plan.sets || [{ t: 0, set: plan.world }]).map((x, k, a) => ({ t0: x.t, t1: a[k + 1] ? a[k + 1].t : plan.duration, bed: plan.setBeds[x.set] }))
+    .reduce((acc, sg) => (acc.length && acc.at(-1).bed === sg.bed ? (acc.at(-1).t1 = sg.t1, acc) : [...acc, sg]), []);
+  const music = M.mode === 'off' ? null : segs.length > 1 ? { segments: segs } : { bed: segs[0].bed };                                    // voice only: the old path, unchanged
   const voiceP = path.join(work, 'voice_processed.wav'), out = path.join(work, 'mix.wav'), job = path.join(work, 'mix_job.json');
   run('ffmpeg', ['-y', '-loglevel', 'error', '-i', wav, '-af', `${loudnorm(wav)},aresample=48000`, '-ac', '2', voiceP]);   // same voice processing as before
-  fs.writeFileSync(job, JSON.stringify({ voice: voiceP, out, duration: plan.duration, voice_lufs: -14, music: bed ? { bed } : null, sfx: sfxOn ? audioEvents(plan) : [], duck_regions: plan.lines.filter((l) => l.type === 'chant').map((l) => ({ t0: l.t0 - 0.2, t1: l.t1, duck_db: -4 })) }));
+  fs.writeFileSync(job, JSON.stringify({ voice: voiceP, out, duration: plan.duration, voice_lufs: -14, music, sfx: sfxOn ? audioEvents(plan) : [], duck_regions: plan.lines.filter((l) => l.type === 'chant').map((l) => ({ t0: l.t0 - 0.2, t1: l.t1, duck_db: -4 })) }));
   const r = spawnSync(PY, ['-m', 'kids_audio.mixer', job], { encoding: 'utf8', cwd: ROOT });
   if (r.status !== 0) throw new Error(`kids_audio mixer failed: ${(r.stderr || '').slice(-500)}`);
   const rep = JSON.parse(r.stdout.trim().split('\n').pop());
@@ -134,7 +144,7 @@ function audioMix(plan, wav, work) {
 }
 
 function server(planJson, glb) {
-  const three = path.join(ROOT, 'starmap-engine', 'node_modules', 'three'), TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.ttf': 'font/ttf', '.json': 'application/json' };
+  const three = path.join(ROOT, 'starmap-engine', 'node_modules', 'three'), TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.ttf': 'font/ttf', '.json': 'application/json', '.png': 'image/png' };
   const safe = (base, rel) => { const f = path.resolve(base, decodeURIComponent(rel)); return f.startsWith(path.resolve(base) + path.sep) ? f : null; };
   const srv = http.createServer((req, res) => {
     const p = new URL(req.url, 'http://x').pathname; let file = null;
@@ -142,6 +152,7 @@ function server(planJson, glb) {
     if (p === '/plan.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(planJson); }
     if (p === '/' || p === '/index.html') file = path.join(HERE, 'web', 'lesson.html');
     else if (p.startsWith('/web/')) file = safe(path.join(HERE, 'web'), p.slice(5));
+    else if (p.startsWith('/puppet/')) file = safe(path.join(HERE, 'assets', 'puppets'), p.slice(8));
     else if (p.startsWith('/fonts/')) file = safe(path.join(ROOT, 'roblox-cinema-engine', 'assets', 'fonts'), p.slice(7));
     else if (p.startsWith('/three/addons/')) file = safe(path.join(three, 'examples', 'jsm'), p.slice(14));
     else if (p.startsWith('/three/')) file = safe(path.join(three, 'build'), p.slice(7));
@@ -160,18 +171,22 @@ async function main() {
   const { beats, problems } = normalizeRows(parseCsv(fs.readFileSync(csv, 'utf8')));
   for (const p of problems) log({ event: 'warning', message: p });
   if (!beats.length) throw new Error('the lesson CSV has no usable rows');
-  const music = musicChoice(arg('world', 'playroom'));
+  const hostArg = arg('host', 'tutor');
+  if (hostArg.startsWith('puppet:') && !fs.existsSync(path.join(HERE, 'assets', 'puppets', path.basename(hostArg.slice(7)), 'spec.json'))) throw new Error(`no puppet "${hostArg.slice(7)}" in assets/puppets`);
+  const music = musicChoice(), world = arg('world', 'playroom'), sets = resolveSets(beats, world);
+  sets.forEach((x, i) => { if (x.why === 'cue') log({ event: 'set', line: i + 1, set: x.set, because: `"${x.cue}" in: ${beats[i].text.slice(0, 50)}` }); else if (x.why === 'csv') log({ event: 'set', line: i + 1, set: x.set, because: 'the set column' }); });
   let lesson, wav;
-  if (arg('voiceover')) ({ lesson, wav } = voiceoverLesson(arg('voiceover'), beats, work));
+  if (arg('voiceover')) ({ lesson, wav } = voiceoverLesson(arg('voiceover'), beats, work, sets));
   else {
-    const vo = voices(beats, work, arg('voice', 'en-US-JennyNeural'), arg('rate', '-6%'), music.bpm);
-    lesson = buildLesson(beats, vo, { beat: 60 / music.bpm }); wav = mixVoice(lesson, vo, work);
+    const vo = voices(beats, work, arg('voice', 'en-US-JennyNeural'), arg('rate', '-6%'), (i) => music.bpmFor(sets[i].set));
+    lesson = buildLesson(beats, vo, { beat: (set) => 60 / music.bpmFor(set), sets }); wav = mixVoice(lesson, vo, work);
   }
   const env = envelope(wav, lesson.duration);
-  const plan = { width: W, height: H, fps: FPS, envFps: FPS, envelope: env, ...lesson, tutorX: TUTOR_X, host: arg('host', 'tutor'), look: arg('look', 'maya'), world: arg('world', 'playroom'), music: music.bed, bpm: music.bpm };
+  const plan = { width: W, height: H, fps: FPS, envFps: FPS, envelope: env, ...lesson, tutorX: TUTOR_X, host: hostArg, look: arg('look', 'maya'), world, music: { mode: music.mode, bed: music.bed }, setBeds: Object.fromEntries(['playroom', 'park', 'farm', 'beach', 'bedroom', 'space'].map((x) => [x, music.bedFor(x)])) };
   const glb = plan.host === 'host3d' ? path.resolve(arg('glb', HOST_GLB)) : null;
   if (glb && !fs.existsSync(glb)) throw new Error(`host GLB not found: ${glb}`);
-  if (glb) plan.visemeTrack = visemeTrack(lesson.lines.flatMap((l) => l.words), env, FPS, lesson.duration, FPS);
+  if (glb || hostArg.startsWith('puppet:')) plan.visemeTrack = visemeTrack(lesson.lines.flatMap((l) => l.words), env, FPS, lesson.duration, FPS);
+  if (hostArg.startsWith('puppet:')) plan.signs = signsForLines(lesson.lines, SIGN_NAMES);
   fs.writeFileSync(PLAN, JSON.stringify({ ...plan, envelope: `${env.length} values`, visemeTrack: plan.visemeTrack ? `${plan.visemeTrack.frames.length} frames x ${plan.visemeTrack.names.length}` : undefined }, null, 1));
   log({ event: 'plan', duration: lesson.duration, lines: lesson.lines.length, props: lesson.props.length, cards: lesson.cards.length });
   if (flag('plan-only')) return;

@@ -5,6 +5,7 @@
 html, body { margin: 0; background: #000; overflow: hidden; }
 #stage { position: relative; overflow: hidden; }
 #gl { position: absolute; left: 0; top: 0; }
+#wipe { position: absolute; inset: 0; display: none; }
 #cap { position: absolute; left: 6%; right: 6%; bottom: calc(var(--u) * 56); text-align: center; font-family: 'Outfit', sans-serif; font-weight: 800;
   font-size: calc(var(--u) * 64); color: #fff; -webkit-text-stroke: calc(var(--u) * 10) #2a1e2e; paint-order: stroke fill; letter-spacing: 0.01em; }
 #cap .w { display: inline-block; margin: 0 calc(var(--u) * 8); transition: none; }
@@ -18,5 +19,5 @@ html, body { margin: 0; background: #000; overflow: hidden; }
   font-family: 'Outfit', sans-serif; font-weight: 800; font-size: calc(var(--u) * 54); line-height: calc(var(--u) * 70); text-align: center; color: #2a1e2e; display: none; }
 </style></head>
 <body><script type="importmap">{"imports":{"three":"/three/three.module.min.js","three/addons/":"/three/addons/"}}</script>
-<div id="stage"><canvas id="gl"></canvas><div id="cap"></div><div id="card"></div><div id="badge"></div><div id="nums"></div></div>
+<div id="stage"><canvas id="gl"></canvas><div id="wipe"></div><div id="cap"></div><div id="card"></div><div id="badge"></div><div id="nums"></div></div>
 <script type="module" src="/web/lesson.js"></script></body></html>

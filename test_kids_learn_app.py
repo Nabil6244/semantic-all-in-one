@@ -117,6 +117,11 @@ os._exit(0)
 
 
 class KidsLearnAppTest(unittest.TestCase):
+    def test_puppet_folders_are_host_choices(self):
+        from ui import kids_learn_section as kl
+        self.assertEqual(kl.HOSTS.get("Girl (your picture)"), "puppet:girl")
+        self.assertEqual(kl.HOSTS.get("3D host"), "host3d")
+
     def test_kids_learn_page_in_the_real_app(self):
         root = Path(__file__).resolve().parent
         r = subprocess.run([sys.executable, "-c", _SCRIPT], cwd=str(root), capture_output=True, text=True, timeout=130)

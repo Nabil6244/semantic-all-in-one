@@ -25,7 +25,7 @@ export default {
     g.fillStyle = '#c9ced6'; g.beginPath(); g.arc(x + 80 * S, y + 80 * S, 34 * S, 0, 7); g.fill();       // a neutral avatar disc
     T.text(String(d.author || 'Source'), x + 134 * S, y + 74 * S, { font: ptFont(S, 32, 800, 'sans'), color: '#14171a', shadow: 0 });
     T.text(String([d.handle, d.date].filter(Boolean).join('  ·  ')), x + 134 * S, y + 112 * S, { font: ptFont(S, 26, 500, 'sans'), color: '#6b7380', shadow: 0 });
-    const sweep = quartOut((m.age - 0.9) / 0.7);
+    const sweep = quartOut((m.age - (Number.isFinite(d.highlight_at) ? d.highlight_at : 0.9)) / 0.7);
     lines.forEach((ln, i) => {
       const ly = y + 190 * S + i * lh, hi = hl ? ln.toLowerCase().indexOf(hl.toLowerCase()) : -1;
       if (hi >= 0 && sweep > 0) {

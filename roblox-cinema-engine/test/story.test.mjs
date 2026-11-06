@@ -76,3 +76,27 @@ test('"1200 years" is a length of time, not the year 1200', () => {
   assert.equal(extractDates('We cover about 1200 years of history.').length, 0);
   assert.equal(extractDates('By 1453 the city had fallen.')[0].year, 1453);
 });
+
+test('voice timing: the whole script lines up with the whole voice, whatever the transcript writes differently', async () => {
+  // curly apostrophes in the script, straight in the voice; a clock time written two ways; a phrase that comes back much later
+  const said = "It's 9:40 and it isn't late. It's leaning inward toward the open door behind you. Seven rules follow now. " + 'Rule one is simple and you know it. '.repeat(30) + 'The child is looking at the open door behind you. At about 930 the last child rang the bell. The end of it all came quickly after that.';
+  const words = said.split(' ').map((word, i) => ({ word, start: i * 0.4, end: i * 0.4 + 0.3 }));
+  const script = ["It’s 9:40 and it isn’t late.", 'It’s leaning inward toward the open door behind you.', 'Seven rules follow now.', 'Rule one is simple and you know it. '.repeat(30).trim(), 'The child is looking at the open door behind you.', 'At about 9:30 the last child rang the bell.', 'The end of it all came quickly after that.'].map((text) => ({ text }));
+  const r = alignTiming(script, words);
+  assert.ok(r.coverage > 0.98, `coverage ${r.coverage}`);
+  const at = (w, from = 0) => words.findIndex((x, i) => i >= from && x.word.startsWith(w)) * 0.4;
+  const s = r.sentences;
+  assert.equal(s.find((x) => x.text.startsWith('It’s leaning')).start, at("It's", 2));
+  assert.equal(s.find((x) => x.text.startsWith('Seven')).start, at('Seven'));
+  assert.equal(s.find((x) => x.text.startsWith('At about')).start, at('At'));
+  for (let i = 1; i < s.length; i++) assert.ok(s[i].start - s[i - 1].end < 1.2, `no stuck gap before "${s[i].text.slice(0, 20)}"`);
+});
+
+test('voice timing: script words the voice never said share the time around them instead of stalling', () => {
+  const words = 'one two three seven eight nine'.split(' ').map((word, i) => ({ word, start: i, end: i + 0.5 }));
+  const r = alignTiming([{ text: 'One two three.' }, { text: 'Four five six.' }, { text: 'Seven eight nine.' }], words);
+  const [a, b, c] = r.sentences;
+  assert.ok(b.start >= a.end && b.end <= c.start + 1e-6); assert.equal(c.start, 3);
+  const big = alignTiming(Array.from({ length: 400 }, (_, i) => ({ text: `word${i} again here now.` })), Array.from({ length: 1600 }, (_, i) => ({ word: `word${Math.floor(i / 4)}`, start: i * 0.3, end: i * 0.3 + 0.2 })));
+  assert.equal(big.sentences.length, 400);
+});

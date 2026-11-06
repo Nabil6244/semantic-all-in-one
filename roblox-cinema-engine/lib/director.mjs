@@ -18,6 +18,7 @@ import { EFFECTS } from './fx.mjs';
 import { ROLES } from './characters.mjs';
 import { bboxAround } from './mapproj.mjs';
 import { flagCues } from './flags.mjs';
+import { isHorror, classifyHorror, HORROR_ROLES, COMBAT_STATES, horrorCues, horrorBed, streetSetFor, horrorHolds, dryCircleFor, isCardPropWord, horrorCards, finishCards, cardPush, csvCardSpecs, STRONG_SET_WORDS, CARD_PUSH, HORROR_RECIPES, QUIET_FX, isHeroName, wearsSheet } from './horror.mjs';
 
 export const TRANSITIONS = ['cut', 'dissolve', 'dip', 'clouds', 'map_dive', 'match', 'continuous'];
 export const TIMES = ['dawn', 'day', 'sunset', 'dusk', 'night'];
@@ -30,11 +31,16 @@ export const VOCAB = {
 const TIME_PASS = /\b(that night|the next (?:day|morning)|weeks? later|in the weeks that followed|months? later|years? later|by nightfall|by dawn|at sunrise|later that)\b/i;
 /** Longest a ground framing may hold before the camera moves to a new angle (also applies when the CSV names one camera for a long beat). */
 export const MAX_HOLD = 6.5, MAX_MAP_HOLD = 8;
+// roles that stay in their faction's kit even in a horror story (everyone else is a civilian there)
+const HORROR_HIGH = new Set(['establishing_wide', 'aerial_geo', 'descend', 'rise', 'flyover', 'pullback_reveal', 'crane_up', 'map_overview', 'map_dive']);   // at night a camera up there sees only fog
+const HORROR_ALONE = /\b(alone|empty|nobody|no one)\b/i;
+const HORROR_ARMED = new Set(['soldier', 'paratrooper', 'guard', 'officer', 'commander', 'police', 'tank_crew', 'pilot', 'sailor', 'medic']);
 const AERIAL = new Set(['establishing_wide', 'aerial_geo', 'descend', 'rise', 'flyover', 'pullback_reveal', 'map_overview', 'map_dive']);
 
 /** opts: {words (whisper words) | null, fps, width, height, extraPlaces} */
 export function direct(story, opts = {}) {
   const fps = opts.fps || 24, gaz = makeGazetteer(opts.extraPlaces || []), warnings = [], report = [];
+  const horror = isHorror(story);   // a quiet modern story (lib/horror.mjs), not a war film
   const allText = story.beats.map((b) => b.text).join(' ');
   const planYear = (extractDates(story.plan.date || '')[0] || extractDates(allText)[0] || {}).year ?? null;
   const era = (story.plan.extra?.era && ERAS.find((e) => e.id === story.plan.extra.era)) || eraOf(planYear);   // extra.era forces a period (BC years cannot be read from dates)
@@ -51,15 +57,25 @@ export function direct(story, opts = {}) {
   const beatSent = story.beats.map((_, bi) => sentences.filter((s) => s.beat === bi));
 
   // ---- per-beat analysis and scene decisions --------------------------------------------------------------------------------
-  let carryMirror = {}, carryLead = null, carryRoom = null, carryCsvPlace = null, carryTime = 'day', carryWeather = 'clear', carryDate = '', carryPlace = null, lastScene = null;
+  let carryMirror = {}, carryLead = null, carryRoom = null, carryCsvPlace = null, carryTime = horror ? (story.plan.extra?.time || 'night') : 'day', carryWeather = 'clear', carryDate = '', carryPlace = null, lastScene = null;
   const scenes = [];
   story.beats.forEach((b, bi) => {
     const ss = beatSent[bi]; if (!ss.length) return;
+    if (b.props.some(isCardPropWord)) b = { ...b, props: b.props.filter((p) => !isCardPropWord(p)) };   // a `card: ...` prop asks for a card (lib/horror.mjs), it is not a thing in the room
     const A = ss.map((s) => analyseSentence(s.text, gaz, planYear));
     const text = b.text, why = {};
     // event
     let event = b.event || null;
-    if (!event) {
+    // Horror story chosen: a history film's event in the CSV (consequence, establishing...) would bring its war-film cameras and cast. The narration decides instead.
+    if (horror && event && !HORROR_RECIPES[event]) { why.csvEvent = `the CSV's "${event}" is not a horror beat`; event = null; }
+    if (!event && horror) {
+      const sc = {}; for (const s of ss) for (const [k, v] of Object.entries(classifyHorror(s.text).scores)) sc[k] = (sc[k] || 0) + v;
+      const ranked = Object.entries(sc).sort((x, y) => y[1] - x[1]);
+      event = ranked[0] && ranked[0][1] > 0 ? ranked[0][0] : 'quiet_moment';
+      why.event = `horror story beat from the narration (${ranked.slice(0, 2).map(([k, v]) => `${k} ${v}`).join(', ')})`;
+      // nothing new happens in this beat: the moment before it goes on (the stranger is still there) unless the hero is said to be alone
+      if (event === 'quiet_moment' && lastScene && lastScene.event !== 'quiet_moment' && !HORROR_ALONE.test(text)) { event = lastScene.event; why.event = `continues the ${event} before it (no new moment in the narration)`; }
+    } else if (!event) {
       const sc = {}; A.forEach((a) => { for (const [k, v] of Object.entries(a.event.scores)) sc[k] = (sc[k] || 0) + v; });
       const ranked = Object.entries(sc).filter(([k]) => RECIPES[k]).sort((x, y) => y[1] - x[1]);
       event = ranked[0] && ranked[0][1] > 0 ? ranked[0][0] : 'establishing';
@@ -73,7 +89,7 @@ export function direct(story, opts = {}) {
     const csvPlace = b.location ? gaz.get(b.location) : null, unknownLoc = !!b.location && !csvPlace;
     const place = csvPlace || (unknownLoc ? (carryCsvPlace || null) : null) || A.flatMap((a) => a.places).find((p) => p.kind !== 'sea' && p.kind !== 'region') || A.flatMap((a) => a.places)[0] || carryPlace;
     if (csvPlace) carryCsvPlace = csvPlace;
-    if (b.location && !gaz.get(b.location) && !isRoomName(b.location)) warnings.push(`beat ${b.id}: place "${b.location}" is not in the gazetteer (no map pin; set "lon,lat")`);
+    if (!horror && b.location && !gaz.get(b.location) && !isRoomName(b.location)) warnings.push(`beat ${b.id}: place "${b.location}" is not in the gazetteer (no map pin; set "lon,lat")`);
     // environment: CSV > words that suit the event > place biome (if it suits) > recipe default
     const words = A.flatMap((a) => a.environments);
     const suits = EVENT_ENVS[event];
@@ -90,7 +106,8 @@ export function direct(story, opts = {}) {
     }
     // time / weather (carried across beats until the narration changes them)
     const tWord = A.map((a) => a.time).find(Boolean), wWord = A.map((a) => a.weather).find(Boolean);
-    const time = b.time || tWord || R.time || (b.chapter !== (lastScene && lastScene.chapter) && !tWord ? 'day' : carryTime);
+    // a horror story keeps its hour across chapters (no reset to day); a history chapter opens in daylight
+    const time = b.time || tWord || (horror ? carryTime : R.time || (b.chapter !== (lastScene && lastScene.chapter) && !tWord ? 'day' : carryTime));
     const weather = b.weather || wWord || (time !== carryTime ? 'clear' : carryWeather);
     carryTime = time === 'dusk' ? 'night' : time === 'dawn' ? 'day' : time; carryWeather = weather === 'storm' ? 'rain' : weather;
     // date
@@ -99,27 +116,43 @@ export function direct(story, opts = {}) {
     // cast and vehicles
     const factions = { a: factionsIn(text)[0] && factionsIn(text)[0] !== 'civilian' && factionsIn(text)[0] !== sideB ? factionsIn(text)[0] : sideA, b: sideB };
     const people = A.flatMap((a) => a.people);
-    let cast = b.cast.length ? b.cast.map((c) => ({ role: c.role, count: c.count, name: c.name, named: !!c.name, side: c.role === 'crowd' || c.role === 'civilian' ? 'civ' : 'a', formation: defaultFormation(c.role, R), action: defaultAction(c.role, R) })) : R.cast.map((c) => ({ ...c }));
-    if (!b.cast.length && people.length) { const lead = cast.find((c) => c.named) || cast.find((c) => c.role === 'commander' || c.role === 'leader'); if (lead) lead.name = people[0].name; }
+    let cast = b.cast.length ? b.cast.map((c) => ({ role: c.role, count: c.count, name: c.name, named: !!c.name, side: c.role === 'crowd' || c.role === 'civilian' || HORROR_ROLES.has(c.role) || (horror && !HORROR_ARMED.has(c.role)) ? 'civ' : 'a', formation: defaultFormation(c.role, R), action: defaultAction(c.role, R) })) : R.cast.map((c) => ({ ...c }));
+    // horror: the hero and the stranger are the same person in every beat (a named group keeps one seeded face)
+    if (horror) for (const c of cast) {
+      if ((c.role === 'hero' || c.role === 'stranger') && !c.name) { c.name = c.role === 'hero' ? 'Hero' : 'Stranger'; c.named = true; }
+      if (c.role === 'hero' && c.name === 'Hero' && story.plan.extra?.hero) c.name = story.plan.extra.hero;
+    }
+    if (horror) for (const c of cast) {
+      if (c.role === 'civilian' && isHeroName(c.name)) { c.role = 'hero'; c.name = story.plan.extra?.hero || 'Hero'; c.named = true; c.formation = 'center'; }
+      if (c.role === 'child' && c.count === 1 && cast.some((x) => x.role === 'hero')) c.formation = 'front';   // the child stands in front of the hero
+    }
+    // the things the words name are for every film: a child in a white sheet wears it, in a history film too
+    for (const c of cast) if (wearsSheet(allText + ' ' + story.beats.flatMap((x) => x.props || []).join(' '), c.role, c.name)) c.costume = 'sheet';
+    // whoever stands in front of the hero looks at the hero, not away down the street
+    if (horror) cast.forEach((c, k) => { if (c.formation === 'scatter' && c.count <= 2) c.formation = k === 0 ? 'center' : 'front'; c.keepOut = true; if (c.formation === 'front') c.facing = 'lead'; });
+    // a child who walks up in the narration takes the stranger's place (no CSV cast to say otherwise)
+    if (horror && !b.cast.length && /\b(?:a|the) child\b/i.test(text)) for (const c of cast) if (c.role === 'stranger') { Object.assign(c, { role: 'child', name: 'Child', ...(wearsSheet(allText, 'child', 'Child') ? { costume: 'sheet' } : {}) }); }
+    if (!b.cast.length && people.length && !horror) { const lead = cast.find((c) => c.named) || cast.find((c) => c.role === 'commander' || c.role === 'leader'); if (lead) lead.name = people[0].name; }
     let vehicles = b.vehicles.length ? b.vehicles.map((v) => ({ kind: v.kind, count: v.count, motion: v.motion })) : R.vehicles.map((v) => ({ ...v }));
     const spoken = A.flatMap((a) => a.vehicles);
-    if (!b.vehicles.length) for (const k of spoken) if (!vehicles.some((v) => v.kind === k) && VEHICLES[k] && (env !== 'interior')) vehicles.push({ kind: k, count: VEHICLES[k].cls === 'air' ? 5 : 3, motion: null, spoken: true });
+    if (!b.vehicles.length) for (const k of spoken) if (!vehicles.some((v) => v.kind === k) && VEHICLES[k] && (env !== 'interior')) vehicles.push(horror ? { kind: k, count: 1, motion: 'park', spoken: true } : { kind: k, count: VEHICLES[k].cls === 'air' ? 5 : 3, motion: null, spoken: true });
     vehicles = vehicles.map((v) => { const r = vehicleForEra(v.kind, era); if (r.substituted) warnings.push(`beat ${b.id}: ${v.kind} is not of the ${era.label} era, shown as ${r.kind}`); if (r.anachronism && b.vehicles.length) warnings.push(`beat ${b.id}: ${v.kind} is an anachronism for ${era.label} (kept: set in the CSV)`); return { ...v, kind: r.kind }; })
       .filter((v) => !(r0(v) && !b.vehicles.length)).filter((v) => env !== 'interior');
     function r0(v) { return vehicleForEra(v.kind, era).anachronism; }
     // narration actions, timed to the spoken word
     const actionsTimed = [];
-    const csvActs = b.actions.map((a) => ({ state: a.state, word: a.at, csv: true }));
-    const spokenActs = A.flatMap((a, k) => a.actions.map((x) => ({ ...x, sent: k })));
+    // horror: people who face each other stay put, whatever a CSV row says (`carry` walks them off down the road); what they hold comes from the words. Walking is for beats where someone walks.
+    const csvActs = b.actions.filter((a) => !horror || (!COMBAT_STATES.has(a.state) && a.state !== 'carry' && !(['walk', 'run'].includes(a.state) && event !== 'pursuit_slow' && event !== 'quiet_moment'))).map((a) => ({ state: a.state, word: a.at, csv: true }));
+    const spokenActs = A.flatMap((a, k) => a.actions.map((x) => ({ ...x, sent: k }))).filter((x) => !horror || !COMBAT_STATES.has(x.state));
     for (const act of csvActs.length ? csvActs : spokenActs) {
       const s = act.sent != null ? ss[act.sent] : ss.find((x) => wordTime(x, act.word) != null) || ss[0];
       const at = wordTime(s, act.word) ?? s.start;
       actionsTimed.push({ state: act.state, time: at, word: act.word, ...(act.csv ? { csv: true } : {}) });
     }
     // effects
-    const fx = b.effects.length ? [...b.effects] : [...R.fx];
+    const fx = (b.effects.length ? [...b.effects] : [...R.fx]).filter((f) => !horror || QUIET_FX.has(f));
     if (weather === 'rain' || weather === 'storm') fx.push('rain'); if (weather === 'fog') fx.push('fog'); if (weather === 'snow') fx.push('snow');
-    const room = env === 'interior' ? roomKindFor({ location: b.location, props: b.props, text, event, civilian: cast.every((c) => c.side === 'civ'), last: carryRoom }) : null;
+    const room = env === 'interior' ? roomKindFor({ location: horror && /\b(?:hall|upstairs|landing|stairs)\b/i.test(b.location) ? 'hallway' : b.location, props: b.props, text, event, civilian: cast.every((c) => c.side === 'civ'), last: horror && (event === 'alone_inside' || event === 'phone_call') ? carryRoom || R.room : R.room || carryRoom }) : null;
     if (room && room !== 'war') carryRoom = room;
     // the person in the glass wears the lead's body: a "Reflection" row is the same character, not a stranger
     for (const c of cast) { if (/^reflection$/i.test(c.name || '')) { if (carryLead) c.name = carryLead; } else if (c.name && !carryLead) carryLead = c.name; }
@@ -129,6 +162,21 @@ export function direct(story, opts = {}) {
       seed: b.extra?.seed ?? hash(`${b.id}:${place ? place.name : ''}:${event}`) % 100000, culture: place ? place.culture : 'european', why,
     };
     if (env === 'map' || event === 'map') scene.env = 'map';
+    // horror: a bus stop or a shop the beat names is built at the roadside, and rain at night leaves puddles
+    if (!horror && ['town', 'city', 'village'].includes(scene.env)) {   // a history film builds a set only when the CSV or the narration really names it
+      const where = [b.location, ...b.props].filter(Boolean).join('; '), st = streetSetFor(STRONG_SET_WORDS.test(text) ? text : '', where, null);
+      if (st) { scene.set = st.set; if (st.label) scene.setLabel = st.label; why.set = st.why; if (st.set === 'porch' && /\bpumpkins?\b/i.test(`${text} ${b.props.join(' ')}`)) scene.pumpkin = true; }
+    }
+    if (horror && ['town', 'city', 'village'].includes(scene.env)) {
+      // the doorstep stays the doorstep while the story stays there, whichever beat comes next (until someone walks away or remembers)
+      const prev = lastScene && lastScene.set && lastScene.env === scene.env && (lastScene.event === event || (lastScene.set === 'porch' && event !== 'flashback' && event !== 'pursuit_slow')) ? lastScene : null, st = streetSetFor(text, [b.location, ...b.props].filter(Boolean).join('; '), prev);
+      if (st) { scene.set = st.set; if (st.label) scene.setLabel = st.label; why.set = st.why; }
+      if (scene.set === 'porch') { if (prev && prev.set === 'porch') scene.seed = prev.seed; if (/\bpumpkins?\b/i.test(`${text} ${b.props.join(' ')}`) || (prev && prev.pumpkin)) scene.pumpkin = true; }
+    }
+    if (horror && (weather === 'rain' || weather === 'storm') && scene.env !== 'interior' && scene.env !== 'map') scene.wet = true;
+    if (horror) scene.clearView = true;   // every shot is checked for something standing in the way (lib/assemble.mjs)
+    if (horror && (era.id === 'modern' || planYear == null) && ['town', 'city', 'village'].includes(scene.env)) scene.tidy = true;   // a modern street: no wells, hay carts or crates
+
     if (room === 'bathroom' || room === 'hallway' || (room && propsIn(`${b.props.join('; ')} ${text}`).includes('mirror'))) {
       const mp = planMirrorPlay(scene, wordTime, carryMirror);
       scene.mirrorPlay = mp.play; scene.actionsTimed.push(...mp.actions); carryMirror = mp.carry;
@@ -156,6 +204,33 @@ export function direct(story, opts = {}) {
     s.t0 = i === 0 ? 0 : +Math.max(prevEnd + 0.12, first.start - 0.4).toFixed(3);
   });
   scenes.forEach((s, i) => { s.t1 = i + 1 < scenes.length ? scenes[i + 1].t0 : duration; });
+
+  // ---- horror: what people hold (timed to the words) and the dry circle the rain leaves around the stranger ---------------
+  let cardList = null;
+  if (horror) {
+    scenes.forEach((s, i) => {
+      // what is in a hand goes on into the next scene outdoors (she follows with her bag; the candy stays in your hand until you put it away)
+      const prev = scenes[i - 1], same = prev && ((prev.event === s.event && prev.env === s.env) || (prev.env !== 'interior' && s.env !== 'interior' && prev.event !== 'flashback' && s.event !== 'flashback')) ? prev : null;
+      const holds = horrorHolds(s, wordTime, same); if (holds.length) s.holds = holds;
+      const dry = dryCircleFor(s); if (dry) { s.dry = dry; s.why.dry = 'the narration says the rain does not touch her'; }
+    });
+    // the circle was always there: every scene of the same moment with her in the rain shows it, not only the one that says so
+    scenes.forEach((s, i) => { if (!s.dry) return;
+      for (const step of [-1, 1]) for (let k = i + step; scenes[k] && scenes[k].event === s.event && scenes[k].env === s.env && !scenes[k].dry && scenes[k].cast.some((c) => c.role === 'stranger'); k += step) { scenes[k].dry = { ...s.dry }; scenes[k].why.dry = `the same moment as ${s.id}: the rain never touches her`; } });
+    // picture cards: from the CSV or the narration, spaced across the film, each with the push into the thing it shows
+    cardList = finishCards(scenes.flatMap((s) => { const bt = story.beats[s.beat], props = (bt.props || []).filter(isCardPropWord); return horrorCards(s, props.length ? { ...bt, cardProps: props } : bt, { hero: story.plan.extra?.hero }); }), duration);
+    for (const c of cardList) { const s = scenes.find((x) => x.id === c.scene); (s.cards = s.cards || []).push(c); cardPush(s, c); s.why.cards = `${c.kind} card: ${c.why}`; }
+  }
+
+  // a history film: an unarmed named lead holds what the words put in their hand; close-up cards are the ones its CSV asks for (narration alone makes none)
+  if (!horror) {
+    scenes.forEach((s) => {
+      const lead = s.env !== 'map' && s.cast.find((c) => c.named && c.count === 1 && !HORROR_ARMED.has(c.role));
+      if (lead) { const holds = horrorHolds(s, wordTime, null, lead.role).filter((h) => h.role === lead.role || h.role === 'child' || h.role === 'stranger'); if (holds.length) s.holds = holds; }
+    });
+    const asked = scenes.flatMap((s) => { const bt = story.beats[s.beat], props = (bt.props || []).filter(isCardPropWord), full = props.length ? { ...bt, cardProps: props } : bt, sp = csvCardSpecs(full); return sp && sp.length ? horrorCards(s, full, { hero: null }) : []; });
+    if (asked.length) cardList = finishCards(asked, duration);
+  }
 
   // ---- map scenes: places, pins, routes ---------------------------------------------------------------------------------
   scenes.forEach((s, i) => {
@@ -190,7 +265,32 @@ export function direct(story, opts = {}) {
     if (s.env === 'map') for (let k = 1; k < s.sentences.length && cuts.length < 3; k++) { const c = (s.sentences[k - 1].end + s.sentences[k].start) / 2; if (c - cuts[cuts.length - 1] >= 6 && s.t1 - c >= 4) cuts.push(+c.toFixed(3)); }
     // a long map is split too, each part sinking lower (one continuous descent)
     if (s.env === 'map') for (let k = 0; k < cuts.length; k++) { const end = cuts[k + 1] ?? s.t1; if (end - cuts[k] > MAX_MAP_HOLD && cuts.length < 5) { cuts.splice(k + 1, 0, +(cuts[k] + (end - cuts[k]) / 2).toFixed(3)); k--; } }
-    const requested = s.camera ? s.camera.split('>').map((x) => x.trim()) : [];
+    // horror: a cut just before something is handed over or named, so the close shot of the hand starts on it
+    const freshSet = !prevScene || prevScene.env !== s.env || prevScene.set !== s.set;
+    // horror: something passing from hand to hand is the moment of the scene: a shot that shows both people, then the thing itself. It wins over a CSV camera, which cannot know where the hands are.
+    const giveAt = horror ? s.holds?.find((h) => h.handover && h.at != null) : null;
+    if (giveAt) for (const c of [+(giveAt.at - 1.1).toFixed(3), +(giveAt.at + 2.6).toFixed(3)]) {
+      const k = cuts.findIndex((x) => x > c), at = k < 0 ? cuts.length : k;
+      if (at > 0 && c - cuts[at - 1] >= 0.8 && (k < 0 ? s.t1 : cuts[k]) - c >= 1.2) cuts.splice(at, 0, c);
+    }
+    if (giveAt) for (let j = cuts.length - 1; j > 0; j--) if (cuts[j] > giveAt.at - 1.1 + 1e-6 && cuts[j] < giveAt.at + 2.6 - 1e-6) cuts.splice(j, 1);   // the hand-over plays unbroken
+    // horror: a cut before a card, so the camera has time to push into the thing before the dissolve
+    if (horror && s.cards && !s.camera) for (const cd of s.cards) {
+      if (!cd.hand && !cd.focus) continue;
+      const c = +(cd.t0 - CARD_PUSH).toFixed(3), k = cuts.findIndex((x) => x > c), at = k < 0 ? cuts.length : k;
+      if (at > 0 && c - cuts[at - 1] >= 1.2) {
+        cuts.splice(at, 0, c);
+        for (let j = cuts.length - 1; j > at; j--) if (cuts[j] < cd.t0) cuts.splice(j, 1);   // one unbroken push: no sentence cut inside it
+      }
+    }
+    if (horror && s.env !== 'interior' && s.holds && !s.camera) for (const h of s.holds) {
+      if (h.at == null || h.item === 'paper_bag') continue;
+      const c = +(h.at - 0.6).toFixed(3), k = cuts.findIndex((x) => x > c);
+      const prevCut = cuts[(k < 0 ? cuts.length : k) - 1], nextCut = k < 0 ? s.t1 : cuts[k];
+      if (c - prevCut >= 2 && nextCut - c >= 2) cuts.splice(k < 0 ? cuts.length : k, 0, c);
+      break;
+    }
+    const requested = s.camera ? s.camera.split('>').map((x) => x.trim()).map((x) => (horror && (s.time === 'night' || s.time === 'dusk') && HORROR_HIGH.has(x) ? '' : x)) : [];
     const prefs = s.env === 'map' ? ['map_overview'] : [...R.shots];
     s.shots = cuts.map((c0, k) => {
       const c1 = cuts[k + 1] ?? s.t1;
@@ -205,15 +305,34 @@ export function direct(story, opts = {}) {
           const an = s.analysis[s.sentences.indexOf(sent)] || s.analysis[0];
           if (an && an.people.length && !['push_in', 'low_angle'].includes(prevB)) { beh = s.env === 'interior' ? 'push_in' : 'low_angle'; reason = `introduces ${an.people[0].title} ${an.people[0].name}`; }
           else if (an && an.vehicles.length && s.vehicles.some((v) => v.kind === an.vehicles[0]) && prevB !== 'vehicle_follow') { beh = 'vehicle_follow'; reason = `follows the ${an.vehicles[0].replace('_', ' ')} the narration names`; }
-          else if (an && an.numbers.length && k === cuts.length - 1) { beh = prefs.includes('pullback_reveal') ? 'pullback_reveal' : 'rise'; reason = 'a number about scale: reveal the scale'; }
+          else if (an && an.numbers.length && k === cuts.length - 1 && !horror) { beh = prefs.includes('pullback_reveal') ? 'pullback_reveal' : 'rise'; reason = 'a number about scale: reveal the scale'; }
           else { beh = prefs.find((p) => p !== prevB && p !== prev2 && (k > 0 || !AERIAL.has(p) || newPlace)) || prefs.find((p) => p !== prevB) || prefs[0]; reason = `the ${s.event} recipe's next camera`; }
         }
       }
-      if (beh === prevB && prefs.length > 1 && !requested[k]) { beh = prefs.find((p) => p !== prevB) || beh; reason += ' (varied: not the same as the last shot)'; }
+      // horror: the hand-over itself, then close on the hand that now holds it
+      let cardHand = null, cardFocus = null, giveShot = null;
+      if (giveAt && giveAt.at >= c0 - 1e-6 && giveAt.at < c1) { beh = 'handover'; giveShot = { type: 'between', a: giveAt.handover, b: giveAt.role }; s.shots_hand = s.shots_hand || { role: giveAt.role, hand: giveAt.hand }; reason = `the ${giveAt.handover} hands the ${giveAt.item.replace('_', ' ')} to the ${giveAt.role}: both in frame`; }
+      else if (giveAt && c0 >= giveAt.at + 1 && c0 <= giveAt.at + 3) { beh = 'hand_close'; cardHand = { role: giveAt.role, hand: giveAt.hand }; s.shots_hand = s.shots_hand || cardHand; reason = `close on the ${giveAt.item.replace('_', ' ')} now in the ${giveAt.role}'s hand`; }
+      // horror: the shot that ends in a card pushes into what the card shows
+      if (horror && s.cards && (!requested[k] || giveShot)) {
+        const cd = s.cards.find((x) => (x.hand || x.focus) && x.t0 > c0 && x.t0 <= c1);
+        if (cd) giveShot = null;
+        if (cd && cd.focus) { beh = 'push_in'; cardFocus = cd.focus; reason = `pushes into the ${cd.focus} before the ${cd.kind.replace('_', ' ')} card`; }
+        else if (cd) { beh = 'hand_close'; cardHand = cd.hand; s.shots_hand = s.shots_hand || cd.hand; reason = `pushes into the ${cd.hand.role}'s hand before the ${cd.kind.replace('_', ' ')} card`; }
+      }
+      // horror: the moment a small thing is named or handed over, the camera goes to the hand (outdoors; rooms frame their props)
+      if (horror && !requested[k] && s.env !== 'interior' && s.holds && !s.shots_hand && !(k === 0 && freshSet)) {
+        const h = s.holds.find((x) => x.at != null && x.item !== 'paper_bag' && x.at >= c0 - 0.2 && x.at < c1);
+        if (h) { beh = 'hand_close'; reason = `close on the ${h.item.replace('_', ' ')} in the ${h.role}'s hand`; s.shots_hand = { role: h.role, hand: h.hand }; }
+      }
+      if (beh === prevB && prefs.length > 1 && !requested[k] && !cardHand && !cardFocus && !giveShot) { beh = prefs.find((p) => p !== prevB) || beh; reason += ' (varied: not the same as the last shot)'; }
       prev2 = prevB; prevB = beh;
-      const subject = subjectFor(beh, s);
+      const subject = giveShot || (beh === 'hand_close' && (cardHand || s.shots_hand) ? { type: 'hand', ...(cardHand || s.shots_hand) } : subjectFor(beh, s));
       const yaw = (s.heading ?? 0) + sideYaw + rng.range(-0.45, 0.45) + (beh === 'over_shoulder' ? 0 : 0);
       const shot = { behaviour: beh, t0: c0, t1: c1, yaw, subject, reason, scale: 1 };
+      if (cardFocus) shot.focus = cardFocus;
+      // horror streets are close and quiet: a short, near side track stays in the street instead of sliding through the houses
+      if (horror && beh === 'side_track' && s.env !== 'interior') Object.assign(shot, { dist: 20, travel: 9, height: 5.5 });
       // map_overview sinks to 0.9 of its height over a shot; the next one starts there, so the move is one unbroken descent
       if (s.env === 'map' && k > 0) shot.zoom = +Math.pow(0.9, k).toFixed(4);
       return shot;
@@ -232,7 +351,7 @@ export function direct(story, opts = {}) {
     }
     reasonTr.push(tr);
     s.transitionIn = { type: tr, dur: { cut: 0, dissolve: 1.0, dip: 0.9, clouds: 1.4, map_dive: 1.4, match: 0, continuous: 1.2 }[tr] ?? 0 };
-    s.light = lightPreset(s.time, s.weather, s.env);
+    s.light = horror ? horrorLight(s.time, s.weather, s.env) : lightPreset(s.time, s.weather, s.env);
   });
 
   // ---- HUD: subtitles, dates, places, chapter cards, statistics ------------------------------------------------------------
@@ -250,7 +369,7 @@ export function direct(story, opts = {}) {
       const span = (at.end - at.start + 2.2) / statDefs.length, a0 = at.start + 0.4 + k * span;
       hud.stats.push({ t0: +a0.toFixed(3), t1: +Math.min(s.t1 - 0.3, a0 + Math.max(2.6, span)).toFixed(3), value, label: (label || '').toUpperCase() });
     });
-    else s.analysis.forEach((an, k) => { const n = an.numbers.find((x) => x.value >= 1000); if (n) { const sent = s.sentences[k]; const at = wordTime(sent, n.text.split(' ')[0]) ?? sent.start; hud.stats.push({ t0: at, t1: Math.min(s.t1 - 0.3, at + 4), value: formatCount(n.value), label: n.noun.toUpperCase() }); } });
+    else if (!horror) s.analysis.forEach((an, k) => { const n = an.numbers.find((x) => x.value >= 1000); if (n) { const sent = s.sentences[k]; const at = wordTime(sent, n.text.split(' ')[0]) ?? sent.start; hud.stats.push({ t0: at, t1: Math.min(s.t1 - 0.3, at + 4), value: formatCount(n.value), label: n.noun.toUpperCase() }); } });
   });
   story.chapters.forEach((c, ci) => {
     const s = scenes.find((x) => x.chapter === ci); if (!s) return;
@@ -266,12 +385,13 @@ export function direct(story, opts = {}) {
     let bed = s.ambience;
     if (s.weather === 'rain' || s.weather === 'storm') bed = s.env === 'interior' ? 'room_rain' : 'rain';
     if (s.time === 'night' && bed === 'camp') bed = 'night_wind';
+    if (horror) { bed = horrorBed(s, s.ambience); audio.cues.push(...horrorCues(s, wordTime)); }
     audio.ambience.push({ t0: s.t0, t1: s.t1, bed, scene: s.id });
     if (s.transitionIn.type === 'clouds' || s.transitionIn.type === 'map_dive') audio.cues.push({ t: s.t0 - 0.3, cue: 'whoosh', gain: -16 });
     if (s.transitionIn.type === 'dip' && hud.chapters.some((c) => Math.abs(c.t0 - s.t0) < 0.5)) audio.cues.push({ t: s.t0 + 0.2, cue: 'chapter_hit', gain: -18 });
   }
   return { fps, width: opts.width || 1920, height: opts.height || 1080, duration, title: story.plan.title || '', era: era.id, eraLabel: era.label, sides: { a: sideA, b: sideB, labelA: FACTIONS[sideA]?.label, labelB: FACTIONS[sideB]?.label },
-    sentences: sentences.map(({ beat, text, start, end, words }) => ({ beat, text, start, end, words })), scenes: scenes.map(stripScene), hud, audio, warnings, report, voiceTimed: !!(opts.words && opts.words.length) };
+    sentences: sentences.map(({ beat, text, start, end, words }) => ({ beat, text, start, end, words })), scenes: scenes.map(stripScene), hud, audio, warnings, report, voiceTimed: !!(opts.words && opts.words.length), ...(horror ? { genre: 'horror', cards: cardList } : cardList ? { cards: cardList } : {}) };
 }
 
 /** a map beat that shows exactly the map already on screen: same place, same pins/arrows/regions, same chapter and date, no own camera or transition */
@@ -281,7 +401,7 @@ function sameMapMoment(prev, scene, b) {
   const key = (m) => JSON.stringify({ pins: m?.pins || [], arrows: m?.arrows || [], regions: m?.regions || [], bbox: m?.bbox || null, dive: m?.dive || null });
   return !(b.extra && b.extra.map) || key(b.extra.map) === key(prev.extra.map);
 }
-function stripScene(s) { const { analysis, ...rest } = s; return { ...rest, numbers: analysis.flatMap((a) => a.numbers), people: analysis.flatMap((a) => a.people) }; }
+function stripScene(s) { const { analysis, shots_hand, cards, ...rest } = s; return { ...rest, numbers: analysis.flatMap((a) => a.numbers), people: analysis.flatMap((a) => a.people) }; }
 
 function defaultFormation(role, R) { const g = R.cast.find((c) => c.role === role); return g ? g.formation : role === 'crowd' ? 'crowd' : role === 'commander' || role === 'leader' ? 'head' : 'scatter'; }
 function defaultAction(role, R) { const g = R.cast.find((c) => c.role === role); return g ? g.action : 'idle'; }
@@ -293,9 +413,9 @@ function subjectFor(beh, s) {
   const movers = s.vehicles.find((v) => v.motion !== 'park' && v.motion !== 'drift') || s.vehicles[0];
   switch (beh) {
     case 'vehicle_follow': return movers ? { type: 'vehicles', kind: movers.kind, pick: 'middle' } : { type: 'group', role: groups[0] };
-    case 'push_in': case 'low_angle': case 'static_close': return lead ? { type: 'actor', role: lead.role, index: 0 } : { type: 'group', role: groups[0], pick: 'nearest' };
+    case 'push_in': case 'low_angle': case 'static_close': case 'creep_in': case 'hold_breathe': return lead ? { type: 'actor', role: lead.role, index: 0 } : { type: 'group', role: groups[0], pick: 'nearest' };
     case 'over_shoulder': return lead ? { type: 'actor', role: lead.role, index: 0, lookAt: { type: 'group', role: s.cast.find((c) => c !== lead)?.role || lead.role } } : { type: 'group', role: groups[0] };
-    case 'ground_track': case 'follow': return groups.length ? { type: 'group', role: groups[0], pick: 'front' } : { type: 'anchor', name: 'center' };
+    case 'ground_track': case 'follow': case 'behind_follow': return groups.length ? { type: 'group', role: groups[0], pick: 'front' } : { type: 'anchor', name: 'center' };
     case 'establishing_wide': case 'aerial_geo': case 'descend': case 'rise': case 'flyover': case 'pullback_reveal': return s.vehicles.length && s.env === 'sea' ? { type: 'vehicles', kind: s.vehicles[0].kind, pick: 'centroid' } : groups.length ? { type: 'group', role: groups[0], pick: 'centroid' } : { type: 'anchor', name: 'center' };
     default: return groups.length ? { type: 'group', role: groups[0], pick: 'centroid' } : movers ? { type: 'vehicles', kind: movers.kind, pick: 'centroid' } : { type: 'anchor', name: 'center' };
   }
@@ -334,9 +454,17 @@ export function lightPreset(time, weather, env) {
   return 'day';
 }
 
+/** horror: night and indoor scenes get the horror looks; daylight (a memory, a bake sale) keeps the ordinary ones */
+export function horrorLight(time, weather, env) {
+  if (env === 'interior') return time === 'night' || time === 'dusk' ? 'interior_night' : lightPreset(time, weather, env);
+  if (time === 'night' || time === 'dusk') return 'night_horror';
+  return lightPreset(time, weather, env);
+}
+
 function pickMusic(story, scenes) {
   const m = story.plan.extra?.music;
   if (m) return { tracks: [m], reason: 'set in the CSV' };
+  if (isHorror(story)) return { tracks: ['dark_fog', 'interloper'], reason: 'horror story: a low, uneasy bed' };
   const battle = scenes.some((s) => ['battle', 'landing_operation', 'airstrike', 'military_invasion'].includes(s.event));
   return battle ? { tracks: ['stormfront', 'despair_and_triumph'], reason: 'war story: tense bed into an epic one' } : { tracks: ['echoes_of_time_v2', 'ascending_the_vale'], reason: 'calm history story' };
 }

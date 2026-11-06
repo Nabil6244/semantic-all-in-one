@@ -44,6 +44,19 @@ function canvasTex(key, w, h, draw, opts = {}) {
   return t;
 }
 
+/** A painted sign: text on a board (shop fascia, OPEN card, bus stop plate, timetable). hand = hand-lettered (uneven, script-like). */
+export function signTexture(text, bg = '#f2ead8', fg = '#2a1f1a', { w = 512, h = 128, hand = false, glow = false } = {}) {
+  return canvasTex(`sign:${text}:${bg}:${fg}:${w}:${h}:${hand}:${glow}`, w, h, (g) => {
+    g.fillStyle = bg; g.fillRect(0, 0, w, h);
+    g.strokeStyle = fg; g.globalAlpha = 0.35; g.lineWidth = Math.max(3, h * 0.05); g.strokeRect(h * 0.06, h * 0.06, w - h * 0.12, h - h * 0.12); g.globalAlpha = 1;
+    const lines = String(text).split('\n'), size = Math.min(h * 0.62 / lines.length, (w * 0.86) / Math.max(...lines.map((l) => l.length)) * 1.7);
+    g.font = `${hand ? 'italic ' : ''}bold ${Math.round(size)}px ${hand ? '"Comic Sans MS", "Marker Felt", cursive' : '"Helvetica Neue", Arial, sans-serif'}`;
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = fg;
+    if (glow) { g.shadowColor = fg; g.shadowBlur = h * 0.12; }
+    lines.forEach((l, k) => { const y = h / 2 + (k - (lines.length - 1) / 2) * size * 1.1; if (hand) { g.save(); g.translate(w / 2, y); g.rotate((R() - 0.5) * 0.08); g.fillText(l, 0, 0); g.restore(); } else g.fillText(l, w / 2, y); });
+  });
+}
+
 /** The face decal: eyes, brows, mouth, facial hair, glasses — drawn on a transparent canvas, in the classic decal manner. */
 export function faceTexture(face, mouthOpen = false) {
   const key = `face:${JSON.stringify(face)}:${mouthOpen}`;

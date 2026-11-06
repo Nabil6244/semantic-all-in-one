@@ -58,6 +58,13 @@ def _vm_dir(ws) -> Path:
 OWNERS["voxel_map"] = ("_vm_active", _vm_dir)   # Voxel Map photo cards (ui/voxelmap_section.py, voxelmap-engine/cards.py)
 
 
+def _rc_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "roblox_cinema" / "assets"
+
+
+OWNERS["roblox_cinema"] = ("_rc_active", _rc_dir)   # Roblox Cinema horror picture cards (ui/roblox_cinema_section.py, roblox-cinema-engine/cards.py)
+
+
 def _scene_key(scene_number) -> str:   # the table's own key (app._scene_key): "001"
     try:
         return f"{int(str(scene_number).strip()):03d}"

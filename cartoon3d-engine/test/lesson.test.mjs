@@ -103,3 +103,18 @@ test('chant lines start on a half-bar of the music and clap on its beat', () => 
   const plain = buildLesson(beats, [{ dur: 1.3, words: [] }, { dur: 2.4, words: [] }]);      // no beat given: timing as before
   assert.equal(plain.lines[1].t0, +(0.6 + 1.3 + 0.35).toFixed(3));
 });
+
+test('scene changes: the set column and clear place words move the lesson, between lines only', async () => {
+  const { resolveSets } = await import('../lib/lesson.mjs');
+  const csv = 'type,text,set\nsay,Hi friend!,\nsay,"Let\'s go to the farm!",\nanimal,The cow says moo.,\nfeeling,I feel sleepy.,\nsay,Back we go.,playroom\nsay,"Into our rocket!",\nsay,"Oops",castle\n';
+  const { beats, problems } = normalizeRows(parseCsv(csv));
+  assert.ok(problems.some((p) => p.includes('castle')));
+  const sets = resolveSets(beats, 'park');
+  assert.deepEqual(sets.map((x) => x.set), ['park', 'farm', 'farm', 'farm', 'playroom', 'space', 'space']);   // cow/sleepy do not move it
+  const L = buildLesson(beats, beats.map(() => ({ dur: 1.2, words: [] })), { sets });
+  assert.deepEqual(L.sets.map((x) => x.set), ['park', 'farm', 'playroom', 'space']);
+  for (const x of L.sets.slice(1)) {                                                       // each change sits in the pause before its line
+    const k = L.lines.findIndex((l) => l.t0 > x.t);
+    assert.ok(x.t > L.lines[k - 1].t1 && x.t < L.lines[k].t0, JSON.stringify(x));
+  }
+});

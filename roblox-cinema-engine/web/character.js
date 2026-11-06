@@ -78,6 +78,14 @@ export function buildCharacter(look) {
   head.add(mesh(rbox(1.22, 1.15, 1.22, 0.32), skin, 0, 0.58, 0));
   const face = new THREE.Mesh(new THREE.PlaneGeometry(1.18, 1.12), faceMat(look.face, false)); face.position.set(0, 0.56, 0.615); head.add(face);
   const hatG = hat(look); hatG.position.y = 0.58; head.add(hatG);
+  if (look.costume === 'sheet') {   // a plain white sheet with two eyeholes: no face, no hair, just the shape
+    const sheet = plastic('#e8e5da', { rough: 0.95 }), hole = plastic('#0b0b0d', { rough: 1 });
+    face.visible = false; hatG.visible = false;
+    head.add(mesh(sphere(0.98, 16, 12), sheet, 0, 0.55, 0));
+    for (const s of [-1, 1]) { const e = mesh(cyl(0.15, 0.15, 0.06, 10), hole, s * 0.33, 0.68, 0.93, false); e.rotation.x = Math.PI / 2; head.add(e); }
+    torso.add(mesh(cyl(0.95, 1.8, 3.5, 14), sheet, 0, 0.35, 0));
+    for (const arm of [armL, armR]) arm.add(mesh(rbox(1.04, 1.7, 1.04, 0.08), sheet, 0, -0.55, 0));
+  }
   // gear
   if (look.gear.includes('backpack')) torso.add(mesh(rbox(1.6, 1.4, 0.6, 0.12), plastic(look.gearColor, { rough: 0.8 }), 0, 1.1, -0.8));
   if (look.gear.includes('chute_pack')) torso.add(mesh(rbox(1.5, 1.1, 0.5, 0.12), plastic('#6f6a4a', { rough: 0.8 }), 0, 1.6, -0.75));
@@ -106,6 +114,22 @@ const GUN = {
   carry: { p: [0.75, 1.0, 0.75], r: [-0.9, 0.2, 0.7] }, port: { p: [0.4, 1.1, 0.95], r: [-0.55, 0.65, 0] }, aim: { p: [0.95, 2.05, 1.1], r: [0, 0, 0] },
   back: { p: [0, 1.2, -0.9], r: [0.1, 0, 0.9] }, upright: { p: [1.2, 0.6, 0.5], r: [-1.45, 0, 0] },
 };
+/** A small thing held in a hand (lib/horror.mjs HELD_ITEMS), built at the hand's tip in the arm's own space. */
+export function buildHeld(item, color) {
+  const g = new THREE.Group();
+  if (item === 'paper_bag') { g.add(mesh(box(1.5, 1.9, 1.0), plastic('#b48a5a', { rough: 0.95 }), 0, -0.9, 0.1)); g.add(mesh(box(1.52, 0.25, 1.02), plastic('#9a7448', { rough: 0.95 }), 0, 0.02, 0.1)); }
+  else if (item === 'gift_small') {
+    const wrap = plastic(color || '#d9b13b', { metal: 0.65, rough: 0.28 });
+    const body = mesh(cyl(0.2, 0.2, 0.5, 12), wrap); body.rotation.z = Math.PI / 2; g.add(body);           // a sweet in a twisted wrapper
+    for (const k of [-1, 1]) { const end = mesh(cone(0.2, 0.28, 8), wrap, k * 0.38, 0, 0); end.rotation.z = k * Math.PI / 2; g.add(end); }
+  } else if (item === 'letter') g.add(mesh(box(1.0, 0.04, 0.65), plastic('#efe8d6'), 0, 0, 0.1));
+  else if (item === 'card_id') g.add(mesh(box(0.7, 0.04, 0.45), plastic('#dfe6ea'), 0, 0, 0.05));
+  else if (item === 'drawing') g.add(mesh(box(1.1, 0.03, 0.85), plastic('#f6f3ea'), 0, 0, 0.1));
+  else if (item === 'phone') g.add(mesh(rbox(0.42, 0.08, 0.8, 0.04), plastic('#1c1d20', { rough: 0.3 }), 0, 0, 0.05), mesh(box(0.36, 0.02, 0.7), plastic('#9fc3ff', { emissive: '#7fa8ff', emissiveIntensity: 0.9 }), 0, 0.05, 0.05));
+  g.position.set(0, -1.95, 0.15);
+  return g;
+}
+
 /** Change a face for this frame (the reflection): {mouth, eyes, blank, stretch}. */
 export function setFace(rig, f) {
   const u = rig.userData; u.baseFace = u.baseFace || u.look.face;

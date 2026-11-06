@@ -1,0 +1,10 @@
+type,text,object,color,count,word,gesture,emotion,pause,sound,set
+say,"Hi friend! Let's go on a little trip today!",,,,,,happy,,,
+say,"First, let's play outside in the park!",,,,,,happy,,,
+color,"Look! A red ball. Red!",ball,red,,,,surprised,,,
+animal,"Here we are on the farm. The cow says moo! Moo!",cow,,,,,laugh,,Moo,
+say,"Now let's dig in the sand at the beach!",,,,,,happy,,,
+count,"Let's count the shells. One, two, three!",circle,pink,3,,,happy,,,
+say,"Whoosh! Into our rocket. Hello, moon!",,,,,cheer,surprised,,,
+say,"Time to go home now.",,,,,,happy,,,playroom
+say,"It's bedtime. Goodnight, friend!",,,,,wave,happy,,,

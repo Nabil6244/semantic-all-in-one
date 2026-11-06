@@ -17,7 +17,7 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
   const camera = new THREE.PerspectiveCamera(34, W / H, 0.01, 1000);
   const cache = new Map();
-  let anchor = null;
+  let anchor = null, parts = null;
 
   // the sky behind every craft and globe: dense enough to read through the grade and the vignette (it was 1.5 px stars and a 0.05-0.16
   // band, so craft shots looked like plain black next to the reference's Milky Way photograph)
@@ -84,7 +84,8 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
       let e = cache.get(shot.id);
       if (!e) { e = await build(shot); cache.set(shot.id, e); }
       const k = Math.min(1, Math.max(0, (t - shot.start) / Math.max(0.5, shot.end - shot.start)));
-      if (e.product) { e.product.place(camera, k, t - shot.start); e.product.render(renderer, camera, k, t - shot.start); return canvas; }
+      parts = null;
+      if (e.product) { e.product.place(camera, k, t - shot.start); e.product.render(renderer, camera, k, t - shot.start); parts = e.product.parts ? e.product.parts(camera) : null; return canvas; }
       if (e.gen) { camera.up.set(0, 1, 0); e.gen.place(camera, k, t - shot.start); if (shot.frame_x) camera.setViewOffset(W, H, -shot.frame_x * W, 0, W, H); else camera.clearViewOffset(); renderer.render(e.gen.scene, camera); anchor = null; return canvas; }
       if (e.hero) { e.hero.place(camera, k, W, H); renderer.render(e.hero.scene, camera); return canvas; }
       const c = shot.cam || {}, az = ((c.az0 ?? -24) + ((c.az1 ?? 24) - (c.az0 ?? -24)) * k) * Math.PI / 180, el = (c.el ?? 12) * Math.PI / 180;
@@ -102,5 +103,6 @@ export async function createScene3d({ W, H, loadModel, loadTexture }) {
       return canvas;
     },
     anchor: () => anchor,
+    parts: () => parts,                          // the product's lens positions on screen this frame (pt_ring), or null
   };
 }

@@ -3,7 +3,7 @@
 //     "gauges": [{ "label": "iPhone 18 Pro", "value": 30.12, "highlight": false }, { "label": "iPhone 17 Pro", "value": 127.51, "highlight": true }] }
 // dark: true draws it as a dark card (for use over a 3D shot); false (default) is the flat paper look.
 import { tm, clamp01, glideOut } from './tm_theme.mjs';
-import { ptMotion, ptFont } from './pt_feature.mjs';
+import { ptMotion, ptFont, cueAge } from './pt_feature.mjs';
 
 export default {
   type: 'pt_gauge',
@@ -18,7 +18,7 @@ export default {
     if (d.title) T.text(String(d.title).toUpperCase(), W / 2, H * 0.14, { font: ptFont(S, 34, 700, 'sans'), track: 4, align: 'center', color: d.dark ? '#9DA8B6' : '#8A8F98', shadow: 0 });
     const cw = W * 0.82 / n, R = Math.min(cw * 0.42, H * 0.27);
     gs.forEach((p, i) => {
-      const cx = W * 0.09 + cw * (i + 0.5), cy = H * 0.58, k = glideOut((m.age - 0.25 - 0.15 * i) / 1.3), v = Math.max(0, Number(p.value) || 0), a0 = Math.PI * 0.8, a1 = Math.PI * 2.2;
+      const cx = W * 0.09 + cw * (i + 0.5), cy = H * 0.58, k = glideOut(cueAge(m.age, p, i, 0.15, 0.25) / 1.3), v = Math.max(0, Number(p.value) || 0), a0 = Math.PI * 0.8, a1 = Math.PI * 2.2;
       g.lineCap = 'round'; g.lineWidth = R * 0.18;
       g.strokeStyle = soft; g.beginPath(); g.arc(cx, cy, R, a0, a1); g.stroke();
       g.strokeStyle = p.highlight ? '#1fc41f' : (d.dark ? '#4aa8ff' : '#2f6df6'); g.beginPath(); g.arc(cx, cy, R, a0, a0 + (a1 - a0) * clamp01(v / max) * k); g.stroke();

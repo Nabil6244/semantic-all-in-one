@@ -3,7 +3,7 @@
 //   { "type": "pt_thermal", "start": 0, "end": 5, "title": "30 MIN GAMING", "unit": "°C", "min": 25, "max": 50,
 //     "phones": [{ "label": "Galaxy S26 Ultra", "temp": 41.2 }, { "label": "Galaxy S27 Ultra", "temp": 46.8, "highlight": true }] }
 import { tm, clamp01, glideOut } from './tm_theme.mjs';
-import { ptMotion, ptFont } from './pt_feature.mjs';
+import { ptMotion, ptFont, cueAge } from './pt_feature.mjs';
 
 const STOPS = [[0, [8, 6, 24]], [0.25, [70, 14, 120]], [0.5, [200, 28, 60]], [0.72, [255, 120, 20]], [0.9, [255, 215, 60]], [1, [255, 250, 220]]];
 export const heatRGB = (h) => { const x = clamp01(h); for (let i = 1; i < STOPS.length; i++) if (x <= STOPS[i][0]) { const [a, ca] = STOPS[i - 1], [b, cb] = STOPS[i], k = (x - a) / (b - a); return ca.map((v, j) => Math.round(v + (cb[j] - v) * k)); } return STOPS[STOPS.length - 1][1]; };
@@ -23,7 +23,7 @@ export default {
     if (d.title) T.text(String(d.title).toUpperCase(), W / 2, H * 0.11, { font: ptFont(S, 32, 700, 'sans'), track: 4, align: 'center', color: '#8d93a6', shadow: 0 });
     const pw = Math.min(H * 0.3, W * 0.2), pH = pw * 2.05, gap = pw * 0.9, x0 = W * 0.47 - (n * pw + (n - 1) * gap) / 2, y0 = H * 0.5 - pH / 2 - H * 0.02;
     ph.forEach((p, i) => {
-      const x = x0 + i * (pw + gap), k = glideOut((m.age - 0.2 - 0.15 * i) / 2.2), tn = clamp01(((Number(p.temp) || lo) - lo) / (hi - lo)), peak = tn * k, wob = 0.03 * Math.sin(f.t * 2 + i * 2);
+      const x = x0 + i * (pw + gap), k = glideOut(cueAge(m.age, p, i, 0.15, 0.2) / 2.2), tn = clamp01(((Number(p.temp) || lo) - lo) / (hi - lo)), peak = tn * k, wob = 0.03 * Math.sin(f.t * 2 + i * 2);
       g.save(); g.beginPath(); g.roundRect(x, y0, pw, pH, pw * 0.14); g.clip();
       g.fillStyle = css(0.04 + 0.12 * peak); g.fillRect(x, y0, pw, pH);
       const hot = (cx, cy, r, v) => { const gr = g.createRadialGradient(x + pw * cx, y0 + pH * cy, 0, x + pw * cx, y0 + pH * cy, pw * r); gr.addColorStop(0, css(v, 1)); gr.addColorStop(0.45, css(v * 0.62, 0.85)); gr.addColorStop(1, css(0.1, 0)); g.fillStyle = gr; g.fillRect(x, y0, pw, pH); };

@@ -37,13 +37,15 @@ export function stageScene(world, spec) {
     for (let i = 0; i < n; i++) {
       const faction = group.side === 'civ' ? 'civilian' : group.side === 'b' ? (spec.factions?.b || 'germany') : (spec.factions?.a || 'allied');
       const look = makeCharacter({ role: group.role, faction, era: spec.era, name: group.named && i === 0 ? group.name : null, seed: `${spec.seed}:${group.role}:${i}`, mood: group.mood });
+      if (group.costume) look.costume = group.costume;
       const a = { id: `${group.role}_${actors.length}`, role: group.role, look, phase: rng(), armed: ARMED_ROLES.has(group.role) && !!look.weapon, schedule: [], path: null, face: null, ride: null, sky: null, group: group.role };
       const col = i % 4, row = Math.floor(i / 4);
       let x = anchor[0], z = anchor[2];
       switch (group.formation) {
         case 'files': x += sx * (col - 1.5) * 3.2 - fx * row * 3.6 - fx * 30; z += sz * (col - 1.5) * 3.2 - fz * row * 3.6 - fz * 30; break;
         case 'line': x += sx * (i - (n - 1) / 2) * 4.5; z += sz * (i - (n - 1) / 2) * 4.5; break;
-        case 'front': x += fx * 10 + sx * (i - (n - 1) / 2) * 4; z += fz * 10 + sz * (i - (n - 1) / 2) * 4; break;
+        case 'front': { const gap = group.facing === 'lead' ? 5.4 : 10; x += fx * gap + sx * (i - (n - 1) / 2) * 4; z += fz * gap + sz * (i - (n - 1) / 2) * 4; if (group.facing === 'lead') a.face = [anchor[0], anchor[2]]; break; }   // face to face at arm's reach
+        case 'behind': x -= fx * 9 + sx * 1.5; z -= fz * 9 + sz * 1.5; break;   // keeps pace a few steps behind the lead (horror pursuit)
         case 'head': x = 0; z = -8.5; a.face = [0, 0]; break;
         case 'table': { const ang = (i / Math.max(1, n)) * Math.PI * 1.2 + Math.PI * 0.4; x = Math.cos(ang) * 9; z = Math.sin(ang) * 6 + 1; a.face = [0, 0]; break; }
         case 'table_far': x = (i - (n - 1) / 2) * 5 + 10; z = 7.5; a.face = [0, -6]; break;
@@ -90,6 +92,8 @@ export function stageScene(world, spec) {
         }
         if (st === 'fire' || st === 'cover') a.schedule[0].opts = { rate: rng.range(1.2, 2.6) };
       }
+      // a horror story: nobody ends up standing inside a house
+      if (group.keepOut) for (const c of world.colliders) if (!c.inside && x > c.x0 - 1 && x < c.x1 + 1 && z > c.z0 - 1 && z < c.z1 + 1) { const out = [[c.x0 - 1.5 - x, 0], [c.x1 + 1.5 - x, 0], [0, c.z0 - 1.5 - z], [0, c.z1 + 1.5 - z]].sort((p, q) => Math.hypot(...p) - Math.hypot(...q))[0]; x += out[0]; z += out[1]; if (a.path) a.path = a.path.map(([px, pz]) => [px + out[0], pz + out[1]]); }
       if (group.formation === 'head' || group.formation === 'table' || group.formation === 'table_far' || group.formation === 'mark') a.path = [[x, z]];
       a.yaw0 = a.face ? Math.atan2(a.face[0] - x, a.face[1] - z) : heading + (group.side === 'b' ? Math.PI : 0) + rng.range(-0.3, 0.3);
       actors.push(a);

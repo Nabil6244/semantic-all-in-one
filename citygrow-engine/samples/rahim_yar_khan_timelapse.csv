@@ -1,0 +1,17 @@
+row,year,until,era_name,flag,population,caption,title,kicker,style,shot,focus,hold,kind,radius,weight,extra
+plan,,,Rahim Yar Khan,,,,,,,,"70.300,28.420",,,,,"{""world"":""rahim_yar_khan"",""seed"":5,""heading"":10,""music"":""echoes_of_time_v2""}"
+district,1751,,Old town,,,,,,,,"70.30365,28.41761",,,,1.6,
+district,1880,,Railway quarter,,,,,,,,"70.3027,28.4223",,,,1.0,
+district,1955,,East colonies,,,,,,,,"70.3195,28.4275",,,,0.8,
+district,1970,,Gulshan-e-Usman,,,,,,,,"70.2855,28.4245",,,,0.85,
+district,1985,,North,,,,,,,,"70.3045,28.4336",,,,0.8,
+district,1995,,South,,,,,,,,"70.3150,28.4000",,,,0.7,
+era,1751,,Bahawalpur State,"crescent:#14532d,#f1e3b3",1500,"Naushehra, a small market town of the Bahawalpur State.",,,south_asian,,,,,,,
+era,1881,,Rahim Yar Khan,"crescent:#14532d,#f1e3b3",6000,Renamed Rahim Yar Khan as the railway arrives.,,,south_asian,,,,,,,
+era,1947,,Pakistan,"crescent:#01411c,#ffffff",20000,Bahawalpur joins Pakistan; refugees build new neighbourhoods.,,,south_asian,,,,,,,
+era,1961,,Pakistan,"crescent:#01411c,#ffffff",43000,Canals turn the district into cotton and sugarcane country.,,,south_asian,,,,,,,
+era,1998,,Pakistan,"crescent:#01411c,#ffffff",233000,Farmland becomes new colonies in every direction.,,,south_asian_modern,,,,,,,
+era,2023,,Pakistan,"crescent:#01411c,#ffffff",520000,Over half a million people live here today.,,,south_asian_modern,,,,,,,
+landmark,1880,,Railway Station,,,,,,,,"70.30271,28.42229",,station,,,"{""size"":120,""rot"":33,""color"":""brick"",""roof"":""#8a3b2c""}"
+landmark,1950,,Jamia Masjid,,,,,,,,"70.29875,28.42143",,mosque,,,"{""size"":40,""minarets"":2,""color"":""marble"",""dome"":""lead""}"
+landmark,1990,,Abbasia Stadium,,,,,,,,"70.30451,28.43361",,amphitheatre,,,"{""size"":170,""color"":""concrete""}"

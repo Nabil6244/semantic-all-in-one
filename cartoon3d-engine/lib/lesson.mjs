@@ -11,6 +11,8 @@
 //   emotion  happy | laugh | surprised | neutral | sad
 //   pause    extra seconds of quiet after the line (type=repeat defaults to 2.0 with a "Your turn!" badge)
 //   sound    animal sound word for type=animal ("Moo"): the animal hops each time it is said
+//   set      move to this set from this line on: playroom, park, farm, beach, bedroom, space (blank: stay, or follow a place word
+//            in the line such as "Let's go to the farm!"; see SET_CUES)
 // More types:
 //   opposite word "up/down", "big/small" or "fast/slow"; the prop moves on each spoken word, the tutor shows it
 //   animal   object cat|dog|cow|pig|sheep|frog|duck|fish + sound
@@ -20,6 +22,13 @@
 //   chant    spoken in rhythm: every word lands on the music's beat (needs opts.beat); she claps on the beat
 
 export const TYPES = ['say', 'word', 'repeat', 'count', 'color', 'cheer', 'opposite', 'animal', 'shape', 'letter', 'feeling', 'chant'];
+export const SETS = ['playroom', 'park', 'farm', 'beach', 'bedroom', 'space'];
+// Place words that move the lesson when a row has no set. Only clear place words: animal names or "sleepy" never move it.
+export const SET_CUES = {
+  park: ['park', 'playground', 'outside', 'swings'], farm: ['farm', 'barn', 'tractor', 'farmer'], beach: ['beach', 'sea', 'ocean', 'seaside', 'sandcastle', 'waves'],
+  bedroom: ['bedtime', 'goodnight', 'good night', 'night night', 'bedroom', 'pajamas'], space: ['space', 'rocket', 'planet', 'planets', 'astronaut', 'moon'],
+  playroom: ['playroom', 'back inside', 'go inside'],
+};
 export const PAIRS = { 'up/down': ['up', 'down', 'balloon'], 'big/small': ['big', 'small', 'ball'], 'fast/slow': ['fast', 'slow', 'car'] };
 const FEEL = { happy: 'happy', sad: 'sad', surprised: 'surprised', angry: 'angry', sleepy: 'neutral' };
 const ONE_PROP = ['word', 'color', 'opposite', 'animal', 'shape', 'letter', 'feeling'];
@@ -59,6 +68,8 @@ export function normalizeRows(rows) {
     if (type === 'feeling') { const f = (r.word || 'happy').toLowerCase(); b.mood = FEEL[f] ? f : (problems.push(`row ${line}: feeling "${r.word}" unknown, used happy`), 'happy'); b.object = 'face'; b.color = b.mood; if (!r.emotion) b.emotion = FEEL[b.mood]; }
     if (type === 'letter') { const L = (r.word || '').trim().charAt(0); b.letter = /[a-z]/i.test(L) ? L : (problems.push(`row ${line}: letter "${r.word}" missing, used A`), 'A'); }
     if (type === 'animal') b.sound = (r.sound || '').trim() || null;
+    const set = (r.set || '').trim().toLowerCase();
+    b.set = !set ? null : SETS.includes(set) ? set : (problems.push(`row ${line}: set "${r.set}" unknown (use ${SETS.join(', ')}), kept the current set`), null);
     if ((['word', 'count', 'color', 'animal', 'shape', 'letter'].includes(type)) && !b.object) { b.object = type === 'color' ? 'balloon' : type === 'animal' ? 'cat' : type === 'shape' ? 'circle' : 'ball'; problems.push(`row ${line}: no object, used ${b.object}`); }
     b.word = type === 'letter' ? `${b.letter.toUpperCase()} ${b.letter.toLowerCase()}` : type === 'feeling' ? cap(b.mood) : type === 'opposite' ? null : r.word || (type === 'color' ? cap(b.color || '') : ['word', 'animal', 'shape'].includes(type) ? cap(b.object) : null);
     if (i === 0 && !r.gesture && type === 'say') b.gesture = 'wave';
@@ -81,6 +92,21 @@ function slots(n) {
   return out;
 }
 
+// The set each line is in: a row's own set, else a place word in its text, else the set before it. Pure.
+// Returns [{ set, why: 'start' | 'csv' | 'cue', cue }] per beat.
+export function resolveSets(beats, start = 'playroom') {
+  let cur = SETS.includes(start) ? start : 'playroom';
+  return beats.map((b, i) => {
+    if (b.set) { const why = b.set === cur && i ? 'same' : 'csv'; cur = b.set; return { set: cur, why }; }
+    const text = ` ${String(b.text).toLowerCase().replace(/[^a-z' ]/g, ' ')} `;
+    for (const [set, words] of Object.entries(SET_CUES)) {
+      const hit = words.find((w) => text.includes(` ${w} `));
+      if (hit && set !== cur) { cur = set; return { set, why: 'cue', cue: hit }; }
+    }
+    return { set: cur, why: i ? 'same' : 'start' };
+  });
+}
+
 // voices[i] = { dur, words: [{text,t0,t1}] } for beats[i] (seconds from the line start).
 // opts.timed[i] = { t0, t1, words } (seconds on a recorded voice-over): lines sit where they were said; opts.voiceDuration keeps the end.
 export function buildLesson(beats, voices, opts = {}) {
@@ -88,13 +114,17 @@ export function buildLesson(beats, voices, opts = {}) {
   const lines = [], gestures = [], props = [], cards = [], badges = [];
   let t = lead, live = [];
   const endLive = (when) => { for (const p of live) p.t1 = when; live = []; };
-  const timed = opts.timed || null, beat = timed ? 0 : opts.beat || 0;       // a recording keeps its own rhythm: no beat snapping
+  const timed = opts.timed || null, sets = opts.sets || null, sw = [];
+  const beatOf = (i) => (timed ? 0 : typeof opts.beat === 'function' ? opts.beat(sets ? sets[i].set : null) : opts.beat || 0);   // a recording keeps its own rhythm
   beats.forEach((b, i) => {
     if (timed && timed[i]) t = timed[i].t0;
+    const beat = beatOf(i);
     if (b.type === 'chant' && beat) t = Math.ceil((t - 1e-6) / (2 * beat)) * 2 * beat;      // chants start on a half-bar of the music
     const T = timed && timed[i], v = T ? { dur: Math.max(0.3, T.t1 - T.t0), words: T.words.map((w) => ({ text: w.text, t0: w.t0 - T.t0, t1: w.t1 - T.t0 })) } : voices[i] || { dur: 1.5, words: [] }, t0 = t, t1 = t + v.dur;
     const words = (v.words.length ? v.words : spread(b.text, v.dur)).map((w) => ({ text: w.text, t0: +(t0 + w.t0).toFixed(3), t1: +(t0 + w.t1).toFixed(3) }));
-    lines.push({ i, type: b.type, text: b.text, t0: +t0.toFixed(3), t1: +t1.toFixed(3), words: captionWords(b.text, words) });
+    lines.push({ i, type: b.type, text: b.text, t0: +t0.toFixed(3), t1: +t1.toFixed(3), words: captionWords(b.text, words), ...(sets ? { set: sets[i].set } : {}) });
+    // A set change happens in the pause before its line (never inside a sentence): halfway through the pause, at most 0.45 s early.
+    if (sets && (!i || sets[i].set !== sets[i - 1].set)) sw.push({ t: i ? +Math.max((lines[i - 1].t1 + t0) / 2, t0 - 0.45).toFixed(3) : 0, set: sets[i].set });
     gestures.push({ t: Math.max(0, +(t0 - (b.type === 'chant' ? 0 : 0.15)).toFixed(3)), gesture: b.gesture, emotion: b.emotion, look: live.length || ['word', 'count', 'color'].includes(b.type) ? 'props' : 'camera', ...(b.type === 'chant' && beat ? { beat: +beat.toFixed(5) } : {}) });
     if (ONE_PROP.includes(b.type)) {
       endLive(t0 - 0.05);
@@ -140,7 +170,7 @@ export function buildLesson(beats, voices, opts = {}) {
   // Each card lasts until the next card appears (or its line's props leave, or the end).
   cards.sort((a, b) => a.t0 - b.t0);
   cards.forEach((c, k) => { const next = cards[k + 1]; c.t1 = Math.min(c.t1 ?? duration, next ? Math.max(c.t0 + 0.4, next.t0 - 0.02) : duration); });
-  return { duration, lines, gestures, props, cards, badges };
+  return { duration, lines, gestures, props, cards, badges, ...(sets ? { sets: sw } : {}) };
 }
 
 const OPP_GESTURE = { up: 'point', down: 'pointDown', big: 'open', small: 'present', fast: 'clap', slow: 'present' };

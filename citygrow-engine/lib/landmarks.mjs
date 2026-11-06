@@ -3,7 +3,7 @@
 // Units: metres, origin at the landmark's centre on the ground, x east, z south. build(THREE, spec, groundY) -> Group.
 
 export const KINDS = ['dome_church', 'mosque', 'cathedral', 'temple', 'forum', 'amphitheatre', 'hippodrome', 'castle',
-  'palace', 'wall', 'harbour', 'aqueduct', 'bridge', 'lighthouse', 'tower', 'skyscraper', 'column', 'church', 'market'];
+  'palace', 'station', 'wall', 'harbour', 'aqueduct', 'bridge', 'lighthouse', 'tower', 'skyscraper', 'column', 'church', 'market'];
 
 export const PALETTE = {
   stone: 0xd8ccb2, marble: 0xefe9dc, sand: 0xcdb48a, brick: 0xa9643f, terracotta: 0xb4553b, lead: 0x8e999f,
@@ -123,6 +123,19 @@ export function buildLandmark(THREE, spec, groundY) {
       box(L * 0.84, 0.4, L * 0.68, PALETTE.green); dome(L * 0.08, domeC, 0, h * 0.2, -L * 0.42, 10);
       break;
     }
+    case 'station': {   // a long station hall with a clock tower, platform canopies and the tracks running on past it
+      const L = S || 110, D = L * 0.16, h = L * 0.09;
+      box(L, h, D, wallC, 0, 0, 0); gable(L, L * 0.04, D * 1.05, roofC, 0, h, 0);
+      box(D * 0.7, h * 2.2, D * 0.7, wallC, 0, 0, 0); cone(D * 0.5, L * 0.06, roofC, 0, h * 2.2, 0, 4);
+      for (const k of [1, 2]) {
+        const z = -(D / 2 + k * L * 0.07);
+        box(L * 0.9, 0.6, L * 0.035, PALETTE.concrete, 0, 0, z + L * 0.02);
+        for (let i = -3; i <= 3; i++) box(0.5, L * 0.04, 0.5, PALETTE.slate, (i * L * 0.9) / 7, 0.6, z + L * 0.02);
+        box(L * 0.9, 0.4, L * 0.04, PALETTE.slate, 0, L * 0.04 + 0.6, z + L * 0.02);
+      }
+      for (const z of [-(D / 2 + L * 0.1), -(D / 2 + L * 0.17)]) box(L * 2.6, 0.35, 3.2, 0x6b5f55, 0, 0, z);
+      break;
+    }
     case 'lighthouse': { const H = S || 60; cyl(H * 0.12, H, PALETTE.marble, 0, 0, 0, 10, H * 0.07); cyl(H * 0.08, H * 0.1, PALETTE.gold, 0, H, 0, 8); break; }
     case 'column': { const H = S || 35; box(H * 0.2, H * 0.1, H * 0.2, PALETTE.marble); cyl(H * 0.06, H, PALETTE.marble, 0, H * 0.1, 0, 10); break; }
     case 'tower': { const H = S || 60; cyl(H * 0.14, H, wallC, 0, 0, 0, 12); cone(H * 0.16, H * 0.3, roofC, 0, H, 0, 12); break; }
@@ -175,9 +188,9 @@ export function buildLandmark(THREE, spec, groundY) {
 
 /** Ground a landmark covers, as circles {x, z, r} in metres (the city clears houses and trees there once it stands). */
 const SHAPE = { hippodrome: [1, 0.3], dome_church: [1.35, 1.05], mosque: [1.4, 1.3], cathedral: [1.15, 0.75], temple: [1.15, 0.6],
-  forum: [1, 0.65], market: [1, 0.65], palace: [1.05, 0.9], castle: [1.25, 1.25], amphitheatre: [1, 0.85], church: [1.3, 0.6] };
+  forum: [1, 0.65], market: [1, 0.65], station: [1.3, 0.5], palace: [1.05, 0.9], castle: [1.25, 1.25], amphitheatre: [1, 0.85], church: [1.3, 0.6] };
 const DEFAULT_SIZE = { dome_church: 72, mosque: 72, church: 34, cathedral: 90, temple: 50, forum: 120, market: 120, amphitheatre: 170,
-  hippodrome: 440, castle: 70, palace: 120, lighthouse: 20, column: 8, tower: 18, skyscraper: 45 };
+  hippodrome: 440, station: 110, castle: 70, palace: 120, lighthouse: 20, column: 8, tower: 18, skyscraper: 45 };
 export function footprint(spec) {
   if (spec.points) {
     const r = ((spec.extra?.thickness ?? 6) / 2) + 5, out = [];

@@ -4,6 +4,7 @@ import * as THREE from '/three/three.module.min.js';
 import { buildToon, poseToon } from './toon.js';
 import { buildTutor } from './tutor.js';
 import { loadHost3D, poseHost3D } from './host3d.js';
+import { loadPuppet2D, posePuppet2D } from './puppet2d.js';
 import { RoomEnvironment } from '/three/addons/environments/RoomEnvironment.js';
 import { buildWorld } from './worlds.js';
 import { buildProp } from './props.js';
@@ -49,15 +50,25 @@ async function init() {
   renderer.setPixelRatio(1); renderer.setSize(W, H, false);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace;
   scene = new THREE.Scene();
-  const world = buildWorld(plan.world || 'playroom'); world.setup(scene); scene.add(world.root);
-  if (plan.host === 'host3d') {                  // the approved 3D host: PBR materials need a soft environment besides the world's lights
+  // Every set the lesson visits, built once; each keeps its own lights, sky and fog, and only the active one is shown.
+  const names = [...new Set((plan.sets && plan.sets.length ? plan.sets.map((x) => x.set) : [plan.world || 'playroom']))];
+  for (const name of names) {
+    const w = buildWorld(name), lights = new THREE.Group(), proxy = { add: (o) => lights.add(o), background: null, fog: null };
+    w.setup(proxy); scene.add(w.root); scene.add(lights);
+    SETS[name] = { root: w.root, lights, bg: proxy.background, fog: proxy.fog };
+  }
+  showSet(names[0]);
+  if (String(plan.host).startsWith('puppet:')) {  // a host made from the user's own picture; toys float beside her face, where her hand can reach them
+    host = await loadPuppet2D(plan.host.slice(7));
+    for (const p of plan.props) { p.y -= 0.28; p.s *= 0.8; }
+  } else if (plan.host === 'host3d') {                  // the approved 3D host: PBR materials need a soft environment besides the world's lights
     host = await loadHost3D('/host.glb');
     scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.35;
   } else host = plan.host === 'toon' ? buildToon({ palette: plan.palette || 'sunny' }) : buildTutor({ name: plan.look || 'maya' });
   host.userData.seed = 3; host.position.x = plan.tutorX; scene.add(host);
   for (const p of plan.props) { const g = new THREE.Group(), m = buildProp(p.kind, p.color); m.traverse((o) => { if (o.isMesh) o.castShadow = true; }); g.add(m); g.position.set(p.x, p.y, 0.15); g.visible = false; scene.add(g); propRigs.push({ p, g, m }); }
   camera = new THREE.PerspectiveCamera(34, W / H, 0.1, 200);
-  for (const k of ['cap', 'card', 'badge', 'nums']) el[k] = document.getElementById(k);
+  for (const k of ['cap', 'card', 'badge', 'nums', 'wipe']) el[k] = document.getElementById(k);
   el.numDivs = plan.props.map((p) => { if (!p.n) return null; const d = document.createElement('div'); d.className = 'num'; d.textContent = p.n; el.nums.appendChild(d); return d; });
   await document.fonts.ready; try { await document.fonts.load('800 40px Outfit'); } catch { /* fallback */ }
 }
@@ -79,24 +90,27 @@ function gestureAt(t) {
 // "your turn"/repeat lines (even with a toy still out) -> head-and-shoulders close-up so the child can watch her mouth; other lines -> medium shot of the host.
 // Each shot is [look x, look y, distance]; the camera stays square to the set.
 const SHOTS = { two: null, medium: [0, 1.4, 1.75], close: [0, 1.5, 1.2] };
+const PUPPET_SHOTS = { two: null, full: [0, 0.84, 3.0], medium: [0, 1.06, 2.1], close: [0, 1.22, 1.35] };
 let camCuts = null;
 function hostShots() {
-  const hx = plan.tutorX, cuts = [];
+  const hx = plan.tutorX, cuts = [], puppet = host.userData.puppet2d, SH = puppet ? PUPPET_SHOTS : SHOTS;
   const during = (l) => plan.props.filter((p) => p.t0 - 0.2 < l.t1 && (p.t1 ?? plan.duration) > l.t0 + 0.3);   // every prop seen in the line
   const T17 = Math.tan(17 * Math.PI / 180);
   for (const l of plan.lines) {
     const ps = during(l);
     let shot;
-    if (l.type === 'repeat') shot = [hx, ...SHOTS.close.slice(1)];                   // speech modelling: watch her mouth
+    const g = plan.gestures.find((x) => x.t >= l.t0 - 0.4 && x.t < l.t1);
+    if (l.type === 'repeat') shot = [hx, ...SH.close.slice(1)];                   // speech modelling: watch her mouth
     else if (ps.length) {
-      const r = (p) => 0.24 * p.s, right = Math.max(...ps.map((p) => p.x + r(p))) + 0.12, left = hx - 0.45, cy = 1.38;
+      const r = (p) => 0.24 * p.s, right = Math.max(...ps.map((p) => p.x + r(p))) + 0.12, left = hx - (puppet ? 0.5 : 0.45), cy = puppet ? 0.98 : 1.38;
       const top = Math.max(...ps.map((p) => p.y + r(p))) + 0.12, bottom = Math.min(...ps.map((p) => p.y - r(p))) - 0.05;
-      const d = Math.max(1.75, (right - left) / 2 / T17 / camera.aspect, (top - cy) / T17, (cy - bottom) / T17);
+      const d = Math.max(puppet ? 2.3 : 1.75, (right - left) / 2 / T17 / camera.aspect, (top - cy) / T17, puppet ? 0 : (cy - bottom) / T17);
       shot = [(left + right) / 2, cy, d];
-    } else shot = [hx, ...SHOTS.medium.slice(1)];
+    } else if (puppet && (!cuts.length || (g && ['wave', 'cheer', 'jump', 'clap', 'open'].includes(g.gesture)))) shot = [hx, ...SH.full.slice(1)];   // whole body when she moves big
+    else shot = [hx, ...SH.medium.slice(1)];
     cuts.push({ t: Math.max(0, l.t0 - 0.35), shot });
   }
-  return cuts.length ? cuts : [{ t: 0, shot: [hx, ...SHOTS.medium.slice(1)] }];
+  return cuts.length ? cuts : [{ t: 0, shot: [hx, ...SH.medium.slice(1)] }];
 }
 function hostCamera(t) {
   camCuts = camCuts || hostShots();
@@ -107,12 +121,33 @@ function hostCamera(t) {
   camera.position.set(x + sway, y + 0.06, d - push); camera.lookAt(x, y, 0);
 }
 
+// ---- sets: which one is showing, and the circle wipe that hides each change (closes, swaps, opens: 0.8 s)
+const SETS = {}; let shownSet = null;
+const WIPE = { playroom: '#ffd43b', park: '#69db7c', farm: '#ff922b', beach: '#4dabf7', bedroom: '#9775fa', space: '#364fc7' };
+function showSet(name) {
+  if (shownSet === name || !SETS[name]) return;
+  for (const [k, v] of Object.entries(SETS)) { v.root.visible = v.lights.visible = k === name; }
+  scene.background = SETS[name].bg; scene.fog = SETS[name].fog || null; shownSet = name;
+}
+function setsAt(t) {
+  const S = plan.sets && plan.sets.length ? plan.sets : null; if (!S) return;
+  let cur = S[0]; for (const x of S) if (x.t <= t) cur = x;
+  showSet(cur.set);
+  const near = S.slice(1).reduce((b, x) => (Math.abs(x.t - t) < Math.abs((b ? b.t : 1e9) - t) ? x : b), null), w = el.wipe;
+  const u = near ? Math.abs(t - near.t) / 0.4 : 9;
+  if (u >= 1) { if (w.style.display !== 'none') w.style.display = 'none'; return; }
+  const cover = 1 - u * u * (3 - 2 * u);
+  w.style.display = 'block'; w.style.background = `radial-gradient(circle at 50% 55%, #fff8 0 8%, transparent 9%), ${WIPE[near.set] || '#ffd43b'}`;
+  w.style.clipPath = `circle(${(cover * 80).toFixed(2)}% at 50% 55%)`;
+}
+
 function setHtml(key, node, html) { if (last[key] !== html) { node.innerHTML = html; last[key] = html; } }
 
 window.renderFrame = (t) => {
   const s = gestureAt(t); s.open = mouthAt(t);
-  if (host.userData.host3d) poseHost3D(host, t, s, plan); else poseToon(host, t, s);
-  if (host.userData.host3d) hostCamera(t);
+  if (host.userData.host3d) poseHost3D(host, t, s, plan); else if (host.userData.puppet2d) posePuppet2D(host, t, s, plan); else poseToon(host, t, s);
+  setsAt(t);
+  if (host.userData.host3d || host.userData.puppet2d) hostCamera(t);
   else {
     // Camera: medium two-shot of tutor and stage, a slow breathing push.
     const u = (t % 12) / 12, push = Math.sin(u * Math.PI) * 0.18;

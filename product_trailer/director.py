@@ -26,7 +26,8 @@ from typing import Any, Dict, List, Optional
 NUM = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(%|W\b|watts?|mAh|milliamp\w*(?:\s+hours?)?|MP|megapixels?|Hz|GB|TB|nits?|mm|fps|ms\b|milliseconds?|hours?|hrs?\b|mbps|points|pts\b|percent\b|x\b)", re.I)
 UNIT = {"percent": "%", "watt": "W", "watts": "W", "w": "W", "nit": " nits", "nits": " nits", "megapixel": "MP", "megapixels": "MP", "mp": "MP"}
 COLOURS = {"black": "#2b2b2e", "blue": "#3f6fb5", "sky blue": "#8fc3ea", "light pink": "#e9b4c4", "pink": "#e49ab0", "white": "#ecebea", "silver": "#c8ccd2", "grey": "#8a8f98",
-           "gray": "#8a8f98", "green": "#4f8a63", "purple": "#6b5aa8", "gold": "#d3b26b", "red": "#b3363f", "orange": "#e08a3a", "navy": "#26325c", "titanium": "#9a9a96"}
+           "gray": "#8a8f98", "green": "#4f8a63", "purple": "#6b5aa8", "gold": "#d3b26b", "red": "#b3363f", "orange": "#e08a3a", "navy": "#26325c", "titanium": "#9a9a96",
+           "violet": "#b98ce0", "lavender": "#c9b6e8", "mint": "#9fd6c0", "cream": "#efe6d2", "yellow": "#f0d24a", "coral": "#e88a7a"}
 NUMBER_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "2": 2, "3": 3, "4": 4, "5": 5}
 PURPLE, DARK = "#5b5a86", "#2b2b2e"
 
@@ -185,6 +186,7 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
     """The scene a sentence calls for. `ctx` carries what the sentences before it were about ({"unit", "topic"}), so "the S26 Ultra has 5,000"
     after a battery sentence is read as mAh."""
     text = spoken_numbers(text)
+    lens_open = bool(ctx.pop("lens_open", False)) if ctx is not None else False   # the sentence before drew lens callouts (gap 4)
     talk = talk_scene(text, phone, ctx)
     if talk:
         return talk
@@ -213,6 +215,21 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
     if _has(t, "tipster", "leaker", "according to", "rumor", "rumour", "sources say") and (who or _has(t, "tipster", "leaker") or not nums) and len(text.split()) >= 6:   # a bare "rumor" with figures shows the figures
         hl = nums and re.search(re.escape(nums[0]["raw"]) + r"[^,.]*", text)
         return {"kind": "tweet", "author": who.group(1) if who else "As reported", "handle": "", "text": text, "highlight": hl.group(0).strip() if hl else ""}
+    # 2b. lens callouts (REVIEW_REFERENCE_4 gap 4): a camera sentence after one keeps that scene and adds to it; two lenses named, or one asked
+    #     about, draw the callouts; every other such sentence keeps the older camera scenes below
+    from . import lenses as _lenses
+    if lens_open and _lenses.is_camera_talk(text):
+        ctx["lens_open"] = True
+        return None
+    lens_layer = _lenses.layer_for(text, name)
+    if lens_layer and ctx is not None:
+        ctx["lens_n"] = ctx.get("lens_n", 0) + 1
+        if ctx["lens_n"] % 2 == 1:
+            ctx["lens_open"] = True
+            return _scene(**lens_layer)
+    ring = _lenses.ring_for(text)
+    if ring:                                     # gap 5: how one lens looks -> a lens macro with a ring drawn round that lens
+        return {"kind": "macro", "text": ring.pop("label"), "move": "island", "ring": ring}
     # 3. colours
     cols = [c for c in sorted(COLOURS, key=len, reverse=True) if re.search(r"(?<![a-z])" + c + r"(?![a-z])", t)]
     seen: List[str] = []
@@ -221,6 +238,11 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
             seen.append(c)
     if len(seen) >= 3 and _has(t, "colour", "colours", "color", "colors", "shades", "options"):
         order = sorted(seen, key=lambda c: t.index(c))
+        if ctx is not None:
+            ctx["colour_n"] = ctx.get("colour_n", 0) + 1
+        if ctx is not None and ctx["colour_n"] % 2 == 1:   # colour cards (REVIEW_REFERENCE_4 gap 3); every other colour sentence keeps the colour phones
+            from .swatches import cards_for
+            return _scene(**cards_for(text, order, name))
         return _scene(phones=[{"label": c.title(), "color": COLOURS[c], "cams": 3} for c in order[:4]], title="Colour options")
     # 4. model lineup
     models = re.findall(r"(?:Galaxy )?S\d{2}(?: (?:Plus|Pro|Edge|Ultra|FE))?|iPhone \d+(?: (?:Pro Max|Pro|Plus|Air))?", text)
@@ -265,6 +287,13 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
             return _scene(title="Size (mm)", phones=[{"label": other, "color": PURPLE, "cams": 4, "top": " x ".join(sizes[1])},
                                                      {"label": name, "color": DARK, "cams": 3, "top": " x ".join(sizes[0]), **({"badge": f"{dh:+.2f} mm"} if dh else {})}])
         return {"kind": "macro", "text": "Dimensions", "move": "edge"}
+    # 6a. two figures of one kind either side of the phone (REVIEW_REFERENCE_5 gap 17); every other such sentence keeps the flat scenes below
+    from .sides import sides_for
+    two = sides_for(text, name)
+    if two and ctx is not None:                  # without a running context (a one-off check) the older scenes below answer
+        ctx["sides_n"] = ctx.get("sides_n", 0) + 1
+        if ctx["sides_n"] % 2 == 1:
+            return {"kind": "sides", **two}
     # 6b. prices ("dropped to $919.99 ... a $1,299.99 list price")
     prices = re.findall(r"\$(\d[\d,]*(?:\.\d{2})?)", text)
     if prices:

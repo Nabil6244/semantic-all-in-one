@@ -26,10 +26,11 @@ export function makeFxLayer() {
     }
     // rain: a box of streaks around the camera, positions hashed by cell so they are stable from frame to frame
     if (weather === 'rain' || weather === 'storm') {
-      const n = weather === 'storm' ? 1400 : 900, R = 60;
+      const n = weather === 'storm' ? 1400 : 900, R = 60, dry = A.dryAt ? A.dryAt(t) : [];   // horror: a circle the rain never touches
       for (let i = 0; i < n; i++) {
         const fall = 70, ph = h01(i, 7), y = ((ph * 60 - t * fall) % 60 + 60) % 60 - 20;
         p.set(camPos.x + (h01(i, 1) - 0.5) * 2 * R, camPos.y + y, camPos.z + (h01(i, 2) - 0.5) * 2 * R);
+        if (dry.length && dry.some((c) => (p.x - c.x) ** 2 + (p.z - c.z) ** 2 < c.r * c.r)) continue;
         q.setFromEuler(e.set(0.18, 0, 0.08)); s.set(1, 2.2, 1); m4.compose(p, q, s); rain.setMatrixAt(nr++, m4);
       }
     }
