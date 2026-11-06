@@ -171,6 +171,7 @@ class Scrollbars(unittest.TestCase):
             if drawn:
                 self.assertNotEqual(t2, t1, "thumb not redrawn after moveto")
             # click on the scrollbar track near the bottom
+            y3 = None          # not measured when the scrollbar is not drawn
             if drawn:          # an unmapped scrollbar (headless Windows CI) is ~1 px tall: there is no track to click
                 sb._canvas.event_generate("<Button-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
                 sb._canvas.event_generate("<ButtonRelease-1>", x=sb._canvas.winfo_width() // 2, y=sb._canvas.winfo_height() - 3)
