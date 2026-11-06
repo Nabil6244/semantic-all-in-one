@@ -41,6 +41,10 @@ export function clampShift(box, dx, dy, frame, m) {
   return [fit(box.x, box.w, dx, frame.w), fit(box.y, box.h, dy, frame.h)];
 }
 
+/** Decoded pixels kept per page (RGBA). */
+export const BITMAP_BUDGET = 512 * 1024 * 1024;
+export const bitmapBytes = (b) => (b && b.width && b.height ? b.width * b.height * 4 : 0);
+
 export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia = null, gfx = null }) {
   const W = spec.width, H = spec.height, S = H / FRAME.h;
   const events = spec.events || [];
@@ -60,6 +64,7 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
   // ---- pictures and clip frames: loaded ahead of each frame (prepare), then drawn synchronously ----
   const mediaIndex = spec.media_index || {};
   const bitmaps = new Map(); // "id:frame" -> ImageBitmap
+  let bytes = 0;
   const fps = spec.fps;
   const lookup = (path, start = 0) => mediaIndex[mediaKey(path, start)];
   const frameOf = (info, t, tIn, loop) => (info.kind === 'video' ? (info.fit ? fitFrame(t, tIn, fps, info.count, info.rate) : clipFrame(t, tIn, fps, info.count, loop)) : 0);
@@ -68,7 +73,14 @@ export function createOverlay({ spec, ctx, project, unproject = null, fetchMedia
     if (bitmaps.has(k)) return;
     if (!fetchMedia) throw new Error('media needs a loader');
     bitmaps.set(k, await fetchMedia(info.id, info.kind === 'video' ? frame : null));
-    if (bitmaps.size > 160) { const old = bitmaps.keys().next().value; bitmaps.get(old)?.close?.(); bitmaps.delete(old); }
+    // Kept by memory, not by count: 160 full-size pictures (4K stills, baked boards) is several GB per page, and the browser
+    // dies with "Target crashed" on a long film. The newest ones, the ones this frame and the next draw, always stay.
+    bytes += bitmapBytes(bitmaps.get(k));
+    while (bitmaps.size > 160 || (bytes > BITMAP_BUDGET && bitmaps.size > 1)) {
+      const old = bitmaps.keys().next().value;
+      bytes -= bitmapBytes(bitmaps.get(old));
+      bitmaps.get(old)?.close?.(); bitmaps.delete(old);
+    }
   }
   const bmp = (path, start, t, tIn, loop) => { const info = lookup(path, start); return info ? bitmaps.get(`${info.id}:${frameOf(info, t, tIn, loop)}`) || null : null; };
   /** Every picture/clip frame the layers visible at t will need. */

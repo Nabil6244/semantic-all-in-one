@@ -6,13 +6,22 @@ import subprocess
 import tempfile
 import unittest
 
-from pakmap.engine_runner import SEGMENT_DIR, _groups, render_spec
+from pakmap.engine_runner import CRASH_RETRIES, SEGMENT_DIR, _groups, _is_browser_crash, render_spec
 from test_pakmap_generate import _can_render
 
 
 def _frame_md5s(video: pathlib.Path) -> list:
     out = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-f", "framemd5", "-"], capture_output=True, text=True).stdout
     return [ln.split(",")[-1].strip() for ln in out.splitlines() if ln[:1].isdigit()]
+
+
+class TestBrowserCrash(unittest.TestCase):
+    def test_a_dead_browser_is_drawn_again_a_bad_plan_is_not(self):
+        for why in ("Target crashed", "page.evaluate: Target closed", "Page crashed", "browserContext: Browser has been closed"):
+            self.assertTrue(_is_browser_crash(why), why)
+        for why in ("map setup failed: bad style", "ffmpeg exited 1: disk full", "exit code 2"):
+            self.assertFalse(_is_browser_crash(why), why)
+        self.assertGreaterEqual(CRASH_RETRIES, 1)
 
 
 class TestGroups(unittest.TestCase):

@@ -37,6 +37,16 @@ class RenderOutcome:
     warnings: list = field(default_factory=list)
 
 
+CRASH_RETRIES = 3
+_CRASH_MARKERS = ("target crashed", "target closed", "page crashed", "browser has been closed", "browser closed", "session closed")
+
+
+def _is_browser_crash(message: str) -> bool:
+    """True when the engine stopped because its browser or page died (worth drawing again), not because of a bad plan."""
+    m = str(message).lower()
+    return any(x in m for x in _CRASH_MARKERS)
+
+
 def engine_dir() -> Path:
     from map_scene.render import _find
 
@@ -395,12 +405,25 @@ def _render_in_segments(job: dict, output: Path, *, progress, cancel_check, log,
                 Path(p).unlink(missing_ok=True)
 
         try:
-            wjob = dict(job, output=str(work / f"renderer{k}.mp4"),
-                        segments=[{"from": s["from"], "to": s["to"], "output": out} for out, s in by_out.items()])
-            done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s, on_cancel=drop)
-            if done is None or code != 0:
+            # A browser that crashes mid-way (Target crashed: out of memory on a very long film) costs only the piece it was on:
+            # the pieces it finished are kept, and the rest go to a fresh browser, up to CRASH_RETRIES times.
+            for attempt in range(CRASH_RETRIES + 1):
+                todo = [(out, s) for out, s in by_out.items() if s["key"] not in paths]
+                if not todo:
+                    break
+                wjob = dict(job, output=str(work / f"renderer{k}.mp4"),
+                            segments=[{"from": s["from"], "to": s["to"], "output": out} for out, s in todo])
+                done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s, on_cancel=drop)
+                if done is not None and code == 0:
+                    break
+                why = f"{error or stderr or f'exit code {code}'}"
+                if attempt < CRASH_RETRIES and not stopped() and _is_browser_crash(why):
+                    for out, _s in todo:
+                        Path(out).unlink(missing_ok=True)
+                    log(f"[pakMap] renderer {k + 1}: the browser stopped ({why[:80]}); drawing the remaining pieces again in a fresh one")
+                    continue
                 drop()
-                raise PakmapRenderError(f"pakMap render failed: {error or stderr or f'exit code {code}'}")
+                raise PakmapRenderError(f"pakMap render failed: {why}")
         except Exception as exc:  # noqa: BLE001
             errors.append(exc)
             stop.set()                                   # one renderer failed: the others stop
