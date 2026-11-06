@@ -82,6 +82,14 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     if DR.has_direction(sents):      # the scenes CSV's look / prompt / muscle / chapter columns (reptheory/direction.py); blank cells stay the app's choice
         for msg in DR.check_rows(sents): log(f"[REP THEORY CSV] {msg}")
         log(f"[REP THEORY CSV] direction: {DR.apply(scenes, sents, log=log)}")
+        if not clips3d:      # 3D scenes switched off: rows that ask for the 3D body (look 3d / a muscle) go back to the app's own choice
+            dropped = 0
+            for sc in scenes:
+                if sc.get("directed_look") and sc.get("look") == "3d":
+                    for k in ("directed_look", "look_payload", "want3d", "cam3d"): sc.pop(k, None)
+                    sc["look"] = sc["kind"]
+                    dropped += 1
+            if dropped: log(f"[REP THEORY CSV] 3D scenes are off: {dropped} CSV row(s) asking for the 3D body use the app's own look instead")
         if not variety:      # without the variety director, the asked card looks and 3D clips are set here
             for sc in scenes:
                 if sc.get("directed_look"): DR.build_card(sc); sc["want3d"] = sc.get("look") == "3d"
