@@ -39,7 +39,7 @@ export function prepareMedia(spec, { baseDir = '.', ffmpeg = 'ffmpeg', workDir =
     if (!kind) throw new DataError(`${where}: ${u.path} is not a picture or video file (pictures: ${IMAGE_EXT.join(' ')}; videos: ${VIDEO_EXT.join(' ')})`);
     if (!fs.existsSync(file)) throw new DataError(`${where}: ${kind === 'image' ? 'picture' : 'video'} not found: ${u.path} (looked in ${path.dirname(file)})`);
     const id = `m${n++}`;
-    if (kind === 'image') { index[key] = { id, kind: 'image' }; files[id] = { file, mime: mimeOf(file) }; continue; }
+    if (kind === 'image') { index[key] = { id, kind: 'image' }; files[id] = { file, mime: mimeOf(file), maxW: u.maxW }; continue; }
     if (lazy) {
       // Long videos: a clip's frames are cut when the render first needs them and deleted once its last use has passed, so the disk holds
       // only the clips on screen now, however long the video is. The frame count comes from the clip's length (the server clamps to what exists).
@@ -88,5 +88,6 @@ export function releaseClips(files, t) {
 export function disposeMedia(files) {
   for (const entry of Object.values(files || {})) {
     if (entry.dir) { fs.rmSync(entry.dir, { recursive: true, force: true }); entry.dir = null; }
+    if (entry.smallDir) { fs.rmSync(entry.smallDir, { recursive: true, force: true }); entry.smallDir = null; entry.small = undefined; }
   }
 }

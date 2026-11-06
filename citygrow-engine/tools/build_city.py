@@ -16,6 +16,7 @@ import argparse
 import json
 import math
 import os
+import ssl
 import sys
 import time
 import urllib.parse
@@ -79,6 +80,16 @@ def tile_xy(lon: float, lat: float, z: int) -> tuple[float, float]:
     return x, y
 
 
+def ssl_context() -> ssl.SSLContext:
+    """HTTPS checked against certifi's certificates: the installed app's Python has no system store on a Mac, and every download
+    failed there with "certificate verify failed: unable to get local issuer certificate"."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return ssl.create_default_context()
+
+
 def download(url: str, path: Path, data: bytes | None = None, timeout: int = 60) -> Path:
     if path.exists():
         return path
@@ -86,7 +97,7 @@ def download(url: str, path: Path, data: bytes | None = None, timeout: int = 60)
     req = urllib.request.Request(url, data=data, headers={"User-Agent": UA})
     for attempt in range(3):
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as r:
+            with urllib.request.urlopen(req, timeout=timeout, context=ssl_context()) as r:
                 tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
                 tmp.write_bytes(r.read())
                 os.replace(tmp, path)

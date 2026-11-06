@@ -151,7 +151,7 @@ def _base_job(spec: dict, imagery: bool) -> dict:
 
 
 def _run_engine(job: dict, *, on_event: Callable[[dict], None], cancel_check: Optional[Callable[[], bool]], timeout_s: float,
-                on_cancel: Callable[[], None] = lambda: None) -> tuple:
+                on_cancel: Callable[[], None] = lambda: None, extra_env: Optional[dict] = None) -> tuple:
     """Run render.mjs for ``job``; every JSON line goes to on_event. Returns (done event or None, error message, exit code, stderr tail)."""
     from map_scene.render import _node
 
@@ -162,7 +162,8 @@ def _run_engine(job: dict, *, on_event: Callable[[dict], None], cancel_check: Op
         from providers import hidden_subprocess as hs
 
         proc = hs.popen([_node(), str(engine / "render.mjs"), str(spec_path)], cwd=str(engine), stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+                        stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace",
+                        **({"env": {**os.environ, **extra_env}} if extra_env else {}))
         pid = 0
         try:
             from hardware.process_registry import get_registry
@@ -413,14 +414,16 @@ def _render_in_segments(job: dict, output: Path, *, progress, cancel_check, log,
                     break
                 wjob = dict(job, output=str(work / f"renderer{k}.mp4"),
                             segments=[{"from": s["from"], "to": s["to"], "output": out} for out, s in todo])
-                done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s, on_cancel=drop)
+                # the second try is the same; from the third the browser draws with software GL (slower, but no graphics-card memory to run out of)
+                done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s, on_cancel=drop,
+                                                        extra_env={"PAKMAP_GL": "software"} if attempt >= 2 else None)
                 if done is not None and code == 0:
                     break
                 why = f"{error or stderr or f'exit code {code}'}"
                 if attempt < CRASH_RETRIES and not stopped() and _is_browser_crash(why):
                     for out, _s in todo:
                         Path(out).unlink(missing_ok=True)
-                    log(f"[pakMap] renderer {k + 1}: the browser stopped ({why[:80]}); drawing the remaining pieces again in a fresh one")
+                    log(f"[pakMap] renderer {k + 1}: the browser stopped ({why[:80]}); drawing the remaining pieces again in a fresh one" + (" with software graphics" if attempt >= 1 else ""))
                     continue
                 drop()
                 raise PakmapRenderError(f"pakMap render failed: {why}")

@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import ssl
 import sys
 import time
 import urllib.parse
@@ -25,6 +26,17 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 HERE = Path(__file__).resolve().parent.parent
+
+
+def ssl_context() -> ssl.SSLContext:
+    """HTTPS checked against certifi's certificates (the installed Mac app has no system store)."""
+    try:
+        import certifi
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # noqa: BLE001
+        return ssl.create_default_context()
+
+
 UA = "SemanticYTStudio-citygrow/0.1 (one-time cached fetch)"
 OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter", "https://overpass.private.coffee/api/interpreter"]
 M_LAT, M_LON = 110574.0, 111320.0
@@ -43,7 +55,7 @@ LANDUSE = {
 
 def post(url: str, query: str, timeout: int = 180) -> dict:
     req = urllib.request.Request(url, data=urllib.parse.urlencode({"data": query}).encode(), headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=timeout, context=ssl_context()) as r:
         return json.loads(r.read())
 
 
@@ -236,7 +248,7 @@ def build_satellite(w: World, z: int = 15) -> dict:
                 for attempt in range(3):
                     try:
                         req = urllib.request.Request(ESRI.format(z=z, x=tx, y=ty), headers={"User-Agent": UA})
-                        cache.write_bytes(urllib.request.urlopen(req, timeout=30).read())
+                        cache.write_bytes(urllib.request.urlopen(req, timeout=30, context=ssl_context()).read())
                         break
                     except Exception:  # noqa: BLE001
                         time.sleep(1.5 * (attempt + 1))

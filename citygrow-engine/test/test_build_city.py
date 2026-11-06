@@ -137,3 +137,30 @@ class BuildTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Downloads(unittest.TestCase):
+    def test_https_is_checked_against_certifi_not_the_system_store(self):
+        """The installed Mac app failed every download with 'certificate verify failed: unable to get local issuer certificate'."""
+        from unittest import mock
+        seen = {}
+
+        class R:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return b"x"
+
+        def fake_open(req, timeout=None, context=None):
+            seen["context"] = context
+            return R()
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(bc.urllib.request, "urlopen", fake_open):
+            bc.download("https://example.com/a.png", Path(d) / "a.png")
+        import ssl
+        self.assertIsInstance(seen["context"], ssl.SSLContext)
+        self.assertTrue(seen["context"].verify_mode == ssl.CERT_REQUIRED)
+        try:
+            import certifi
+            self.assertTrue(len(seen["context"].get_ca_certs()) > 0 and Path(certifi.where()).is_file())
+        except ImportError:
+            pass

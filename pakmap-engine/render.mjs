@@ -13,6 +13,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
+import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { spawn } from 'node:child_process';
@@ -23,6 +24,7 @@ import { resolveSpecData } from './lib/datasets.mjs';
 import { prepareMedia, materializeClip, releaseClips, disposeMedia } from './lib/media.mjs';
 import { fetchTile, cachePath } from './lib/tiles.mjs';
 import { parsePointsCsv } from './lib/points.mjs';
+import { stillFile } from './lib/stills.mjs';
 import { footageShortcut } from './lib/footage_pass.mjs';
 import { planSegments, frameCosts, segmentEvents } from './lib/segments.mjs';
 
@@ -53,6 +55,7 @@ function countriesGeoJSON(spec) {
 // lower-resolution imagery instead (page.js); the counts go to the render log and the sidecar.
 const tileFailures = new Map();
 
+const recentMedia = [];   // the last pictures the browser asked for: named in the error when it dies
 function startServer(spec, plan, media) {
   const types = { '.mjs': 'text/javascript', '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html', '.json': 'application/json', '.ttf': 'font/ttf' };
   const byId = Object.fromEntries(plan.providers.map((p) => [p.id, p]));
@@ -96,7 +99,8 @@ function startServer(spec, plan, media) {
         if (m.lazy && !m.dir) materializeClip(m, { ffmpeg: spec.ffmpeg || 'ffmpeg', fps: spec.fps });
         let frame = Math.max(1, Number(med[2] ?? 1) + 1);
         if (m.count) frame = Math.min(frame, m.count);   // a lazy clip may hold a frame fewer than its length promised
-        const f = m.file || path.join(m.dir, `${String(frame).padStart(5, '0')}.jpg`);
+        const f = m.file ? stillFile(m, { ffmpeg: spec.ffmpeg || 'ffmpeg' }) : path.join(m.dir, `${String(frame).padStart(5, '0')}.jpg`);
+        recentMedia.push(`${path.basename(m.file || m.dir || '')}`); if (recentMedia.length > 6) recentMedia.shift();
         if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.mime || 'image/jpeg' });
         return fs.createReadStream(f).pipe(res);
@@ -186,7 +190,9 @@ async function main() {
   const pageError = (err) => {
     const why = tileFailures.size ? ` Last download error: ${[...tileFailures.values()].pop()}` : '';
     const msg = String((err && err.message) || err).replace(/^page\.evaluate: (Error: )?/, '').split('\n    at ')[0];   // no page stack trace in the message
-    return new Error(`${msg}${why}`);
+    // a dead browser says only "Target crashed": name the pictures it was loading and how much memory the machine had
+    const hint = /crash|closed/i.test(msg) ? ` [free memory ${Math.round(os.freemem() / 1048576)} MB of ${Math.round(os.totalmem() / 1048576)} MB; last pictures: ${recentMedia.join(', ') || 'none'}]` : '';
+    return new Error(`${msg}${why}${hint}`);
   };
   const tileStats = async () => (page ? await page.evaluate(() => window.__tileStats || {}).catch(() => ({})) : {});
   try {

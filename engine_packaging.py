@@ -65,5 +65,5 @@ def data_files(root: Path) -> List[Tuple[str, str]]:
 
 
 # Python modules the engine scripts import (they are loaded by path, so PyInstaller cannot follow them).
-HIDDEN_IMPORTS = ["script_runner", "wave", "argparse", "runpy", "zlib", "kids_audio", "kids_audio.chant", "kids_audio.library",
+HIDDEN_IMPORTS = ["script_runner", "certifi", "ssl", "wave", "argparse", "runpy", "zlib", "kids_audio", "kids_audio.chant", "kids_audio.library",
                   "kids_audio.mixer", "kids_audio.synth", "rules_horror", "rules_horror.runner", "rules_horror.profiles"]
