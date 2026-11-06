@@ -417,7 +417,7 @@ def hillshade(elev: np.ndarray, water: np.ndarray, cell: float) -> Image.Image:
 # ---------------------------------------------------------------- build
 
 def build(world_id: str, center: tuple[float, float], size_km: float = 8.0, cell: float = 8.0, zoom: int = 14,
-          fetch_tile=terrarium_tile, osm_fetch=fetch_osm, roads_fetch=fetch_roads, out_root: Path | None = None, on_tile=None) -> Path:
+          fetch_tile=terrarium_tile, osm_fetch=fetch_osm, roads_fetch=fetch_roads, out_root: Path | None = None, on_tile=None, landuse_fetch=None) -> Path:
     grid = Grid(center[0], center[1], size_km * 1000.0, cell)
     out = (out_root or HERE / "worlds") / world_id
     out.mkdir(parents=True, exist_ok=True)
@@ -457,7 +457,20 @@ def build(world_id: str, center: tuple[float, float], size_km: float = 8.0, cell
     for r in roads:
         d.line([((x + grid.half) / cell, (z + grid.half) / cell) for x, z in r["p"]], fill=(90, 70, 60), width=1)
     img.save(out / "preview.png")
-    meta = {"id": world_id, "center": [center[0], center[1]], "size_m": grid.w * cell, "cell": cell,
+    # land use (parks, farmland, sand, built-up) colours the ground and decides where trees stand; without it the look follows the climate rule
+    landuse = False
+    try:
+        from importlib import util as _u
+        _spec = _u.spec_from_file_location("ctl_build_real", HERE / "tools" / "build_real.py")
+        real = _u.module_from_spec(_spec)
+        _spec.loader.exec_module(real)
+        lw = real.World(world_id, {"id": world_id, "center": [center[0], center[1]], "size_m": grid.w * cell}, out)
+        landuse = "landuse_areas" in (real.build_landuse(lw, fetch=landuse_fetch) if landuse_fetch is not False else {})
+        if not landuse:
+            warnings.append("land use unavailable: the ground colour follows the climate rule")
+    except Exception as e:  # noqa: BLE001
+        warnings.append(f"land use unavailable ({str(e)[:80]}): the ground colour follows the climate rule")
+    meta = {"id": world_id, "center": [center[0], center[1]], "size_m": grid.w * cell, "cell": cell, "landuse": landuse,
             "w": grid.w, "h": grid.h, "zoom": zoom, "water_source": source, "warnings": warnings,
             "elev_min": float(elev.min()), "elev_max": float(elev.max()),
             "water_share": round(float(water.mean()), 4), "inland_share": round(float(inland.mean()), 4),

@@ -24,3 +24,24 @@ export function climateOf(plan = {}, meta = {}) {
   }
   return 'temperate';
 }
+
+/** The land-use class raster (tools/build_real.py): 1024 x 1024 bytes over the whole world, north edge first. */
+export const LAND = { n: 1024, none: 0, built: 1, green: 2, dry: 3, wet: 4 };
+
+export function landClassAt(cls, half, x, z) {
+  if (!cls) return 0;
+  const i = Math.floor(((x + half) / (2 * half)) * LAND.n), j = Math.floor(((z + half) / (2 * half)) * LAND.n);
+  if (i < 0 || j < 0 || i >= LAND.n || j >= LAND.n) return 0;
+  return cls[j * LAND.n + i];
+}
+
+/** How many trees a land-use class gets next to the climate's own density: woods and parks fill up, desert and bare ground stay empty. */
+export function treeFactor(cls, climateDensity) {
+  switch (cls) {
+    case LAND.green: return Math.max(1, climateDensity * 3);
+    case LAND.built: return Math.max(0.3, climateDensity * 0.8);
+    case LAND.dry: return 0.04;
+    case LAND.wet: return 0.15;
+    default: return climateDensity;   // not mapped: the climate decides
+  }
+}

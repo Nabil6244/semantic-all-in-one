@@ -201,3 +201,15 @@ test('the Dubai story file itself comes out arid', async () => {
   if (!fs.existsSync(f) || !fs.existsSync(path.join(new URL('..', import.meta.url).pathname, 'worlds', 'dubai'))) return;
   assert.equal(planCity(fs.readFileSync(f, 'utf8')).climate, 'arid');
 });
+
+test('land use decides the trees: woods fill, desert stays bare, unmapped follows the climate', async () => {
+  const { LAND, landClassAt, treeFactor } = await import('../lib/climate.mjs');
+  const cls = new Uint8Array(LAND.n * LAND.n); cls[0] = LAND.green;                      // north-west corner is a park
+  assert.equal(landClassAt(cls, 1000, -999.9, -999.9), LAND.green);
+  assert.equal(landClassAt(cls, 1000, 0, 0), 0);
+  assert.equal(landClassAt(cls, 1000, 5000, 0), 0);                                        // outside the world
+  assert.equal(landClassAt(null, 1000, 0, 0), 0);
+  assert.ok(treeFactor(LAND.green, 0.12) >= 1);                                            // a park in the desert still gets trees
+  assert.ok(treeFactor(LAND.dry, 1) < 0.1);
+  assert.equal(treeFactor(0, 0.12), 0.12);
+});

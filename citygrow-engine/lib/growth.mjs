@@ -180,7 +180,7 @@ export function cityExtent(lots, need) {
 }
 
 /** Trees on open land, each remembering the rank of the nearest lot, so it is cleared when the city reaches it. */
-export function makeTrees(terrain, lots, { seed = 11, spacing = 19, max = 90000, density = 1 } = {}) {
+export function makeTrees(terrain, lots, { seed = 11, spacing = 19, max = 90000, density = 1, densityAt = null } = {}) {
   const R = rng(seed), out = [], B = 24, near = new Map();
   for (const l of lots) { const k = Math.floor(l.x / B) * 100003 + Math.floor(l.z / B); (near.get(k) || near.set(k, []).get(k)).push(l); }
   const lim = terrain.half - 5;
@@ -188,7 +188,7 @@ export function makeTrees(terrain, lots, { seed = 11, spacing = 19, max = 90000,
     for (let x = -lim; x < lim; x += spacing) {
       const px = x + (R() - 0.5) * spacing, pz = z + (R() - 0.5) * spacing;
       const dens = noise2(px, pz, 300, seed);
-      if (R() > (0.05 + dens * dens * 1.3) * density) continue;
+      if (R() > (0.05 + dens * dens * 1.3) * (densityAt ? densityAt(px, pz) : density)) continue;
       const y = terrain.heightAt(px, pz);
       if (y < 1.5 || terrain.slopeAt(px, pz, 8) > 0.7 || terrain.waterAt?.(px, pz)) continue;
       let rank = Infinity;

@@ -3,9 +3,10 @@
 
     python3 tools/build_real.py --id dubai [--kinds buildings,landuse,satellite] [--chunks 3]
 
-Writes worlds/<id>/:
+Writes worlds/<id>/ (landuse_cls.u8 is also made with every new world by build_city.py):
   buildings.json   [[x, z, rot, w, d, height_m], ...]  each OpenStreetMap building as its smallest rotated rectangle (metres from the
                    world centre, z south, same axes as the engine); height from the height / building:levels tags, else a size guess
+  landuse_cls.u8   1024 x 1024 bytes, land-use class per cell (0 unmapped, 1 built up, 2 green, 3 dry, 4 wet), north edge = first row
   landuse.png      2048 px colour map of the ground in world space (OpenStreetMap land use, parks, sand, water-free): north edge = top
   ground_sat.jpg   2048 px satellite mosaic of the same area (Esri World Imagery: check its terms before publishing a film that uses it)
 Sources: OpenStreetMap contributors (ODbL) for buildings and land use. Chunks that fail are skipped and reported; rerun to fill them.
@@ -42,6 +43,18 @@ OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.sy
 M_LAT, M_LON = 110574.0, 111320.0
 TEX = 2048
 
+# land use -> class code for the ground colour and the trees (landuse_cls.u8): 0 unmapped, 1 built up, 2 green, 3 dry, 4 wet
+CLASS_OF = {}
+for _k in ("residential", "commercial", "retail", "industrial", "religious", "education", "military"):
+    CLASS_OF[_k] = 1
+for _k in ("park", "garden", "golf_course", "pitch", "recreation_ground", "grass", "meadow", "forest", "wood", "farmland", "farmyard",
+           "cemetery", "orchard", "vineyard", "village_green", "allotments", "greenfield"):
+    CLASS_OF[_k] = 2
+for _k in ("sand", "beach", "bare_rock", "scrub", "heath", "brownfield", "construction", "quarry", "desert", "landfill"):
+    CLASS_OF[_k] = 3
+CLASS_OF["wetland"] = 4
+CLS = 1024
+
 # land use -> ground colour (dry-land palette is chosen by the page for everything the map does not cover)
 LANDUSE = {
     "residential": (176, 170, 150), "commercial": (170, 166, 156), "retail": (170, 166, 156), "industrial": (160, 156, 148),
@@ -49,7 +62,7 @@ LANDUSE = {
     "meadow": (150, 168, 100), "grass": (132, 160, 92), "forest": (74, 112, 64), "wood": (74, 112, 64), "scrub": (150, 150, 98),
     "park": (118, 158, 92), "garden": (122, 160, 96), "golf_course": (112, 160, 86), "pitch": (130, 160, 96), "recreation_ground": (126, 160, 94),
     "sand": (226, 208, 160), "beach": (232, 216, 170), "bare_rock": (150, 142, 128), "heath": (150, 150, 100), "wetland": (130, 150, 120),
-    "cemetery": (140, 160, 110), "religious": (172, 166, 150), "education": (172, 168, 154), "military": (150, 146, 132),
+    "cemetery": (140, 160, 110), "orchard": (120, 156, 90), "vineyard": (140, 160, 96), "allotments": (140, 160, 96), "quarry": (190, 176, 150), "desert": (226, 208, 160), "religious": (172, 166, 150), "education": (172, 168, 154), "military": (150, 146, 132),
 }
 
 
@@ -76,9 +89,9 @@ def overpass(query: str, cache: Path, tries: int = 6) -> dict | None:
 
 
 class World:
-    def __init__(self, wid: str):
-        self.dir = HERE / "worlds" / wid
-        self.meta = json.loads((self.dir / "meta.json").read_text(encoding="utf-8"))
+    def __init__(self, wid: str, meta: dict | None = None, out_dir: Path | None = None):
+        self.dir = out_dir or HERE / "worlds" / wid
+        self.meta = meta if meta is not None else json.loads((self.dir / "meta.json").read_text(encoding="utf-8"))
         self.lon0, self.lat0 = self.meta["center"]
         self.size = float(self.meta["size_m"])
         self.half = self.size / 2
@@ -188,15 +201,18 @@ def build_buildings(w: World, chunks: int) -> dict:
 
 # ---------------------------------------------------------------- land use
 
-def build_landuse(w: World) -> dict:
+def build_landuse(w: World, fetch=None, tries: int = 3) -> dict:
     s, we, n, e = w.bbox()
     b = f"{s:.5f},{we:.5f},{n:.5f},{e:.5f}"
     q = (f"[out:json][timeout:170];("
          f'way["landuse"]({b});way["leisure"~"park|garden|golf_course|pitch|recreation_ground"]({b});'
-         f'way["natural"~"sand|beach|scrub|wood|heath|bare_rock|grassland|wetland"]({b}););out geom tags;')
-    d = overpass(q, HERE / "cache" / "osm_real" / f"{w.meta['id']}_landuse.json")
+         f'way["natural"~"sand|beach|scrub|wood|heath|bare_rock|grassland|wetland|desert"]({b}););out geom tags;')
+    cache = HERE / "cache" / "osm_real" / f"{w.meta['id']}_landuse.json"
+    d = fetch(q, cache) if fetch else overpass(q, cache, tries=tries)
     if d is None:
         return {"landuse": "download failed"}
+    cls_img = Image.new("L", (CLS, CLS), 0)
+    dc = ImageDraw.Draw(cls_img)
     img = Image.new("RGB", (TEX, TEX), (0, 0, 0))
     mask = Image.new("L", (TEX, TEX), 0)
     dr, dm = ImageDraw.Draw(img), ImageDraw.Draw(mask)
@@ -210,6 +226,14 @@ def build_landuse(w: World) -> dict:
             continue
         pts = [((x + w.half) * k, (z + w.half) * k) for x, z in (w.xz(g["lon"], g["lat"]) for g in el["geometry"])]
         items.append((polygon_area(pts), pts, col))
+    kc = CLS / w.size
+    for el in d.get("elements", []):
+        t = el.get("tags", {})
+        code = CLASS_OF.get(t.get("landuse") or t.get("leisure") or t.get("natural"))
+        if code and len(el.get("geometry", [])) >= 4:
+            dc.polygon([((x + w.half) * kc, (z + w.half) * kc) for x, z in (w.xz(g["lon"], g["lat"]) for g in el["geometry"])], fill=code)
+    cls_img.save(w.dir / "landuse_cls.png")
+    (w.dir / "landuse_cls.u8").write_bytes(cls_img.tobytes())
     for _a, pts, col in sorted(items, key=lambda x: -x[0]):   # big areas first, small ones on top
         dr.polygon(pts, fill=col)
         dm.polygon(pts, fill=255)

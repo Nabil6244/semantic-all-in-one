@@ -103,7 +103,7 @@ class InlandTest(unittest.TestCase):
 class BuildTest(unittest.TestCase):
     def test_build_with_osm(self):
         with tempfile.TemporaryDirectory() as d:
-            out = bc.build("t", CENTER, size_km=4, cell=20, fetch_tile=fake_tile, osm_fetch=fake_osm, roads_fetch=fake_roads, out_root=Path(d))
+            out = bc.build("t", CENTER, size_km=4, cell=20, fetch_tile=fake_tile, osm_fetch=fake_osm, roads_fetch=fake_roads, out_root=Path(d), landuse_fetch=False)
             roads = json.loads((out / "roads.json").read_text())
             self.assertEqual(len(roads), 2, "footway skipped")
             primary = [r for r in roads if r["c"] == 1][0]
@@ -128,7 +128,7 @@ class BuildTest(unittest.TestCase):
 
     def test_build_offline_falls_back(self):
         with tempfile.TemporaryDirectory() as d:
-            out = bc.build("t", CENTER, size_km=2, cell=20, fetch_tile=fake_tile, osm_fetch=broken_osm, roads_fetch=broken_osm, out_root=Path(d))
+            out = bc.build("t", CENTER, size_km=2, cell=20, fetch_tile=fake_tile, osm_fetch=broken_osm, roads_fetch=broken_osm, out_root=Path(d), landuse_fetch=False)
             meta = json.loads((out / "meta.json").read_text())
             self.assertEqual(meta["water_source"], "elevation")
             self.assertTrue(meta["warnings"])
@@ -164,3 +164,28 @@ class Downloads(unittest.TestCase):
             self.assertTrue(len(seen["context"].get_ca_certs()) > 0 and Path(certifi.where()).is_file())
         except ImportError:
             pass
+
+
+class LandUse(unittest.TestCase):
+    def test_world_gets_a_land_use_class_raster_from_osm(self):
+        """Ground colour and trees follow real land use: a park is green (2), sand is dry (3), housing is built up (1), the rest unmapped (0)."""
+        def way(kind_key, kind, lon0, lat0, lon1, lat1):
+            g = [{"lon": lon0, "lat": lat0}, {"lon": lon1, "lat": lat0}, {"lon": lon1, "lat": lat1}, {"lon": lon0, "lat": lat1}, {"lon": lon0, "lat": lat0}]
+            return {"type": "way", "tags": {kind_key: kind}, "geometry": g}
+
+        def fake_landuse(q, cache):
+            return {"elements": [way("leisure", "park", 10.0, 45.0, 10.01, 45.01), way("natural", "sand", 9.98, 44.98, 9.99, 44.99),
+                                 way("landuse", "residential", 10.012, 45.012, 10.018, 45.018)]}
+
+        with tempfile.TemporaryDirectory() as d:
+            out = bc.build("t", CENTER, size_km=4, cell=20, fetch_tile=fake_tile, osm_fetch=fake_osm, roads_fetch=fake_roads, out_root=Path(d), landuse_fetch=fake_landuse)
+            cls = np.frombuffer((out / "landuse_cls.u8").read_bytes(), np.uint8).reshape(1024, 1024)
+            self.assertEqual(set(np.unique(cls)) - {0}, {1, 2, 3})
+            self.assertEqual(json.loads((out / "meta.json").read_text())["landuse"], True)
+            half = 2000.0
+            kx = 111320.0 * np.cos(np.radians(45.0))
+            at = lambda lon, lat: cls[int((half - (lat - 45.0) * 110574.0) / 4000 * 1024), int((half + (lon - 10.0) * kx) / 4000 * 1024)]  # noqa: E731
+            self.assertEqual(at(10.005, 45.005), 2)
+            self.assertEqual(at(9.985, 44.985), 3)
+            self.assertEqual(at(10.015, 45.015), 1)
+            self.assertEqual(at(9.99, 45.012), 0)

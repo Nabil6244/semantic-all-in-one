@@ -19,7 +19,7 @@ import { makeTerrain } from './lib/terrain.mjs';
 import { makeLots, rankLots, makeTrees, roadRanks, needed, cityExtent, fallbackLanes, hash } from './lib/growth.mjs';
 import { pathToXZ, footprint } from './lib/landmarks.mjs';
 import { styleOf } from './lib/styles.mjs';
-import { climateOf, CLIMATES } from './lib/climate.mjs';
+import { climateOf, CLIMATES, landClassAt, treeFactor } from './lib/climate.mjs';
 import { styleForYear } from './lib/story.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -83,7 +83,12 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
   }
   rankLots(lots, cores, { firstYear, lastYear, seed });
   const climate = climateOf(story.plan, meta);
-  const trees = makeTrees(T, lots, { seed: seed + 4, density: CLIMATES[climate].treeDensity });
+  // land use (built with the world): trees follow parks, farmland and woods; ground colour follows it in the page
+  const lcf = path.join(dir, 'landuse_cls.u8');
+  const landCls = fs.existsSync(lcf) ? new Uint8Array(fs.readFileSync(lcf)) : null;
+  const hasLanduse = !!landCls && landCls.length === 1024 * 1024;
+  const cd = CLIMATES[climate].treeDensity;
+  const trees = makeTrees(T, lots, { seed: seed + 4, density: cd, densityAt: hasLanduse ? (x, z) => treeFactor(landClassAt(landCls, T.half, x, z), cd) : null });
   const rr = roadRanks(roads, lots);
   roads.forEach((r, i) => { r.rank = rr[i]; });
   const landmarks = story.landmarks.map((l) => ({ ...l, ...(l.lon != null ? toXZ(l.lon, l.lat) : { x: 0, z: 0 }), points: l.extra.path ? pathToXZ(l.extra.path, toXZ) : null }));
@@ -115,7 +120,7 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
     const n = needed(h.pop, h.year, lots.length, styleOf(h.style).pph);
     if (n >= lots.length * 0.999) warnings.push(`era ${h.year}: population fills every lot in the area (${lots.length.toLocaleString('en-US')}); a bigger --size world would show more`);
   }
-  return { story, meta, climate, realLook, worldDir: dir, worldId: id, T, lots, trees, roads, landmarks, events, tl, warnings };
+  return { story, meta, climate, hasLanduse, realLook, worldDir: dir, worldId: id, T, lots, trees, roads, landmarks, events, tl, warnings };
 }
 
 function packLots(lots) {
@@ -177,8 +182,8 @@ async function main() {
   const wantGround = String(plan.story.plan.ground || (plan.realLook ? 'landuse' : '')).toLowerCase();
   const groundFile = { satellite: 'ground_sat.jpg', landuse: 'landuse.png' }[wantGround];
   const groundKind = plan.realLook && groundFile && fs.existsSync(path.join(worldDir, groundFile)) ? wantGround : null;
-  const config = { W, H, fps, tl, world: { w: meta.w, h: meta.h, cell: meta.cell, borderWater: meta.border_water ?? 1, hasLevel: fs.existsSync(path.join(worldDir, 'water_level.f32')) }, terrainStep: 2, climate: CLIMATES[plan.climate], look: plan.realLook ? 'real' : 'low', ground: groundKind, roads, landmarks, events, sun: plan.story.plan.sun, tiltShift: plan.story.plan.tilt_shift ?? (plan.realLook ? 0.25 : 1) };
-  const server = await serve(config, { '/world/height.f32': path.join(worldDir, 'height.f32'), '/world/water.u8': path.join(worldDir, 'water.u8'), '/world/water_level.f32': path.join(worldDir, 'water_level.f32'), ...(groundKind ? { '/world/ground.img': path.join(worldDir, groundFile) } : {}), '/data/lots.bin': packLots(lots), '/data/trees.bin': packTrees(trees) });
+  const config = { W, H, fps, tl, world: { w: meta.w, h: meta.h, cell: meta.cell, borderWater: meta.border_water ?? 1, hasLevel: fs.existsSync(path.join(worldDir, 'water_level.f32')), hasLanduse: plan.hasLanduse }, terrainStep: 2, climate: CLIMATES[plan.climate], look: plan.realLook ? 'real' : 'low', ground: groundKind, roads, landmarks, events, sun: plan.story.plan.sun, tiltShift: plan.story.plan.tilt_shift ?? (plan.realLook ? 0.25 : 1) };
+  const server = await serve(config, { '/world/height.f32': path.join(worldDir, 'height.f32'), ...(plan.hasLanduse ? { '/world/landuse_cls.u8': path.join(worldDir, 'landuse_cls.u8') } : {}), '/world/water.u8': path.join(worldDir, 'water.u8'), '/world/water_level.f32': path.join(worldDir, 'water_level.f32'), ...(groundKind ? { '/world/ground.img': path.join(worldDir, groundFile) } : {}), '/data/lots.bin': packLots(lots), '/data/trees.bin': packTrees(trees) });
   const { chromium } = loadPlaywright();
   const soft = process.env.CITY_GL === 'software';
   const browser = await chromium.launch({ headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] });

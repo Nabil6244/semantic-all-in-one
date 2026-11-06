@@ -9,6 +9,7 @@ import { makeTerrain } from '/lib/terrain.mjs';
 import { stateAt, hudAt, cameraAt, placeCamera, eraIndexAt } from '/lib/timeline.mjs';
 import { needed, riseOf, eventFactor, hash, densityOf } from '/lib/growth.mjs';
 import { styleOf } from '/lib/styles.mjs';
+import { landClassAt, LAND } from '/lib/climate.mjs';
 import { buildLandmark } from '/lib/landmarks.mjs';
 import { drawHud } from '/lib/hud.mjs';
 
@@ -26,6 +27,7 @@ async function main() {
   const water = await bin('/world/water.u8', Uint8Array);
   const level = cfg.world.hasLevel ? await bin('/world/water_level.f32') : null;
   const T = makeTerrain(heights, cfg.world.w, cfg.world.h, cfg.world.cell, { step: cfg.terrainStep, water, level });
+  const landCls = cfg.world.hasLanduse ? await bin('/world/landuse_cls.u8', Uint8Array) : null;
   const lotsA = await bin('/data/lots.bin'), treesA = await bin('/data/trees.bin');
   const NL = lotsA.length / 11, NT = treesA.length / 8;
 
@@ -54,7 +56,7 @@ async function main() {
     const { M, sp, x0, hs, n } = T;
     const pos = new Float32Array(M * M * 18), col = new Float32Array(M * M * 18);
     const L = cfg.climate || {}, c = new THREE.Color(), grassA = new THREE.Color(L.grassA ?? 0x7f9f52), grassB = new THREE.Color(L.grassB ?? 0x9aae5e), dry = new THREE.Color(L.dry ?? 0xb6ad78),
-      rock = new THREE.Color(L.rock ?? 0x9b9583), sand = new THREE.Color(L.sand ?? 0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
+      greenA = new THREE.Color(0x7f9f52), greenB = new THREE.Color(0x9aae5e), built = new THREE.Color(0xb9ae98), rock = new THREE.Color(L.rock ?? 0x9b9583), sand = new THREE.Color(L.sand ?? 0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
     let p = 0;
     const put = (i, j) => { pos[p++] = x0 + i * sp; pos[p++] = hs[j * n + i]; pos[p++] = x0 + j * sp; };
     const tri = (a, b, d, k) => {
@@ -64,7 +66,16 @@ async function main() {
       if (y < -0.2) c.copy(wet).lerp(deep, clamp(-y / 8, 0, 1));
       else if (bed) c.copy(wet);
       else if (y < 1.6) c.copy(sand);
-      else { c.copy(grassA).lerp(grassB, r).lerp(dry, clamp((y - 40) / 80, 0, 0.6)); if (slope > 0.55) c.lerp(rock, clamp((slope - 0.55) * 1.2, 0, 0.45)); }
+      else {
+        // the ground's own colour comes from land use where the map has it (parks and fields green, sand and bare ground dry,
+        // built-up areas pale), and from the climate where it does not
+        const lc = landCls ? landClassAt(landCls, T.half, x0 + ((a[0] + b[0] + d[0]) / 3) * sp, x0 + ((a[1] + b[1] + d[1]) / 3) * sp) : 0;
+        if (lc === LAND.green) c.copy(greenA).lerp(greenB, r);
+        else if (lc === LAND.dry) c.copy(sand).lerp(dry, r * 0.6);
+        else if (lc === LAND.built) c.copy(built).lerp(dry, r * 0.4);
+        else c.copy(grassA).lerp(grassB, r).lerp(dry, clamp((y - 40) / 80, 0, 0.6));
+        if (slope > 0.55) c.lerp(rock, clamp((slope - 0.55) * 1.2, 0, 0.45));
+      }
       c.multiplyScalar(0.94 + r * 0.1);
       for (let v = 0; v < 3; v++) { col[p - 9 + v * 3] = c.r; col[p - 8 + v * 3] = c.g; col[p - 7 + v * 3] = c.b; }
     };
