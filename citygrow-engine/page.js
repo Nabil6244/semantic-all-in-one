@@ -27,15 +27,17 @@ async function main() {
   const level = cfg.world.hasLevel ? await bin('/world/water_level.f32') : null;
   const T = makeTerrain(heights, cfg.world.w, cfg.world.h, cfg.world.cell, { step: cfg.terrainStep, water, level });
   const lotsA = await bin('/data/lots.bin'), treesA = await bin('/data/trees.bin');
-  const NL = lotsA.length / 10, NT = treesA.length / 8;
+  const NL = lotsA.length / 11, NT = treesA.length / 8;
 
   const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(1); renderer.setSize(W, H);
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   document.body.appendChild(renderer.domElement);
+  const REAL = cfg.look === 'real';
+  if (REAL) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2; }
   const scene = new THREE.Scene();
-  const HAZE = new THREE.Color(0xc4d3dc);
-  scene.background = HAZE; scene.fog = new THREE.Fog(HAZE, 2000, 9000);
+  const HAZE = new THREE.Color(REAL ? (cfg.climate && cfg.climate.sand ? 0xd9d2c3 : 0xbcd0de) : 0xc4d3dc);
+  scene.background = HAZE; scene.fog = REAL ? new THREE.Fog(HAZE, 1200, 7000) : new THREE.Fog(HAZE, 2000, 9000);
   const camera = new THREE.PerspectiveCamera(cfg.fov || 38, W / H, 1, 30000);
 
   // ---------------------------------------------------------------- light
@@ -51,8 +53,8 @@ async function main() {
   {
     const { M, sp, x0, hs, n } = T;
     const pos = new Float32Array(M * M * 18), col = new Float32Array(M * M * 18);
-    const c = new THREE.Color(), grassA = new THREE.Color(0x7f9f52), grassB = new THREE.Color(0x9aae5e), dry = new THREE.Color(0xb6ad78),
-      rock = new THREE.Color(0x9b9583), sand = new THREE.Color(0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
+    const L = cfg.climate || {}, c = new THREE.Color(), grassA = new THREE.Color(L.grassA ?? 0x7f9f52), grassB = new THREE.Color(L.grassB ?? 0x9aae5e), dry = new THREE.Color(L.dry ?? 0xb6ad78),
+      rock = new THREE.Color(L.rock ?? 0x9b9583), sand = new THREE.Color(L.sand ?? 0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
     let p = 0;
     const put = (i, j) => { pos[p++] = x0 + i * sp; pos[p++] = hs[j * n + i]; pos[p++] = x0 + j * sp; };
     const tri = (a, b, d, k) => {
@@ -74,7 +76,39 @@ async function main() {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.computeVertexNormals();
-    const ground = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
+    let groundMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    if (REAL) {
+      // smooth shaded ground. With a ground picture (landuse colours over the dry/green base, or a satellite photo) the
+      // picture colours the land; the vertex colours only keep the sea bed and the sand line
+      const uv = new Float32Array(M * M * 12); let q = 0;
+      for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) for (const [a, b] of [[0, 0], [1, 1], [1, 0], [0, 0], [0, 1], [1, 1]]) { uv[q++] = (i + a) / M; uv[q++] = (j + b) / M; }
+      geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+      let map = null;
+      if (cfg.ground) {
+        const img = new Image(); img.src = '/world/ground.img'; await img.decode();
+        const cv = document.createElement('canvas'); cv.width = cv.height = 2048; const cx = cv.getContext('2d');
+        if (cfg.ground === 'landuse') {
+          cx.fillStyle = '#' + new THREE.Color(L.grassA ?? 0x7f9f52).getHexString(); cx.fillRect(0, 0, 2048, 2048);
+          cx.drawImage(img, 0, 0, 2048, 2048);
+        } else cx.drawImage(img, 0, 0, 2048, 2048);
+        map = new THREE.CanvasTexture(cv); map.flipY = false; map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8;
+      }
+      // land vertices go white so the picture shows as it is; sea bed / river bed keep their tint
+      const cols = geo.getAttribute('color'), ptsN = cols.count;
+      for (let v = 0; v < ptsN; v++) {
+        const x = pos[v * 3], z = pos[v * 3 + 2], yv = pos[v * 3 + 1];
+        const i = Math.round((x - x0) / sp), j = Math.round((z - x0) / sp), wetBed = T.ls[Math.min(n - 1, j) * n + Math.min(n - 1, i)] > -1e3;
+        if (map && yv >= -0.2 && !wetBed) cols.setXYZ(v, 1, 1, 1);
+      }
+      cols.needsUpdate = true;
+      groundMat = new THREE.MeshStandardMaterial({ vertexColors: true, map, roughness: 0.96, metalness: 0 });
+      geo.computeVertexNormals();
+      if (cfg.ground === 'satellite') {   // the photo already carries its own shading: keep the terrain's own light gentle
+        const nrm = geo.getAttribute('normal');
+        for (let v = 0; v < nrm.count; v++) { const nx = nrm.getX(v) * 0.3, ny = nrm.getY(v) * 0.3 + 0.7, nz = nrm.getZ(v) * 0.3, l = Math.hypot(nx, ny, nz); nrm.setXYZ(v, nx / l, ny / l, nz / l); }
+      }
+    }
+    const ground = new THREE.Mesh(geo, groundMat);
     ground.receiveShadow = true; scene.add(ground);
     // land past the world's edge: a low skirt at the border's height, so wide shots never show the void
     let edge = 0, ne = 0; for (let i = 0; i < n; i++) for (const v of [hs[i], hs[(n - 1) * n + i], hs[i * n], hs[i * n + n - 1]]) if (v > 0) { edge += v; ne++; }
@@ -156,7 +190,26 @@ async function main() {
     const g = new THREE.ExtrudeGeometry(s, { depth: 1, bevelEnabled: false }); g.translate(0, 0, -0.5); g.rotateY(Math.PI / 2); return g;   // ridge along x
   })();
   const houseMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
-  const walls = new THREE.InstancedMesh(wallGeo, houseMat, NL), roofs = new THREE.InstancedMesh(roofGeo, houseMat, NL);
+  let wallMat = houseMat, roofMat = houseMat;
+  if (REAL) {
+    // real look: smooth standard materials; the walls get a floor-by-floor window grid drawn from world position
+    roofMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
+    wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.05 });
+    wallMat.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>',
+        '#include <begin_vertex>\n vWP = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz; vWN = normalize(mat3(instanceMatrix) * normal);');
+      sh.fragmentShader = 'varying vec3 vWP; varying vec3 vWN;\nfloat h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\n' + sh.fragmentShader.replace(
+        'vec4 diffuseColor = vec4( diffuse, opacity );',
+        `vec4 diffuseColor = vec4( diffuse, opacity );
+         float side = 1.0 - step(0.5, abs(vWN.y));
+         float f = abs(vWN.x) > abs(vWN.z) ? vWP.z : vWP.x;
+         vec2 g = vec2(f / 3.6, vWP.y / 3.3), cell = fract(g);
+         float win = step(0.2, cell.x) * step(cell.x, 0.8) * step(0.26, cell.y) * step(cell.y, 0.74) * step(2.4, vWP.y);
+         vec3 glass = vec3(0.13, 0.17, 0.22) * (0.75 + 0.5 * h21(floor(g)));
+         diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * side * 0.88);`);
+    };
+  }
+  const walls = new THREE.InstancedMesh(wallGeo, wallMat, NL), roofs = new THREE.InstancedMesh(roofGeo, roofMat, NL);
   for (const m of [walls, roofs]) {
     m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false;
     m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(NL * 3), 3); scene.add(m);
@@ -176,15 +229,16 @@ async function main() {
     const wm = walls.instanceMatrix.array, rm = roofs.instanceMatrix.array, wc = walls.instanceColor.array, rc = roofs.instanceColor.array;
     let k = 0;
     for (let i = 0; i < NL; i++) {
-      const o = i * 10, rank = lotsA[o + 6];
+      const o = i * 11, rank = lotsA[o + 6];
       if (rank >= need || (year >= lotsA[o + 8] && year < lotsA[o + 9])) continue;
       const x = lotsA[o], z = lotsA[o + 1];
       let s = riseOf(rank, need, NL);
       if (cfg.events.length) s *= eventFactor(cfg.events, x, z, year);
       if (s <= 0.01) continue;
       const hs = lotsA[o + 7], S = hs < mixK ? SB : SA;
-      const flat = hash(i, 5) < S.flat;
-      const hgt = (S.h[0] + (S.h[1] - S.h[0]) * hash(i, 9)) * (flat ? 1.15 : 1) * (1 + 0.45 * (dens - 1) * (0.5 + hash(i, 13))) * s;
+      const rh = lotsA[o + 10];   // a real building's own height (m), or 0 for a generated house
+      const flat = rh > 0 ? (rh >= 9 || hash(i, 5) < 0.55) : hash(i, 5) < S.flat;
+      const hgt = rh > 0 ? rh * s : (S.h[0] + (S.h[1] - S.h[0]) * hash(i, 9)) * (flat ? 1.15 : 1) * (1 + 0.45 * (dens - 1) * (0.5 + hash(i, 13))) * s;
       const a = -lotsA[o + 2], cos = Math.cos(a), sin = Math.sin(a), w = lotsA[o + 3], d = lotsA[o + 4], y = lotsA[o + 5] - 0.6;
       writeM(wm, k * 16, cos, sin, w, hgt + 0.6, d, x, y, z);
       if (flat) writeM(rm, k * 16, 1, 0, 0, 0, 0, x, y, z);   // a flat roof is the wall's own top: no roof piece at all
@@ -210,7 +264,7 @@ async function main() {
     const m = new THREE.InstancedMesh(treeGeos[kind], treeMat, Math.max(1, list.length));
     m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.userData.list = list;
     m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, list.length) * 3), 3);
-    const cc = new THREE.Color(), greens = [0x4f7a3a, 0x5d8a40, 0x3f6b35, 0x6c9447, 0x587d3c];
+    const cc = new THREE.Color(), greens = cfg.climate?.trees || [0x4f7a3a, 0x5d8a40, 0x3f6b35, 0x6c9447, 0x587d3c];
     list.forEach((ti, j) => { cc.setHex(greens[Math.floor(hash(ti, 21) * greens.length)]).multiplyScalar(0.85 + hash(ti, 22) * 0.25); cc.toArray(m.instanceColor.array, j * 3); });
     scene.add(m); return m;
   });

@@ -180,3 +180,24 @@ test('terrain: the drawn surface matches its own vertices', () => {
   const j = 10, i = 7;
   assert.ok(Math.abs(T.heightAt(T.x0 + i * T.sp, T.x0 + j * T.sp) - T.hs[j * T.n + i]) < 1e-4);
 });
+
+test('desert cities get the dry look, others stay green, and the story can say it', async () => {
+  const { climateOf, CLIMATES } = await import('../lib/climate.mjs');
+  assert.equal(climateOf({ center: { lon: 55.2858, lat: 25.2303 } }), 'arid');  // Dubai, as parseStory gives it
+  assert.equal(climateOf({ center: [55.2858, 25.2303] }), 'arid');
+  assert.equal(climateOf({}, { center: [46.67, 24.71] }), 'arid');        // Riyadh, from the world's own centre
+  assert.equal(climateOf({ center: [12.4823, 41.8955] }), 'temperate');   // Rome
+  assert.equal(climateOf({ center: [70.3, 28.4] }), 'temperate');         // Rahim Yar Khan: irrigated farmland
+  assert.equal(climateOf({ center: [12.48, 41.9], climate: 'desert' }), 'arid');
+  assert.equal(climateOf({ center: [55.29, 25.23], climate: 'green' }), 'temperate');
+  assert.ok(CLIMATES.arid.treeDensity < CLIMATES.temperate.treeDensity);
+  assert.ok(((CLIMATES.arid.grassA >> 16) & 255) > ((CLIMATES.arid.grassA >> 8) & 255), 'arid ground is tan (red above green), not green');
+});
+
+test('the Dubai story file itself comes out arid', async () => {
+  const { planCity } = await import('../render.mjs');
+  const fs = await import('node:fs'), os = await import('node:os'), path = await import('node:path');
+  const f = path.join(os.homedir(), 'Downloads', 'dubai_timelapse.csv');
+  if (!fs.existsSync(f) || !fs.existsSync(path.join(new URL('..', import.meta.url).pathname, 'worlds', 'dubai'))) return;
+  assert.equal(planCity(fs.readFileSync(f, 'utf8')).climate, 'arid');
+});
