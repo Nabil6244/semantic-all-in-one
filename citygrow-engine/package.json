@@ -1,0 +1,8 @@
+{
+  "name": "citygrow-engine",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "City Timelapse: a low-poly city growing over centuries on real ground (separate from every other style).",
+  "scripts": { "test": "node --test test/*.test.mjs" }
+}

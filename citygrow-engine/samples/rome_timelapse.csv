@@ -1,0 +1,32 @@
+row,year,until,era_name,flag,population,caption,title,kicker,style,shot,focus,hold,kind,radius,weight,extra
+plan,,,Rome,,,,,,,,"12.4823,41.8955",,,,,"{""world"":""rome"",""seed"":11,""heading"":-15}"
+district,-753,,Palatine,,,,,,,,"12.4875,41.8892",,,,1.5,
+district,-600,,Capitoline,,,,,,,,"12.4823,41.8935",,,,1.1,
+district,-300,,Esquiline,,,,,,,,"12.4990,41.8960",,,,0.9,
+district,-100,,Campus Martius,,,,,,,,"12.4760,41.8990",,,,1,
+district,-50,,Trastevere,,,,,,,,"12.4700,41.8890",,,,0.8,
+district,1000,,Borgo,,,,,,,,"12.4600,41.9030",,,,0.7,
+era,-753,,Kingdom of Rome,"plain:#5b2a1e,#d9b45b|R",2000,Shepherd villages gather on the Palatine hill above the marshes of the Tiber.,,,ancient,,,,,,,
+era,-509,,Roman Republic,"plain:#7b1e24,#e9c46a|SPQR",30000,"The kings are driven out, and a great temple to Jupiter crowns the Capitol.",,,ancient,,,,,,,
+era,-50,,Late Republic,"plain:#7b1e24,#e9c46a|SPQR",400000,Conquest pours wealth into the city. Crowded apartment blocks climb the hills.,,,ancient,,,,,,,
+event,64,,,,,"In AD 64 a great fire burns for six days, and the centre is rebuilt in stone.",,,,,"12.4870,41.8870",,fire,900,,"{""regrow"":12}"
+era,125,,Roman Empire,"plain:#6a1b1b,#e9c46a|SPQR",1000000,"A million people. The Colosseum, the Pantheon and Trajan's Forum rise in marble.",THE ETERNAL CITY,Height of the Empire,ancient,,,,,,,
+era,275,,Imperial Crisis,"plain:#6a1b1b,#e9c46a|SPQR",700000,"As invaders threaten, Aurelian rings the whole city with new walls.",,,ancient,,,,,,,
+era,550,,Gothic Wars,"plain:#5a1f5c,#e9c46a|☧",50000,"Sieges and plague empty the city, and the aqueducts are cut.",,,medieval,,,,,,,
+era,1000,,Papal Rome,"v:#f2c200,#ffffff",35000,Cattle graze in the old Forum. The city shrinks into the bend of the Tiber.,THE DARK AGES,A city of ruins,medieval,,,,,,,
+era,1377,,Return from Avignon,"v:#f2c200,#ffffff",17000,The popes come home to a half-empty city.,,,medieval,,,,,,,
+era,1626,,Baroque Rome,"v:#f2c200,#ffffff",115000,"New Saint Peter's is consecrated, and fountains and piazzas remake the city.",,,early_modern,,,,,,,
+era,1871,,Capital of Italy,"v:#009246,#ffffff,#ce2b37",220000,Rome becomes the capital of a united Italy.,,,industrial,,,,,,,
+era,1950,,Republic of Italy,"v:#009246,#ffffff,#ce2b37",1650000,"After the war, the city spreads far beyond its ancient walls.",,,modern,,,,,,,
+era,2025,,Rome Today,"v:#009246,#ffffff,#ce2b37",2750000,Almost three million people now live in the Eternal City.,,,modern,,,,,,,
+landmark,-600,,Circus Maximus,,,,,,,,"12.4853,41.8861",,hippodrome,,,"{""size"":600,""rot"":-58}"
+landmark,-509,,Temple of Jupiter,,,,,,,,"12.4815,41.8925",,temple,,,"{""size"":60,""rot"":-20}"
+landmark,-500,,Forum Romanum,,,,,,,,"12.4853,41.8925",,forum,,,"{""size"":150,""rot"":-30}"
+landmark,-378,400,Servian Wall,,,,,,,,,,wall,,,"{""path"":[[12.4930,41.9045],[12.5010,41.9010],[12.5025,41.8955],[12.4990,41.8870],[12.4900,41.8830],[12.4800,41.8890],[12.4790,41.8960],[12.4850,41.9030],[12.4930,41.9045]],""height"":10}"
+landmark,80,,Colosseum,,,,,,,,"12.4922,41.8902",,amphitheatre,,,"{""size"":188,""rot"":-20}"
+landmark,113,,Trajan's Column,,,,,,,,"12.4843,41.8958",,column,,,"{""size"":38}"
+landmark,125,,Pantheon,,,,,,,,"12.4769,41.8986",,dome_church,,,"{""size"":58,""minarets"":0,""color"":""marble""}"
+landmark,139,,Castel Sant'Angelo,,,,,,,,"12.4663,41.9031",,castle,,,"{""size"":90}"
+landmark,271,,Aurelian Walls,,,,,,,,,,wall,,,"{""path"":[[12.4764,41.9114],[12.4893,41.9095],[12.4985,41.9093],[12.5033,41.9087],[12.5080,41.9045],[12.5094,41.8988],[12.5156,41.8915],[12.5106,41.8836],[12.5017,41.8773],[12.5006,41.8735],[12.4930,41.8725],[12.4810,41.8762],[12.4760,41.8776]],""height"":16}"
+landmark,1626,,Saint Peter's Basilica,,,,,,,,"12.4534,41.9022",,dome_church,,,"{""size"":200,""minarets"":0,""color"":""marble"",""rot"":0}"
+landmark,1911,,Vittoriano,,,,,,,,"12.4828,41.8946",,palace,,,"{""size"":130,""color"":""marble"",""roof"":""marble""}"

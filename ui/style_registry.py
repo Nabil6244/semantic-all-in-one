@@ -112,3 +112,12 @@ GROUPS = GROUPS + (("Kids", (KIDS_LEARN,)),)
 EXTRA_BLURBS[KIDS_LEARN] = ("Preschool lessons with a friendly 3D host in a toy playroom: she talks to the child, presents toys, counts, chants on the beat "
                             "and waits for 'your turn', with captions, word cards, music and sound effects. From a lesson CSV; the voice is free.")
 EXTRA_CARDS[KIDS_LEARN] = ("\u2605", "A preschool lesson with a 3D host", "A lesson CSV", "First words, counting, colours, chants")
+
+
+# City Timelapse (ui/city_timelapse_section.py, citygrow-engine/): appended here so nothing above changes
+CITY_TIMELAPSE = "City Timelapse"
+STANDALONE = STANDALONE + (CITY_TIMELAPSE,)
+GROUPS = tuple((title, names + (CITY_TIMELAPSE,) if title == "Maps" else names) for title, names in GROUPS)
+EXTRA_BLURBS[CITY_TIMELAPSE] = ("A low-poly 3D city growing over the centuries on its real ground and water: houses rise street by street, landmarks "
+                                "appear in their year, the camera never stops, with the year, population, era flag, titles and captions over music.")
+EXTRA_CARDS[CITY_TIMELAPSE] = ("▲", "A city growing through history", "A story CSV", "How a city grew, era by era")

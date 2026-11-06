@@ -1,0 +1,5 @@
+cache/
+worlds/
+out/
+node_modules/
+__pycache__/

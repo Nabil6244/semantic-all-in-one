@@ -1,0 +1,16 @@
+row,year,until,era_name,flag,population,caption,title,kicker,style,shot,focus,hold,kind,radius,weight,extra
+plan,,,Istanbul,,,,,,,,"28.975,41.010",,,,,"{""world"":""istanbul"",""seed"":7}"
+district,-660,,Acropolis,,,,,,,,"28.984,41.012",,,,1.4,
+district,330,,Forum of Constantine,,,,,,,,"28.971,41.008",,,,1,
+district,1000,,Galata,,,,,,,,"28.974,41.025",,,,0.8,
+era,-658,,Greek Byzantion,"h:#2f5d8a,#f2e6c8|Β",3000,A small Greek colony rises on the hill above the harbour.,,,ancient,,,,,,,
+era,196,,Roman Byzantium,"plain:#7b1e24,#e9c46a|SPQR",25000,Septimius Severus rebuilds the city with a great hippodrome.,,,ancient,,,,,,,
+era,540,,Eastern Rome,"plain:#5a1f5c,#e9c46a|☧",400000,The city of Justinian is the largest in the Christian world.,THE GOLDEN AGE,Eastern Rome,medieval,,,,,,,
+event,1204,,,,,"Crusaders sack the city in 1204, and whole districts burn.",,,,,"28.968,41.012",,fire,900,,
+era,1320,,Palaiologan Constantinople,"plain:#8a1c1c,#e9c46a|ΒΒ",90000,A shrunken city of villages inside the old walls.,,,medieval,,,,,,,
+era,1600,,Ottoman Istanbul,"crescent:#b3202a,#ffffff",500000,The Ottoman capital fills the peninsula again.,,,ottoman,,,,,,,
+landmark,203,,Hippodrome,,,,,,,,"28.9753,41.0058",,hippodrome,,,"{""rot"":-28,""size"":420}"
+landmark,537,,Hagia Sophia,,,,,,,,"28.9802,41.0086",,dome_church,,,"{""size"":80,""rot"":-30}"
+landmark,1348,,Galata Tower,,,,,,,,"28.9741,41.0256",,tower,,,"{""size"":66}"
+landmark,1616,,Blue Mosque,,,,,,,,"28.9768,41.0054",,mosque,,,"{""size"":72,""minarets"":6,""rot"":-30}"
+landmark,330,,Land Walls,,,,,,,,,,wall,,,"{""path"":[[28.958,41.002],[28.955,41.010],[28.953,41.018],[28.952,41.024]],""height"":16}"
