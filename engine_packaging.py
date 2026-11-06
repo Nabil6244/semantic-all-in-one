@@ -14,6 +14,7 @@ from typing import List, Tuple
 ENGINES = ("roblox-cinema-engine", "voxelmap-engine", "cartoon3d-engine", "citygrow-engine")
 SKIP_DIRS = {"test", "tests", "docs", "out", "cache", "worlds", "node_modules", "__pycache__", "authoring", "revisions"}
 SKIP_SUFFIXES = {".md", ".pyc"}
+KEEP_FILES = {"story_prompt.md"}   # read by the app's "Copy the CSV prompt" button (City Timelapse)
 THREE_ADDONS = ("three/examples/jsm/environments/RoomEnvironment.js", "three/examples/jsm/geometries/RoundedBoxGeometry.js",
                 "three/examples/jsm/objects/Reflector.js", "three/examples/jsm/loaders/GLTFLoader.js",
                 "three/examples/jsm/utils/BufferGeometryUtils.js")
@@ -33,7 +34,7 @@ def _tracked(root: Path, folder: str) -> List[Path]:
 
 
 def _keep(rel: Path) -> bool:
-    return not (set(rel.parts[1:-1]) & SKIP_DIRS) and rel.suffix.lower() not in SKIP_SUFFIXES
+    return not (set(rel.parts[1:-1]) & SKIP_DIRS) and (rel.suffix.lower() not in SKIP_SUFFIXES or rel.name in KEEP_FILES)
 
 
 def data_files(root: Path) -> List[Tuple[str, str]]:

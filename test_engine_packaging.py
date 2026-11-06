@@ -29,6 +29,9 @@ class Shipped(unittest.TestCase):
             for rel in need:
                 self.assertIn(f"{eng}/{rel}", self.dest, f"{eng}/{rel} is not shipped")
 
+    def test_the_csv_prompt_the_copy_button_reads_is_shipped(self):
+        self.assertIn("citygrow-engine/tools/story_prompt.md", self.dest)
+
     def test_no_tests_outputs_or_build_folders(self):
         for s, d in self.files:
             self.assertFalse(set(d.split("/")) & (E.SKIP_DIRS - {"node_modules"}), d)
