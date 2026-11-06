@@ -278,14 +278,18 @@ async function main() {
   const errors = [];
   const wall0 = Date.now();
   try {
-    const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
-    page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-    await page.goto(`http://127.0.0.1:${server.address().port}/index.html`);
-    page.on('console', (m) => { if (process.env.VOXEL_DEBUG) emit({ event: 'console', text: m.text() }); });
-    try { await page.waitForFunction(() => window.__ready === true || window.__error, null, { timeout: Number(process.env.VOXEL_START_MS) || 180000 }); }
-    catch (e) { throw new Error(`page did not start: ${errors.slice(0, 5).join(' | ') || e.message} (stage: ${await page.evaluate(() => window.__stage || '?').catch(() => '?')})`); }
-    const err = await page.evaluate(() => window.__error || null);
-    if (err) throw new Error(`page setup failed: ${err}`);
+    const openPage = async (first) => {
+      const pg = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+      pg.on('pageerror', (e) => errors.push(String(e))); pg.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+      await pg.goto(`http://127.0.0.1:${server.address().port}/index.html`);
+      if (first) pg.on('console', (m) => { if (process.env.VOXEL_DEBUG) emit({ event: 'console', text: m.text() }); });
+      try { await pg.waitForFunction(() => window.__ready === true || window.__error, null, { timeout: Number(process.env.VOXEL_START_MS) || 180000 }); }
+      catch (e) { throw new Error(`page did not start: ${errors.slice(0, 5).join(' | ') || e.message} (stage: ${await pg.evaluate(() => window.__stage || '?').catch(() => '?')})`); }
+      const err = await pg.evaluate(() => window.__error || null);
+      if (err) throw new Error(`page setup failed: ${err}`);
+      return pg;
+    };
+    const page = await openPage(true);
     const setup = await page.evaluate(() => window.stats());
     emit({ event: 'ready', gpu: setup.gpu, quads: setup.quads, init_ms: setup.initMs, setup_wall_ms: Date.now() - wall0 });
 
@@ -322,15 +326,47 @@ async function main() {
       const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
         '-vf', 'scale=in_range=full:out_range=tv:out_color_matrix=bt709', '-pix_fmt', 'yuv420p', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-colorspace', 'bt709', '-r', String(fps), '-movflags', '+faststart', file], { stdio: ['pipe', 'ignore', 'inherit'] });
       const n = Math.round((c1 - c0) * fps);
+      // Several pages draw frames at once; ONE encoder gets them strictly in order, so the film is frame-for-frame what a single page makes.
+      // (Capture + JPEG hand-off, not the GPU, is the cost of a frame, so the pages overlap well.) VOXEL_PAGES=1 gives the serial path.
+      const cpus = (await import('node:os')).cpus().length;
+      const nPages = Math.max(1, Math.min(n, Number(process.env.VOXEL_PAGES) || (soft ? 1 : Math.max(1, Math.min(4, Math.floor(cpus / 2))))));
+      const pages = [page]; for (let k = 1; k < nPages; k++) pages.push(await openPage(false));
+      emit({ event: 'pages', count: nPages });
+      const done = new Map(), LOOK = nPages * 6; let next = 0, written = 0, failure = null;
+      const waiting = new Set();      // writer and workers can all be waiting at once
+      const ping = () => { for (const w of [...waiting]) { waiting.delete(w); w(); } };
+      const idle = () => new Promise((r) => waiting.add(r));
+      const worker = async (pg) => {
+        try {
+          while (!failure) {
+            while (next - written >= LOOK && !failure) await idle();
+            if (next >= n) return;
+            const i = next++, f0 = Date.now();
+            const b64 = await pg.evaluate((tt) => window.renderFrame(tt), c0 + i / fps);
+            frameWall.push((Date.now() - f0) / nPages);     // per-frame share of the wall time, so the estimate below stays honest
+            done.set(i, b64); ping();
+          }
+        } catch (e) { failure = failure || e; ping(); }
+      };
+      const workers = pages.map(worker);
       for (let i = 0; i < n; i++) {
-        const f0 = Date.now();
-        const b64 = await page.evaluate((tt) => window.renderFrame(tt), c0 + i / fps);
-        frameWall.push(Date.now() - f0);
+        while (!done.has(i) && !failure) await idle();
+        if (failure) throw failure;
+        const b64 = done.get(i); done.delete(i); written = i + 1; ping();
         if (!ff.stdin.write(Buffer.from(b64, 'base64'))) await new Promise((r) => ff.stdin.once('drain', r));
         if (i % fps === 0) emit({ event: 'progress', frame: i, total: n });
       }
+      await Promise.all(workers);
       ff.stdin.end(); await new Promise((r) => ff.on('close', r));
       if (a.audio) {
+        if (a['audio-ready']) {      // the mix is made alongside the frames: wait for its marker (a failed mix leaves a failure marker)
+          const ok = a['audio-ready'], bad = ok + '.failed', t0 = Date.now();
+          while (!fs.existsSync(ok)) {
+            if (fs.existsSync(bad)) throw new Error('audio mix failed');
+            if (Date.now() - t0 > 3600e3) throw new Error('audio mix did not finish in an hour');
+            await new Promise((r) => setTimeout(r, 500));
+          }
+        }
         // mux the mixed soundtrack, cut to the clip's window, so audio and video share one clock
         const muxed = file.replace(/\.mp4$/, '_av.mp4');
         await new Promise((r, j) => spawn('ffmpeg', ['-y', '-loglevel', 'error', '-i', file, '-ss', String(c0), '-t', String(c1 - c0), '-i', a.audio, '-map', '0:v', '-map', '1:a', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', muxed], { stdio: 'inherit' }).on('close', (c) => (c ? j(new Error('mux failed')) : r())));

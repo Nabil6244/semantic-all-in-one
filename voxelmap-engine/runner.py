@@ -211,6 +211,8 @@ def render(csv: str, work: str, *, output: str, voiceover: Optional[str] = None,
         raise RuntimeError("Click Generate first: Render needs the planned film.")
     duration = float(json.loads(tl_file.read_text(encoding="utf-8"))["duration"])
     mix = None
+    mix_job: dict = {}
+    ready = w / "mix.ready"
     if voiceover:
         mix = w / "mix.wav"
         if progress:
@@ -218,11 +220,25 @@ def render(csv: str, work: str, *, output: str, voiceover: Optional[str] = None,
         if not MUSIC.is_file():
             raise RuntimeError("The bundled music bed is missing (assets/music/lost_frontier.opus).")
         music_file = MUSIC
+        for m in (ready, Path(str(ready) + ".failed")):
+            m.unlink(missing_ok=True)
         sys.path.insert(0, str(ROOT)); from script_runner import run_script     # a child Python from source; in the installed app, in-process
-        rc, said = run_script(HERE / "tools" / "mix_audio.py", [voiceover, str(music_file), str(mix), "--timeline", str(tl_file), "--stems", str(w / "stems")],
-                              cwd=str(HERE / "tools"), timeout=3600)
-        if rc:
-            raise RuntimeError("audio mix failed: " + said[-500:])
+
+        def _mix() -> None:      # the mix does not need the frames and the frames do not need the mix: run them side by side
+            try:
+                rc, said = run_script(HERE / "tools" / "mix_audio.py", [voiceover, str(music_file), str(mix), "--timeline", str(tl_file), "--stems", str(w / "stems")],
+                                      cwd=str(HERE / "tools"), timeout=3600)
+                if rc:
+                    mix_job["error"] = "audio mix failed: " + said[-500:]
+                    Path(str(ready) + ".failed").write_text(mix_job["error"], encoding="utf-8")
+                else:
+                    ready.write_text("ok", encoding="utf-8")
+            except BaseException as e:      # never leave the renderer waiting for a marker that will not come
+                mix_job["error"] = f"audio mix failed: {e}"
+                Path(str(ready) + ".failed").write_text(mix_job["error"], encoding="utf-8")
+
+        mix_thread = threading.Thread(target=_mix, daemon=True)
+        mix_thread.start()
     if cancel and cancel():
         raise Cancelled("Voxel Map cancelled.")
     height = 1080 if resolution >= 1080 else 720
@@ -231,8 +247,15 @@ def render(csv: str, work: str, *, output: str, voiceover: Optional[str] = None,
     if voiceover:
         args += ["--narration", str(w / "vo_timing.json")]
     if mix:
-        args += ["--audio", str(mix)]
-    r = _run_node(args, progress=progress, cancel=cancel, log=log, span=(0.05, 0.95))
+        args += ["--audio", str(mix), "--audio-ready", str(ready)]
+    try:
+        r = _run_node(args, progress=progress, cancel=cancel, log=log, span=(0.05, 0.95))
+    except Exception:
+        if mix_job.get("error"):
+            raise RuntimeError(mix_job["error"])
+        raise
+    if mix_job.get("error"):
+        raise RuntimeError(mix_job["error"])
     clip = (r.get("clip_av") or r.get("clip") or {}).get("file")
     if not clip or not Path(clip).is_file():
         raise RuntimeError("The renderer finished but wrote no video.")
