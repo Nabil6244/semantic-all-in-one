@@ -524,10 +524,12 @@ def _eq_state(p: dict) -> dict:
     conf = str(p.get("confidence") or "uncertain").lower()
     identified = conf in ("confirmed", "stated")
     icon = I.class_id(p.get("icon"))
-    name = str(p.get("name") or "").strip() if identified else I.CLASS_LABEL[icon]
+    word = str(p.get("type_word") or "").strip()          # a type card: the narration's own word ('Missiles'), never a guessed class name
+    name = str(p.get("name") or "").strip() if identified else (word or I.CLASS_LABEL[icon])
     role = str(p.get("role") or "") if identified else "MODEL NOT CONFIRMED"
     specs = [s for s in (list(p.get("specs") or [])[:4] if identified else []) if isinstance(s, dict)]
     return {"conf": conf, "identified": identified, "icon": icon, "name": name or I.CLASS_LABEL[icon], "role": role, "specs": specs,
+            "class_label": str(p.get("class_label") or I.CLASS_LABEL[icon]),
             "operator": str(p.get("operator") or "") if identified else "", "status": T.status_of(p)}
 
 
@@ -585,14 +587,14 @@ def lay_equipment_hero(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     # side panel
     rows = list(st["specs"])
     if not rows:                                 # the catalogue lists no figures for this system: show what it does record, never a guessed spec
-        rows = [r for r in ({"label": "CLASS", "value": I.CLASS_LABEL[st["icon"]].title()},
+        rows = [r for r in ({"label": "CLASS", "value": st["class_label"].title()},
                             {"label": "COUNTRY", "value": str(st["operator"] or "")},
                             {"label": "SPECS", "value": "Not listed"}) if r["value"]]
     _put(img, _glass(cw, ph_ + 28, T.RED), cx0 - 18, py - 18, _fade_in(t, 0.15), dx=24 * (1 - M.ease_out(M.ramp(t, 0.15, 0.4))))
     ix = cx0 + 22
     iw = cw - 40
     y = py + 20
-    cls = I.CLASS_LABEL[st["icon"]].upper()
+    cls = st["class_label"].upper()
     _put(img, _text_el([cls], T.font("bold", 16), T.AMBER, 0.14, shadow=False), ix - PAD, y - PAD, _fade_in(t, 0.3))
     y += 28
     f_name, n_lines = _fit_lines(st["name"].upper(), "display", (66, 58, 50, 44), iw, 2, 0.03)

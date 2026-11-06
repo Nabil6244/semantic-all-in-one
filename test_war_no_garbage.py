@@ -142,6 +142,18 @@ class MismatchedFootage(unittest.TestCase):
         self.assertTrue(_kept_anyway({"ai_generated": True}))
         self.assertFalse(_kept_anyway({"provider": "pexels"}))
 
+    def test_a_csv_clip_from_the_visuals_tab_is_kept_unless_it_contradicts(self):
+        """Render 028 (2026-11-07): 15 of 34 CSV clips scored 0.0 on word overlap and were dropped, leaving the empty backdrop on screen."""
+        from cinematic_explainer.war.planner import _unrelated
+        from cinematic_explainer.war import footage_match as FM
+
+        self.assertFalse(_unrelated({"relevance": 0.0, "relevance_contradictions": [], "csv_pick": True}))
+        self.assertTrue(_unrelated({"relevance": 0.6, "relevance_contradictions": ["different system: Patriot"], "csv_pick": True}))
+        meta = {"provider": "pexels", "csv_pick": True, "title": "people walking"}
+        other = {"path": "/x/pool.mp4", "meta": {"provider": "youtube", "title": "Russian drones strike Odesa port"}}
+        out = FM.match_scenes([{"scene_no": 1, "text": "Russian drones struck the port of Odesa.", "footage": "/x/csv.mp4", "footage_meta": meta}], [other])
+        self.assertEqual(out[0]["footage"], "/x/csv.mp4")                     # never swapped for another clip
+
     @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
     def test_planner_drops_it_and_the_scene_gets_other_footage(self):
         from cinematic_explainer.war import planner
@@ -228,6 +240,146 @@ class MoreMapsAndLayouts(unittest.TestCase):
         self.assertLessEqual(DEFAULTS["full_gap"], 8.0)
         self.assertLessEqual(DEFAULTS["clean_floor"], 0.30)
         self.assertGreaterEqual(DEFAULTS["per_minute"], 6)
+
+
+class GraphicFloor(unittest.TestCase):
+    """The owner (2026-11-07): the graphics the style already has should be used. A footage-heavy render with plain narration (no places,
+    numbers or quotes) showed one graphic in the whole video; now none of its stretches goes longer than the floor gap without one."""
+
+    TEXTS = ["The war changed everything for the people who lived there.", "Nobody expected the fighting to last this long.",
+             "Soldiers on both sides were exhausted after months in the trenches.", "Supplies were running low and morale was falling.",
+             "Commanders argued about what to do next.", "Some wanted to push forward, others wanted to dig in.",
+             "The winter made every decision harder.", "Roads turned to mud and vehicles got stuck.",
+             "Many families had already left their homes.", "Those who stayed lived in basements for weeks.",
+             "Then the government made a surprising decision.", "It would change the course of the conflict."]
+
+    def plan(self, **cfg):
+        from cinematic_explainer.war import planner
+
+        meta = {"provider": "youtube", "kind": "youtube", "relevance": 0.5, "relevance_reasons": ["same topic"]}
+        sc = [{"text": t, "start": i * 8.0, "end": i * 8.0 + 8.0, "scene_no": i + 1, "footage": clip("008.mp4"), "footage_meta": meta}
+              for i, t in enumerate(self.TEXTS)]
+        return planner.plan(sc, config=cfg or None)
+
+    def graphics(self, p):
+        from cinematic_explainer.war.direction import _NOT_A_GRAPHIC
+
+        return sorted((ly for ly in p.layers if ly.kind not in _NOT_A_GRAPHIC), key=lambda ly: ly.start)
+
+    def test_plain_narration_over_footage_still_gets_graphics_every_10_s(self):
+        p = self.plan()
+        self.assertNotIn("error", p.stats["direction"])
+        g = self.graphics(p)
+        self.assertGreaterEqual(len(g), 8)
+        cur = 4.0
+        for ly in g:
+            self.assertLessEqual(ly.start - cur, 10.0 + 0.05, f"no graphic from {cur:.1f}s to {ly.start:.1f}s")
+            cur = max(cur, ly.end)
+        self.assertLessEqual(96.0 - cur, 10.0 + 0.05)
+
+    def test_the_kit_rotates_never_the_same_kind_twice_in_a_row(self):
+        g = [ly for ly in self.graphics(self.plan())]
+        self.assertGreaterEqual(len({ly.kind for ly in g}), 3)
+        floor = [ly.kind for ly in g]
+        self.assertFalse(any(a == b for a, b in zip(floor, floor[1:])))
+
+    def test_graphics_never_overlap_and_words_come_from_the_narration(self):
+        g = self.graphics(self.plan())
+        for a, b in zip(g, g[1:]):
+            self.assertLessEqual(a.end, b.start + 0.01)
+        said = " ".join(self.TEXTS).lower()
+        for ly in g:
+            words = (ly.params or {}).get("text") or (ly.params or {}).get("caption")
+            if words:
+                self.assertIn(words.lower().split()[0], said)
+
+    def test_switch_off(self):
+        self.assertLessEqual(len(self.graphics(self.plan(graphic_floor=False))), 2)
+
+
+class MotionFill(unittest.TestCase):
+    """The owner (2026-11-07): "we can use graphics instead of that" (the empty backdrop) and "add new graphics too, graphics animations"."""
+
+    TEXTS = ["Officials said the decision was made in secret.", "Russian drones and missiles filled the sky every night.",
+             "Soldiers needed fuel, ammunition and food.", "Nobody expected the fighting to last this long.",
+             "The government announced a new plan for the winter.", "The cost kept rising for everyone."]
+
+    def test_every_new_graphic_animates_and_is_registered(self):
+        from cinematic_explainer.war import registry
+        from cinematic_explainer.war.cards_motion import MOTION_CARDS
+
+        cards = registry.all_cards()
+        params = {"kit_kinetic": {"text": "The cost kept rising", "key": ["rising"]},
+                  "kit_dossier": {"title": "A new plan", "body": "The government announced a new plan for the winter.", "mark": ["winter"]},
+                  "kit_radar": {"label": "Drones filled the sky"}, "kit_keywords": {"items": ["Fuel", "Ammunition", "Food"], "title": "What they needed"}}
+        for kind, fn in MOTION_CARDS.items():
+            self.assertIs(cards[kind], fn)
+            early, late = fn(0.3, 5.0, params[kind]), fn(2.5, 5.0, params[kind])
+            self.assertEqual(late.size, (1280, 720))
+            self.assertNotEqual(early.tobytes(), late.tobytes())          # it moves
+            self.assertIsNone(fn(1.0, 5.0, {}))                            # no words, no graphic
+
+    def test_a_stretch_without_footage_is_covered_by_motion_graphics_not_the_backdrop(self):
+        from cinematic_explainer.war import planner
+        from cinematic_explainer.war.direction import MOTION_KINDS
+
+        sc = [{"text": t, "start": i * 8.0, "end": i * 8.0 + 8.0, "scene_no": i + 1} for i, t in enumerate(self.TEXTS)]
+        p = planner.plan(sc, config={"map_build": False, "broll": False, "layouts": False, "icons": False, "graphic_floor": False})
+        self.assertNotIn("error", p.stats["direction"])
+        motion = sorted((ly for ly in p.layers if ly.kind in MOTION_KINDS), key=lambda ly: ly.start)
+        self.assertGreaterEqual(len({ly.kind for ly in motion}), 3)
+        self.assertFalse(any(a.kind == b.kind for a, b in zip(motion, motion[1:])))
+        covered = sum(ly.end - ly.start for ly in p.layers if ly.kind not in ("kicker", "status_chip", "kit_badge", "shot_headline"))
+        self.assertGreaterEqual(covered, 48.0 * 0.9)
+        self.assertTrue(all(ly.end - ly.start <= 9.0 + 0.05 for ly in motion))
+
+    def test_old_tag_fill_when_switched_off(self):
+        from cinematic_explainer.war import planner
+        from cinematic_explainer.war.direction import MOTION_KINDS
+
+        sc = [{"text": t, "start": i * 8.0, "end": i * 8.0 + 8.0, "scene_no": i + 1} for i, t in enumerate(self.TEXTS)]
+        p = planner.plan(sc, config={"map_build": False, "broll": False, "motion_fill": False, "graphic_floor": False})
+        self.assertFalse(any(ly.kind in MOTION_KINDS for ly in p.layers))
+
+
+class CommaNumbers(unittest.TestCase):
+    def test_2_000_with_a_comma_is_a_number_not_a_crash_and_2022_is_a_year(self):
+        from cinematic_explainer.war.semantics import find_numbers
+
+        nums, years = find_numbers("Losses rose from 2,000 in March to 46,000 by 2022.")
+        self.assertIn(2000.0, [n.value for n in nums])
+        self.assertEqual([y for y, _ in years], [2022])
+
+
+class RichLayoutsMoreOften(unittest.TestCase):
+    """The owner (2026-11-07, pointing at the stat split, equipment panel, figure panel ...): "these are the best stills, why you not adding?"
+    Render 028 skipped them: '4 feet wide' had no referent the parser knew, 'missiles' / 'western tanks' named no model."""
+
+    def plan(self, texts):
+        from cinematic_explainer.war import planner
+
+        return planner.plan([{"text": t, "start": i * 7.0, "end": i * 7.0 + 7.0, "scene_no": i + 1} for i, t in enumerate(texts)],
+                            config={"map_build": False})
+
+    def test_a_class_word_gets_the_equipment_panel_with_the_narrations_word_and_no_guessed_class(self):
+        p = self.plan(["The war entered its third winter.", "Its missiles are hunting the power grid as winter closes in.",
+                       "Nobody expected it to last.", "Western tanks were arriving at last."])
+        eq = [ly for ly in p.layers if ly.kind == "lay_equipment_hero"]
+        self.assertEqual(sorted(ly.params["type_word"] for ly in eq), ["Missiles", "Tanks"])
+        miss = next(ly for ly in eq if ly.params["type_word"] == "Missiles")
+        self.assertEqual(miss.params["class_label"], "Missile")              # never 'Cruise missile': the narration did not say which
+        self.assertEqual(miss.params["status"], "unverified")
+
+    def test_a_figure_in_digits_gets_the_stat_layout_labelled_with_the_narrations_words(self):
+        p = self.plan(["Imagine a steel tube about 4 feet wide.", "Nobody expected it to last.",
+                       "Its troops are attacking along 300 kilometres of front."])
+        labels = [ly.params.get("label") for ly in p.layers if ly.kind in ("lay_stat_split", "kit_bignum", "stat_number")]
+        self.assertIn("feet wide", labels)
+        self.assertTrue(any(str(lb).startswith("kilometres") for lb in labels))
+
+    def test_spelled_small_counts_and_years_stay_out(self):
+        p = self.plan(["There is one way forward and one way back.", "In 2022 the war changed."])
+        self.assertFalse(any(ly.kind in ("lay_stat_split", "kit_bignum", "stat_number") for ly in p.layers))
 
 
 class WarFetch(unittest.TestCase):

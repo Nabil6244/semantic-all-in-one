@@ -154,6 +154,8 @@ def _unrelated(meta: Optional[Dict[str, Any]]) -> bool:
     m = meta if isinstance(meta, dict) else {}
     if m.get("relevance_contradictions") and not m.get("weak_match"):
         return True
+    if m.get("csv_pick"):
+        return False          # searched with the CSV's own prompt and checked in the Visuals tab: a low word-overlap score is no reason to drop it
     try:
         return m.get("relevance") is not None and float(m["relevance"]) < DROP_BELOW
     except (TypeError, ValueError):
@@ -472,7 +474,10 @@ def _cands_numbers(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
     cands = [n for n in sent.numbers if n.complete and not (not claimant0 and (_TIME_UNIT.match(n.unit or "") or (n.raw.isalpha() and n.value <= 12)))]
     incomplete = [n for n in sent.numbers if not n.complete]
     if not cands:
-        if incomplete or sent.numbers:
+        loose = _loose_number(ctx, sent, incomplete or sent.numbers)
+        if loose is not None:
+            out.append(loose)
+        elif incomplete or sent.numbers:
             out.append(_rej("number", "slot_incomplete", "a number with no stated referent", sent.index))
         return out
     n = cands[0]
@@ -491,6 +496,43 @@ def _cands_numbers(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
                          f"stated number with referent ({_fmt_value(n)} {n.unit})", start=s0, end=e0, sentence=sent.index,
                          key=f"number:{n.value}:{n.unit.lower()}", params=params))
     return out
+
+
+_LOOSE_STOP = re.compile(r"[.,;:!?]")
+
+
+def _loose_number(ctx: _Ctx, sent: SentenceInfo, nums: Sequence[S.Number]) -> Optional[Candidate]:
+    """The owner (2026-11-07): the big-number and stat layouts are the best stills, use them. A figure written in digits whose referent the
+    parser could not name still gets its card: the label is the narration's own next words ('4 feet wide', '300 kilometres of front'),
+    never a guessed referent. Years, contested figures and small spelled-out counts ('one way forward') stay out."""
+    for n in nums:
+        if n.is_year or not re.search(r"\d", n.raw or "") or _contested(sent, n):
+            continue
+        rel = n.span[1] - sent.span[0] if n.span[1] >= sent.span[0] else n.span[1]
+        tail = _LOOSE_STOP.split(sent.text[rel:], maxsplit=1)[0].split()
+        words = [w for w in tail[:4] if w.lower() not in ("and", "or", "but", "the", "a", "an")][:3]
+        if not words:
+            continue
+        s0, e0 = _window(ctx, n.span[0], sent)
+        label = " ".join(words)
+        params = {"value": int(round(n.value)) if abs(n.value - round(n.value)) < 1e-9 else n.value, "prefix": "", "label": label, "sub": "As stated in the narration",
+                  "suffix": "%" if n.unit == "%" else "", "colour": "yellow", "shown": _fmt_value(n) + ("%" if n.unit == "%" else ""), "unit": n.unit or "",
+                  "as_of": _year_text(sent), "claimant": "", "status": _stat_status(sent, ctx.cfg, "")}
+        return Candidate("number", BASE_SCORE["number"] - 10, f"stated figure, label from the narration's words ({n.raw} {label})", start=s0, end=e0,
+                         sentence=sent.index, key=f"number:{n.value}:{label.lower()}", params=params)
+    return None
+
+
+_CLASS_OF = {"missile": "missile_cruise", "missiles": "missile_cruise", "drone": "drone", "drones": "drone", "tank": "tank", "tanks": "tank",
+             "launcher": "rocket_artillery", "launchers": "rocket_artillery", "aircraft": "fighter", "jet": "fighter", "jets": "fighter",
+             "helicopter": "helicopter", "helicopters": "helicopter", "artillery": "artillery", "rocket": "rocket_artillery", "rockets": "rocket_artillery",
+             "radar": "radar", "radars": "radar", "air defense": "air_defense", "air defence": "air_defense", "warship": "ship", "warships": "ship",
+             "ship": "ship", "ships": "ship", "submarine": "ship", "submarines": "ship", "howitzer": "artillery", "howitzers": "artillery",
+             "bomber": "bomber", "bombers": "bomber"}
+
+
+_CLASS_LABEL_OF = {"drone": "Drone", "tank": "Tank", "rocket_artillery": "Rocket artillery", "fighter": "Aircraft", "helicopter": "Helicopter",
+                   "artillery": "Artillery", "radar": "Radar", "air_defense": "Air defence", "ship": "Naval vessel", "bomber": "Bomber"}
 
 
 _PERIOD_ADJ = {"a day": "Daily", "per day": "Daily", "a night": "Nightly", "a week": "Weekly", "per week": "Weekly", "a month": "Monthly",
@@ -556,8 +598,30 @@ def _cands_equipment(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
             out.append(_rej("equipment", "density", f"{e.name} was carded {ctx.start - last:.0f} s ago", sent.index))
             continue
         out.append(_equipment_card(ctx, sent, e, has_attr))
-    if not equip and gen and not sent.numbers:
+    places = [e for e in sent.entities if e.kind == "place"]
+    classes = {_CLASS_OF.get(g.name.lower(), "generic") for g in gen}
+    plural = [g for g in gen if g.name.lower().endswith("s") and g.name.lower() not in ("air defense", "air defence")]
+    event = re.search(r"\b(struck|strikes?|hit|hits|attack\w*|launched|fired|shot down|intercepted|bombed|shelled|destroyed)\b", sent.text, re.IGNORECASE)
+    if not equip and gen and (places or event or len(classes) > 1 or not plural):
+        # a place belongs on the map, several things on the icon explainer, and 'drones struck Vilnius' is an event (the map), not the weapon
         out.append(_rej("equipment", "ambiguous_entity", f"class word only ({', '.join(sorted({g.name.lower() for g in gen}))}): no system named", sent.index))
+    elif not equip and gen:
+        gen = plural
+        # a class word alone ('western tanks', 'its missiles'): the type card (class icon, the narration's word, unverified), never a model
+        g = gen[0]
+        cls = _CLASS_OF.get(g.name.lower(), "generic")
+        if ctx.seen_equipment.get("class:" + cls) is not None and ctx.start - ctx.seen_equipment["class:" + cls] < ctx.cfg["equipment_repeat_s"]:
+            out.append(_rej("equipment", "density", f"the {cls} type card was shown recently", sent.index))
+        else:
+            if g.span == (0, 0):                      # a bare word from the sentence: place it where it is spoken
+                at = sent.span[0] + max(0, sent.text.lower().find(g.name.lower()))
+                g = S.Entity("generic_weapon", g.name, span=(at, at + len(g.name)), specific=False)
+            c = _generic_equipment_card(ctx, sent, g, cls)
+            c.params["name"] = c.params["type_word"] = g.name.title()
+            c.params["class_label"] = _CLASS_LABEL_OF.get(cls, "Military equipment") if cls != "missile_cruise" else "Missile"   # 'missiles' may be ballistic
+            c.equip_id = "class:" + cls
+            c.reason = f"class word only ('{g.name}'): a type card, no model named"
+            out.append(c)
     return out
 
 
@@ -1187,6 +1251,8 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
             direction_stats = _dir.apply(out, rows, cfg, cat)
         except Exception as exc:                  # the art direction is an addition: a failure leaves the planner's own plan untouched
             direction_stats = {"error": f"{type(exc).__name__}: {exc}"}
+            import logging
+            logging.getLogger(__name__).warning("War direction pass failed, the video gets only the planner's own cards: %s", direction_stats["error"], exc_info=True)
     out.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))
     card_time = state.card_time()
     out.stats = {"scenes": len(rows), "cards": len(state.acc), "card_share": round(card_time / state.total, 4), "clean_share": round(1 - card_time / state.total, 4),

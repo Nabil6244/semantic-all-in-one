@@ -365,7 +365,7 @@ def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tup
             val *= {"million": 1e6, "billion": 1e9, "thousand": 1e3, "hundred": 1e2}[mult]
         span = (offset + m.start(), offset + m.end())
         is_pct = bool(m.group(2))
-        if not is_pct and not mult and 1900 <= val <= 2099 and float(m.group(1)) == int(float(m.group(1))) and "," not in m.group(1):
+        if not is_pct and not mult and 1900 <= val <= 2099 and "," not in m.group(1) and val == int(val):
             years.append((int(val), span))
             continue
         unit = "%" if is_pct else ""

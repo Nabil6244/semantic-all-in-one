@@ -283,7 +283,8 @@ def match_scenes(scenes: Sequence[Dict[str, Any]], pool: Optional[Iterable[Any]]
             narr = narration_profile(str(s.get("text") or ""))
             own_path = s.get("footage") or ""
             own_meta = dict(s.get("footage_meta") or {})
-            pinned = bool(own_path) and (own_meta.get("user_supplied") or own_meta.get("pinned") or own_meta.get("kind") == "user")
+            pinned = bool(own_path) and (own_meta.get("user_supplied") or own_meta.get("pinned") or own_meta.get("kind") == "user"
+                                         or own_meta.get("csv_pick"))     # the CSV's own search, held in the Visuals tab: stays on its scene
             cands: List[Dict[str, Any]] = []
             if own_path:
                 cands.append(_entry(own_path, own_meta, "own"))

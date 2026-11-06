@@ -428,9 +428,50 @@ def _tac_params(sent: Any, places: List[Any], countries: List[Any], political: b
     return p
 
 
-def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], notes: List[str]) -> None:
-    """Rule 11: wherever no footage is on screen, something truthful (a card, map, sticker or the narration's own words as a tag) appears at
-    least every ~6 s. Where nothing truthful exists the stretch is logged, never filled with invention."""
+_AIR = re.compile(r"\b(drones?|missiles?|rockets?|air|airspace|radar|jets?|aircraft|sky|skies|detect\w*|intercept\w*|air defen[cs]e|warplanes?|bombers?|satellites?)\b", re.IGNORECASE)
+_DOC = re.compile(r"\b(report\w*|document\w*|said|says|announced|according|officials?|claimed|intelligence|secret\w*|plan|plans|order\w*|decision|"
+                  r"decided|agreement|treaty|deal|memo|letter|statement|ministry|government)\b", re.IGNORECASE)
+_STOP = {"the", "a", "an", "of", "to", "in", "on", "at", "and", "or", "but", "with", "for", "by", "as", "from", "that", "which", "was", "were",
+         "is", "are", "be", "been", "had", "has", "have", "it", "its", "their", "his", "her", "this", "these", "those", "they", "there", "then",
+         "would", "could", "will", "into", "after", "before", "about", "every", "many", "some", "what", "who", "when", "where", "more", "most"}
+MOTION_MAX_S = 6.5          # one motion graphic holds at most this long; a longer empty stretch gets the next one
+
+
+def _key_words(text: str, n: int = 2) -> List[str]:
+    ws = [w.strip(".,;:!?'\"()") for w in text.split()]
+    ws = [w for w in ws if len(w) >= 5 and w.lower() not in _STOP]
+    return sorted(ws, key=len, reverse=True)[:n]
+
+
+def _motion_options(sent: Any, h: str) -> List[Tuple[str, Dict[str, Any]]]:
+    """Full-frame motion graphics (cards_motion) the sentence supports; the words are always the narration's own."""
+    text = sent.text.strip()
+    out: List[Tuple[str, Dict[str, Any]]] = []
+    if _AIR.search(text):
+        out.append(("kit_radar", {"label": h}))
+    if len(text) <= 220:      # any sentence can be a page in the file; one that names a report, plan or decision most of all
+        out.append(("kit_dossier", {"title": h, "body": text if text.upper() != h.upper() else "", "mark": _key_words(text, 1)}))
+    items = _items(text)
+    if not items:
+        names = []
+        for e in sent.entities:
+            if e.name.lower() not in [x.lower() for x in names]:
+                names.append(e.name)
+        items = names if 2 <= len(names) <= 4 else []
+    if items:
+        out.append(("kit_keywords", {"items": [i[:1].upper() + i[1:] for i in items], "title": h if len(h.split()) <= 6 else ""}))
+    out.append(("kit_kinetic", {"text": h, "key": _key_words(h, 2)}))
+    if not _DOC.search(text):                       # ties go to the first: the file page leads only for a report, plan or decision
+        out.sort(key=lambda o: o[0] == "kit_dossier")
+    return out
+
+
+def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], notes: List[str],
+                      motion: bool = True) -> None:
+    """Rule 11: wherever no footage is on screen, the plain backdrop is never what the viewer sees. Since 2026-11-07 (the owner: "we can use
+    graphics instead of that") every free stretch of the plate is covered by full-frame motion graphics (kinetic type, dossier, radar,
+    numbered keywords: cards_motion) made from the sentence spoken there, the least used kind first. motion=False keeps the old small tag.
+    Where nothing truthful exists the stretch is logged, never filled with invention."""
     total = max((r["_end"] for r in rows), default=0.0)
     plate: List[Tuple[float, float]] = []
     cur = 0.0
@@ -441,16 +482,21 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
     if total - cur > 0.04:
         plate.append((cur, total))
     busy = _Busy(plan.layers)
+    used: Dict[str, int] = {}
+    last = ""
     flip = 0
+    need = 2.0 if motion else 3.6
     for g0, g1 in plate:
         t = g0
-        while g1 - t >= 3.6:
-            slot = busy.free(t, g1, 3.6, margin=0.0, ignore=("shot_headline",))
+        while g1 - t >= need:
+            slot = busy.free(t, g1, need, margin=0.0, ignore=("shot_headline",))
             if slot is None:
                 break
             w0 = slot[0]
             row = next((r for r in rows if r["_start"] - 0.01 <= w0 < r["_end"]), None)
-            h = ""
+            if row is None:                       # the plate after the last scene: the scene before it speaks there
+                row = next((r for r in reversed(rows) if r["_start"] <= w0 + 0.01), None)
+            h, sent = "", None
             if row:
                 A2 = S.analyze_scene(str(row.get("text") or ""), cat, row.get("words"), row["_start"], row["_end"])
                 sent = next((x for x in A2.sentences if A2.time_at(x.span[0]) - 0.2 <= w0 + 0.6 <= A2.end_time_of(x.span) + 0.6), A2.sentences[-1] if A2.sentences else None)
@@ -460,19 +506,150 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
                 notes.append(f"nothing truthful to show at {w0:.1f}s")
                 if dec is not None:
                     dec.flags.append("dir:empty_stretch")
-                t = w0 + 3.6
+                t = w0 + need
                 continue
-            a = fr(w0 + 0.6)
-            ly = Layer("kit_tag", a, fr(a + 3.2), {"text": h, "pos": "top-left" if flip % 2 == 0 else "lower-left", "style": "hook"}, dim=False)
-            flip += 1
+            if motion:
+                room = slot[1] - w0
+                span = room if room <= MOTION_MAX_S + 2.5 else MOTION_MAX_S      # never leave a sliver too short for the next graphic
+                opts = _motion_options(sent, h)
+                opts.sort(key=lambda o: (o[0] == last, used.get(o[0], 0)))
+                kind, params = opts[0]
+                params = dict(params, seed=int(row["_no"]) if str(row["_no"]).isdigit() else 0)
+                ly = Layer(kind, fr(w0), fr(w0 + span), params, dim=False)
+                used[kind] = used.get(kind, 0) + 1
+                last = kind
+                why, rule = f"no footage here: {kind} from the narration", "motion_fill"
+            else:
+                a = fr(w0 + 0.6)
+                ly = Layer("kit_tag", a, fr(a + 3.2), {"text": h, "pos": "top-left" if flip % 2 == 0 else "lower-left", "style": "hook"}, dim=False)
+                flip += 1
+                why, rule = "no footage here, the narration's own words as a tag", "fallback_tags"
             plan.layers.append(ly)
-            busy.add(ly.start, ly.end, "kit_tag")
-            dec.flags.append("dir:fallback_tag")
-            dec.candidates.append({"kind": "kit_tag", "score": 0.0, "reason": "direction: no footage here, the narration's own words as a tag", "accepted": True,
-                                   "start": ly.start, "end": ly.end})
-            counts["fallback_tags"] = counts.get("fallback_tags", 0) + 1
+            busy.add(ly.start, ly.end, ly.kind)
+            dec.flags.append("dir:" + ("motion_fill" if motion else "fallback_tag"))
+            dec.candidates.append({"kind": ly.kind, "score": 0.0, "reason": "direction: " + why, "accepted": True, "start": ly.start, "end": ly.end})
+            counts[rule] = counts.get(rule, 0) + 1
             t = ly.end
 
+
+
+# ------------------------------------------------------------------------------------------------ graphic floor -----------------------
+# Rule 17 (the owner, 2026-11-07: "graphics we already have should be added in the video"; a footage-heavy render showed almost none):
+# the triggers above only fire on places, numbers, quotes and named weapons, so plain narration over footage got nothing but headlines.
+# Now no stretch of more than GRAPHIC_GAP s goes without one of the graphics the style already has, made from the narration's own words
+# (a map for a place or country, icons or a sticker for the things named, a list recap, an inset caption or a hook tag). The least used
+# kind so far goes first, so one video shows the whole kit instead of the same card again and again.
+GRAPHIC_GAP = 10.0
+_NOT_A_GRAPHIC = SOFT | {"shot_headline", "kit_ribbon", "kit_stamp", "kit_flag"}     # small marks; a gap with only these is still empty
+
+
+def _floor_options(sent: Any, has_footage: bool, layouts: bool) -> List[Tuple[str, Dict[str, Any], float]]:
+    """(kind, params, seconds) the sentence truthfully supports, most specific first. The hook tag is always possible."""
+    out: List[Tuple[str, Dict[str, Any], float]] = []
+    pl, co = _places(sent), _countries(sent)
+    if pl:
+        p = _tac_params(sent, pl, co, False)
+        if p:
+            out.append(("tac_map", p, 4.5))
+    elif co:
+        p = _tac_params(sent, [], co, True)
+        if p:
+            out.append(("tac_map", p, 4.5))
+    found: List[Tuple[int, str, str, str]] = []
+    if not pl and not co:
+        for rx, name, lab in _STICKERS:
+            mm = re.search(rx, sent.text, re.IGNORECASE)
+            if mm and name not in [f[1] for f in found] and not any(f[0] <= mm.start() < f[0] + 12 for f in found):
+                found.append((mm.start(), name, mm.group(0), lab))
+        found.sort()
+    if 2 <= len(found) <= 4:
+        out.append(("kit_icons", {"icons": [{"name": nm, "label": word, "start": 0.3 + 0.5 * i} for i, (_p, nm, word, _l) in enumerate(found)],
+                                  "link": "vs" if _ICON_LINK_VS.search(sent.text) else "arrow" if _ICON_LINK_ARROW.search(sent.text) else "",
+                                  "title": _phrase(sent.text)}, 5.0))
+    if found:
+        out.append(("kit_sticker", {"name": found[0][1], "x": 0.68, "y": 0.46, "size": 260, "label": found[0][3], "label_style": "tape"}, 3.2))
+    its = _items(sent.text)
+    if its:
+        out.append(("kit_recap", {"items": [i[:1].upper() + i[1:] for i in its]}, 4.0))
+    h = _phrase_or_lead(sent.text)
+    if h:
+        out.append(("kit_kinetic", {"text": h, "key": _key_words(h, 2)}, 3.6))     # a short full-frame type break, then back to the clip
+        if has_footage and layouts:
+            out.append(("lay_inset", {"caption": h, "caption_sub": "", "notes": []}, 4.0))
+        out.append(("kit_tag", {"text": h, "pos": "top-left", "style": "hook"}, 3.2))
+    return out
+
+
+def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], gap: float,
+                   first_at: float, layouts: bool = True) -> None:
+    total = max((r["_end"] for r in rows), default=0.0)
+    if gap <= 0 or total <= first_at + gap:
+        return
+    sents: List[Tuple[float, float, Any, Dict[str, Any]]] = []      # (start, end, sentence, row) of every spoken sentence, in order
+    for r in rows:
+        if not str(r.get("text") or "").strip() or log_by_no.get(str(r["_no"])) is None:
+            continue
+        A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+        for sent in A.sentences:
+            a, b = _sent_window(A, sent, r["_start"], r["_end"])
+            sents.append((a, b, sent, r))
+    sents.sort(key=lambda x: x[0])
+    used: Dict[str, int] = {}
+    for ly in plan.layers:
+        if ly.kind not in _NOT_A_GRAPHIC:
+            used[ly.kind] = used.get(ly.kind, 0) + 1
+    busy = _Busy(plan.layers)
+    last_kind = ""
+    cursor = first_at
+    while cursor < total - 3.0:
+        spans = sorted((ly.start, ly.end) for ly in plan.layers if ly.kind not in _NOT_A_GRAPHIC and ly.end > cursor + 0.01)
+        nxt = spans[0][0] if spans else total
+        if nxt <= cursor + 0.01:                       # a graphic is on screen now: carry on after it
+            cursor = max(cursor + 0.5, spans[0][1])
+            continue
+        if nxt - cursor < gap:
+            if not spans:
+                break                                  # the video ends before the gap would
+            cursor = spans[0][1]
+            continue
+        # an empty stretch [cursor, nxt): the sentence that starts nearest a few seconds in gets a graphic
+        aim = cursor + min(gap * 0.5, (nxt - cursor) * 0.5)
+        pool = sorted((x for x in sents if cursor - 0.01 <= x[0] < nxt - 2.5), key=lambda x: abs(x[0] - aim))
+        placed = False
+        for a, b, sent, r in pool:
+            dec = log_by_no.get(str(r["_no"]))
+            has_footage = "no_footage" not in dec.flags
+            opts = _floor_options(sent, has_footage, layouts)
+            opts.sort(key=lambda o: (o[0] == last_kind, used.get(o[0], 0)))     # least used first, never the same kind twice in a row
+            full = [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS]
+            for kind, params, secs in opts:
+                ign = ("shot_headline",)
+                slot = busy.free(max(a, cursor), min(nxt, r["_end"] + 1.5), min(secs, 3.0), ignore=ign)
+                if slot is None:
+                    continue
+                s0, s1 = slot[0], fr(min(slot[1], slot[0] + secs))
+                if kind in FULL_KINDS | {"lay_inset"} and _near_full(full, s0, s1):
+                    continue
+                if kind == "kit_icons":
+                    params = dict(params, seed=int(r["_no"]) if str(r["_no"]).isdigit() else 0)
+                ly = Layer(kind, s0, s1, params, dim=(kind in DIM))
+                if kind in ("tac_map", "lay_inset", "kit_icons"):
+                    _yield_headline(plan, s0, s1)
+                plan.layers.append(ly)
+                busy.add(s0, s1, kind)
+                used[kind] = used.get(kind, 0) + 1
+                last_kind = kind
+                dec.flags.append("dir:floor")
+                dec.candidates.append({"kind": kind, "score": 0.0, "reason": f"direction: no graphic for {nxt - cursor:.0f} s, one from the kit",
+                                       "accepted": True, "start": s0, "end": s1})
+                counts["floor"] = counts.get("floor", 0) + 1
+                cursor = s1
+                placed = True
+                break
+            if placed:
+                break
+        if not placed:
+            cursor += gap                              # nothing fits here (no free slot): move on, never invent
 
 
 # ------------------------------------------------------------------------------------------------ layout choice -----------------------
@@ -481,7 +658,8 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
 # Supply language that names two or more chain links -> logistics diagram. Two full-frame compositions never meet within FULL_GAP s.
 LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay_equipment_compare", "lay_stat_split", "lay_timeline", "lay_claim",
                 "lay_logistics"}
-FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag"} | LAYOUT_KINDS
+MOTION_KINDS = {"kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords"}
+FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag"} | LAYOUT_KINDS | MOTION_KINDS
 FULL_GAP = 1.2
 ICON_GAP = 15.0            # one icon explainer per this many seconds
 COUNTRY_MAP_GAP = 30.0     # a country on its own gets a map again only after this long (Ukraine and Russia are named in every other sentence)
@@ -558,7 +736,7 @@ def _choose_layouts(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_
         p = dict(ly.params or {})
         if ly.kind == "figure_card" and p.get("name"):
             convert(ly, "lay_figure_hero", p, "a named person speaks: portrait, name, role, then the statement")
-        elif ly.kind == "equipment_card" and p.get("name") and not p.get("generic"):
+        elif ly.kind == "equipment_card" and p.get("name"):     # a type card too ('Tanks'): labelled silhouette, class row, unverified chip
             p["image_credit"] = p.get("image_credit") or ""
             convert(ly, "lay_equipment_hero", p, "a named system: photo or labelled silhouette with its sourced specs")
         elif ly.kind == "stat_number" and p.get("value") is not None:
@@ -1011,7 +1189,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     if cfg.get("broll", True):            # short clips end with their clip; the gaps they and the map breaks leave go back to the video's own footage
         _fit_short_clips(plan, counts)
         _broll_returns(plan, rows, log_by_no, meta_by_start, counts)
-    _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes)
+    _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes, motion=bool(cfg.get("motion_fill", True)))
+    if cfg.get("graphic_floor", True):
+        _graphic_floor(plan, rows, cat, log_by_no, counts, float(cfg.get("graphic_gap", GRAPHIC_GAP)), float(cfg.get("first_at", 4.0)),
+                       layouts=bool(cfg.get("layouts", True)))
 
     # ---- 9 badges (replace the equivalent old illustrative chip) ---------------------------------------------------------------------
     for r in rows:

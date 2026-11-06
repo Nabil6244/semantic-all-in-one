@@ -250,6 +250,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
                 meta["user_supplied"] = True       # picked in the Visuals tab: never swapped for another clip
             elif at in AI_TYPES:
                 meta["ai_generated"] = True        # labelled "AI-generated illustration", never presented as footage of the event
+            meta["csv_pick"] = True                # the CSV's own search, shown in the Visuals tab before Render: only a clear contradiction drops it
             sc["footage_meta"] = meta
             got += 1
         out.append(sc)
