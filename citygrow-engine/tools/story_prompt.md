@@ -36,7 +36,7 @@ Rows (the `row` column says which kind):
 4. 6–14 `landmark` rows: the buildings that make this city recognisable.
    - year = when built; until = when destroyed (empty if it still stands); era_name = its name; focus = "lon,lat" (exact!)
    - kind: dome_church, mosque, church, cathedral, temple, forum, market, amphitheatre, hippodrome, castle, palace, station, tower,
-     lighthouse, column, skyscraper, or a path kind: wall, harbour, aqueduct, bridge
+     lighthouse, column, skyscraper (its size is the real height in metres: Burj Khalifa 828; 250 m and above is drawn as a tapering tower with a spire), or a path kind: wall, harbour, aqueduct, bridge
    - extra JSON: {"size": length in metres, "rot": degrees the long side is turned (0 = east–west), "minarets": n,
      "color": "marble"|"stone"|"brick"|"#hex", "roof": "terracotta"|"slate"|"lead"|"#hex", "dome": "lead"|"gold"}
    - path kinds give the line as extra {"path": [[lon,lat],[lon,lat],...], "height": metres} and leave focus empty

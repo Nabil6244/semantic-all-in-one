@@ -140,7 +140,15 @@ export function buildLandmark(THREE, spec, groundY) {
     case 'column': { const H = S || 35; box(H * 0.2, H * 0.1, H * 0.2, PALETTE.marble); cyl(H * 0.06, H, PALETTE.marble, 0, H * 0.1, 0, 10); break; }
     case 'tower': { const H = S || 60; cyl(H * 0.14, H, wallC, 0, 0, 0, 12); cone(H * 0.16, H * 0.3, roofC, 0, H, 0, 12); break; }
     case 'skyscraper': {
-      const H = S || 180, W = spec.extra?.width ?? H * 0.22;
+      const H = spec.extra?.height ?? S ?? 180;   // metres: use the real height (Burj Khalifa 828, Shanghai Tower 632)
+      if (H >= 250) {   // a supertall: stepped, tapering shaft and a spire, not a box
+        const col = colour('color', PALETTE.glass), steps = 7;
+        let w = spec.extra?.width ?? H * 0.075, y = 0;
+        for (let i = 0; i < steps; i++) { const h = (H * 0.76) / steps; box(w, h, w, col, 0, y, 0); y += h; w *= 0.8; }
+        cyl(w * 0.9, H - y, PALETTE.concrete, 0, y, 0, 8, w * 0.1);
+        break;
+      }
+      const W = spec.extra?.width ?? H * 0.22;
       box(W, H, W, colour('color', PALETTE.glass)); box(W * 0.7, H * 0.08, W * 0.7, PALETTE.concrete, 0, H, 0);
       break;
     }
