@@ -35,7 +35,7 @@ def ffmpeg() -> str:
 
 
 def duration_of(path: Path) -> float:
-    out = subprocess.run([ffmpeg(), "-i", str(path)], capture_output=True, text=True).stderr
+    out = subprocess.run([ffmpeg(), "-i", str(path)], capture_output=True, text=True, timeout=1800).stderr
     m = re.search(r"Duration: (\d+):(\d+):([\d.]+)", out)
     return int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3]) if m else 0.0
 
@@ -72,14 +72,14 @@ def make(seconds: float, out: Path, track: str = DEFAULT, voice: str | None = No
         inputs += ["-i", voice]
     graph = bed_filter(n, tl, seconds, voice=bool(voice))
     tmp = out.with_suffix(".pre.wav")
-    subprocess.run([ffmpeg(), "-y", "-loglevel", "error", *inputs, "-filter_complex", graph, "-map", "[out]", "-ar", "48000", "-ac", "2", str(tmp)], check=True)
+    subprocess.run([ffmpeg(), "-y", "-loglevel", "error", *inputs, "-filter_complex", graph, "-map", "[out]", "-ar", "48000", "-ac", "2", str(tmp)], check=True, timeout=1800)
     # loudnorm pass 1 (measure) and pass 2 (apply, linear)
     meas = subprocess.run([ffmpeg(), "-i", str(tmp), "-af", f"loudnorm=I={TARGET_I}:TP={TARGET_TP}:LRA=11:print_format=json", "-f", "null", "-"],
-                          capture_output=True, text=True).stderr
+                          capture_output=True, text=True, timeout=1800).stderr
     j = json.loads(meas[meas.rindex("{"):meas.rindex("}") + 1])
     af = (f"loudnorm=I={TARGET_I}:TP={TARGET_TP}:LRA=11:measured_I={j['input_i']}:measured_TP={j['input_tp']}:measured_LRA={j['input_lra']}"
           f":measured_thresh={j['input_thresh']}:offset={j['target_offset']}:linear=true")
-    subprocess.run([ffmpeg(), "-y", "-loglevel", "error", "-i", str(tmp), "-af", af, "-ar", "48000", str(out)], check=True)
+    subprocess.run([ffmpeg(), "-y", "-loglevel", "error", "-i", str(tmp), "-af", af, "-ar", "48000", str(out)], check=True, timeout=1800)
     tmp.unlink(missing_ok=True)
     return {"file": str(out), "seconds": seconds, "track": track, "copies": n, "credit": credit(track)}
 

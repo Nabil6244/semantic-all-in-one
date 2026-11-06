@@ -128,9 +128,11 @@ def layer_for(text: str, phone: str) -> Optional[Dict[str, Any]]:
         m = next((x for x in ms if x["kind"] == k), None)
         if m is None:
             continue
-        val = m["value"] or ("??" if (q and (_asked(toks, m["k"]) or len(kinds) == 1 or text.strip().endswith("?"))) else None)
+        none = m["k"] > 0 and toks[m["k"] - 1] in ("no", "without", "lacks", "lost")      # "there's no telephoto lens"
+        val = m["value"] or ("None" if none else None) or ("??" if (q and (_asked(toks, m["k"]) or len(kinds) == 1 or text.strip().endswith("?"))) else None)
         lenses.append({"kind": k, "cap": _cap(m), "value": val})
-    models = re.findall(r"(?:Galaxy )?(S\d{2}(?: (?:Plus|Pro|Edge|Ultra|FE))?|iPhone \d+(?: (?:Pro Max|Pro|Plus|Air))?)", text)
+    models = [m.group(1) for m in re.finditer(r"(?:Galaxy )?(S\d{2}(?: (?:Plus|Pro|Edge|Ultra|FE))?|iPhone \d+(?: (?:Pro Max|Pro|Plus|Air))?)", text)
+              if not re.search(r"\b(?:behind|than|compared(?: to| with)?|versus|vs\.?|like|unlike|against|beats?|over)\s+(?:the\s+)?$", text[:m.start()], re.I)]   # a compared model is not the subject
     labels = list(dict.fromkeys(m if m.startswith("iPhone") else "Galaxy " + m for m in models))[:2] or [phone or "Galaxy S27 Ultra"]
     pal = ["#7a2f45", "#5b5a86"]
     return {"type": "pt_lenses", "title": "Cameras", "phones": [{"label": lb, "color": pal[i % 2]} for i, lb in enumerate(labels)], "lenses": lenses}

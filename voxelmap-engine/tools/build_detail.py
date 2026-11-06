@@ -222,7 +222,8 @@ def main(argv=None) -> int:
     finally:
         if pool:
             pool.terminate()
-            pool.join()
+            for proc in list(getattr(pool, "_pool", [])):   # the killed workers, each given a moment: a plain pool.join() can wait forever
+                proc.join(timeout=10)
     print(json.dumps({"event": "done", "built": built, "failed": failed, "total": len(needs)}), flush=True)
     return 0
 

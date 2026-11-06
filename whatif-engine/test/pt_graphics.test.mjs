@@ -174,3 +174,9 @@ test('pt_sides: each figure on its word, both inks draw cleanly', async () => {
   }
   await assert.rejects(() => impl({ type: 'pt_sides', items: [] }));
 });
+
+// the film's own lens count (product_trailer/subject.py): a two-lens phone draws two lenses, a missing lens a dashed line
+test('pt_lenses: a two-lens phone with a "None" telephoto draws cleanly', async () => {
+  const L = await impl({ type: 'pt_lenses', start: 0, end: 6, phones: [{ label: 'iPhone Duo', cams: 2 }], lenses: [{ kind: 'main', value: null, at: 0.2 }, { kind: 'telephoto', value: 'None', at: 0.6 }] });
+  for (const t of [0.5, 2, 5.9]) assert.equal(drawAt(L, t).bad.length, 0);
+});

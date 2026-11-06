@@ -19,6 +19,7 @@ export default {
     const m = ptMotion(d, f.t, S, { inDur: 0.35, outDur: 0.3, rise: 30 });
     if (m.k <= 0.002) return;
     const rows = ROWS.slice(0, lenses.some((l) => l.kind === 'periscope') ? 4 : 3);
+    const cams = Math.max(1, Math.min(rows.length, Number(ph[0] && ph[0].cams) || rows.length));   // the phone's own lens count (product_trailer/subject.py)
     const subs = ((f.spec && f.spec.layers) || []).some((L) => L && L.type === 'pt_subtitle');
     const phH = H * (subs ? 0.64 : 0.7), phW = phH * 0.49, y0 = H * 0.5 - phH / 2 - (subs ? H * 0.05 : 0) + m.rise;
     const cols = ph.length === 2 ? [W * 0.08, W * 0.53] : [W * 0.27];
@@ -29,7 +30,7 @@ export default {
       const gr = g.createLinearGradient(x, y0, x + phW, y0 + phH); gr.addColorStop(0, shade(col, 1.2)); gr.addColorStop(1, shade(col, 0.82));
       g.fillStyle = gr; g.beginPath(); g.roundRect(x, y0, phW, phH, r); g.fill(); g.restore();
       const lr = phW * 0.105, lx = x + phW * 0.24, ly = (j) => y0 + phW * 0.24 + j * phW * 0.29;
-      rows.forEach((_, j) => {                                        // the lenses: dark rings, glass, a glint
+      rows.slice(0, cams).forEach((_, j) => {                         // the lenses: dark rings, glass, a glint (only as many as the phone has)
         g.fillStyle = shade(col, 0.55); g.beginPath(); g.arc(lx, ly(j), lr * 1.18, 0, 7); g.fill();
         g.fillStyle = '#10151d'; g.beginPath(); g.arc(lx, ly(j), lr * 0.86, 0, 7); g.fill();
         g.fillStyle = 'rgba(120,170,255,0.5)'; g.beginPath(); g.arc(lx - lr * 0.25, ly(j) - lr * 0.25, lr * 0.22, 0, 7); g.fill();
@@ -51,7 +52,8 @@ export default {
         const age = m.age - (Number.isFinite(L.at) ? L.at : 0.3 + 0.25 * li), kl = quartOut(age / 0.35), kt = clamp01((age - 0.2) / 0.3);
         if (kl <= 0) return;
         const sx = lx + lr * 1.25, ex = x + phW + W * 0.035, ey = ly(j), tx = ex + 14 * S;
-        g.save(); g.strokeStyle = '#1d2127'; g.lineWidth = 2.5 * S; g.beginPath(); g.moveTo(sx, ey); g.lineTo(sx + (ex - sx) * kl, ey); g.stroke(); g.restore();
+        g.save(); if (j >= cams && g.setLineDash) g.setLineDash([6 * S, 8 * S]);   // a lens the phone does not have ("None"): a dashed line to an empty spot
+        g.strokeStyle = '#1d2127'; g.lineWidth = 2.5 * S; g.beginPath(); g.moveTo(sx, ey); g.lineTo(sx + (ex - sx) * kl, ey); g.stroke(); g.restore();
         if (kt <= 0) return;
         const hasVal = L.value != null && L.value !== '';
         T.text(String(L.cap || L.kind), tx, ey - (hasVal ? 18 : -8) * S, { font: ptFont(S, hasVal ? 18 : 28, hasVal ? 500 : 700, 'sans'), color: hasVal ? '#4a505a' : '#1d2127', shadow: 0, alpha: kt });

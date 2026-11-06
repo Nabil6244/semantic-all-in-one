@@ -1079,6 +1079,8 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
                 add(a2, b2, fs)
                 k3 += 1
         chunks += voiceover.chunks(f["line"]["text"], spans[i], words, ranges[i], ok)
+    from .subject import fix_phones
+    fix_phones(layers, phone)                        # the film's phone drawn with its own camera on the flat cards, as the 3D model has it
     from .canvas import build as build_canvases
     if words and ok:
         from .swatches import follow as swatch_follow

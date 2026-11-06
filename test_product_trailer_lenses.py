@@ -54,6 +54,12 @@ class Director(unittest.TestCase):
         self.assertEqual(a["layer"]["type"], "pt_lenses")
         self.assertNotEqual((b.get("layer") or {}).get("type"), "pt_lenses")
 
+    def test_a_compared_model_is_not_the_subject_and_no_lens_reads_none(self):
+        sc = director.scene_for("There's no telephoto lens, and the main camera fell behind the iPhone 18 Pro in low light.", "iPhone Duo", {})
+        L = sc["layer"]
+        self.assertEqual([p["label"] for p in L["phones"]], ["iPhone Duo"])
+        self.assertEqual(lens(L, "telephoto")["value"], "None")
+
 
 class FollowUps(unittest.TestCase):
     def layer(self, start=0.0, end=20.0):

@@ -64,6 +64,11 @@ class Director(unittest.TestCase):
         self.assertEqual(a["kind"], "sides")
         self.assertNotEqual((b or {}).get("kind"), "sides")
 
+    def test_non_model_pairs_always_use_sides(self):
+        ctx = {"sides_n": 1}                     # the next model pair would go to the older scene
+        it = director.scene_for("Apple rates it for up to 44 hours of video on the outer screen and 31 hours on the inner screen.", "iPhone Duo", ctx)
+        self.assertEqual(it["kind"], "sides", "outer / inner screen is not a before / after: never the older Previous / Now scene")
+
 
 class Visual(unittest.TestCase):
     IT = {"kind": "sides", "items": [{"value": "$1,299", "sub": "S26 Ultra Launch Price", "side": "left"}, {"value": "$1,499", "sub": "S27 Ultra Leaked Price", "side": "right"}]}

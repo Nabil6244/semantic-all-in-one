@@ -200,7 +200,7 @@ def render(csv: str, work: str, *, output: str, resolution: int = 1080, voiceove
     bed = music_bed.make(seconds, w / "mix.wav", track, voiceover)
     _, ffmpeg = _binaries()
     subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-i", str(video), "-i", bed["file"], "-map", "0:v", "-map", "1:a", "-c:v", "copy",
-                    "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", output], check=True)
+                    "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", output], check=True, timeout=1800)
     tl = json.loads((w / "timeline.json").read_text(encoding="utf-8")) if (w / "timeline.json").is_file() else {}
     credits = [bed["credit"], *tl.get("credits", [])]
     Path(output).with_suffix(".credits.txt").write_text("\n".join(credits) + "\n", encoding="utf-8")

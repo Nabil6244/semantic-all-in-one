@@ -290,6 +290,10 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
     # 6a. two figures of one kind either side of the phone (REVIEW_REFERENCE_5 gap 17); every other such sentence keeps the flat scenes below
     from .sides import sides_for
     two = sides_for(text, name)
+    from .sides import MODEL as _MODEL
+    labelled = two and any(x["sub"] for x in two["items"]) and not any(x["value"].endswith("MP") for x in two["items"]) and not any(_MODEL.search(x["sub"]) or re.search(r"Launch|Leaked", x["sub"]) for x in two["items"])
+    if two and labelled:                         # "outer screen / inner screen", "with / without AppleCare": no older scene says that (they read Previous / Now)
+        return {"kind": "sides", **two}
     if two and ctx is not None:                  # without a running context (a one-off check) the older scenes below answer
         ctx["sides_n"] = ctx.get("sides_n", 0) + 1
         if ctx["sides_n"] % 2 == 1:

@@ -19,7 +19,7 @@ def onsets(src, words):
     (10 ms level above the word's peak - 24 dB, at least -45 dBFS), searching up to the word's end."""
     import subprocess
     import numpy as np
-    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", src, "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, check=True).stdout
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", src, "-ac", "1", "-ar", "16000", "-f", "f32le", "-"], capture_output=True, check=True, timeout=600).stdout
     x = np.frombuffer(raw, np.float32); n = len(x) // 160
     db = 20 * np.log10(np.sqrt((x[: n * 160].reshape(-1, 160) ** 2).mean(1)) + 1e-9)
     for i, w in enumerate(words):
