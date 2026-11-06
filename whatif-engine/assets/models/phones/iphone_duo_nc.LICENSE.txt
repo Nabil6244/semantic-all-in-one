@@ -1,0 +1,7 @@
+Model: Apple iPhone Duo
+Author: zhe_kan (https://sketchfab.com/zhe_kan)
+Source: https://sketchfab.com/3d-models/apple-iphone-duo-f6100910553946159e07518240fca910
+Licence: CC-BY-NC-SA-4.0 — NON-COMMERCIAL ONLY
+Not for monetised videos. Use only in a video that earns nothing, with this credit line:
+  Phone model "Apple iPhone Duo" by zhe_kan, CC BY-NC-SA 4.0, https://sketchfab.com/3d-models/apple-iphone-duo-f6100910553946159e07518240fca910
+The "_nc" in the file name keeps it out of automatic picks.

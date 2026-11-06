@@ -1,0 +1,6 @@
+Model: Oneplus 12
+Author: me_blender (https://sketchfab.com/me_blender)
+Source: https://sketchfab.com/3d-models/oneplus-12-5e2281b99366462188415209beb24dfd
+Licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+Credit line for the video description:
+  Phone model "Oneplus 12" by me_blender, CC BY 4.0, https://sketchfab.com/3d-models/oneplus-12-5e2281b99366462188415209beb24dfd

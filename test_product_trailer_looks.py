@@ -90,5 +90,22 @@ class News(unittest.TestCase):
         self.assertEqual(NF.queries({"chapters": [{"items": [{"kind": "footage", "topic": "price"}]}]}, PHONE)["price"], "Galaxy S26 Ultra hands on")
 
 
+class CaptionsSwitch(unittest.TestCase):
+    """The page's Captions box: on keeps the look's own captions (Mixed shows them), off plans the film with none."""
+    def test_mixed_with_and_without_captions(self):
+        kinds = {}
+        for on in (True, False):
+            with tempfile.TemporaryDirectory() as d:
+                r = studio.plan_film("Review", out_dir=d, script=SCRIPT, phone=PHONE, style="mixed", disclaimer_on=False, subtitles=None if on else False)
+                kinds[on] = {L["type"] for L in json.loads(Path(r["spec_path"]).read_text())["layers"]}
+        self.assertIn("pt_subtitle", kinds[True])
+        self.assertNotIn("pt_subtitle", kinds[False])
+
+    def test_page_passes_the_box_to_the_planner(self):
+        src = (Path(__file__).parent / "ui" / "product_trailer_section.py").read_text(encoding="utf-8")
+        self.assertIn('"captions": bool(app._pt_captions_var.get())', src)
+        self.assertIn('subtitles=None if o.get("captions", True) else False', src)
+
+
 if __name__ == "__main__":
     unittest.main()

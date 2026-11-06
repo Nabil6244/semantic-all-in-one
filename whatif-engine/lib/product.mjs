@@ -765,6 +765,16 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   const place = (camera, k, t) => {
     const p = placement(THREE, shot, k, t);
     if (mirror) { p.pos.x = -p.pos.x; p.at.x = -p.at.x; p.phone.x = -p.phone.x; p.q.set(p.q.x, -p.q.y, -p.q.z, p.q.w); p.roll = -p.roll; }
+    const V = shot.vary;   // the planner's per-shot variation of the same move: the camera turned round the phone (yaw), raised (lift), nearer/farther (dist)
+    if (V) {
+      const d = p.pos.clone().sub(p.at);
+      if (V.yaw) d.applyAxisAngle(new THREE.Vector3(0, 1, 0), V.yaw);
+      if (V.dist) d.multiplyScalar(V.dist);
+      p.pos.copy(p.at).add(d);
+      if (V.lift) p.pos.y += V.lift;
+      if (V.roll) p.roll += V.roll;
+      if (V.fov) p.fov += V.fov;
+    }
     camera.clearViewOffset();
     holder.quaternion.copy(p.q); holder.position.copy(p.phone);
     if (phone.userData.update) phone.userData.update(k, t);

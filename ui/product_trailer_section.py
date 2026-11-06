@@ -91,6 +91,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._pt_ai_var = ctk.BooleanVar(value=False)
     app._pt_style_var = ctk.StringVar(value="Mixed (auto)")
     app._pt_footage_var = ctk.BooleanVar(value=True)
+    app._pt_captions_var = ctk.BooleanVar(value=True)   # Review: the narration as captions on screen (off = a clean picture)
     app._pt_status_var = ctk.StringVar(value="")
     app._pt_cancel = threading.Event()
     app._pt_running = getattr(app, "_pt_running", False)
@@ -156,6 +157,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     ctk.CTkSegmentedButton(kind, values=list(FILM_TYPES), variable=app._pt_type_var, command=lambda _v=None: _type_picked(app)).grid(row=0, column=1)
     ctk.CTkLabel(kind, text="Review look", font=ctk.CTkFont(size=12), text_color=T.MUTED).grid(row=0, column=2, padx=(16, 8))
     ctk.CTkSegmentedButton(kind, values=["Mixed (auto)", "Cinematic", "Infographic"], variable=app._pt_style_var).grid(row=0, column=3)
+    ctk.CTkCheckBox(kind, text="Captions", variable=app._pt_captions_var).grid(row=0, column=4, padx=(16, 0))
     ctk.CTkCheckBox(body, text="Mixed look: download matching stock footage for real-world sentences (Pexels / Pixabay keys)", variable=app._pt_footage_var).grid(
         row=1, column=1, sticky="w", padx=(16, 0), pady=(8, 0))
     ctk.CTkCheckBox(body, text="Use AI scenes made in Flow (pictures are free; clips are only planned)", variable=app._pt_ai_var).grid(
@@ -369,6 +371,7 @@ def options(app: Any) -> Dict[str, Any]:
             "disclaimer": app._pt_disclaimer_box.get("1.0", "end-1c").strip(), "width": w, "height": h,
             "fps": 60 if app._pt_fps_var.get() == "60" else 30,
             "film_type": app._pt_type_var.get() if app._pt_type_var.get() in FILM_TYPES else "Trailer", "use_ai": bool(app._pt_ai_var.get()), "style": {"Infographic": "infographic", "Cinematic": "cinematic"}.get(app._pt_style_var.get(), "mixed"), "footage": bool(app._pt_footage_var.get()),
+            "captions": bool(app._pt_captions_var.get()),
             "script": app._pt_script_box.get("1.0", "end-1c").strip()}
 
 
@@ -384,6 +387,8 @@ def _load_options(app: Any) -> None:
     for key, var in (("phone", app._pt_phone_var), ("colour", app._pt_colour_var), ("csv", app._pt_csv_var), ("music", app._pt_music_var), ("voiceover", app._pt_voice_var)):
         if o.get(key) and not var.get():
             var.set(o[key])
+    if "captions" in o:
+        app._pt_captions_var.set(bool(o["captions"]))
     spec = o.get("spec_path")
     if spec and Path(spec).is_file() and not app._pt_spec_path:
         app._pt_spec_path = spec
@@ -515,6 +520,7 @@ def on_generate(app: Any) -> None:
             r = studio.plan_film(o["film_type"], out_dir=out_dir, csv=o["csv"] or None, script=o["script"], phone=o["phone"], colour=o["colour"],
                                  music=o["music"] or None, disclaimer=o["disclaimer"], disclaimer_on=o["disclaimer_on"], width=o["width"],
                                  height=o["height"], fps=o["fps"], use_ai=o["use_ai"], voiceover=o["voiceover"] or None, words=words, style=o["style"],
+                                 subtitles=None if o.get("captions", True) else False,
                                  footage_chosen=footage_chosen, **_ai_args(app, o))
             planned.update(r)
             app.after(0, lambda: app._pt_status_var.set(r["summary"]))

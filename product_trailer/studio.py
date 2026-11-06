@@ -273,6 +273,13 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
             spec["layers"] = [L for L in spec["layers"] if L["type"] != "pt_subtitle"]
         bar_phones(spec, phone)
         consistent_phones(spec)
+        from . import variety3d                      # new 3D every time: no move repeated back to back, each shot its own camera, a seed per film
+
+        vo_id = ""
+        if voiceover and Path(voiceover).is_file():
+            st = Path(voiceover).stat()
+            vo_id = f"{Path(voiceover).name}:{st.st_size}:{int(st.st_mtime)}"
+        variety3d.vary_shots(spec, variety3d.film_seed(vo_id, script, phone))
         pick = preset_colour(phone, colour)
         if pick:                                     # the chosen finish on every single-phone shot (a lineup keeps the preset's range)
             for s in spec["shots"]:

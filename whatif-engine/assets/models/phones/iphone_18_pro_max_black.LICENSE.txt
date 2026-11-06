@@ -1,0 +1,5 @@
+Model: Apple iPhone 18 Pro Max Black 2026
+Author: extraakash (https://sketchfab.com/AakashMansukhani)
+Source: https://sketchfab.com/3d-models/apple-iphone-18-pro-max-black-2026-8fd804a9b0ea49249de3f1e0450fbc9c
+Licence: SKETCHFAB Standard (https://sketchfab.com/licenses)
+Sketchfab Standard: use in videos is allowed, no credit needed. Do NOT share or commit this file (git-ignored).
