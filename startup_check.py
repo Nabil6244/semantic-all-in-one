@@ -26,7 +26,8 @@ FILES_FILE = "startup_check_files.json"      # runtime-read files the spec says 
 # third-party packages every build needs (native extensions included); their optional submodules are not checked
 CORE_PACKAGES = ("customtkinter", "PIL.Image", "av", "numpy", "faster_whisper", "ctranslate2", "requests", "websockets", "yt_dlp", "sounddevice", "psutil")
 ENGINE_FILES = ("pakmap-engine/render.mjs", "starmap-engine/render.mjs", "map-engine/render.mjs", "whatif-engine/render.mjs",
-                "weather-engine/render.mjs", "gfx-overlay-engine/render.mjs", "flow-engine/server.js")
+                "weather-engine/render.mjs", "gfx-overlay-engine/render.mjs", "flow-engine/server.js",
+                "citygrow-engine/runner.py", "citygrow-engine/render.mjs", "citygrow-engine/tools/music_bed.py", "citygrow-engine/tools/build_city.py")
 
 
 def bundle_root() -> Path:

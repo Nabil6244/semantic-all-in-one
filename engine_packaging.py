@@ -1,7 +1,7 @@
 """Which files of the newer engines ship inside the packaged app (used by VideoGenerator.spec, tested by test_engine_packaging.py).
 
-Roblox Cinema, Voxel Map and Kids Learn (cartoon3d-engine) load their engine folder by path at run time, so PyInstaller never sees them:
-every file they read has to be listed here. Also shipped: the music beds in assets/music (Roblox Cinema and Voxel Map mix them in),
+Roblox Cinema, Voxel Map, Kids Learn (cartoon3d-engine) and City Timelapse (citygrow-engine) load their engine folder by path at run time, so PyInstaller never sees them:
+every file they read has to be listed here. Also shipped: the music beds in assets/music (Roblox Cinema, Voxel Map and City Timelapse mix them in),
 the Rules Horror prompts and samples, and the three.js add-ons these 3D pages import beyond what StarMap ships.
 
 Files are the engine's git-tracked files (outputs, caches and worlds are git-ignored), minus tests, docs and build-only tools."""
@@ -11,7 +11,7 @@ import subprocess
 from pathlib import Path
 from typing import List, Tuple
 
-ENGINES = ("roblox-cinema-engine", "voxelmap-engine", "cartoon3d-engine")
+ENGINES = ("roblox-cinema-engine", "voxelmap-engine", "cartoon3d-engine", "citygrow-engine")
 SKIP_DIRS = {"test", "tests", "docs", "out", "cache", "worlds", "node_modules", "__pycache__", "authoring", "revisions"}
 SKIP_SUFFIXES = {".md", ".pyc"}
 THREE_ADDONS = ("three/examples/jsm/environments/RoomEnvironment.js", "three/examples/jsm/geometries/RoundedBoxGeometry.js",

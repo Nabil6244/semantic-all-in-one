@@ -23,7 +23,9 @@ class Shipped(unittest.TestCase):
     def test_every_engine_ships_its_runner_and_renderer(self):
         for eng, need in (("roblox-cinema-engine", ("runner.py", "render.mjs", "tools/mix_audio.py", "tools/narration_timing.py")),
                           ("voxelmap-engine", ("runner.py", "render.mjs", "page.html", "page.js", "tools/mix_audio.py")),
-                          ("cartoon3d-engine", ("runner.py", "lesson.mjs", "assets/host/host.glb"))):
+                          ("cartoon3d-engine", ("runner.py", "lesson.mjs", "assets/host/host.glb")),
+                          ("citygrow-engine", ("runner.py", "render.mjs", "page.html", "page.js", "lib/timeline.mjs", "tools/music_bed.py", "tools/build_city.py",
+                                               "samples/rome_timelapse.csv"))):
             for rel in need:
                 self.assertIn(f"{eng}/{rel}", self.dest, f"{eng}/{rel} is not shipped")
 
