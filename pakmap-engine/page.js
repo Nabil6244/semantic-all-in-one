@@ -168,17 +168,19 @@ async function setup() {
   // ---- fill events (translucent regions with an outline), timed like any other layer ----
   const hold = spec.hybrid && spec.hybrid.pause_overlays ? footageWindows(spec.events || []) : []; // Hybrid Map: map layers' clocks stop under footage
   const fillEvents = (spec.events || []).filter((e) => e.type === 'fill');
+  // A country fill uses the one shared 'countries' source (its filter picks the country): a source per fill loaded the whole
+  // world's shapes once per fill, and the hundreds of fills of a 40-minute Hybrid film crashed every map browser (Target crashed).
   fillEvents.forEach((e) => {
     const colour = e.color || FILL_ROLES[e.role || 'primary'];
     if (e.polys) {
       map.addSource(`fe-${e.id}`, { type: 'geojson', data: { type: 'Feature', geometry: { type: 'MultiPolygon', coordinates: e.polys } } });
-    } else {
-      if (!map.getSource('countries')) map.addSource('countries', { type: 'geojson', data: '/data/countries.geojson' });
-      map.addSource(`fe-${e.id}`, { type: 'geojson', data: '/data/countries.geojson' });
+    } else if (!map.getSource('countries')) {
+      map.addSource('countries', { type: 'geojson', data: '/data/countries.geojson' });
     }
+    const source = e.polys ? `fe-${e.id}` : 'countries';
     const filter = e.polys ? undefined : ['in', ['get', 'iso'], ['literal', e.iso]];
-    map.addLayer({ id: `fe-${e.id}`, type: 'fill', source: `fe-${e.id}`, ...(filter ? { filter } : {}), paint: { 'fill-color': colour, 'fill-opacity': 0, 'fill-antialias': true } }, map.getLayer('borders') ? 'borders' : undefined);
-    if (e.outline !== false) map.addLayer({ id: `fe-line-${e.id}`, type: 'line', source: `fe-${e.id}`, ...(filter ? { filter } : {}), layout: { 'line-join': 'round' }, paint: { 'line-color': e.outline_color || '#ffffff', 'line-opacity': 0, 'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1, 6, 2.5] } }, map.getLayer('borders') ? 'borders' : undefined);
+    map.addLayer({ id: `fe-${e.id}`, type: 'fill', source, ...(filter ? { filter } : {}), paint: { 'fill-color': colour, 'fill-opacity': 0, 'fill-antialias': true } }, map.getLayer('borders') ? 'borders' : undefined);
+    if (e.outline !== false) map.addLayer({ id: `fe-line-${e.id}`, type: 'line', source, ...(filter ? { filter } : {}), layout: { 'line-join': 'round' }, paint: { 'line-color': e.outline_color || '#ffffff', 'line-opacity': 0, 'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1, 6, 2.5] } }, map.getLayer('borders') ? 'borders' : undefined);
   });
 
   // ---- value overlays (colour-ramp rasters from data, clipped to a region) ----
