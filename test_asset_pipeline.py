@@ -2209,6 +2209,47 @@ class TestBrowserPlaybackClient(unittest.TestCase):
             client.stop()
             os.environ.pop("CRASH_MARKER", None)
 
+    def test_timeout_stops_the_busy_worker_so_its_late_answer_is_not_the_next_jobs(self):
+        client = self._client(job_timeout=1.2)
+        try:
+            client.acquire("hang", 1.0, 3.5, self.dest)
+            self.assertFalse(client.alive)                      # restarted fresh by the next job
+            r = client.acquire("okvid", 1.0, 3.5, self.tmp / "next.mp4")
+            self.assertTrue(r.get("ok"), r)
+        finally:
+            client.stop()
+
+    def test_pool_records_several_clips_at_once(self):
+        """One worker made every YouTube scene wait in one line (Ahmed test project 2026-11-08: 7+ minutes for 20 scenes)."""
+        import threading as _th
+        from providers.youtube.acquisition.browser_client import BrowserClientPool
+
+        live, peak, lock = [0], [0], _th.Lock()
+
+        class Fake:
+            jobs_completed = 0
+
+            def acquire(self, *a, **k):
+                with lock:
+                    live[0] += 1
+                    peak[0] = max(peak[0], live[0])
+                time.sleep(0.3)
+                with lock:
+                    live[0] -= 1
+                self.jobs_completed += 1
+                return {"ok": True}
+
+            def stop(self):
+                pass
+
+        pool = BrowserClientPool(size=3, factory=Fake)
+        ts = [_th.Thread(target=pool.acquire, args=("v", 0, 1, self.dest)) for _ in range(7)]
+        [t.start() for t in ts]
+        [t.join() for t in ts]
+        self.assertEqual(peak[0], 3)                           # three at once, never more
+        self.assertEqual(len(pool._all), 3)
+        self.assertEqual(pool.jobs_completed, 7)
+
     def test_browser_unavailable(self):
         from providers.youtube.acquisition import browser_client as bc
 

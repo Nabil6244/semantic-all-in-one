@@ -575,26 +575,16 @@ class StillsAndSearch(unittest.TestCase):
         again, _ = integration.footage_from_record({"status": "complete", "local_path": str(img)}, d)
         self.assertEqual(again, foot)                    # made once, reused
 
-    def test_youtube_talk_and_commentary_titles_are_dropped_footage_first(self):
-        from cinematic_explainer.war.app_section import _WarYouTubeSearch, war_manager
+    def test_footage_searches_rank_filmed_titles_above_talk_and_commentary(self):
+        from providers.youtube.base import VideoCandidate
+        from providers.youtube.ranking import rank_candidates
 
-        hits = [SimpleNamespace(title="Ukraine war map update: every day"), SimpleNamespace(title="Expert analysis: is Russia winning?"),
-                SimpleNamespace(title="Orikhiv this week"), SimpleNamespace(title="Drone footage: strike on a power plant")]
-        asked = {}
-
-        class Backend:
-            def search(self, q, max_results=5):
-                asked["n"] = max_results
-                return hits
-
-        yp = SimpleNamespace(clip_duration=8.0, backend=Backend(), max_results=5)
-        war_manager(SimpleNamespace(settings={}, youtube_provider=yp))
-        self.assertIsInstance(yp.backend, _WarYouTubeSearch)
-        got = [c.title for c in yp.backend.search("q", max_results=5)]
-        self.assertGreaterEqual(asked["n"], 12)
-        self.assertEqual(got, ["Drone footage: strike on a power plant", "Orikhiv this week"])
-        war_manager(SimpleNamespace(settings={}, youtube_provider=yp))
-        self.assertNotIsInstance(yp.backend._b, _WarYouTubeSearch)   # never wrapped twice
+        C = lambda t: VideoCandidate(video_id=t, url="", title=t, channel="", duration=300)
+        hits = [C("Russian strikes on power plants: expert analysis"), C("Power plants map update every day"),
+                C("Drone footage: Russian strikes hit power plants")]
+        self.assertEqual(rank_candidates(hits, "Russian strikes power plants footage")[0].title, "Drone footage: Russian strikes hit power plants")
+        plain = rank_candidates(hits, "Russian strikes power plants")          # no footage asked for: no talk penalty
+        self.assertEqual(len(plain), 3)
 
     def test_render_log_counts_the_graphics(self):
         from cinematic_explainer.war.integration import graphics_count

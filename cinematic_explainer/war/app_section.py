@@ -153,50 +153,12 @@ LOCAL_TYPES = ("local", "local_video")
 WAR_YT_CLIP_S = 8.0               # War scenes run 5-10 s and are cut into 3-6 s shots: the app-wide 3.5 s YouTube cut ran out mid-scene
 
 
-WAR_YT_RESULTS = 12               # more results to choose from: the first five are often studio talk or map commentary
-# Titles that are almost never war footage: studio talk, map commentary, explainers, podcasts, reactions, Shorts, games.
-_YT_TALK = re.compile(r"\b(interview|podcast|analysis|analy[sz]ed|explained|explainer|reaction|reacts?|debate|discussion|panel|press conference|"
-                      r"briefing|q\s*&\s*a|opinion|commentary|map update|mapped|lecture|speech|"
-                      r"talk show|#shorts?|shorts|tiktok|game|gameplay|arma|warthunder|war thunder|simulation|animated|animation)\b", re.IGNORECASE)
-_YT_FOOTAGE = re.compile(r"\b(footage|drone|combat|frontline|front line|strike|strikes|shelling|attack|aftermath|destroyed|destruction|bodycam|"
-                         r"helmet ?cam|filmed|video shows|caught on camera|soldiers|troops|tanks?|artillery|missile|explosion|offensive|battle)\b", re.IGNORECASE)
-
-
-def yt_title_score(title: str) -> int:
-    """+1 a footage word, -2 a talk/commentary/game word: how War orders and filters YouTube results before the app ranks them."""
-    t = str(title or "")
-    return (1 if _YT_FOOTAGE.search(t) else 0) - (2 if _YT_TALK.search(t) else 0)
-
-
-class _WarYouTubeSearch:
-    """Wraps the YouTube backend for War only (its own AssetManager per run): asks for more results, drops talk/commentary/game titles while
-    at least two others are left, and puts footage titles first (the app's ranking keeps that order on ties)."""
-
-    def __init__(self, backend: Any):
-        self._b = backend
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._b, name)
-
-    def search(self, query: str, max_results: int = 5) -> List[Any]:
-        hits = list(self._b.search(query, max_results=max(int(max_results or 0), WAR_YT_RESULTS)) or [])
-        keep = [c for c in hits if yt_title_score(getattr(c, "title", "")) >= 0]
-        if len(keep) >= 2:
-            hits = keep
-        return sorted(hits, key=lambda c: -yt_title_score(getattr(c, "title", "")))
-
-
 def war_manager(manager: Any) -> Any:
-    """The app's AssetManager set up for War Documentary: no Gemini (the CSV directs), YouTube cuts long enough for a scene, footage-first
-    YouTube results."""
+    """The app's AssetManager set up for War Documentary: no Gemini (the CSV directs), YouTube cuts long enough for a scene."""
     manager.settings["gemini_enabled"] = False
     yp = getattr(manager, "youtube_provider", None)
     if yp is not None and float(getattr(yp, "clip_duration", 0.0) or 0.0) < WAR_YT_CLIP_S:
         yp.clip_duration = WAR_YT_CLIP_S
-    if yp is not None and getattr(yp, "backend", None) is not None and not isinstance(yp.backend, _WarYouTubeSearch):
-        yp.backend = _WarYouTubeSearch(yp.backend)
-        if int(getattr(yp, "max_results", 0) or 0) < WAR_YT_RESULTS:
-            yp.max_results = WAR_YT_RESULTS
     return manager
 
 

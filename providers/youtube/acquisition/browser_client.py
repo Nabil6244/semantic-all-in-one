@@ -21,7 +21,7 @@ _WORKER = _DIR / "browser_worker.mjs"
 _PROJECT_ROOT = _DIR.parent.parent.parent
 _lock = threading.Lock()
 _log: LogFn = print
-_client: Optional["BrowserPlaybackClient"] = None
+_client: Optional["BrowserClientPool"] = None
 
 
 def set_log(log: LogFn) -> None:
@@ -283,6 +283,8 @@ class BrowserPlaybackClient:
                 return msg
             if msg.get("type") == "fatal":
                 return self._retry_or_crash(job, msg.get("error") or "fatal")
+        # The worker is still busy with this job: its late answer would be read as the NEXT job's result. Stop it; the next job restarts it.
+        self.stop()
         return {"ok": False, "kind": "timeout", "error": "timed out waiting for browser acquisition"}
 
     def _retry_or_crash(self, job: dict, error: str) -> dict:
@@ -315,11 +317,63 @@ class BrowserPlaybackClient:
         return {"ok": False, "kind": "timeout", "error": "timed out after worker restart"}
 
 
-def get_client() -> BrowserPlaybackClient:
+def _pool_size() -> int:
+    try:
+        return max(1, min(6, int(os.environ.get("YOUTUBE_BROWSER_WORKERS", "") or 3)))
+    except ValueError:
+        return 3
+
+
+class BrowserClientPool:
+    """Several capture workers (one headless Chrome each). A clip is recorded in real time, so with one worker every YouTube scene of a
+    run waited in a single line (a 20-scene War Documentary: 7+ minutes). Each worker is started only when a job needs it."""
+
+    def __init__(self, size: Optional[int] = None, factory: Callable[[], BrowserPlaybackClient] = BrowserPlaybackClient):
+        self.size = size or _pool_size()
+        self._factory = factory
+        self._free: "list[BrowserPlaybackClient]" = []
+        self._all: "list[BrowserPlaybackClient]" = []
+        self._cv = threading.Condition()
+
+    @property
+    def jobs_completed(self) -> int:
+        return sum(c.jobs_completed for c in self._all)
+
+    def _take(self) -> BrowserPlaybackClient:
+        with self._cv:
+            while True:
+                if self._free:
+                    return self._free.pop()
+                if len(self._all) < self.size:
+                    c = self._factory()
+                    self._all.append(c)
+                    return c
+                self._cv.wait()
+
+    def _give(self, c: BrowserPlaybackClient) -> None:
+        with self._cv:
+            self._free.append(c)
+            self._cv.notify()
+
+    def acquire(self, video_id: str, start: float, duration: float, dest: Path, ffmpeg: Optional[str] = None) -> dict:
+        c = self._take()
+        try:
+            return c.acquire(video_id, start, duration, dest, ffmpeg=ffmpeg)
+        finally:
+            self._give(c)
+
+    def stop(self) -> None:
+        with self._cv:
+            clients = list(self._all)
+        for c in clients:
+            c.stop()
+
+
+def get_client() -> BrowserClientPool:
     global _client
     with _lock:
         if _client is None:
-            _client = BrowserPlaybackClient()
+            _client = BrowserClientPool()
         return _client
 
 

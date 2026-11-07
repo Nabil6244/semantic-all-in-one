@@ -53,10 +53,30 @@ def _title_penalty(title: str) -> float:
     return 0.0
 
 
+# A query that asks for footage (the CSV prompts end in "footage" / "b-roll") wants pictures of the thing, not people talking about it:
+# studio talk, map commentary, explainers, reactions, Shorts and video games are pushed down, titles that name filmed footage go up.
+_FOOTAGE_QUERY_RE = re.compile(r"\b(footage|b-?roll|clip)\b", re.IGNORECASE)
+_TALK_TITLE_RE = re.compile(
+    r"\b(interview|podcast|analysis|analy[sz]ed|explained|explainer|reaction|reacts?|debate|discussion|panel|press conference|briefing|"
+    r"q\s*&\s*a|opinion|commentary|map update|lecture|speech|talk show|#shorts?|shorts|tiktok|gameplay|arma ?3|war thunder|simulation|"
+    r"animated|animation)\b", re.IGNORECASE)
+_FILMED_TITLE_RE = re.compile(
+    r"\b(footage|drone|combat|frontline|front line|aftermath|bodycam|helmet ?cam|filmed|video shows|caught on camera|b-?roll|"
+    r"aerial|timelapse|4k)\b", re.IGNORECASE)
+
+
+def _footage_intent(c: "VideoCandidate", query: str) -> float:
+    if not query or not _FOOTAGE_QUERY_RE.search(query):
+        return 0.0
+    t = c.title or ""
+    return (1.0 if _FILMED_TITLE_RE.search(t) else 0.0) - (2.5 if _TALK_TITLE_RE.search(t) else 0.0)
+
+
 def _score(c: "VideoCandidate", query: str) -> float:
     score = 0.0
     if query:
         score += text_relevance_score(query, c.title) * 3.0
+        score += _footage_intent(c, query)
     if c.has_captions:
         score += 1.0
     if c.width and c.height and c.width >= c.height:
