@@ -191,7 +191,7 @@ def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_A
 
 
 def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
-                      ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True) -> "tuple[List[dict], List[Any]]":
+                      ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True, listed=None, on_start=None, on_done=None) -> "tuple[List[dict], List[Any]]":
     """(scenes with `footage` set from the Visuals table, the table's rows). The CSV's own searches are fetched for the rows the table does not
     hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic.
     fetch=False (Render after Generate scenes) fetches nothing: the video uses exactly what the Visuals tab holds."""
@@ -212,6 +212,8 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             log(f"scene {r.scene_number}: not searched ({'; '.join(errs)})")
             continue
         todo.append(r)
+    if fetch and rows and listed is not None:
+        listed(rows)           # every scene is in the Visuals tab before the first download (the fetch takes minutes), then fills in live
     if todo:
         log(f"Fetching footage for {len(todo)} scenes with the CSV's searches…")
         Path(images_dir).mkdir(parents=True, exist_ok=True)
@@ -228,7 +230,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
 
             threading.Thread(target=watch, daemon=True, name="war-asset-cancel").start()
         try:
-            manager.resolve_all(todo)
+            manager.resolve_all(todo, on_scene_start=on_start, on_scene_complete=on_done)
         except Exception as exc:  # noqa: BLE001 - a failed fetch leaves those scenes on maps/cards; the render still runs
             log(f"footage fetch stopped early: {type(exc).__name__}: {exc}")
         finally:
@@ -560,7 +562,20 @@ def on_render_click(app) -> None:
             if scenes is not None and images_dir is not None:
                 if media_only:
                     progress(0.0, "fetching the CSV's footage")
-                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap, fetch=media_only)
+                def listed(rows_: List[Any]) -> None:
+                    import visual_bridge
+
+                    app.after(0, lambda: visual_bridge.fill(app, OWNER, rows_))
+
+                def on_start(scene: Any, source: Any) -> None:
+                    app._ui_queue.put(("scene_busy", (scene.scene_number, M._scene_busy_kind(source))))
+
+                def on_done(scene: Any, result: Any) -> None:
+                    app._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
+                live = media_only and hasattr(app, "_ui_queue")
+                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap, fetch=media_only,
+                                                 listed=listed if live else None, on_start=on_start if live else None, on_done=on_done if live else None)
                 if app._war_cancel.is_set():
                     raise segments.RenderCancelled()
                 if media_only:

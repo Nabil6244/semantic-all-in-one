@@ -176,11 +176,13 @@ class _FakeManager:
     def request_cancel(self):
         pass
 
-    def resolve_all(self, rows):
+    def resolve_all(self, rows, on_scene_start=None, on_scene_complete=None):
         from asset_manager import AssetManifest
 
         man = AssetManifest(self.images_dir)
         for r in rows:
+            if on_scene_start:
+                on_scene_start(r, None)
             self.asked.append((r.scene_number, r.asset_type, r.stock or r.prompt))
             if r.scene_number in self.fail:
                 man.set(r.scene_number, {"scene_number": r.scene_number, "status": "failed", "error": "no result"})
@@ -189,6 +191,8 @@ class _FakeManager:
             clip.write_bytes(b"x")
             man.set(r.scene_number, {"scene_number": r.scene_number, "status": "complete", "source": r.asset_type, "type": "video",
                                      "local_path": str(clip), "stock_query": r.stock or r.prompt, "provider": "pexels"})
+            if on_scene_complete:
+                on_scene_complete(r, "done")
 
 
 class TestCsvFootage(unittest.TestCase):
@@ -218,6 +222,19 @@ class TestCsvFootage(unittest.TestCase):
         mgr2 = _FakeManager(d)
         fetch_csv_footage(self.scenes(), mgr2, d)
         self.assertEqual(mgr2.asked, [])                                          # already in the table: nothing fetched twice
+
+    def test_the_visuals_tab_lists_every_scene_before_the_fetch_and_fills_in_live(self):
+        """Owner (2026-11-07): the Visuals tab said 'No scenes yet' for the whole fetch of 17 scenes."""
+        from cinematic_explainer.war.app_section import fetch_csv_footage
+
+        d = Path(tempfile.mkdtemp())
+        mgr, events = _FakeManager(d), []
+        listed = lambda rows: events.append(("listed", [r.scene_number for r in rows], len(mgr.asked)))
+        fetch_csv_footage(self.scenes(), mgr, d, listed=listed, on_start=lambda r, s: events.append(("start", r.scene_number)),
+                          on_done=lambda r, res: events.append(("done", r.scene_number)))
+        self.assertEqual(events[0], ("listed", ["1", "3", "4"], 0))              # listed before anything was fetched
+        self.assertIn(("start", "1"), events)
+        self.assertIn(("done", "3"), events)
 
     def test_a_failed_search_leaves_the_scene_on_graphics_and_the_users_pick_is_kept(self):
         from asset_manager import AssetManifest
