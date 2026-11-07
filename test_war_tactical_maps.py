@@ -106,3 +106,79 @@ class WarTacticalMapsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class MapsFollowTheNarration(unittest.TestCase):
+    """The owner (2026-11-07): map upgrades: highlights, colouring, zoom in, movements, country flags, follow the narration."""
+
+    def narrate(self, text):
+        from cinematic_explainer.war import direction as D, semantics as S
+
+        from cinematic_explainer.war.planner import _default_catalog
+
+        A = S.analyze_scene(text, _default_catalog(), None, 0.0, 7.0)
+        sent = A.sentences[0]
+        pl, co = D._places(sent), D._countries(sent)
+        p = D._tac_params(sent, pl, co, False) if pl else D._tac_params(sent, [], co, True)
+        return D._narrate_map(p, text, A, 0.0, D._countries_in(A)), A
+
+    def test_pins_and_movement_appear_when_their_words_are_spoken(self):
+        p, A = self.narrate("Russian columns advanced from Belgorod toward Kharkiv in February 2022.")
+        starts = {x["name"]: x["start"] for x in p["places"]}
+        self.assertLess(starts["Belgorod"], starts["Kharkiv"])
+        r = p["routes"][0]
+        self.assertEqual((r["style"], r["colour"]), ("advance", "red"))
+        self.assertAlmostEqual(r["start"], round(A.time_at(p and "Russian columns advanced".find("advanced")), 2), places=1)
+        self.assertEqual(p["focus"][0], ["Belgorod"])                              # opens on the origin, widens as it moves
+
+    def test_strike_from_and_retreat_get_their_own_styles(self):
+        p, _A = self.narrate("Russia struck Odesa from Sevastopol with cruise missiles.")
+        self.assertEqual((p["routes"][0]["from"], p["routes"][0]["to"], p["routes"][0]["style"]), ("Sevastopol", "Odesa", "strike"))
+        q, _A = self.narrate("Ukrainian troops withdrew from Avdiivka to Pokrovsk.")
+        self.assertEqual((q["routes"][0]["style"], q["routes"][0]["colour"]), ("retreat", "blue"))
+
+    def test_countries_colour_in_and_regions_light_up_when_named_and_one_town_gets_a_close_up(self):
+        p, A = self.narrate("Fighting raged in the Donetsk region as Poland and Lithuania watched.")
+        self.assertEqual([(f["iso3"], f["role"]) for f in p["fills"]], [("POL", "gold"), ("LTU", "teal")])
+        self.assertLess(p["fills"][0]["start"], p["fills"][1]["start"])
+        reg = p["regions"][0]
+        self.assertEqual(reg["label"], "Donetsk")
+        self.assertGreater(reg["start"], 1.0)                                      # on the word, not at the card's start
+        self.assertEqual(p["close_steps"], [False, True])
+
+    def test_every_movement_style_draws_and_moves(self):
+        from cinematic_explainer.war.maps_tactical import tac_map
+
+        for style in ("advance", "strike", "retreat"):
+            p = {"places": ["Belgorod", "Kharkiv"], "routes": [{"from": "Belgorod", "to": "Kharkiv", "style": style, "start": 0.5, "length": 1.4}]}
+            a, b = tac_map(1.0, 6.0, dict(p)), tac_map(3.5, 6.0, dict(p))
+            self.assertIsNotNone(a)
+            self.assertNotEqual(a.tobytes(), b.tobytes())
+
+    def test_crimea_is_never_coloured_or_flagged_as_russia(self):
+        from cinematic_explainer.war import maps_tactical as TM
+        from cinematic_explainer.war import maps as MP
+
+        p = {"places": ["Simferopol"], "fills": [{"iso3": "RUS", "role": "red", "start": 0.4}], "focus": [["Simferopol"]]}
+        im = TM.tac_map(4.0, 6.0, dict(p)).convert("RGB")
+        view = TM._render(dict(p), 4.0, 6.0)[1]["view"]
+        r, g, b = im.getpixel((640, 420))                                         # Crimea, south of Simferopol's pin
+        self.assertFalse(r > 120 and r > g + 60 and r > b + 60, "Crimea drawn in Russia's red")
+        rus = TM.G.find_country("RUS")
+        crimea_only = MP.View(TM.math.radians(34.1), TM.G.merc(45.0), TM.math.radians(1.2), 1280, 720)
+        self.assertIsNone(TM._flag_anchor(rus, crimea_only))
+
+    def test_flags_are_exact_stripe_flags_only(self):
+        from cinematic_explainer.war.maps_tactical import _flag_tile
+
+        self.assertIsNotNone(_flag_tile("UKR"))
+        self.assertIsNone(_flag_tile("USA"))                                       # not a stripe flag: never drawn approximately
+
+    def test_a_countries_only_map_frames_and_colours_the_countries_named(self):
+        p, _A = self.narrate("Poland and Lithuania closed their borders with Belarus and Russia.")
+        self.assertEqual([f["iso3"] for f in p["fills"]], ["POL", "LTU", "BLR", "RUS"])
+        self.assertEqual([f["role"] for f in p["fills"]], ["gold", "teal", "brown", "red"])
+        self.assertEqual(sorted(f["start"] for f in p["fills"]), [f["start"] for f in p["fills"]])   # in spoken order
+        self.assertNotIn("frame", p)                                               # not the fixed Ukraine frame
+        self.assertEqual(len(p["focus"][0]), 4)

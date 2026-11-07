@@ -502,6 +502,29 @@ class CsvGraphicMoreKindsAndOverlay(unittest.TestCase):
         im = kit_datecard(3.0, 6.0, dict(d.params))
         self.assertLess(im.getpixel((640, 600))[3], 255)                          # see-through: the clip shows
 
+class PhraseFixesFromTheStills(unittest.TestCase):
+    """Seen on the all-graphics stills (2026-11-07): 'LOSSES ROSE FROM 2' (cut at the comma inside 2,000), a date card whose line repeated
+    the date, a name-role-verb sentence shown as a three-item list."""
+
+    def test_a_thousands_comma_is_not_a_phrase_boundary(self):
+        from cinematic_explainer.war.direction import _phrase_or_lead
+
+        self.assertEqual(_phrase_or_lead("Losses rose from 2,000 in March to 46,000 by December."), "Losses rose from 2,000 in March")
+
+    def test_the_date_cards_line_is_what_follows_the_date(self):
+        from cinematic_explainer.war.direction import _after_date
+
+        self.assertEqual(_after_date("In February 2022, Russian columns advanced from Belarus toward Kyiv.", "February 2022"),
+                         "Russian columns advanced from Belarus")
+        self.assertEqual(_after_date("The invasion began in February 2022.", "February 2022"), "The invasion began")
+
+    def test_a_name_and_role_is_not_a_list_but_a_list_of_actions_is(self):
+        from cinematic_explainer.war.direction import _items
+
+        self.assertEqual(_items("Oleksandr Syrskyi, Ukraine's top commander, ordered a withdrawal."), [])
+        self.assertEqual(len(_items("Russia had laid minefields, dug trench lines, built anti-tank ditches and registered its artillery.")), 4)
+
+
 class WarFetch(unittest.TestCase):
     def test_youtube_clips_long_enough_for_a_scene_and_searches_ask_for_footage(self):
         from cinematic_explainer.war.app_section import WAR_YT_CLIP_S, csv_rows, war_manager

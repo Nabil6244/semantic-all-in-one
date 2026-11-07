@@ -10,7 +10,8 @@ tac_map params (all optional):
            a name is resolved from the war catalogue, then the gazetteer, then a small built-in list of well known towns; `lat`/`lon` given by the
            caller are used as given. A place that cannot be resolved (or that is an area such as a country or a sea) is SKIPPED and listed in
            params["_skipped"]; nothing is guessed. `zone` is a dashed highlight circle, never a crosshair.
-  routes   [{from, to, style: dashed_blue|dashed_red|arrow, label?, start?, length?}]  between two resolvable places only; the label chip always
+  routes   [{from, to, style: dashed_blue|dashed_red|arrow|advance|strike|retreat, colour?, label?, start?, length?}]  between two resolvable
+           places only (advance: broad tapered arrow with flowing chevrons; strike: high arc, projectile, impact flash; retreat: pale dashes); the label chip always
            carries ILLUSTRATIVE (a route is a drawing between two named places, not a track)
   glyphs   [{place, kind: drone|explosion|ring|swarm, heading_to?: place, dx?, dy?, start?}]  small symbols at a named place; use only
            for what the narration states. `swarm`: a few small arrows flying in toward the place (drones named by the narration)
@@ -23,6 +24,10 @@ tac_map params (all optional):
            group that has started is shown, so the stack clears and builds again
   focus    may also hold {"country": name|iso3}: the camera frames that country's mainland
   focus_times [s, ...]  when each focus step begins (narration sync); without it the steps share the card evenly
+  close_steps [bool, ...]  per focus step: True zooms in close (CLOSE_SPAN_DEG) on that step's single town
+  regions  [{name, colour?, start?}]  an oblast / region tinted and outlined when the narration names it (no control claim)
+  fills with start > 0 also colour a country on the tactical look, at the moment it is named, and its flag pops in on it
+           (exact stripe flags only; flags: False turns them off)
   t_offset, total_dur   one long map split around other cards: each piece renders at t + t_offset of a map total_dur long, so markers,
            cards and camera carry on instead of starting again
 tac_route params: from, to, label?, style?, theme?  (frames both places, draws one illustrative route and a straight-line distance panel)
@@ -208,7 +213,7 @@ def _gather(params: dict) -> Dict[str, Any]:
             continue
         a, b = get(r.get("from"), "route from"), get(r.get("to"), "route to")
         if a and b:
-            routes.append({"a": a, "b": b, "style": str(r.get("style") or "dashed_blue"), "label": str(r.get("label") or ""),
+            routes.append({"a": a, "b": b, "style": str(r.get("style") or "dashed_blue"), "label": str(r.get("label") or ""), "colour": str(r.get("colour") or ""),
                            "start": float(r.get("start", _T(params, "routes", i, _after_places(params) + 0.3 + 0.7 * i))), "length": float(r.get("length", 1.2))})
     glyphs = []
     for i, g in enumerate(params.get("glyphs") or []):
@@ -268,6 +273,7 @@ PANEL_FRAC = 0.70                # share of the frame width left of the panel
 MIN_SPAN_DEG = {"tactical": 9.0, "political": 10.0}   # never frame tighter than this many degrees of longitude (about 640 km at 50 N)
 MIN_CONTEXT = 3                                       # at least this many quiet context cities in view; the frame widens until they are
 MAX_SPAN_DEG = 70.0
+CLOSE_SPAN_DEG = 3.2             # a close-up on one town (about 230 km across): the camera pushes in when the narration names it
 
 
 def _frame_points(params: dict) -> List[Dict[str, Any]]:
@@ -285,14 +291,14 @@ def _has_panel(params: dict, extra_panel: Optional[dict] = None) -> bool:
     return bool([c for c in (params.get("chips") or []) if isinstance(c, dict) and c.get("title")]) or bool(extra_panel)
 
 
-def _step_view(pts: Sequence[Dict[str, Any]], theme: str, panel: bool, size: Tuple[int, int]) -> MP.View:
+def _step_view(pts: Sequence[Dict[str, Any]], theme: str, panel: bool, size: Tuple[int, int], min_span: Optional[float] = None) -> MP.View:
     """A useful regional view for the points: the subject stays within the middle 60 % of the space left of the panel, and the view is never
     tighter than MIN_SPAN_DEG of longitude, so country context and several context labels are always on screen."""
     w, h = size
     x0, x1 = math.radians(min(p["lon"] for p in pts)), math.radians(max(p["lon"] for p in pts))
     y0, y1 = G.merc(min(p["lat"] for p in pts)), G.merc(max(p["lat"] for p in pts))
     u = PANEL_FRAC if panel else 1.0
-    hw = max((x1 - x0) / (2 * 0.60 * u), (y1 - y0) / (2 * 0.58 * h / w), math.radians(MIN_SPAN_DEG[theme] / 2))
+    hw = max((x1 - x0) / (2 * 0.60 * u), (y1 - y0) / (2 * 0.58 * h / w), math.radians((min_span or MIN_SPAN_DEG[theme]) / 2))
     hw = min(hw, math.radians(MAX_SPAN_DEG / 2))
     cx = (x0 + x1) / 2 + hw * (1 - u)
     return MP.View(cx, (y0 + y1) / 2, hw, w, h)
@@ -318,7 +324,14 @@ def _views(params: dict, g: Dict[str, Any], size: Tuple[int, int], warn: List[st
     if g["steps"]:
         extra = _frame_points(params)
         named = {str(x.get("label", "")).lower() for x in g["places"]} | {str(x.get("name", "")).lower() for x in g["places"]}
-        return [_widen(_step_view(list(s) + extra, theme, panel, size), named) for s in g["steps"]]
+        close = params.get("close_steps") or []     # steps that zoom in close on one town (the narration names a single place)
+        out = []
+        for i, s_ in enumerate(g["steps"]):
+            if i < len(close) and close[i]:
+                out.append(_step_view(list(s_), theme, panel, size, CLOSE_SPAN_DEG))          # close-up: no widening, the town fills the frame
+            else:
+                out.append(_widen(_step_view(list(s_) + extra, theme, panel, size), named))
+        return out
     v = MP.view_for(params.get("frame") if params.get("frame") is not None else "ukraine", size, warn, pad=1.0)
     lo = math.radians(MIN_SPAN_DEG[theme] / 2)
     return [MP.View(v.cx, v.cy, max(v.hw, lo), size[0], size[1])]
@@ -388,8 +401,8 @@ def clear_cache() -> None:
 
 
 def _fills(params: dict, theme: str) -> List[dict]:
-    if theme != "political":
-        return []
+    if theme != "political":      # the dark tactical map keeps its plain base; a country named in the narration still lights up then
+        return [f for f in (params.get("fills") or []) if isinstance(f, dict) and float(f.get("start") or 0.0) > 0.0]
     fills = [f for f in (params.get("fills") or []) if isinstance(f, dict)]
     return fills or [{"iso3": "UKR", "role": "blue"}, {"iso3": "RUS", "role": "red"}]
 
@@ -656,6 +669,139 @@ def _chip_stack(img: Image.Image, chips: List[dict], t: float, x_right: int, y0:
 
 
 # ---------------------------------------------------------------------------------------------------------------- the renderer
+def _flag_tile(iso: str, w: int = 46, h: int = 30) -> Optional[Image.Image]:
+    """A small exact stripe flag (cards_kit.FLAGS) with a thin white border and a shadow; None for a flag the set cannot draw exactly."""
+    try:
+        from .cards_kit import FLAGS
+    except Exception:
+        return None
+    if iso not in FLAGS:
+        return None
+    o, cols, wts = FLAGS[iso]
+    im = Image.new("RGBA", (w + 12, h + 12), (0, 0, 0, 0))
+    sh = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rectangle([6, 8, 6 + w, 8 + h], fill=(0, 0, 0, 150))
+    from PIL import ImageFilter
+    im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(3)))
+    d = ImageDraw.Draw(im)
+    tot, pos = float(sum(wts)), 0.0
+    for c, wt in zip(cols, wts):
+        if o == "h":
+            d.rectangle([6, 6 + int(h * pos / tot), 6 + w - 1, 6 + int(h * (pos + wt) / tot) - 1], fill=tuple(c) + (255,))
+        else:
+            d.rectangle([6 + int(w * pos / tot), 6, 6 + int(w * (pos + wt) / tot) - 1, 6 + h - 1], fill=tuple(c) + (255,))
+        pos += wt
+    d.rectangle([5, 5, 6 + w, 6 + h], outline=(240, 240, 236, 255), width=2)
+    return im
+
+
+_FLAG_TILES: Dict[str, Optional[Image.Image]] = {}
+_CRIMEA_BOX = (31.6, 43.8, 37.4, 46.9)
+
+
+def _flag_anchor(feat: Any, view: MP.View) -> Optional[Tuple[float, float]]:
+    """(lon, merc y) for the flag: the label point of the visible part of the country; for Russia only its mainland (Crimea is drawn within
+    Ukraine's recognised borders, so a Russian flag never lands there; when only Crimea is in view there is no flag)."""
+    if feat.iso != "RUS":
+        return MP._anchor(feat, view)
+    import numpy as np
+
+    vb = view.bounds()
+    lo0, la0, lo1, la1 = max(vb[0], feat.bbox[0]), max(vb[1], feat.bbox[1]), min(vb[2], feat.bbox[2]), min(vb[3], feat.bbox[3])
+    if lo1 <= lo0 or la1 <= la0:
+        return None
+    gx, gy = np.meshgrid(np.linspace(lo0, lo1, 22), np.linspace(G.merc(la0), G.merc(la1), 14))
+    gx, gy = gx.ravel(), gy.ravel()
+    m = MP._inside(feat, gx, gy)
+    cb = _CRIMEA_BOX
+    m &= ~((gx >= cb[0]) & (gx <= cb[2]) & (gy >= G.merc(cb[1])) & (gy <= G.merc(cb[3])))
+    if m.sum() < 6:
+        return None
+    ix, iy = gx[m], gy[m]
+    j = int(np.argmin((ix - ix.mean()) ** 2 + (iy - iy.mean()) ** 2))
+    return float(ix[j]), float(iy[j])
+
+
+def _map_flag(img: Image.Image, iso: str, cx: float, cy: float, age: float) -> None:
+    """The country's flag pops in above its name when the narration names it (a little overshoot, then a gentle wave)."""
+    if age <= 0:
+        return
+    if iso not in _FLAG_TILES:
+        _FLAG_TILES[iso] = _flag_tile(iso)
+    tile = _FLAG_TILES[iso]
+    if tile is None:
+        return
+    k = min(1.0, age / 0.35)
+    sc = 0.5 + 0.5 * (1 + 0.25 * math.sin(math.pi * k)) * k if k < 1 else 1.0
+    tw, th = max(2, int(tile.width * sc)), max(2, int(tile.height * sc))
+    im = tile.resize((tw, th), Image.BICUBIC).rotate(2.5 * math.sin(age * 2.4), resample=Image.BICUBIC, expand=True)
+    x, y = int(cx - im.width / 2), int(cy - im.height / 2)
+    if 0 <= x and 0 <= y and x + im.width <= img.width and y + im.height <= img.height:
+        img.alpha_composite(im, (x, y))
+
+
+def _movement(od: ImageDraw.ImageDraw, r: dict, xy: list, part: list, frac: float, t: float, col, under) -> None:
+    """Movement styles (2026-11-07, the owner: "can show movements, follow narration"):
+    advance  a broad tapered arrow (wide at the start, narrow at the head) that grows as the verb is spoken, chevrons flowing along it
+    strike   a high arc with a bright projectile at its head; when it lands, an impact flash and a shock ring at the target
+    retreat  a pale dashed line with open chevrons, drawn back from the front
+    All of them are illustrative: a drawing between two named places, never a track."""
+    style = r["style"]
+    if style == "advance":
+        n = len(part)
+        if n >= 2:
+            body_l, body_r = [], []
+            for i, (x, y) in enumerate(part):
+                x2, y2 = part[min(n - 1, i + 1)] if i < n - 1 else part[i]
+                x1, y1 = part[max(0, i - 1)]
+                ang = math.atan2(y2 - y1, x2 - x1)
+                wdt = (16 - 9 * (i / max(1, n - 1))) * SS          # tapered: broad at the base
+                body_l.append((x - math.sin(ang) * wdt, y + math.cos(ang) * wdt))
+                body_r.append((x + math.sin(ang) * wdt, y - math.cos(ang) * wdt))
+            poly = body_l + body_r[::-1]
+            od.polygon([(x + 3 * SS, y + 4 * SS) for x, y in poly], fill=(0, 0, 0, 120))          # soft drop shadow
+            od.polygon(poly, fill=col[:3] + (205,))
+            od.line(body_l, fill=col[:3] + (255,), width=2 * SS)
+            od.line(body_r, fill=col[:3] + (255,), width=2 * SS)
+            tip, prev = part[-1], part[-3] if n > 3 else part[0]
+            MP._arrow_head(od, tip, prev, 34 * SS, col[:3] + (255,))
+            for j in range(4):                                      # chevrons flow from base to head along the drawn part
+                u = ((t * 0.55 + j / 4.0) % 1.0) * 0.92
+                cx, cy = M.point_on_polyline(part, u)
+                ax, ay = M.point_on_polyline(part, min(1.0, u + 0.02))
+                _chevron(od, cx, cy, math.atan2(ay - cy, ax - cx), 9 * SS, (255, 255, 255, 170))
+    elif style == "strike":
+        for seg in MP._dashes(part, 10 * SS, 7 * SS):
+            od.line(seg, fill=under, width=6 * SS, joint="curve")
+            od.line(seg, fill=col[:3] + (230,), width=3 * SS, joint="curve")
+        hx, hy = part[-1]
+        if frac < 0.999:
+            tail = part[int(len(part) * 0.8):]
+            if len(tail) >= 2:
+                od.line(tail, fill=(255, 236, 200, 200), width=4 * SS, joint="curve")
+            for gr, ga in ((18, 70), (10, 150)):
+                od.ellipse([hx - gr * SS, hy - gr * SS, hx + gr * SS, hy + gr * SS], fill=(255, 190, 90, ga))
+            od.ellipse([hx - 5 * SS, hy - 5 * SS, hx + 5 * SS, hy + 5 * SS], fill=(255, 255, 255, 255))
+        else:
+            age = t - r["start"] - r["length"]
+            if age < 1.2:                                           # impact: a flash, then a shock ring opening out
+                k = max(0.0, 1.0 - age / 1.2)
+                _star(od, hx, hy, (14 + 22 * (1 - k)) * SS, (255, 196, 80, int(255 * k)))
+                rr = (10 + 60 * (1 - k)) * SS
+                od.ellipse([hx - rr, hy - rr, hx + rr, hy + rr], outline=(255, 210, 140, int(220 * k)), width=3 * SS)
+            _star(od, hx, hy, (9 + 2 * math.sin(age * 6)) * SS, AMBER)
+    else:  # retreat
+        pale = (214, 220, 228)
+        for seg in MP._dashes(part, 12 * SS, 10 * SS):
+            od.line(seg, fill=under, width=6 * SS, joint="curve")
+            od.line(seg, fill=pale + (210,), width=3 * SS, joint="curve")
+        for j in range(3):
+            u = ((t * 0.4 + j / 3.0) % 1.0) * 0.95
+            cx, cy = M.point_on_polyline(part, u)
+            ax, ay = M.point_on_polyline(part, min(1.0, u + 0.02))
+            _chevron(od, cx, cy, math.atan2(ay - cy, ax - cx), 8 * SS, pale + (200,))
+
+
 def _km(a: Dict[str, Any], b: Dict[str, Any]) -> float:
     la1, lo1, la2, lo2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
     h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
@@ -713,13 +859,19 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         return view.pt(lat, lon, SS)
 
     vb_now = view.bounds()
+    flag_marks: List[Tuple[str, Tuple[float, float], float]] = []
     for fl in late:                                                        # a country named later fills in with its colour
         k = M.ease_out(M.ramp(t, float(fl["start"]), 0.6))
         feat = G.find_country(str(fl.get("iso3") or fl.get("name") or ""))
         if k <= 0 or feat is None or not MP._intersects(feat.bbox, vb_now):
             continue
+        if params.get("flags", True) is not False:                        # its flag pops in on the country as it is named
+            c = _flag_anchor(feat, view)
+            if c:
+                flag_marks.append((feat.iso, view.px(c[0], c[1]), float(fl["start"])))
         col = tuple(POL_FILL.get(str(fl.get("role")), NEIGH_P + (255,)))[:3]
-        MP._draw_feature(od, feat, view, vb_now, col + (int(255 * k),), (236, 238, 242, int(235 * k)), (0, 0, 0, 0), SS, 2 * SS)
+        only = (lambda bb: not MP._in_crimea(bb)) if feat.iso == "RUS" else None    # Crimea stays in Ukraine's recognised borders
+        MP._draw_feature(od, feat, view, vb_now, col + (int(255 * k),), (236, 238, 242, int(235 * k)), (0, 0, 0, 0), SS, 2 * SS, only=only)
 
     # region highlights (the first layer after the base map): a soft tint, a clean outline, a name tag
     region_tags: List[Tuple[str, Tuple[float, float], float]] = []
@@ -737,7 +889,7 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     # routes (under markers)
     route_marks: List[Tuple[str, Tuple[float, float], bool]] = []
     for r in g["routes"]:
-        xy = MP._curve(P(r["a"]["lat"], r["a"]["lon"]), P(r["b"]["lat"], r["b"]["lon"]), 0.12)
+        xy = MP._curve(P(r["a"]["lat"], r["a"]["lon"]), P(r["b"]["lat"], r["b"]["lon"]), 0.34 if r["style"] == "strike" else 0.12)
         frac = M.draw_fraction(t, r["start"], r["length"])
         if frac <= 0:
             continue
@@ -745,9 +897,15 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         if len(part) < 2:
             continue
         style = r["style"]
-        col = RED if style == "dashed_red" else BLUE if style == "dashed_blue" else WHITE
+        col = COLOURS.get(r.get("colour") or "", RED if style == "dashed_red" else BLUE if style == "dashed_blue" else WHITE)
         lw = 4 * SS
         under = tuple(HALO[:3]) + (200,)
+        if style in ("advance", "strike", "retreat"):
+            _movement(od, r, xy, part, frac, t, col, under)
+            if frac >= 0.7 and style != "strike" and r["label"] and r["label"].upper() != "ILLUSTRATIVE":
+                mid = M.point_on_polyline(xy, 0.5)
+                route_marks.append((r["label"], (mid[0] / SS, mid[1] / SS), True))
+            continue
         if style == "arrow":
             od.line(part, fill=under, width=lw + 3 * SS, joint="curve")
             od.line(part, fill=col, width=lw + SS, joint="curve")
@@ -854,6 +1012,8 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         rr = 6 * SS * (0.4 + 0.6 * k)
         od.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=col[:3] + (int(255 * k),))
     img = Image.alpha_composite(img, ov.reduce(SS))
+    for iso, (fx, fy), fs in flag_marks:
+        _map_flag(img, iso, fx, fy - 30, t - fs)
 
     # text layer
     d = ImageDraw.Draw(img)

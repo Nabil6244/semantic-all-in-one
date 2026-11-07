@@ -70,15 +70,16 @@ _ORDINAL = re.compile(r"\b(first|second|third|fourth)\b", re.IGNORECASE)
 
 def _phrase(sentence: str) -> str:
     """3-6 words that end on a natural boundary (comma, 'and', 'because' ...), taken verbatim from the sentence; '' when there is none."""
-    for piece in re.split(r",|;|:| because | while | and | but | which | that | so ", sentence.strip()):
+    for piece in re.split(r"(?<!\d),|,(?!\d{3}\b)|;|:| because | while | and | but | which | that | so ", sentence.strip()):   # '2,000' is one word
         w = piece.strip(" .\"'").split()
-        if 3 <= len(w) <= 6 and w[-1].lower() not in {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from"}:
+        if 3 <= len(w) <= 6 and w[-1].lower() not in _STOP_END:
             return " ".join(w)
     return ""
 
 
 _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from", "and", "or", "but", "that", "which", "is", "are", "was",
-             "were", "its", "their", "his", "her", "this", "these", "those"}
+             "were", "its", "their", "his", "her", "this", "these", "those", "toward", "towards", "into", "onto", "over", "near", "after",
+             "before", "against", "across", "through", "along", "behind", "under", "between", "around", "than", "more", "most", "very"}
 
 
 def _phrase_or_lead(sentence: str) -> str:
@@ -398,8 +399,146 @@ def _items(text: str) -> List[str]:
     tail = m.group(1) if m else text
     parts = [p.strip(" ,") for p in re.split(r",\s*(?:and\s+)?|\s+and\s+", tail) if p.strip(" ,")]
     if 3 <= len(parts) <= 5 and all(1 <= len(p.split()) <= 4 for p in parts):
+        # 'Oleksandr Syrskyi, Ukraine's top commander, ordered a withdrawal' is a name, a role and a verb, not a list
+        name_first = all(w[:1].isupper() for w in parts[0].split())
+        if name_first and re.match(r"(?:[a-z]+ed|is|was|were|are|said|says|has|had|will|would|can|could)\b", parts[-1].split()[0], re.IGNORECASE):
+            return []
         return parts
     return []
+
+
+_ADVANCE_V = re.compile(r"\b(advanc\w*|push\w*|attack\w*|assault\w*|moved|marched|drove|rolled|crossed|stormed|captured|encircl\w*|broke through|poured)\b", re.IGNORECASE)
+_STRIKE_V = re.compile(r"\b(struck|strikes?|hit|hits|launched|fired|shelled|bombed|targeted|missiles?|drones?|rockets?)\b", re.IGNORECASE)
+_RETREAT_V = re.compile(r"\b(withdr\w*|retreat\w*|pulled back|fell back|evacuat\w*|abandon\w*)\b", re.IGNORECASE)
+_REGION_WORD = re.compile(r"\s+(region|oblast|province)\b", re.IGNORECASE)
+
+
+def _named_regions(text: str) -> List[Tuple[str, str]]:
+    """Oblasts / regions the sentence names: 'Donetsk region', 'Kharkiv oblast', or an admin-1 area that is not also a town ('Crimea')."""
+    try:
+        from .maps_tactical import G, resolve_place
+    except Exception:
+        return []
+    out: List[str] = []
+    low = text.lower()
+    for a in G.theatre_admin1():
+        for nm in [a.name] + list(a.alts or []):
+            nm = str(nm)
+            if len(nm) < 4:
+                continue
+            m = re.search(r"\b" + re.escape(nm.lower()) + r"\b", low)
+            if not m:
+                continue
+            city, _w = resolve_place(nm)
+            if _REGION_WORD.match(text[m.end():]) or city is None:
+                if a.name not in [x[0] for x in out]:
+                    out.append((a.name, text[m.start():m.end()]))
+            break
+    return out[:3]
+
+
+def _countries_in(A: Any) -> List[str]:
+    out: List[str] = []
+    for s_ in getattr(A, "sentences", []) or []:
+        for c in _countries(s_):
+            if c.name not in out:
+                out.append(c.name)
+    return out
+
+
+def _narrate_map(p: Dict[str, Any], text: str, A: Any, t0: float, countries: Sequence[str] = ()) -> Dict[str, Any]:
+    """The owner (2026-11-07): maps should follow the narration. Every element appears when its words are spoken (times are seconds from the
+    card's start t0): each pin lands as its place is named, a country colours in and a region is outlined as it is named, the movement or
+    strike draws on its verb, and the camera opens wide then pushes in on each place as it is named (close-up on one town, or the route
+    when something moves). Never adds a place, side or event the sentence does not name."""
+    if not p:
+        return p
+    p = dict(p)
+    low = text.lower()
+
+    def when(name: str) -> Optional[float]:
+        i = low.find(str(name).lower())
+        return round(max(0.3, A.time_at(i) - t0), 2) if i >= 0 else None
+
+    named: List[Tuple[float, str]] = []
+    places = []
+    for pl in p.get("places") or []:
+        spec = dict(pl) if isinstance(pl, dict) else {"name": str(pl)}
+        w = when(spec.get("name") or "")
+        if w is not None:
+            spec["start"] = w
+            named.append((w, spec["name"]))
+        places.append(spec)
+    p["places"] = places
+    if countries and p.get("theme") == "political" and not places:
+        # a sentence about countries only: frame the countries named and colour each in, with its flag, as it is spoken
+        from .maps_tactical import G, country_roles
+
+        roles = country_roles(list(countries))
+        fills, steps, times = [], [], []
+        for c in countries:
+            w, f = when(c), G.find_country(c)
+            if w is None or f is None:
+                continue
+            fills.append({"iso3": f.iso, "role": roles.get(f.iso, "neutral"), "start": max(0.4, w)})
+            steps.append({"country": c})
+            times.append(w)
+        if fills:
+            p["fills"] = fills
+            p.pop("frame", None)
+            p["focus"] = [steps]                                       # one frame that takes in every country named
+            return p
+    if countries and p.get("theme") != "political":
+        from .maps_tactical import G, country_roles
+
+        roles = country_roles(list(countries))           # {ISO3: role}: Russia red, Ukraine blue, Belarus brown, the rest in order
+        fills = []
+        for c in countries:
+            w = when(c)
+            f = G.find_country(c)
+            if w is not None and f is not None:
+                fills.append({"iso3": f.iso, "role": roles.get(f.iso, "neutral"), "start": max(0.4, w)})
+        if fills:
+            p["fills"] = fills
+    regs = []
+    for rn, said in _named_regions(text):
+        w = when(said)                                        # 'Donetsk' as spoken, though the data spells it Donets'k
+        regs.append({"name": rn, "label": said, "colour": "amber", "start": w if w is not None else 0.6})
+    if regs:
+        p["regions"] = regs
+    verb = _STRIKE_V.search(text) or _ADVANCE_V.search(text) or _RETREAT_V.search(text)
+    if not p.get("routes") and _STRIKE_V.search(text) and len(places) >= 2:
+        m = re.search(r"\bfrom\s+(?:the\s+)?([A-Z][\w'-]+(?:\s[A-Z][\w'-]+)?)", text)
+        if m:
+            src = next((x["name"] for x in places if str(x.get("name", "")).lower() == m.group(1).lower()), None)
+            dst = next((x["name"] for x in places if x.get("name") != src), None)
+            if src and dst:
+                p["routes"] = [{"from": src, "to": dst}]
+    for r in p.get("routes") or []:
+        if verb is not None:
+            r["start"] = round(max(0.4, A.time_at(verb.start()) - t0), 2)
+            r["length"] = 1.4
+        r["style"] = "strike" if _STRIKE_V.search(text) and not _ADVANCE_V.search(text) else "retreat" if _RETREAT_V.search(text) else "advance"
+        side = "red" if re.search(r"\bruss\w*|\bmoscow\b|\bkremlin\b", low) else "blue" if re.search(r"\bukrain\w*|\bkyiv\b", low) else ""
+        r["colour"] = {"strike": "amber"}.get(r["style"], side or "white")
+        if r["style"] == "strike":
+            p.setdefault("glyphs", [])
+            p["glyphs"] = [g for g in p["glyphs"] if not (g.get("kind") == "ring" and g.get("place") == r.get("to"))]
+    named.sort()
+    if p.get("routes"):
+        r0 = p["routes"][0]
+        p["focus"] = [[r0["from"]], [r0["from"], r0["to"]]]          # start on the origin, widen to take in the movement as it is spoken
+        p["focus_times"] = [0.0, max(0.5, float(r0.get("start", 1.0)) - 0.4)]
+    elif len(named) == 1:
+        nm = named[0][1]
+        p["focus"] = [[nm], [nm]]                                     # wide regional view first, then push in on the town as it is named
+        p["focus_times"] = [0.0, max(0.6, named[0][0] - 0.2)]
+        p["close_steps"] = [False, True]
+    elif 2 <= len(named) <= 4:
+        p["focus"] = [[n for _w, n in named]] + [[n] for _w, n in named[1:]]
+        p["focus_times"] = [0.0] + [max(0.6, w - 0.2) for w, _n in named[1:]]
+        p["close_steps"] = [False] + [True] * (len(named) - 1)      # each further place named: the camera moves in on it
+    return p
 
 
 def _tac_params(sent: Any, places: List[Any], countries: List[Any], political: bool) -> Dict[str, Any]:
@@ -447,6 +586,17 @@ def _date_of(text: str) -> str:
     return m.group(2) if m.group(2) else m.group(0).strip(" ,")
 
 
+def _after_date(text: str, date: str) -> str:
+    """The narration's words after the date ('In February 2022, Russian columns advanced ...' -> 'Russian columns advanced ...'), 3-6 words;
+    the words before it when the date ends the sentence; never the date again."""
+    i = text.lower().find(date.lower())
+    rest = text[i + len(date):] if i >= 0 else text
+    h = _phrase_or_lead(rest.strip(" ,;:.-"))
+    if not h and i > 0:
+        h = _phrase_or_lead(re.sub(r"\b(in|by|since|until|on)\s*$", "", text[:i].strip(" ,"), flags=re.IGNORECASE))
+    return "" if date.lower() in h.lower() else h
+
+
 def _quote_of(sent: Any) -> Optional[Dict[str, Any]]:
     """The quoted words and their speaker when the sentence quotes someone (never a paraphrase shown as a quote)."""
     q = getattr(sent, "quote", None)
@@ -484,7 +634,7 @@ def _motion_options(sent: Any, h: str) -> List[Tuple[str, Dict[str, Any]]]:
         out.insert(0, ("kit_quote", q))
     dt = _date_of(text)
     if dt:
-        out.insert(0, ("kit_datecard", {"date": dt, "sub": h if h.upper() != dt.upper() else ""}))
+        out.insert(0, ("kit_datecard", {"date": dt, "sub": _after_date(text, dt)}))
     out.append(("kit_kinetic", {"text": h, "key": _key_words(h, 2)}))
     if not _DOC.search(text):                       # ties go to the first: the file page leads only for a report, plan or decision
         out.sort(key=lambda o: o[0] == "kit_dossier")
@@ -623,7 +773,7 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             pl, co = _places(sent), _countries(sent)
             p = _tac_params(sent, pl, co, False) if pl else (_tac_params(sent, [], co, True) if co else {})
             if p:
-                return Layer("tac_map", r["_start"], r["_end"], p, dim=False), ""
+                return Layer("tac_map", r["_start"], r["_end"], _narrate_map(p, text, A, r["_start"], _countries_in(A)), dim=False), ""
         return None, "no place or country named"
     if kind == "quote":
         for sent in sents:
@@ -633,7 +783,7 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
         return None, "no quoted words in the narration"
     if kind == "date":
         d = _date_of(text)
-        return (full("kit_datecard", {"date": d, "sub": h if h.upper() != d.upper() else ""}), "") if d else (None, "no date in the narration")
+        return (full("kit_datecard", {"date": d, "sub": _after_date(text, d)}), "") if d else (None, "no date in the narration")
     if kind in ("compare_kit", "ratio"):
         from .map_build import ratio_of, versus_of
 
@@ -914,6 +1064,9 @@ def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_n
                     params = dict(params, seed=int(r["_no"]) if str(r["_no"]).isdigit() else 0)
                 if kind in MOTION_KINDS and has_footage:
                     params = dict(params, over=True)     # over the clip, not instead of it
+                if kind == "tac_map":
+                    A_ = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+                    params = _narrate_map(params, str(r.get("text") or ""), A_, s0, _countries_in(A_))
                 ly = Layer(kind, s0, s1, params, dim=(kind in DIM))
                 if kind in ("tac_map", "lay_inset", "kit_icons"):
                     _yield_headline(plan, s0, s1)
@@ -1263,6 +1416,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         a, b = fr(a), fr(min(b, scene_end + 0.5))
         if b - a < 0.8:
             return False
+        if kind == "tac_map":                     # the map follows the narration: pins, colours, movement and camera on the words
+            params = _narrate_map(params, text, A, a, _countries_in(A))
         ly = Layer(kind, a, b, params, dim=(kind in DIM) if dim is None else dim)
         new_layers.append(ly)
         busy.add(a, b, kind)
@@ -1409,7 +1564,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
             old = next((ly for ly in plan.layers if ly.kind == "map_card" and st - 0.01 <= ly.start < en
                         and not ((ly.params or {}).get("control") or (ly.params or {}).get("snapshot"))), None)
             if old is not None and last_kind != "tac_map":
-                old.kind, old.params, old.dim = "tac_map", tac[4], False
+                old.kind, old.params, old.dim = "tac_map", _narrate_map(tac[4], text, A, old.start, _countries_in(A)), False
                 dec.flags.append("dir:tacmap")
                 dec.candidates.append({"kind": "tac_map", "score": 0.0, "reason": "direction: " + tac[6] + " (replaces the plain map card)", "accepted": True,
                                        "start": old.start, "end": old.end})
