@@ -7,12 +7,22 @@ carry an ILLUSTRATIVE chip. Each card is opaque: it replaces the plain backdrop,
 
 kit_kinetic   text*  key [words to highlight]  seed 0
               The narration's phrase built word by word in big type on a drifting grid, key words on a red block, a bar wiping under it.
+Every card here takes over=True on a scene with footage: the plate becomes a see-through dark layer and the clip plays under it.
 kit_dossier   title*  body ""  mark [words to highlight]  seed 0
               A paper file slides in on a dark desk; the title is typed, the body sentence follows, a highlighter strikes the key words.
 kit_radar     label*  sub ""  seed 0
               A radar scope sweeps (rings, crosshair, fading beam, blips lit as the beam passes) beside the narration's words. ILLUSTRATIVE.
 kit_keywords  items* [2-4 short phrases]  title ""  seed 0
               Numbered bars (01, 02 ...) slide in one after another, each with an accent block, under an optional hook title.
+
+Cinematic set (2026-11-07, the owner: "richer graphics that make it more cinematic"): letterbox bars close in, dust drifts through a
+light beam, the frame flickers like projected film.
+kit_title     text*  sub ""  seed 0
+              A chapter/title card: the title tracks in from wide letter spacing while a light sweep crosses it, a red rule opens under it.
+kit_datecard  date*  sub ""  seed 0
+              The date slams in large with a film-burn glow, a rule draws, the narration's line types underneath.
+kit_quote     quote*  speaker ""  seed 0
+              Full-frame quotation: a big red quote mark, the words light up one after another, the speaker's name slides in under a bar.
 """
 
 from __future__ import annotations
@@ -21,7 +31,7 @@ import math
 import random
 from typing import List, Optional, Sequence
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from .. import look as L
 from . import motion as M
@@ -88,6 +98,22 @@ def _plate(t: float, seed: int) -> Image.Image:
     return img
 
 
+def _scrim(alpha: int = 150) -> Image.Image:
+    """Over footage (p['over']): a see-through dark layer with a heavier vignette, so the clip keeps playing under the words."""
+    def build() -> Image.Image:
+        im = Image.new("RGBA", (W, H), (6, 8, 12, alpha))
+        vg = Image.radial_gradient("L").resize((W, H)).point(lambda v: int(v * 0.55))
+        shade = Image.new("RGBA", (W, H), (0, 0, 0, 255))
+        shade.putalpha(vg)
+        im.alpha_composite(shade)
+        return im
+    return _memo("mscrim" + str(alpha), build).copy()
+
+
+def _bg(t: float, seed: int, p: dict) -> Image.Image:
+    return _scrim() if (p or {}).get("over") else _plate(t, seed)
+
+
 def _chip(img: Image.Image, text: str) -> None:
     f = T.font("bold", 15)
     d = ImageDraw.Draw(img)
@@ -120,7 +146,7 @@ def kit_kinetic(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         return None
     key = {str(k).upper().strip(".,;:!?") for k in (p.get("key") or [])}
     seed = int(p.get("seed", 0) or 0)
-    img = _plate(t, seed)
+    img = _bg(t, seed, p)
     d = ImageDraw.Draw(img)
     size = 104 if len(words) <= 4 else 88 if len(words) <= 7 else 70
     f = T.font("display", size)
@@ -195,7 +221,7 @@ def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     body = str(p.get("body") or "").strip()
     marks = [str(m).lower() for m in (p.get("mark") or []) if str(m).strip()]
     seed = int(p.get("seed", 0) or 0)
-    img = _memo("mdesk" + str(seed), lambda: _desk(seed)).copy()
+    img = _scrim(120) if p.get("over") else _memo("mdesk" + str(seed), lambda: _desk(seed)).copy()
     pw = int(W * 0.62)
     ft, fb = T.font("display", 52), T.font("bold", 30)
     tl = _wrap(title, ft, pw - 100, 0.04, 2)
@@ -266,7 +292,7 @@ def kit_radar(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     if not label:
         return None
     seed = int(p.get("seed", 0) or 0)
-    img = _plate(t, seed)
+    img = _bg(t, seed, p)
     r = int(H * 0.36)
     cx, cy = int(W * 0.31), int(H * 0.52)
     k_in = M.ease_out(_k(t, 0.0, 0.5))
@@ -312,7 +338,7 @@ def kit_keywords(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     if len(items) < 2:
         return None
     seed = int(p.get("seed", 0) or 0)
-    img = _plate(t, seed)
+    img = _bg(t, seed, p)
     d = ImageDraw.Draw(img)
     fn, fi = T.font("display", 40), T.font("display", 46)
     bh, gap = 78, 22
@@ -341,4 +367,186 @@ def kit_keywords(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
 
 
-MOTION_CARDS = {"kit_kinetic": kit_kinetic, "kit_dossier": kit_dossier, "kit_radar": kit_radar, "kit_keywords": kit_keywords}
+
+# ------------------------------------------------------------------------------------------------ cinematic set -----------------------
+
+def _cine_plate(t: float, seed: int, warm: bool = False, over: bool = False) -> Image.Image:
+    """A near-black plate with a soft light beam from above, slow dust in the beam and a faint projector flicker. Over footage: the clip
+    plays darkened under the same dust, flicker and letterbox."""
+    base = _scrim(135) if over else _memo("mcine" + str(seed) + str(warm), lambda: _beam_plate(seed, warm)).copy()
+    d = ImageDraw.Draw(base)
+    rnd = random.Random(seed * 7 + 3)
+    for i in range(46):                                                  # dust: each mote drifts on its own slow path
+        x0, y0, sp, sz = rnd.uniform(0, W), rnd.uniform(0, H), rnd.uniform(6, 22), rnd.uniform(0.8, 1.9)
+        x = (x0 + t * sp * rnd.uniform(-1, 1)) % W
+        y = (y0 - t * sp * 0.6) % H
+        a = int(22 + 48 * (0.5 + 0.5 * math.sin(t * rnd.uniform(0.8, 2.2) + i)))
+        d.ellipse([x - sz, y - sz, x + sz, y + sz], fill=(230, 220, 200, a))
+    flick = 0.035 * math.sin(t * 23.0 + seed) + 0.02 * math.sin(t * 7.3)
+    if flick > 0:
+        base.alpha_composite(Image.new("RGBA", (W, H), (255, 240, 220, int(255 * flick))))
+    return base
+
+
+def _beam_plate(seed: int, warm: bool) -> Image.Image:
+    im = Image.new("RGBA", (W // 4, H // 4), (8, 9, 12, 255))
+    d = ImageDraw.Draw(im)
+    cx = W / 8 + (seed % 5 - 2) * 12
+    col = (120, 90, 60, 70) if warm else (90, 110, 140, 64)
+    d.polygon([(cx - 18, 0), (cx + 18, 0), (cx + 120, H / 4), (cx - 120, H / 4)], fill=col)
+    im = im.filter(ImageFilter.GaussianBlur(14)).resize((W, H), Image.BICUBIC)
+    im.alpha_composite(_memo("mvig", _vignette))
+    return im
+
+
+def _letterbox(img: Image.Image, t: float, dur: float) -> None:
+    """Bars close in over the first 0.6 s (and open again in the last 0.4 s): the frame turns 2.39:1 for the card."""
+    k = M.ease_out(_k(t, 0.0, 0.6)) * (1.0 - M.ease_out(_k(t, max(0.0, dur - 0.4), 0.4)) if dur > 1.0 else 1.0)
+    bh = int(H * 0.12 * k)
+    if bh > 0:
+        d = ImageDraw.Draw(img)
+        d.rectangle([0, 0, W, bh], fill=(0, 0, 0, 255))
+        d.rectangle([0, H - bh, W, H], fill=(0, 0, 0, 255))
+
+
+def _sweep(el: Image.Image, t: float, start: float, length: float) -> Image.Image:
+    """A soft light band crossing the element (only where it is drawn)."""
+    k = _k(t, start, length)
+    if k <= 0 or k >= 1:
+        return el
+    band = Image.new("L", el.size, 0)
+    bd = ImageDraw.Draw(band)
+    x = int(-el.width * 0.3 + k * el.width * 1.6)
+    bd.polygon([(x, 0), (x + 90, 0), (x + 30, el.height), (x - 60, el.height)], fill=150)
+    band = band.filter(ImageFilter.GaussianBlur(14))
+    glow = Image.new("RGBA", el.size, (255, 246, 226, 0))
+    glow.putalpha(ImageChops.multiply(band, el.getchannel("A")))
+    out = el.copy()
+    out.alpha_composite(glow)
+    return out
+
+
+def _text_img(text: str, f, fill, sp: float) -> Image.Image:
+    w = int(_sw(text, f, sp)) + 8
+    im = Image.new("RGBA", (max(1, w), int(f.size * 1.3)), (0, 0, 0, 0))
+    L.spaced(ImageDraw.Draw(im), (4, 0), text, f, fill, sp)
+    return im
+
+
+def kit_title(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    p = p or {}
+    text = str(p.get("text") or "").strip().upper()
+    if not text:
+        return None
+    seed = int(p.get("seed", 0) or 0)
+    img = _cine_plate(t, seed, over=bool(p.get("over")))
+    size = 92 if len(text) <= 18 else 74 if len(text) <= 30 else 58
+    f = T.font("display", size)
+    lines = _wrap(text, f, int(W * 0.8), 0.06, 2)
+    kt = M.ease_out(_k(t, 0.35, 1.1))
+    sp = 0.06 + 0.5 * (1 - kt)                                           # tracking in: wide letter spacing closes up
+    y = int(H * 0.46 - len(lines) * size * 0.6)
+    for i, ln in enumerate(lines):
+        el = _text_img(ln, f, CREAM, sp)
+        el = _sweep(el, t, 1.2 + 0.15 * i, 1.0)
+        a = int(255 * min(1.0, kt * 1.4))
+        el.putalpha(el.getchannel("A").point(lambda v, a=a: v * a // 255))
+        _blit(img, el, (W - el.width) // 2, y)
+        y += int(size * 1.12)
+    d = ImageDraw.Draw(img)
+    kr = M.ease_out(_k(t, 0.9, 0.6))
+    if kr > 0:
+        rw = int(W * 0.18 * kr)
+        d.rectangle([(W - rw) // 2, y + 10, (W + rw) // 2, y + 14], fill=KRED)
+    sub = str(p.get("sub") or "").strip().upper()
+    if sub:
+        fs = T.font("bold", 24)
+        ks = _k(t, 1.3, 0.5)
+        if ks > 0:
+            ln = _wrap(sub, fs, int(W * 0.7), 0.12, 1)[0]
+            L.spaced(d, (int((W - _sw(ln, fs, 0.12)) / 2), y + 34), ln, fs, (210, 204, 190, int(255 * ks)), 0.12)
+    _letterbox(img, t, dur)
+    return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
+
+
+def kit_datecard(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    p = p or {}
+    date = str(p.get("date") or "").strip().upper()
+    if not date:
+        return None
+    seed = int(p.get("seed", 0) or 0)
+    img = _cine_plate(t, seed, warm=True, over=bool(p.get("over")))
+    burn = _memo("mburn", _burn)
+    kb = _k(t, 0.15, 0.9)
+    if 0 < kb < 1:                                                       # a warm film-burn glow sweeps through as the date lands
+        glow = burn.copy()
+        glow.putalpha(glow.getchannel("A").point(lambda v: int(v * math.sin(math.pi * kb))))
+        _blit(img, glow, int(-W * 0.3 + kb * W * 0.6), 0)
+    size = 120 if len(date) <= 10 else 96 if len(date) <= 16 else 74
+    f = T.font("display", size)
+    ks = _k(t, 0.25, 0.35)
+    if ks > 0:
+        el = _text_img(date, f, YELLOW, 0.04)
+        sc = 1.18 - 0.18 * M.ease_out(ks)                                 # slams in from slightly larger
+        _place(img, el, W / 2, H * 0.44, 0.0, sc, min(1.0, ks * 2))
+    d = ImageDraw.Draw(img)
+    kr = M.ease_out(_k(t, 0.7, 0.5))
+    if kr > 0:
+        rw = int(W * 0.34 * kr)
+        d.rectangle([(W - rw) // 2, int(H * 0.44 + size * 0.62), (W + rw) // 2, int(H * 0.44 + size * 0.62) + 3], fill=CREAM)
+    sub = str(p.get("sub") or "").strip().upper()
+    if sub:
+        fs = T.font("bold", 26)
+        ln = _wrap(sub, fs, int(W * 0.7), 0.1, 1)[0]
+        n = int(len(ln) * _k(t, 1.0, max(0.6, len(ln) * 0.035)))
+        if n:
+            L.spaced(d, (int((W - _sw(ln, fs, 0.1)) / 2), int(H * 0.44 + size * 0.62) + 22), ln[:n], fs, (230, 224, 210, 255), 0.1)
+    _letterbox(img, t, dur)
+    return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
+
+
+def _burn() -> Image.Image:
+    im = Image.new("RGBA", (W // 4, H // 4), (0, 0, 0, 0))
+    ImageDraw.Draw(im).ellipse([W / 12, -H / 10, W / 6, H / 4], fill=(255, 150, 60, 110))      # well inside: the blur never meets an edge
+    return im.filter(ImageFilter.GaussianBlur(26)).resize((W, H), Image.BICUBIC)
+
+
+def kit_quote(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    p = p or {}
+    quote = str(p.get("quote") or "").strip().strip('"').strip("\u201c\u201d")
+    if not quote:
+        return None
+    seed = int(p.get("seed", 0) or 0)
+    img = _cine_plate(t, seed, over=bool(p.get("over")))
+    d = ImageDraw.Draw(img)
+    fq = T.font("serif", 52 if len(quote) <= 90 else 42)
+    mark = T.font("serif", 200)
+    km = M.ease_out(_k(t, 0.2, 0.5))
+    lines = _wrap(quote, fq, int(W * 0.72), 0.0, 4)
+    words_total = sum(len(ln.split()) for ln in lines)
+    step = min(0.32, max(0.08, (max(dur, 3.0) * 0.6) / max(1, words_total)))
+    y, wi = int(H * 0.5 - (len(lines) * fq.size * 1.3 + 40) / 2), 0
+    sp = _sw(" ", fq, 0.0)
+    if km > 0:
+        L.spaced(d, (int(W * 0.1), y - 150 - int(20 * (1 - km))), "\u201c", mark, KRED[:3] + (int(255 * km),), 0.0)
+    for ln in lines:
+        x = W * 0.16
+        for w in ln.split():
+            k = _k(t, 0.6 + wi * step, 0.35)
+            col = (250, 246, 236, int(70 + 185 * k))                      # words wait dimmed, then light up as they are reached
+            L.spaced(d, (int(x), y), w, fq, col, 0.0)
+            x += _sw(w, fq, 0.0) + sp
+            wi += 1
+        y += int(fq.size * 1.3)
+    who = str(p.get("speaker") or "").strip().upper()
+    if who:
+        kw = M.ease_out(_k(t, 0.6 + words_total * step * 0.5, 0.5))
+        if kw > 0:
+            d.rectangle([int(W * 0.16), y + 18, int(W * 0.16) + int(60 * kw), y + 22], fill=KRED)
+            L.spaced(d, (int(W * 0.16) + int(80 * kw) - 10, y + 6), who, T.font("bold", 26), (230, 224, 210, int(255 * kw)), 0.1)
+    _letterbox(img, t, dur)
+    return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
+
+
+MOTION_CARDS = {"kit_kinetic": kit_kinetic, "kit_dossier": kit_dossier, "kit_radar": kit_radar, "kit_keywords": kit_keywords,
+                "kit_title": kit_title, "kit_datecard": kit_datecard, "kit_quote": kit_quote}

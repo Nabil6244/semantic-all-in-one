@@ -434,7 +434,26 @@ _DOC = re.compile(r"\b(report\w*|document\w*|said|says|announced|according|offic
 _STOP = {"the", "a", "an", "of", "to", "in", "on", "at", "and", "or", "but", "with", "for", "by", "as", "from", "that", "which", "was", "were",
          "is", "are", "be", "been", "had", "has", "have", "it", "its", "their", "his", "her", "this", "these", "those", "they", "there", "then",
          "would", "could", "will", "into", "after", "before", "about", "every", "many", "some", "what", "who", "when", "where", "more", "most"}
-MOTION_MAX_S = 6.5          # one motion graphic holds at most this long; a longer empty stretch gets the next one
+MOTION_MAX_S = 6.5
+_MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+_DATE = re.compile(r"\b(?:(?:early|mid|late)[- ])?" + _MONTHS + r"(?:\s+\d{1,2})?(?:,)?\s+(?:19|20)\d{2}\b|\b(?:in|by|since|until)\s+((?:19|20)\d{2})\b", re.IGNORECASE)
+
+
+def _date_of(text: str) -> str:
+    """'February 2022', 'late March 2023', or a year after in/by/since ('2014'), exactly as the narration says it; else ''."""
+    m = _DATE.search(text or "")
+    if not m:
+        return ""
+    return m.group(2) if m.group(2) else m.group(0).strip(" ,")
+
+
+def _quote_of(sent: Any) -> Optional[Dict[str, Any]]:
+    """The quoted words and their speaker when the sentence quotes someone (never a paraphrase shown as a quote)."""
+    q = getattr(sent, "quote", None)
+    if q is not None and getattr(q, "text", "").strip():
+        return {"quote": q.text.strip(), "speaker": getattr(q, "speaker", "") or ""}
+    m = re.search(r"[\"\u201c]([^\"\u201d]{6,220})[\"\u201d]", sent.text or "")
+    return {"quote": m.group(1).strip(), "speaker": ""} if m else None          # one motion graphic holds at most this long; a longer empty stretch gets the next one
 
 
 def _key_words(text: str, n: int = 2) -> List[str]:
@@ -460,6 +479,12 @@ def _motion_options(sent: Any, h: str) -> List[Tuple[str, Dict[str, Any]]]:
         items = names if 2 <= len(names) <= 4 else []
     if items:
         out.append(("kit_keywords", {"items": [i[:1].upper() + i[1:] for i in items], "title": h if len(h.split()) <= 6 else ""}))
+    q = _quote_of(sent)
+    if q:
+        out.insert(0, ("kit_quote", q))
+    dt = _date_of(text)
+    if dt:
+        out.insert(0, ("kit_datecard", {"date": dt, "sub": h if h.upper() != dt.upper() else ""}))
     out.append(("kit_kinetic", {"text": h, "key": _key_words(h, 2)}))
     if not _DOC.search(text):                       # ties go to the first: the file page leads only for a report, plan or decision
         out.sort(key=lambda o: o[0] == "kit_dossier")
@@ -531,6 +556,261 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
             counts[rule] = counts.get(rule, 0) + 1
             t = ly.end
 
+
+
+# ------------------------------------------------------------------------------------------------ CSV graphic column ------------------
+# The owner (2026-11-07): "we can add graphics through csv too". A scenes CSV may name the graphic for a scene in its `graphic` column.
+# The graphic is built from that scene's own narration (never from words the CSV adds), placed first, and wins over what the planner
+# put in the same seconds. When the sentence cannot support it (no number for `number`, no place for `map`), the scene keeps the
+# automatic choice and the plan log says why.
+CSV_GRAPHIC = {"map": "map", "number": "number", "stat": "number", "figure": "number", "compare": "compare", "versus": "compare",
+               "equipment": "equipment", "weapon": "equipment", "speaker": "speaker", "person": "speaker", "quote": "quote",
+               "timeline": "timeline", "dates": "timeline", "date": "date", "list": "list", "icons": "icons", "kinetic": "kinetic",
+               "text": "kinetic", "dossier": "dossier", "document": "dossier", "radar": "radar", "keywords": "keywords", "title": "title",
+               "chapter": "chapter", "bignum": "number", "big number": "number", "institution": "institution", "organisation": "institution",
+               "organization": "institution", "supply": "supply", "supply chain": "supply", "logistics": "supply", "sticker": "sticker",
+               "steps": "steps", "chips": "steps", "route": "route", "situation map": "route", "claim": "claim", "source": "source",
+               "evidence": "source", "ratio": "ratio", "scale": "scale", "flag": "flag", "stamp": "stamp", "speaker card": "speaker_card",
+               "name": "speaker_card", "lower third": "speaker_card", "auto": "", "none": "", "": ""}
+_PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split"), "equipment": ("equipment", "split"), "speaker": ("figure",),
+                  "timeline": ("timeline",), "institution": ("institution",), "route": ("map",), "source": ("evidence",), "claim": ("evidence",)}
+CSV_MAX_S, CSV_MIN_S = 8.0, 3.0
+
+
+def _planner_layer(r: Dict[str, Any], cfg: Dict[str, Any], cat: Any, want: Sequence[str]) -> Optional[Layer]:
+    """The planner's own card for this scene, of the wanted kind, regardless of spacing (the CSV asked for it)."""
+    from . import planner as P
+
+    A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+    ctx = P._Ctx(scene=r, A=A, cfg=cfg, catalog=cat, assets={}, start=r["_start"], end=r["_end"], has_words=bool(r.get("words")),
+                 seen_equipment={}, footage_verified=False)
+    cands = [c for c in P.build_candidates(ctx) if c.code == "" and c.kind in want]
+    if not cands:
+        return None
+    c = sorted(cands, key=lambda c: (want.index(c.kind), -c.score))[0]
+    params = dict(c.params)
+    params.pop("image_record", None)
+    return Layer(P.LAYER_KIND[c.kind], c.start, c.end, params, dim=c.kind not in P.NO_DIM)
+
+
+def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> Tuple[Optional[Layer], str]:
+    text = str(r.get("text") or "")
+    A = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
+    sents = A.sentences or []
+    seed = int(r["_no"]) if str(r["_no"]).isdigit() else 0
+    h = _phrase_or_lead(sents[0].text) if sents else ""
+    full = lambda k, p: Layer(k, r["_start"], r["_end"], dict(p, seed=seed), dim=(k in DIM))   # noqa: E731
+    if kind in _PLANNER_KINDS:
+        ly = _planner_layer(r, cfg, cat, _PLANNER_KINDS[kind])
+        if ly is None and kind == "number":       # a figure the parser could not pair with its referent: labelled with the narration's next words
+            from . import planner as P
+
+            for sent in sents:
+                ctx = P._Ctx(scene=r, A=A, cfg=cfg, catalog=cat, assets={}, start=r["_start"], end=r["_end"], has_words=bool(r.get("words")),
+                             seen_equipment={}, footage_verified=False)
+                c = P._loose_number(ctx, sent, sent.numbers)
+                if c is not None:
+                    ly = Layer("stat_number", c.start, c.end, dict(c.params), dim=True)
+                    break
+        if ly is not None:
+            return ly, ""
+        fallback = {"compare": "compare_kit", "claim": "stamp", "route": "map"}.get(kind)
+        if fallback is None:
+            return None, f"the narration has nothing for a {kind} card"
+        kind = fallback          # versus/ratio card, CLAIMED stamp, or the places on the tactical map
+    if kind == "map":
+        for sent in sents:
+            pl, co = _places(sent), _countries(sent)
+            p = _tac_params(sent, pl, co, False) if pl else (_tac_params(sent, [], co, True) if co else {})
+            if p:
+                return Layer("tac_map", r["_start"], r["_end"], p, dim=False), ""
+        return None, "no place or country named"
+    if kind == "quote":
+        for sent in sents:
+            q = _quote_of(sent)
+            if q:
+                return full("kit_quote", q), ""
+        return None, "no quoted words in the narration"
+    if kind == "date":
+        d = _date_of(text)
+        return (full("kit_datecard", {"date": d, "sub": h if h.upper() != d.upper() else ""}), "") if d else (None, "no date in the narration")
+    if kind in ("compare_kit", "ratio"):
+        from .map_build import ratio_of, versus_of
+
+        for sent in sents:
+            vs = versus_of(sent.text) if kind == "compare_kit" else None
+            if vs:
+                return full("kit_versus", dict(vs, title="")), ""
+            rt = ratio_of(sent.text)
+            if rt:
+                return full("kit_bignum", {"value": rt["value"], "label": rt["label"].upper(), "sub": rt["sub"], "colour": "yellow", "count": False}), ""
+        return None, "no comparison or 'N in M' ratio stated"
+    if kind == "scale":
+        ms = _SCALE.search(text)
+        if ms:
+            nraw = ms.group(1).lower()
+            n_ = int(nraw) if nraw.isdigit() else _NUMWORD.get(nraw, 0)
+            if 2 <= n_ <= 20:
+                return full("kit_scale", {"n": n_, "label": f"{n_} {ms.group(2).upper()} · SINGLE FILE", "bar": "pipe"}), ""
+        return None, "no 'N soldiers in single file' count"
+    if kind == "flag":
+        from .cards_kit import FLAGS
+        from .maps_tactical import G
+
+        for sent in sents:
+            for c in _countries(sent):
+                f = G.find_country(c.name)
+                if f is not None and f.iso in FLAGS:
+                    return Layer("kit_flag", r["_start"], r["_start"] + 3.0, {"iso3": f.iso}, dim=False), ""
+        return None, "no country with a flag in the set"
+    if kind == "stamp":
+        m = _CLAIM.search(text)
+        if m:
+            status = "unverified" if _UNVERIFIED.search(text) else "disputed" if _DISPUTED.search(text) else "claimed"
+            return Layer("kit_stamp", r["_start"], min(r["_end"], r["_start"] + 4.5), {"status": status, "pos": "upper-right"}, dim=False), ""
+        return None, "no claimed / unverified / denied wording"
+    if kind == "speaker_card":
+        from .map_build import speaker_of
+
+        for sent in sents:
+            spk = speaker_of(sent.text)
+            if spk:
+                return Layer("kit_speaker", r["_start"], min(r["_end"], r["_start"] + 4.0), {"name": spk[0], "role": spk[1]}, dim=False), ""
+        return None, "no named person with a role"
+    if kind == "chapter":
+        from .map_build import chapter_of
+
+        ch = chapter_of(sents[0].text) if sents else None
+        if ch:
+            return Layer("kit_chapter", r["_start"], r["_start"] + 3.6, {"label": ch[0], "sub": ch[1]}, dim=False), ""
+        kind = "title"                            # not written as 'Chapter N': the cinematic title card instead
+    if kind == "supply":
+        nodes = _logistics_nodes(text)
+        return (full("lay_logistics", {"title": "Supply chain", "nodes": nodes, "links": []}), "") if len(nodes) >= 2 else \
+            (None, "fewer than two supply links named (fuel, rail, trucks, depots, ammunition ...)")
+    if kind == "sticker":
+        for rx, name, lab in _STICKERS:
+            mm = re.search(rx, text, re.IGNORECASE)
+            if mm:
+                return Layer("kit_sticker", r["_start"], min(r["_end"], r["_start"] + 4.0),
+                             {"name": name, "x": 0.68, "y": 0.46, "size": 260, "label": lab, "label_style": "tape"}, dim=True), ""
+        return None, "nothing the sticker set can draw"
+    if kind == "steps":
+        for sent in sents:
+            if len(_ORDINAL.findall(sent.text)) >= 2:
+                segs = [s_.strip(" ,;") for s_ in re.split(r"\b(?:first|second|third|fourth)\b", sent.text, flags=re.IGNORECASE)[1:] if s_.strip(" ,;")]
+                if 2 <= len(segs) <= 4:
+                    chips = [{"title": f"{i + 1} · " + " ".join(sg.split()[:6]).rstrip(",."), "sub": "", "variant": ("red" if i == 0 else "dark")}
+                             for i, sg in enumerate(segs)]
+                    return Layer("kit_chips", r["_start"], r["_end"], {"chips": chips, "side": "right"}, dim=False), ""
+        its = _items(text)
+        if its:
+            chips = [{"title": f"{i + 1} · {it}", "sub": "", "variant": ("red" if i == 0 else "dark")} for i, it in enumerate(its[:4])]
+            return Layer("kit_chips", r["_start"], r["_end"], {"chips": chips, "side": "right"}, dim=False), ""
+        return None, "no first/second/third steps or listed items"
+    if kind == "title":
+        from .map_build import chapter_of
+
+        ch = chapter_of(sents[0].text) if sents else None
+        return (full("kit_title", {"text": ch[1] or ch[0], "sub": ch[0] if ch[1] else ""} if ch else {"text": h}), "") if (ch or h) else (None, "no words")
+    if kind == "list":
+        its = _items(text)
+        if its:
+            return full("kit_recap", {"items": [i[:1].upper() + i[1:] for i in its]}), ""
+        kind = "keywords"
+    if kind == "icons":
+        found: List[Tuple[int, str, str]] = []
+        for rx, name, _lab in _STICKERS:
+            mm = re.search(rx, text, re.IGNORECASE)
+            if mm and name not in [f[1] for f in found]:
+                found.append((mm.start(), name, mm.group(0)))
+        found.sort()
+        if len(found) >= 2:
+            return full("kit_icons", {"icons": [{"name": n, "label": w, "start": 0.3 + 0.5 * i} for i, (_p, n, w) in enumerate(found[:4])],
+                                      "link": "", "title": _phrase(text)}), ""
+        if found:
+            return Layer("kit_sticker", r["_start"], min(r["_end"], r["_start"] + 4.0),
+                         {"name": found[0][1], "x": 0.68, "y": 0.46, "size": 260, "label": found[0][2].upper(), "label_style": "tape"}, dim=True), ""
+        return None, "nothing the icon set can draw"
+    if kind in ("kinetic", "dossier", "radar", "keywords"):
+        if not sents or not h:
+            return None, "no words"
+        k = "kit_" + kind
+        if k == "kit_radar":
+            return full(k, {"label": h}), ""
+        opts = dict(_motion_options(sents[0], h))
+        if k in opts:
+            return full(k, opts[k]), ""
+        if k == "kit_keywords":
+            kw = _key_words(text, 3)
+            return (full(k, {"items": [w[:1].upper() + w[1:] for w in kw], "title": h if len(h.split()) <= 6 else ""}), "") if len(kw) >= 2 else (None, "no key words")
+        return None, "no words"
+    return None, f"unknown graphic '{kind}'"
+
+
+def _csv_wins(plan: Any, counts: Dict[str, int]) -> None:
+    """After every other rule: a graphic the CSV asked for keeps its seconds. Another card that overlaps it (an icon explainer, a map piece,
+    a layout stretched into the gap) is trimmed to end before it, or dropped when too little of it is left."""
+    csv = [(ly.start, ly.end) for ly in plan.layers if (ly.params or {}).get("csv_graphic")]
+    if not csv:
+        return
+    keep = []
+    for ly in plan.layers:
+        if (ly.params or {}).get("csv_graphic") or ly.kind in SOFT or ly.kind in ("shot_headline", "kit_badge", "kit_grain"):
+            keep.append(ly)
+            continue
+        hit = [(a, b) for a, b in csv if ly.start < b - 0.01 and ly.end > a + 0.01]
+        if not hit:
+            keep.append(ly)
+            continue
+        first = min(a for a, _b in hit)
+        if first - ly.start >= 1.5:
+            ly.end = fr(first - 0.1)
+            keep.append(ly)
+        counts["csv_trimmed"] = counts.get("csv_trimmed", 0) + 1
+    plan.layers[:] = keep
+
+
+def _csv_graphics(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int]) -> None:
+    for r in rows:
+        raw = str(r.get("graphic") or "").strip().lower()
+        if not raw:
+            continue
+        dec = log_by_no.get(str(r["_no"]))
+        kind = CSV_GRAPHIC.get(raw)
+        if kind is None:
+            kind = next((v for k, v in CSV_GRAPHIC.items() if k and k in raw), None)
+        if not kind:
+            if dec is not None and raw not in ("auto", "none"):
+                dec.flags.append(f"csv_graphic_unknown:{raw}")
+            continue
+        try:
+            ly, why = _csv_layer(kind, r, cfg, cat)
+        except Exception as exc:            # one odd row never stops the plan
+            ly, why = None, f"{type(exc).__name__}: {exc}"
+        if ly is None:
+            if dec is not None:
+                dec.flags.append(f"csv_graphic_fallback:{kind}")
+                dec.candidates.append({"kind": kind, "score": 0.0, "reason": f"CSV asked for {kind}: {why}; the automatic choice is kept", "accepted": False})
+            counts["csv_graphic_fallback"] = counts.get("csv_graphic_fallback", 0) + 1
+            continue
+        st, en = r["_start"], r["_end"]
+        a = fr(max(st, min(ly.start, en - CSV_MIN_S)))
+        b = fr(min(max(ly.end, a + CSV_MIN_S), max(en, a + CSV_MIN_S), a + CSV_MAX_S))     # never into the next scene (its own graphic)
+        ly.start, ly.end = a, b
+        ly.params = dict(ly.params or {}, csv_graphic=True)
+        if ly.kind in MOTION_KINDS and dec is not None and "no_footage" not in dec.flags:
+            ly.params["over"] = True             # a YouTube / stock row: the graphic lies over the playing clip instead of hiding it
+            ly.dim = False
+        plan.layers[:] = [x for x in plan.layers if not (x.kind not in SOFT and x.kind not in ("shot_headline", "kit_badge")
+                                                           and x.start < b and x.end > a and not (x.params or {}).get("csv_graphic"))]
+        if ly.kind in FULL_KINDS or ly.kind in ("lay_inset",):
+            _yield_headline(plan, a, b)
+        plan.layers.append(ly)
+        if dec is not None:
+            dec.flags.append("dir:csv_graphic")
+            dec.candidates.append({"kind": ly.kind, "score": 0.0, "reason": f"CSV graphic column: {raw}", "accepted": True, "start": a, "end": b})
+        counts["csv_graphic"] = counts.get("csv_graphic", 0) + 1
 
 
 # ------------------------------------------------------------------------------------------------ graphic floor -----------------------
@@ -632,6 +912,8 @@ def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_n
                     continue
                 if kind == "kit_icons":
                     params = dict(params, seed=int(r["_no"]) if str(r["_no"]).isdigit() else 0)
+                if kind in MOTION_KINDS and has_footage:
+                    params = dict(params, over=True)     # over the clip, not instead of it
                 ly = Layer(kind, s0, s1, params, dim=(kind in DIM))
                 if kind in ("tac_map", "lay_inset", "kit_icons"):
                     _yield_headline(plan, s0, s1)
@@ -658,7 +940,7 @@ def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_n
 # Supply language that names two or more chain links -> logistics diagram. Two full-frame compositions never meet within FULL_GAP s.
 LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay_equipment_compare", "lay_stat_split", "lay_timeline", "lay_claim",
                 "lay_logistics"}
-MOTION_KINDS = {"kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords"}
+MOTION_KINDS = {"kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords", "kit_title", "kit_datecard", "kit_quote"}
 FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag"} | LAYOUT_KINDS | MOTION_KINDS
 FULL_GAP = 1.2
 ICON_GAP = 15.0            # one icon explainer per this many seconds
@@ -720,9 +1002,11 @@ def _choose_layouts(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_
 
     def convert(ly: Any, kind: str, params: Dict[str, Any], why: str) -> bool:
         others = [s for s in spans if not (abs(s[0] - ly.start) < 1e-6 and abs(s[1] - ly.end) < 1e-6)]
-        if _near_full(others, ly.start, ly.end):
+        if _near_full(others, ly.start, ly.end) and not (ly.params or {}).get("csv_graphic"):     # the CSV asked for this one
             counts["layout_skipped_adjacent"] = counts.get("layout_skipped_adjacent", 0) + 1
             return False
+        if (ly.params or {}).get("csv_graphic"):
+            params = dict(params, csv_graphic=True)    # still the CSV's choice after the layout upgrade
         ly.kind, ly.params, ly.dim = kind, params, True
         drop_kicker(ly)
         if (ly.start, ly.end) not in spans:
@@ -815,7 +1099,7 @@ def _extend_into_plate(plan: Any, rows: Sequence[Dict[str, Any]], max_extra: flo
             return
         moved = False
         for g0, g1 in gaps:
-            prev = [ly for ly in plan.layers if ly.kind in cover and abs(ly.end - g0) < 0.05]
+            prev = [ly for ly in plan.layers if ly.kind in cover and abs(ly.end - g0) < 0.05 and not (ly.params or {}).get("csv_graphic")]
             if prev and prev[0].kind in cover:
                 nxt_starts = [ly.start for ly in plan.layers if ly is not prev[0] and ly.start >= g0 - 0.01
                               and ly.kind not in ("kit_badge", "kicker", "shot_headline", "status_chip")]
@@ -828,7 +1112,7 @@ def _extend_into_plate(plan: Any, rows: Sequence[Dict[str, Any]], max_extra: flo
                 prev[0].end = fr(limit)
                 moved = True
                 continue
-            nxt = [ly for ly in plan.layers if ly.kind in LAYOUT_KINDS and abs(ly.start - g1) < 0.05]
+            nxt = [ly for ly in plan.layers if ly.kind in LAYOUT_KINDS and abs(ly.start - g1) < 0.05 and not (ly.params or {}).get("csv_graphic")]
             if nxt:
                 nxt[0].start = fr(max(g0, g1 - max_extra))
                 moved = True
@@ -945,6 +1229,8 @@ def _ratios_and_versus(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_
             b = fr(min(r["_end"] + 0.5, a + 4.2))
             if b - a < 2.0 or a - last < 20.0 or any(ly.kind in block and ly.start < b and ly.end > a for ly in plan.layers):
                 continue
+            if any((ly.params or {}).get("csv_graphic") and ly.start < b and ly.end > a for ly in plan.layers):
+                continue                          # the CSV chose this scene's graphic
             plan.layers[:] = [ly for ly in plan.layers if not (ly.kind in ("stat_number", "kit_bignum", "kicker") and ly.start < b and ly.end > a)]
             if vs:
                 plan.layers.append(Layer("kit_versus", a, b, dict(vs, title=""), dim=True))
@@ -967,6 +1253,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     rows = sorted(rows, key=lambda r: (r["_start"], str(r["_no"])))
     meta_by_start = {fr(r["_start"]): (r.get("footage_meta") or {}) for r in rows}
     layout_spans: List[Tuple[float, float]] = []
+    _csv_graphics(plan, rows, cfg, cat, log_by_no, counts)     # what the CSV's graphic column asks for goes in first; the rules fill around it
     if cfg.get("layouts", True):
         layout_spans = _choose_layouts(plan, rows, cat, log_by_no, counts)
     busy = _Busy(plan.layers)
@@ -1016,7 +1303,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
             if iso:                       # the flag waves for a moment before the chapter opens
                 add("kit_flag", a0 - 0.9, a0, {"iso3": iso}, dec, "flag", f"{iso} flag before {chap[0].title()}", en, dim=False)
             plan.layers[:] = [ly for ly in plan.layers if not (ly.kind in ("stat_number", "kit_bignum", "lay_stat_split", "kicker")      # 'Chapter 2' is
-                                                                and ly.start < a0 + 3.6 and ly.end > a0 and st - 0.01 <= ly.start < en)]  # not a statistic
+                                                                and ly.start < a0 + 3.6 and ly.end > a0 and st - 0.01 <= ly.start < en
+                                                                and not (ly.params or {}).get("csv_graphic"))]  # not a statistic
             if add("kit_chapter", a0, a0 + 3.6, {"label": chap[0], "sub": chap[1]}, dec, "chapter", f"'{chap[0].title()}' opens a chapter", en + 3.0, dim=False):
                 last_at["kit_ribbon"] = st
                 ribbon_cuts.append(st)
@@ -1190,6 +1478,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         _fit_short_clips(plan, counts)
         _broll_returns(plan, rows, log_by_no, meta_by_start, counts)
     _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes, motion=bool(cfg.get("motion_fill", True)))
+    _csv_wins(plan, counts)
     if cfg.get("graphic_floor", True):
         _graphic_floor(plan, rows, cat, log_by_no, counts, float(cfg.get("graphic_gap", GRAPHIC_GAP)), float(cfg.get("first_at", 4.0)),
                        layouts=bool(cfg.get("layouts", True)))

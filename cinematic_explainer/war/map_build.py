@@ -406,9 +406,10 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
         total = _fr(t1 - t0)
         stills = _still_fix(params, total)
         inside = lambda ly: ly.start >= t0 - 0.05 and ly.end <= t1 + 0.6   # noqa: E731
-        merged = [ly for ly in plan.layers if inside(ly) and ly.kind in REPLACED]
+        merged = [ly for ly in plan.layers if inside(ly) and ly.kind in REPLACED and not (ly.params or {}).get("csv_graphic")]
         plan.layers[:] = [ly for ly in plan.layers if ly not in merged]
-        blocks = sorted((ly.start, ly.end) for ly in plan.layers if ly.kind in full_kinds and ly.end > t0 and ly.start < t1)
+        blocks = sorted((ly.start, ly.end) for ly in plan.layers if (ly.kind in full_kinds or (ly.params or {}).get("csv_graphic"))
+                        and ly.end > t0 and ly.start < t1)
         cur, pieces = t0, []
         for a, b in blocks + [(t1, t1)]:
             if a - cur >= MIN_PIECE_S:

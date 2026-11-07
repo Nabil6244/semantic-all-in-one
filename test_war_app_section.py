@@ -385,3 +385,65 @@ class ExportPage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReopenedApp(unittest.TestCase):
+    """Owner (2026-11-07): after reopening the app the Visuals tab stayed empty: the scenes CSV field was blank, so Render ran without it
+    and planned the whole unpunctuated voiceover as one scene."""
+
+    def test_the_project_remembers_its_scenes_file(self):
+        from types import SimpleNamespace
+        from cinematic_explainer.war.app_section import recall_scenes, remember_scenes
+
+        root = Path(tempfile.mkdtemp())
+        csv = root / "scenes.csv"
+        csv.write_text("scene_no,text\n1,a\n", encoding="utf-8")
+        app = SimpleNamespace(_workspace=SimpleNamespace(root=str(root)))
+        self.assertEqual(recall_scenes(app), "")
+        remember_scenes(app, str(csv))
+        self.assertEqual(recall_scenes(app), str(csv))
+        csv.unlink()
+        self.assertEqual(recall_scenes(app), "")                              # a file that is gone is not brought back
+
+    def test_whisper_words_without_punctuation_still_make_short_scenes(self):
+        from cinematic_explainer.war.app_section import sentences_from_words
+
+        words, t = [], 0.0
+        for i in range(200):
+            words.append([f"word{i}", t, t + 0.3])
+            t += 0.3 + (0.4 if i % 15 == 14 else 0.02)                          # a breath every 15 words, no full stops
+        sc = sentences_from_words(words, t)
+        self.assertGreaterEqual(len(sc), 10)
+        self.assertTrue(all(len(x["words"]) <= 28 for x in sc))
+        self.assertTrue(all(abs(a["end"] - b["start"]) < 1e-9 for a, b in zip(sc, sc[1:])))
+
+
+class TestStopReachesTheDownload(unittest.TestCase):
+    """Owner (2026-11-07): scene 7 stayed PROCESSING (an archive.org download) and Stop / Change source waited on it: a run-level stop
+    never aborts a download in flight, a scene stop does."""
+
+    def test_war_stop_cancels_every_scene_it_is_fetching(self):
+        import threading, time
+        from cinematic_explainer.war.app_section import fetch_csv_footage
+
+        class Slow(_FakeManager):
+            def __init__(self, d):
+                super().__init__(d)
+                self.scene_stops, self.stopped = set(), threading.Event()
+
+            def request_cancel_scene(self, n):
+                self.scene_stops.add(str(n))
+                self.stopped.set()
+
+            def resolve_all(self, rows, **kw):          # a download that only ends when its scene is stopped
+                self.stopped.wait(5)
+
+        d = Path(tempfile.mkdtemp())
+        mgr, t0 = Slow(d), time.time()
+        fetch_csv_footage(TestCsvFootage().scenes(), mgr, d, cancel=lambda: True)
+        self.assertLess(time.time() - t0, 3)
+        self.assertEqual(mgr.scene_stops, {"1", "3"})
+
+    def test_the_app_passes_a_rows_stop_to_the_style_fetch_manager(self):
+        src = (Path(__file__).resolve().parent / "app.py").read_text(encoding="utf-8")
+        self.assertIn('getattr(self, "_style_fetch_manager", None)', src)

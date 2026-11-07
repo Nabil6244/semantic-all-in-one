@@ -12916,6 +12916,9 @@ class VideoGeneratorApp(ctk.CTk):
             self._apply_scene_source_choice(scene_row, provider_name)
             if self._asset_manager is not None:
                 self._asset_manager.request_cancel_scene(scene_row.scene_number)
+            style_mgr = getattr(self, "_style_fetch_manager", None)   # a style fetching into the Visuals tab with its own manager (War Documentary)
+            if style_mgr is not None and style_mgr is not self._asset_manager:
+                style_mgr.request_cancel_scene(scene_row.scene_number)
             # Don't bump the job token — wait for the in-flight job to finish,
             # then resume Change Source with the original completion event.
             self._qa.busy[key] = "cancelling"

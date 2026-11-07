@@ -1,7 +1,7 @@
 You are preparing the footage plan for a war / geopolitics documentary. Read the SCRIPT at the end and write ONE CSV, one row per scene, in the script's order. Output only the CSV inside one ```csv block, nothing else.
 
 HEADER (exactly this):
-scene_number,script_segment,asset_type,prompt
+scene_number,script_segment,asset_type,prompt,graphic
 
 COLUMNS
 - scene_number: 1, 2, 3 ...
@@ -22,6 +22,39 @@ COLUMNS
       on a dark board, cold light from one side". Never a real named person, a real event shown as if filmed, a flag-burning, a dead body,
       text or a logo. The tool adds the look (muted colours, film grain) itself.
     nasa_video / local / none: empty.
+- graphic: the on-screen graphic for this scene, or empty to let the editor choose. The editor builds it ONLY from this scene's
+  script_segment, so pick one the sentence can actually fill:
+    title       a section opener or strong statement: the sentence's words as a cinematic title card
+    chapter     the sentence opens with "Chapter 1" / "Part two": the yellow chapter label
+    date        the sentence names a date ("February 2022", "in 2014"): a cinematic date card
+    quote       the sentence quotes someone word for word, inside quotation marks: a full-screen quote with the speaker
+    speaker     a named person says or is introduced: portrait panel with name and role
+    number      the sentence states a figure (write it as the script does, e.g. "2,000 troops", "46%"): the big-number panel
+    compare     two figures or two sides compared ("from 6 to 18", "106 for and 18 against"): a versus / comparison panel
+    ratio       "8 in 10", "one in three": the ratio shown large
+    equipment   a weapon or system is named (HIMARS, Abrams, "drones"): the equipment panel with silhouette or photo
+    timeline    two or more dated events in order: a timeline
+    map         a place, region or front line is named: an animated map
+    route       a movement from one named place to another ("from Belarus toward Kyiv"): a situation map with the route
+    institution an organisation is the subject (Kremlin, NATO, Pentagon, the EU): the institution card
+    supply      supply language naming two or more links (fuel, rail, trucks, depots, ammunition): a supply-chain diagram
+    list        three to five things listed with commas: a numbered recap
+    steps       "first ..., second ..., third ...": numbered note chips at the side of the frame
+    sticker     one kind of thing named (drones, tanks, artillery): a single labelled pictogram over the footage
+    icons       two to four kinds of thing named (drones, tanks, ammunition): flat icons linked by arrows
+    speaker card  a named person introduced with a role ("Oleksandr Syrskyi, Ukraine's commander"): a name and role label in the corner
+    claim       a claim attributed to someone ("Moscow claimed ...", "according to ..."): the claim panel, never shown as fact
+    source      a named report, outlet or document is cited: the source card
+    stamp       claimed, unverified, denied, disputed: a CLAIMED / UNVERIFIED stamp on the shot
+    flag        a country opens a section or is the subject: its flag waves in
+    scale       "twelve soldiers in single file": a row of figures to scale
+    radar       air threats, drones, missiles, air defence: a radar sweep with the sentence's words
+    dossier     a report, plan, order, decision or claim: a paper file typed out
+    kinetic     a strong line worth showing as big moving words
+  On a footage row (youtube_video, stock_video ...) the graphic is laid OVER the clip: title, date, quote, kinetic, radar, dossier and
+  keywords darken the clip and play on top of it; sticker, speaker card, stamp, steps and number sit in a corner or on one side of it;
+  map, timeline, equipment, speaker, supply, icons and compare fill the frame for a few seconds, then the clip returns.
+  On a none row, graphic says which graphic replaces the footage. Use graphic on roughly one scene in two; leave the rest empty.
 
 RULES FOR WHAT GETS FOOTAGE
 - Choose the source in this order: youtube_video when real footage of the event would exist; stock_video when a generic real clip shows it;
@@ -29,7 +62,7 @@ RULES FOR WHAT GETS FOOTAGE
 - Aim for footage on 70 to 80 percent of the scenes. Use none only when the sentence itself is the visual: it states a number or percentage, a date range, a territory change, a named place on a map, an equipment spec list, a ranking, a comparison, or a quote from a named person. The editor builds the map or card from the narration, and a graphic must not be hidden under footage. A sentence that only links ideas, asks a question or sets up what comes next ("So here's the question", "You'll see why") is not a graphic: give it footage of the story's subject.
 - Footage must match the sentence: if it names a system (HIMARS, S-400, Leopard 2), search for that system, not "missile". If it describes a city under attack, search for that city. Never ask for a place, side, equipment or year the sentence does not mention.
 - Never request footage of another war or the other side to fill a gap. If you cannot name a real clip that would exist, use none instead of a vague stock clip.
-- Do not request graphic or animated content (maps, infographics, "animation of ..."). Those come from none.
+- Do not request graphic or animated content in the prompt column (maps, infographics, "animation of ..."). Ask for them in the graphic column.
 - Never invent numbers, names, quotes, dates or places. The prompt column uses only words from the script.
 - The first scene is the title or hook: footage if it opens on an event, none if it opens on a statement or figure.
 - No more than two none scenes in a row: vary with footage so there is motion every few seconds.
@@ -37,7 +70,8 @@ RULES FOR WHAT GETS FOOTAGE
 
 FORMAT
 - Quote any cell that contains a comma or a line break, and double any quote inside it.
-- One row for every scene, exactly 4 cells per row, no blank lines, no comments.
+- One row for every scene, exactly 5 cells per row (graphic may be empty), no blank lines, no comments.
+- Vary the graphics: never the same graphic on two scenes in a row, and use the cinematic ones (title, date, quote) where they fit.
 
 SCRIPT:
 <<<PASTE THE SCRIPT HERE>>>

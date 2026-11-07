@@ -311,7 +311,8 @@ class MotionFill(unittest.TestCase):
         cards = registry.all_cards()
         params = {"kit_kinetic": {"text": "The cost kept rising", "key": ["rising"]},
                   "kit_dossier": {"title": "A new plan", "body": "The government announced a new plan for the winter.", "mark": ["winter"]},
-                  "kit_radar": {"label": "Drones filled the sky"}, "kit_keywords": {"items": ["Fuel", "Ammunition", "Food"], "title": "What they needed"}}
+                  "kit_radar": {"label": "Drones filled the sky"}, "kit_keywords": {"items": ["Fuel", "Ammunition", "Food"], "title": "What they needed"},
+                  "kit_title": {"text": "The road to Kyiv"}, "kit_datecard": {"date": "February 2022"}, "kit_quote": {"quote": "Not a ride."}}
         for kind, fn in MOTION_CARDS.items():
             self.assertIs(cards[kind], fn)
             early, late = fn(0.3, 5.0, params[kind]), fn(2.5, 5.0, params[kind])
@@ -381,6 +382,125 @@ class RichLayoutsMoreOften(unittest.TestCase):
         p = self.plan(["There is one way forward and one way back.", "In 2022 the war changed."])
         self.assertFalse(any(ly.kind in ("lay_stat_split", "kit_bignum", "stat_number") for ly in p.layers))
 
+
+GRAPHIC_CSV = r'''scene_number,script_segment,asset_type,prompt,graphic
+1,Chapter one: the road to Kyiv.,none,,title
+2,"In February 2022, Russian columns advanced from Belarus toward Kyiv.",youtube_video,Kyiv convoy footage,date
+3,"Zelensky said, ""I need ammunition, not a ride.""",none,,quote
+4,Ukraine received 31 Abrams tanks from the United States.,youtube_video,Abrams Ukraine footage,equipment
+5,Losses rose from 2000 in March to 46000 by December.,none,,number
+6,"Soldiers needed fuel, ammunition and food.",stock_video,soldiers supply,list
+7,Cheap drones are emptying the stocks of air defence missiles.,none,,radar
+8,The fighting moved to Bakhmut and Avdiivka.,none,,map
+9,Nobody expected it to last this long.,stock_video,trench,number
+10,Commanders argued about what to do next.,none,,dossier
+'''
+
+
+class CsvGraphicColumn(unittest.TestCase):
+    """The owner (2026-11-07): "we can add graphics through csv too" + "richer graphics that make it more cinematic"."""
+
+    def plan(self):
+        import tempfile
+        from pathlib import Path
+        from cinematic_explainer.war import planner
+        from cinematic_explainer.war.app_section import read_scenes_csv
+
+        f = Path(tempfile.mkdtemp()) / "scenes.csv"
+        f.write_text(GRAPHIC_CSV, encoding="utf-8")
+        sc = read_scenes_csv(str(f))
+        for i, x in enumerate(sc):
+            x["start"], x["end"] = i * 7.0, i * 7.0 + 7.0
+        return sc, planner.plan(sc)
+
+    def test_a_quoted_line_with_commas_is_one_cell(self):
+        sc, _p = self.plan()
+        self.assertEqual(sc[2]["text"], 'Zelensky said, "I need ammunition, not a ride."')
+        self.assertEqual(sc[2]["graphic"], "quote")
+
+    def test_each_asked_graphic_is_placed_in_its_scene(self):
+        sc, p = self.plan()
+        self.assertNotIn("error", p.stats["direction"])
+        got = {int(ly.start // 7) + 1: ly.kind for ly in p.layers if (ly.params or {}).get("csv_graphic")}
+        self.assertEqual(got, {1: "kit_title", 2: "kit_datecard", 3: "kit_quote", 4: "lay_equipment_hero", 6: "kit_recap", 7: "kit_radar",
+                               8: "tac_map", 10: "kit_dossier"})
+        q = next(ly for ly in p.layers if ly.kind == "kit_quote")
+        self.assertEqual(q.params["quote"], "I need ammunition, not a ride.")
+        d = next(ly for ly in p.layers if ly.kind == "kit_datecard")
+        self.assertEqual(d.params["date"], "February 2022")
+
+    def test_a_graphic_the_sentence_cannot_fill_keeps_the_automatic_choice_and_says_why(self):
+        _sc, p = self.plan()
+        flags = {str(d.scene_no): d.flags for d in p.log}
+        self.assertIn("csv_graphic_fallback:number", flags["9"])                # 'Nobody expected it to last this long.' has no number
+
+    def test_the_csv_prompt_asks_for_the_column(self):
+        from pathlib import Path
+
+        txt = (Path(__file__).resolve().parent / "cinematic_explainer" / "war" / "data" / "war_csv_prompt.txt").read_text(encoding="utf-8")
+        self.assertIn("scene_number,script_segment,asset_type,prompt,graphic", txt)
+        for k in ("title", "date", "quote", "speaker", "number", "equipment", "timeline", "map", "radar", "dossier", "kinetic"):
+            self.assertIn(f"    {k} ", txt)
+
+    def test_cinematic_cards_animate_with_letterbox(self):
+        from cinematic_explainer.war import registry
+
+        cards = registry.all_cards()
+        for kind, p in (("kit_title", {"text": "The road to Kyiv", "sub": "Chapter one"}), ("kit_datecard", {"date": "February 2022", "sub": "x"}),
+                        ("kit_quote", {"quote": "I need ammunition, not a ride.", "speaker": "Zelensky"})):
+            a, b = cards[kind](0.2, 6.0, p), cards[kind](2.5, 6.0, p)
+            self.assertNotEqual(a.tobytes(), b.tobytes())
+            self.assertEqual(b.getpixel((640, 10))[:3], (0, 0, 0))              # letterbox bar
+            self.assertIsNone(cards[kind](1.0, 6.0, {}))
+
+    def test_date_and_quote_found_only_when_said(self):
+        from cinematic_explainer.war.direction import _date_of
+
+        self.assertEqual(_date_of("In late March 2023 the push began."), "late March 2023")
+        self.assertEqual(_date_of("Ukraine has held since 2014."), "2014")
+        self.assertEqual(_date_of("Nobody expected it to last."), "")
+
+
+class CsvGraphicMoreKindsAndOverlay(unittest.TestCase):
+    """The owner (2026-11-07): the other rich graphics we have through the CSV too, and they can lie over YouTube / stock clips."""
+
+    TEXTS = [("Moscow claimed the town had fallen, but Kyiv denied it.", "claim"), ("Eight in ten families had left the town.", "ratio"),
+             ("Ukraine's position was clear.", "flag"), ("First the rail lines, second the bridges, third the fuel depots.", "steps"),
+             ("Russian drones filled the sky every night.", "sticker"), ("Fuel, trucks and rail kept the front supplied.", "supply"),
+             ("In February 2022, the columns moved.", "date")]
+
+    def plan(self, footage=False):
+        from cinematic_explainer.war import planner
+
+        meta = {"provider": "youtube", "kind": "youtube", "relevance": 0.5, "csv_pick": True}
+        sc = [dict({"text": t, "graphic": g, "start": i * 7.0, "end": i * 7.0 + 7.0, "scene_no": i + 1},
+                   **({"footage": clip("008.mp4"), "footage_meta": meta} if footage else {})) for i, (t, g) in enumerate(self.TEXTS)]
+        return planner.plan(sc)
+
+    def test_each_kind_lands_in_its_own_scene_and_nothing_covers_it(self):
+        p = self.plan()
+        self.assertNotIn("error", p.stats["direction"])
+        csv = sorted((ly for ly in p.layers if (ly.params or {}).get("csv_graphic")), key=lambda ly: ly.start)
+        self.assertEqual([ly.kind for ly in csv], ["lay_claim", "kit_bignum", "kit_flag", "kit_chips", "kit_sticker", "lay_logistics", "kit_datecard"])
+        for i, ly in enumerate(csv):
+            self.assertGreaterEqual(ly.start, i * 7.0 - 0.01)
+            self.assertLessEqual(ly.end, i * 7.0 + 7.0 + 0.01)                     # never into the next scene
+        soft = ("kicker", "status_chip", "kit_badge", "shot_headline", "kit_grain")
+        for ly in p.layers:
+            if ly.kind in soft or (ly.params or {}).get("csv_graphic"):
+                continue
+            self.assertFalse(any(ly.start < c.end - 0.01 and ly.end > c.start + 0.01 for c in csv), f"{ly.kind} covers a CSV graphic")
+
+    @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
+    def test_on_a_footage_row_the_cinematic_card_lies_over_the_clip(self):
+        p = self.plan(footage=True)
+        d = next(ly for ly in p.layers if ly.kind == "kit_datecard")
+        self.assertTrue(d.params.get("over"))
+        self.assertTrue(any(sh.start <= d.start + 0.01 and sh.end >= d.start + 1.0 for sh in p.shots))   # the clip keeps playing under it
+        from cinematic_explainer.war.cards_motion import kit_datecard
+
+        im = kit_datecard(3.0, 6.0, dict(d.params))
+        self.assertLess(im.getpixel((640, 600))[3], 255)                          # see-through: the clip shows
 
 class WarFetch(unittest.TestCase):
     def test_youtube_clips_long_enough_for_a_scene_and_searches_ask_for_footage(self):

@@ -27,6 +27,14 @@ def _m(app):
 
 
 # ---- scenes ---------------------------------------------------------------------------------------------------------------
+def _breath_after(words: List[Any], i: int) -> bool:
+    """A pause of at least 0.25 s after word i (the narrator took a breath)."""
+    try:
+        return float(words[i + 1][1]) - float(words[i][2]) >= 0.25
+    except (ValueError, IndexError, TypeError):
+        return False
+
+
 def sentences_from_words(words: List[Any], total_s: float = 0.0) -> List[Dict[str, Any]]:
     """Scene dicts from word times [(word, start, end), ...]: a scene per sentence (a pause over 1.2 s also ends one); contiguous in time."""
     out: List[Dict[str, Any]] = []
@@ -39,7 +47,8 @@ def sentences_from_words(words: List[Any], total_s: float = 0.0) -> List[Dict[st
             cur.clear()
 
     prev_end = None
-    for item in words or []:
+    words = list(words or [])
+    for idx, item in enumerate(words):
         try:
             w, t0, t1 = str(item[0]), float(item[1]), float(item[2])
         except (TypeError, ValueError, IndexError):
@@ -50,6 +59,8 @@ def sentences_from_words(words: List[Any], total_s: float = 0.0) -> List[Dict[st
         prev_end = t1
         if re.search(r"[.!?]['\")\]]*$", w) and len(cur) >= 4:
             flush()
+        elif len(cur) >= 28 or (len(cur) >= 12 and t1 - cur[0]["t0"] >= 4.0 and _breath_after(words, idx)):
+            flush()          # Whisper words carry no punctuation: a whole voiceover was one scene; cut at a breath after ~4 s, at most 28 words
     flush()
     for i, sc in enumerate(out):                    # contiguous: each scene runs to the next one's start; the last to the narration's end
         sc["end"] = out[i + 1]["start"] if i + 1 < len(out) else max(sc["end"], float(total_s or 0.0))
@@ -79,10 +90,11 @@ def read_scenes_csv(path: str) -> List[dict]:
     if not lines:
         raise ValueError(f"{p.name} is empty")
     try:
-        dialect = csv.Sniffer().sniff(lines[0], delimiters=",;\t")
+        delim = csv.Sniffer().sniff(lines[0], delimiters=",;\t").delimiter
     except csv.Error:
-        dialect = csv.excel
-    reader = csv.DictReader(io.StringIO("\n".join(lines)), dialect=dialect)
+        delim = ","
+    # only the separator is guessed: a header has no quotes, and the sniffed dialect then read '"He said, ""no."""' as three cells
+    reader = csv.DictReader(io.StringIO("\n".join(lines)), delimiter=delim, quotechar='"', doublequote=True, skipinitialspace=False)
     cols = {(k or "").strip().lower(): k for k in (reader.fieldnames or [])}
     text_col = next((cols[a] for a in _CSV_TEXT if a in cols), None)
     if text_col is None:
@@ -97,7 +109,7 @@ def read_scenes_csv(path: str) -> List[dict]:
         sc: Dict[str, Any] = {"text": text}
         no = (r.get(no_col) or "").strip() if no_col else ""
         sc["scene_no"] = int(no) if no.isdigit() else len(out) + 1
-        for key in ("asset_type", "prompt", "footage"):
+        for key in ("asset_type", "prompt", "footage", "graphic"):
             if key in cols and (r.get(cols[key]) or "").strip():
                 sc[key] = r[cols[key]].strip()
         if start_col and end_col and (r.get(start_col) or "").strip() and (r.get(end_col) or "").strip():
@@ -224,6 +236,8 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
                     if cancel():
                         try:
                             manager.request_cancel()
+                            for r_ in todo:               # a run-level stop leaves a download in flight; a scene stop aborts it
+                                manager.request_cancel_scene(r_.scene_number)
                         except Exception:
                             pass
                         return
@@ -339,11 +353,39 @@ def copy_csv_prompt(app) -> None:
                             "War Documentary prompt copied. Paste it into any AI and replace its last line with your script.")
 
 
+def _pick_file(app) -> Optional[Path]:
+    ws = getattr(app, "_workspace", None)
+    return Path(ws.root) / "state" / "war" / "scenes_file.txt" if ws is not None and getattr(ws, "root", None) else None
+
+
+def remember_scenes(app, path: str) -> None:
+    """The project remembers its scenes file (only the choice: nothing is planned or fetched until Generate)."""
+    f = _pick_file(app)
+    if f is None:
+        return
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(path, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def recall_scenes(app) -> str:
+    """The scenes file this project used last, when it still exists (the app reopened: the field was empty and Render ran without the CSV)."""
+    f = _pick_file(app)
+    try:
+        path = f.read_text(encoding="utf-8").strip() if f is not None and f.is_file() else ""
+    except OSError:
+        return ""
+    return path if path and Path(path).is_file() else ""
+
+
 def browse_scenes(app) -> None:
     M = _m(app)
     path = M.filedialog.askopenfilename(title="Choose the scenes file", filetypes=[("Scenes CSV or JSON", "*.csv *.json"), ("All files", "*.*")])
     if path:
         app._war_scenes_var.set(path)
+        remember_scenes(app, path)
 
 
 def activate(app) -> None:
@@ -351,6 +393,10 @@ def activate(app) -> None:
         return
     app._war_block.grid()
     app._war_status_var.set("")
+    if not app._war_scenes_var.get().strip():
+        last = recall_scenes(app)
+        if last:
+            app._war_scenes_var.set(last)
     import visual_bridge
 
     visual_bridge.restore(app, OWNER)      # the CSV footage of the last Generate scenes, back in the Visuals tab
@@ -574,8 +620,12 @@ def on_render_click(app) -> None:
                     app._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
                 live = media_only and hasattr(app, "_ui_queue")
-                scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap, fetch=media_only,
-                                                 listed=listed if live else None, on_start=on_start if live else None, on_done=on_done if live else None)
+                app._style_fetch_manager = manager       # Change source / Stop on a Visuals row reaches the scene this fetch is downloading
+                try:
+                    scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap, fetch=media_only,
+                                                     listed=listed if live else None, on_start=on_start if live else None, on_done=on_done if live else None)
+                finally:
+                    app._style_fetch_manager = None
                 if app._war_cancel.is_set():
                     raise segments.RenderCancelled()
                 if media_only:
