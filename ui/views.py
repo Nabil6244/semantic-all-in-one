@@ -2843,3 +2843,7 @@ class VoiceoverView(_BaseView):
         )
         from . import voiceover_view
         voiceover_view.build(self, app)
+
+    def on_show(self) -> None:
+        from . import voiceover_view
+        voiceover_view.sync_project(self, self.app)

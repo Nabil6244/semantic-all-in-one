@@ -159,17 +159,36 @@ async def _run(pieces, voice, speed, pitch_hz, workdir, progress):
     return await asyncio.gather(*[job(i, t) for i, t in enumerate(pieces)])
 
 
+def _convert_pieces(results, convert, workdir, progress):
+    """Run the cloner over every fetched piece, in order; the pieces keep their words and timing."""
+    out = []
+    for i, (p, w) in enumerate(results):
+        dst = os.path.join(workdir, f"cloned_{i:04d}.mp3")
+        convert(p, dst)
+        if not os.path.isfile(dst) or os.path.getsize(dst) == 0:
+            raise RuntimeError("the voice cloner produced no audio")
+        out.append((dst, w))
+        if progress:
+            progress(i + 1, len(results))
+    return out
+
+
 def synthesize(text: str, out_mp3: str, voice: str = DEFAULT_VOICE,
                speed: float = 1.0, pitch_hz: int = 0,
                ffmpeg: str = "ffmpeg", ffprobe: str = "ffprobe",
-               progress: Optional[Callable[[int, int], None]] = None) -> dict:
+               progress: Optional[Callable[[int, int], None]] = None,
+               convert: Optional[Callable[[str, str], None]] = None,
+               convert_progress: Optional[Callable[[int, int], None]] = None) -> dict:
     """Write the voiceover to out_mp3 and word timings to out_mp3 + '.words.json'.
+    convert(src_mp3, dst_mp3), when given, is the voice cloner: it rewrites each fetched piece in another voice before the join.
     Returns {'path', 'duration', 'pieces', 'words_path'}."""
     pieces = split_script(text)
     if not pieces:
         raise ValueError("empty script")
     with tempfile.TemporaryDirectory() as wd:
         results = asyncio.run(_run(pieces, voice, speed, pitch_hz, wd, progress))
+        if convert is not None:
+            results = _convert_pieces(results, convert, wd, convert_progress)
         # silence between pieces, same codec so concat is clean
         gap = os.path.join(wd, "gap.mp3")
         subprocess.run(

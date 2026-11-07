@@ -78,6 +78,9 @@ LANGUAGES = [
 ]
 
 
+NO_CLONE = "Off - use the voice above as it is"
+
+
 def voices_for(language: str) -> list:
     """The (label, voice id) list of one language; English when the name is unknown."""
     return next((v for name, v in LANGUAGES if name == language), VOICES)
@@ -126,6 +129,8 @@ def build(view: Any, app: Any) -> None:
     view._vo_pitch_var = ctk.IntVar(value=0)
     view._vo_status_var = ctk.StringVar(value="")
     view._vo_count_var = ctk.StringVar(value="0 words")
+    view._vo_clone_var = ctk.StringVar(value=NO_CLONE)
+    view._vo_clone_status = ctk.StringVar(value="")
 
     script = Card(view._body, title="Script", subtitle="The text to speak. Nothing starts until you press Generate.")
     script.grid(row=0, column=0, sticky="ew", pady=(0, 12))
@@ -161,11 +166,32 @@ def build(view: Any, app: Any) -> None:
     ctk.CTkLabel(voice.body, text="Write the script in the language you pick: the voice reads it as written, it does not translate.",
                  text_color=T.MUTED, font=ctk.CTkFont(size=11), anchor="w").grid(row=4, column=0, columnspan=4, sticky="w", pady=(4, 0))
 
+    clone = Card(view._body, title="Clone a voice",
+                 subtitle="Optional. Make the narration sound like a voice from a sample recording. It runs on this computer; the sample is never uploaded.")
+    view._vo_clone_card = clone
+    ctk.CTkLabel(clone.body, text="Narrate in", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=4)
+    view._vo_clone_menu = ctk.CTkOptionMenu(clone.body, values=[NO_CLONE], variable=view._vo_clone_var, width=330)
+    view._vo_clone_menu.grid(row=0, column=1, sticky="w", pady=4)
+    cb = ctk.CTkFrame(clone.body, fg_color="transparent")
+    cb.grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
+    make_button(cb, "Add a voice from a recording...", lambda: _add_clone(view, app), width=230).grid(row=0, column=0, padx=(0, 8))
+    make_button(cb, "Remove selected", lambda: _remove_clone(view), width=140).grid(row=0, column=1)
+    ctk.CTkLabel(clone.body, text="Use 20-60 seconds of one person speaking clearly, with no music or background noise. Only clone a voice that is "
+                 "yours or whose owner has agreed. The Voice above is still used for the words, pace and language; the clone changes how it sounds.",
+                 text_color=T.MUTED, font=ctk.CTkFont(size=11), anchor="w", justify="left", wraplength=620).grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 0))
+    ctk.CTkLabel(clone.body, textvariable=view._vo_clone_status, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
+                 wraplength=620).grid(row=3, column=0, columnspan=3, sticky="w", pady=(4, 0))
+    clone.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+    _refresh_clones(view)
+
     go = Card(view._body, title="Generate",
               subtitle="Semantic voices: natural narration. The audio is made online at about 2-3x real time, so a 10-minute script takes a few minutes.")
-    go.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+    go.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+    view._vo_plan_var = ctk.StringVar(value="")
+    ctk.CTkLabel(go.body, textvariable=view._vo_plan_var, text_color=T.ACCENT, font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
+                 justify="left", wraplength=620).grid(row=0, column=0, sticky="w", pady=(0, 8))
     bar = ctk.CTkFrame(go.body, fg_color="transparent")
-    bar.grid(row=0, column=0, sticky="w")
+    bar.grid(row=1, column=0, sticky="w")
     view._vo_preview_btn = make_button(bar, "Preview first sentences", lambda: _start(view, app, preview=True), width=190)
     view._vo_preview_btn.grid(row=0, column=0, padx=(0, 8))
     view._vo_go_btn = ctk.CTkButton(bar, text="Generate voiceover", width=190, height=40, corner_radius=6, fg_color=T.ACCENT, hover_color=T.ACCENT_HOV,
@@ -175,15 +201,19 @@ def build(view: Any, app: Any) -> None:
     view._vo_stop_btn.grid(row=0, column=2)
     view._vo_progress = ctk.CTkProgressBar(go.body, width=420)
     view._vo_progress.set(0)
-    view._vo_progress.grid(row=1, column=0, sticky="w", pady=(10, 0))
+    view._vo_progress.grid(row=2, column=0, sticky="w", pady=(10, 0))
     ctk.CTkLabel(go.body, textvariable=view._vo_status_var, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
-                 wraplength=620).grid(row=2, column=0, sticky="w", pady=(6, 0))
+                 wraplength=620).grid(row=3, column=0, sticky="w", pady=(6, 0))
+
+    for var in (view._vo_clone_var, view._vo_voice_var, view._vo_lang_var):
+        var.trace_add("write", lambda *_a: _update_plan(view))
+    _update_plan(view)
 
     view._vo_last = None      # the file the Play button plays (the last preview or voiceover made here)
     view._vo_play_proc = None
     view._vo_play_var = ctk.StringVar(value="Nothing to play yet. Generate or preview a voice first.")
     listen = Card(view._body, title="Listen", subtitle="Play the voiceover here before you use it.")
-    listen.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+    listen.grid(row=4, column=0, sticky="ew", pady=(0, 12))
     lb = ctk.CTkFrame(listen.body, fg_color="transparent")
     lb.grid(row=0, column=0, sticky="w")
     view._vo_play_btn = make_button(lb, "\u25B6  Play", lambda: _play(view), width=130, state="disabled")
@@ -194,10 +224,104 @@ def build(view: Any, app: Any) -> None:
     view._vo_download_btn.grid(row=0, column=2)
     ctk.CTkLabel(listen.body, textvariable=view._vo_play_var, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
                  wraplength=620).grid(row=1, column=0, sticky="w", pady=(8, 0))
+    view._vo_project_key = _project_key(app)
     existing = _existing_voiceover(app)
     if existing is not None:
         _set_last(view, existing, "Last voiceover in this project")
     view.bind("<Unmap>", lambda _e: _stop_play(view), add="+")   # leaving the tab stops the sound
+
+
+def _clone_names() -> list:
+    try:
+        from voice_clone import engine
+        return [n for n, _ in engine.list_voices()]
+    except Exception:
+        return []
+
+
+def _update_plan(view: Any) -> None:
+    """The line above Generate: which voice the next Generate will make."""
+    try:
+        clone = view._vo_clone_var.get()
+        base = view._vo_voice_var.get()
+        view._vo_plan_var.set(f"Next Generate: plain voice - {base}" if clone == NO_CLONE
+                              else f"Next Generate: the voice of '{clone}'. ('{base}' only reads the words and sets the pace and accent.)")
+    except Exception:
+        pass
+
+
+def _refresh_clones(view: Any, select: str = "") -> None:
+    names = _clone_names()
+    view._vo_clone_menu.configure(values=[NO_CLONE] + names)
+    cur = select or view._vo_clone_var.get()
+    view._vo_clone_var.set(cur if cur in names else NO_CLONE)
+
+
+def _remove_clone(view: Any) -> None:
+    name = view._vo_clone_var.get()
+    if name == NO_CLONE:
+        view._vo_clone_status.set("Pick a saved voice in the list first.")
+        return
+    from voice_clone import engine
+    engine.delete_voice(name)
+    view._vo_clone_var.set(NO_CLONE)
+    _refresh_clones(view)
+    view._vo_clone_status.set(f"Removed the voice '{name}'.")
+
+
+def _add_clone(view: Any, app: Any) -> None:
+    """Choose a recording, check it, name the voice and save its fingerprint. Nothing else starts."""
+    if view._vo_busy:
+        return
+    from tkinter import filedialog, simpledialog
+
+    path = filedialog.askopenfilename(title="Choose a recording of the voice to copy",
+                                      filetypes=[("Audio or video", "*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.mp4 *.mov *.mkv *.webm"), ("All files", "*.*")])
+    if not path:
+        return
+    name = simpledialog.askstring("Name this voice", "A name for this cloned voice (for example your own name).\n\n"
+                                  "Only continue if this is your voice or its owner agreed.", parent=view)
+    if not name or not name.strip():
+        return
+    name = name.strip()
+    view._vo_busy = True
+    view._vo_clone_status.set("Checking the recording...")
+
+    def ui(fn, *a):
+        try:
+            app.after(0, lambda: fn(*a))
+        except Exception:
+            pass
+
+    def finish(msg, select=""):
+        view._vo_busy = False
+        view._vo_clone_status.set(msg)
+        _refresh_clones(view, select)
+
+    def work():
+        try:
+            from voice_clone import engine
+
+            ff = _find("ffmpeg")
+            ok, msg, audio = engine.check_sample(path, ff)
+            if not ok:
+                ui(finish, msg)
+                return
+            if not engine.ensure_torch(lambda t: ui(view._vo_clone_status.set, t)):
+                ui(finish, "The voice cloner could not be set up (no internet, pip is blocked, or this is a packaged build).")
+                return
+            if not engine.ensure_models(lambda t: ui(view._vo_clone_status.set, t)):
+                ui(finish, "The voice model could not be downloaded. Check the internet connection and try again.")
+                return
+            ui(view._vo_clone_status.set, "Learning the voice...")
+            engine.make_voice(name, audio, engine.Cloner(ff))
+            ui(finish, f"Saved the voice '{name}'. {msg} Pick it under 'Narrate in', then Generate.", name)
+        except Exception as exc:  # noqa: BLE001
+            import traceback
+            traceback.print_exc()
+            ui(finish, f"Could not save the voice: {type(exc).__name__}: {str(exc)[:160]}")
+
+    threading.Thread(target=work, daemon=True).start()
 
 
 def _project_voiceover_path(ws: Any) -> Path:
@@ -207,6 +331,34 @@ def _project_voiceover_path(ws: Any) -> Path:
     name = re.sub(r'[\\/:*?"<>|#]+', " ", str(getattr(ws, "folder_name", "") or "project"))
     name = re.sub(r"\s+", "_", name).strip("_ ") or "project"
     return Path(ws.audio_dir) / f"{name}_voiceover.mp3"
+
+
+def _project_key(app: Any) -> str:
+    ws = getattr(app, "_workspace", None)
+    return str(getattr(ws, "project_id", "") or getattr(ws, "root", "") or getattr(ws, "audio_dir", "") or "") if ws is not None else ""
+
+
+def sync_project(view: Any, app: Any) -> None:
+    """Every time the page is shown: if the project changed, drop the old project's voiceover, script text, progress and messages,
+    and show this project's own voiceover (if it has one). Never runs anything and never touches a generation in progress."""
+    if getattr(view, "_vo_busy", False):
+        return
+    key = _project_key(app)
+    if key == getattr(view, "_vo_project_key", key):
+        return
+    view._vo_project_key = key
+    _stop_play(view)
+    view._vo_last = None
+    view._vo_play_btn.configure(state="disabled")
+    view._vo_download_btn.configure(state="disabled")
+    view._vo_play_var.set("Nothing to play yet. Generate or preview a voice first.")
+    view._vo_status_var.set("")
+    view._vo_progress.set(0)
+    view._vo_text.delete("1.0", "end")
+    _update_count(view)
+    existing = _existing_voiceover(app)
+    if existing is not None:
+        _set_last(view, existing, "Last voiceover in this project")
 
 
 def _existing_voiceover(app: Any):
@@ -381,6 +533,8 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
             return
         out = Path(chosen)
     voice, speed, pitch = _voice_id(view), round(view._vo_speed_var.get(), 2), int(view._vo_pitch_var.get())
+    clone_name = view._vo_clone_var.get()
+    clone_name = "" if clone_name == NO_CLONE else clone_name
     view._vo_cancel.clear()
     view._vo_progress.set(0)
     view._vo_status_var.set("Starting...")
@@ -404,8 +558,26 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
                     raise RuntimeError("stopped")
                 ui(_progress, view, done, total)
 
+            convert = None
+            if clone_name:
+                from voice_clone import engine
+
+                se = dict(engine.list_voices()).get(clone_name)
+                if not se:
+                    raise RuntimeError(f"the saved voice '{clone_name}' is missing; add it again")
+                if not engine.ensure_torch(lambda t: ui(view._vo_status_var.set, t)) or not engine.ensure_models(lambda t: ui(view._vo_status_var.set, t)):
+                    raise RuntimeError("the voice cloner could not be set up")
+                ui(view._vo_status_var.set, "Loading the cloner...")
+                convert = engine.make_converter_for(se, engine.Cloner(_find("ffmpeg")))
+
+            def cprogress(done, total):
+                if view._vo_cancel.is_set():
+                    raise RuntimeError("stopped")
+                ui(_progress, view, done, total, "Copying the voice: piece")
+
             res = ev.synthesize(text, str(out), voice=voice, speed=speed, pitch_hz=pitch,
-                                ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"), progress=progress)
+                                ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"), progress=progress,
+                                convert=convert, convert_progress=cprogress)
             ui(_done, view, app, res, preview, ws is not None)
         except ImportError:
             ui(_fail, view, "The voices could not be set up (no internet, or pip is blocked). Connect and try again, or load your own audio on Audio & Effects.")
@@ -419,9 +591,9 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
     threading.Thread(target=work, daemon=True).start()
 
 
-def _progress(view: Any, done: int, total: int) -> None:
+def _progress(view: Any, done: int, total: int, what: str = "Making the voice: piece") -> None:
     view._vo_progress.set(done / max(1, total))
-    view._vo_status_var.set(f"Making the voice: piece {done} of {total}")
+    view._vo_status_var.set(f"{what} {done} of {total}")
 
 
 def _fail(view: Any, msg: str) -> None:
