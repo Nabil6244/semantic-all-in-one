@@ -548,3 +548,57 @@ class WarFetch(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StillsAndSearch(unittest.TestCase):
+    """Ahmed's Mac log (2026-11-07): 17 scenes switched to stock images in the Visuals tab, then Render used 3 of 20 (stills were dropped);
+    War YouTube results were studio talk and map commentary."""
+
+    def test_a_still_from_the_visuals_tab_plays_as_a_moving_clip(self):
+        import shutil
+        import subprocess
+        import tempfile
+        from pathlib import Path
+        from cinematic_explainer.war import integration
+
+        if not shutil.which("ffmpeg"):
+            self.skipTest("ffmpeg not installed")
+        d = Path(tempfile.mkdtemp())
+        img = d / "Images" / "009.jpg"
+        img.parent.mkdir()
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=s=1280x853", "-frames:v", "1", str(img)], check=True)
+        foot, why = integration.footage_from_record({"status": "complete", "local_path": str(img)}, d)
+        self.assertEqual(why, "")
+        self.assertTrue(foot.endswith(".war.mp4"))
+        self.assertGreater(float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", foot],
+                                                capture_output=True, text=True).stdout), 10.0)
+        again, _ = integration.footage_from_record({"status": "complete", "local_path": str(img)}, d)
+        self.assertEqual(again, foot)                    # made once, reused
+
+    def test_youtube_talk_and_commentary_titles_are_dropped_footage_first(self):
+        from cinematic_explainer.war.app_section import _WarYouTubeSearch, war_manager
+
+        hits = [SimpleNamespace(title="Ukraine war map update: every day"), SimpleNamespace(title="Expert analysis: is Russia winning?"),
+                SimpleNamespace(title="Orikhiv this week"), SimpleNamespace(title="Drone footage: strike on a power plant")]
+        asked = {}
+
+        class Backend:
+            def search(self, q, max_results=5):
+                asked["n"] = max_results
+                return hits
+
+        yp = SimpleNamespace(clip_duration=8.0, backend=Backend(), max_results=5)
+        war_manager(SimpleNamespace(settings={}, youtube_provider=yp))
+        self.assertIsInstance(yp.backend, _WarYouTubeSearch)
+        got = [c.title for c in yp.backend.search("q", max_results=5)]
+        self.assertGreaterEqual(asked["n"], 12)
+        self.assertEqual(got, ["Drone footage: strike on a power plant", "Orikhiv this week"])
+        war_manager(SimpleNamespace(settings={}, youtube_provider=yp))
+        self.assertNotIsInstance(yp.backend._b, _WarYouTubeSearch)   # never wrapped twice
+
+    def test_render_log_counts_the_graphics(self):
+        from cinematic_explainer.war.integration import graphics_count
+
+        L = lambda k: SimpleNamespace(kind=k)
+        self.assertEqual(graphics_count([L("kit_stat"), L("map_tactical"), L("kit_stat"), L("shot_headline"), L("kicker")]),
+                         {"kit_stat": 2, "map_tactical": 1})

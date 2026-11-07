@@ -235,9 +235,12 @@ class FootageAttributionTests(unittest.TestCase):
             self.assertIn("clearance needed", yt["rights"])                       # public video is never treated as reusable
             self.assertFalse(yt["rights_known"])
             self.assertTrue(user["user_supplied"] and "stated by the user" in user["rights"] and user["verification"] == "unverified")
-            for n in (4, 5, 6):                                                   # failed, file missing, still image: no footage, no placeholder
+            for n in (4, 5):                                                      # failed, file missing: no footage, no placeholder
                 self.assertIsNone(m[n]["footage"], n)
                 self.assertTrue(m[n]["footage_meta"].get("no_footage_reason"), n)
+            if m[6]["footage"]:                                                   # a still plays as a push-in clip made from it (2026-11-07)
+                self.assertTrue(m[6]["footage"].endswith(".war.mp4"))
+                Path(m[6]["footage"]).unlink(missing_ok=True)                     # made beside the repo's sample picture: leave no file behind
 
     def test_generic_footage_is_labelled_not_headlined_and_youtube_gets_a_source_chip(self):
         from cinematic_explainer.war import planner
