@@ -231,6 +231,7 @@ def _fit_short_clips(plan: Any, counts: Dict[str, int], probe=_clip_seconds) -> 
 
 
 BROLL_MIN_S, BROLL_MAX_S, BROLL_USES = 1.2, 5.0, 2
+CONTEXT_REPEAT_S = 90.0     # the wide 'Russia and Ukraine' context map at most once in this many seconds (render 033 showed it four times)
 MAX_MAP_HOLD = 12.0 + 0.5     # map_build.MAX_MAP_S and a little: a sliver is never closed by holding a map past its limit
 
 
@@ -723,7 +724,8 @@ CSV_GRAPHIC = {"map": "map", "number": "number", "stat": "number", "figure": "nu
                "evidence": "source", "ratio": "ratio", "scale": "scale", "flag": "flag", "stamp": "stamp", "speaker card": "speaker_card",
                "name": "speaker_card", "lower third": "speaker_card", "auto": "", "none": "", "": ""}
 _PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split"), "equipment": ("equipment", "split"), "speaker": ("figure",),
-                  "timeline": ("timeline",), "institution": ("institution",), "route": ("map",), "source": ("evidence",), "claim": ("evidence",)}
+                  "timeline": ("timeline",), "institution": ("institution",), "route": ("map",), "source": ("evidence",),
+                  "claim": ("evidence", "figure")}   # a leader's claim with no outlet line: the claimant's portrait card carries it
 CSV_MAX_S, CSV_MIN_S = 8.0, 3.0
 
 
@@ -1516,7 +1518,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 if p1:
                     proposals.append((4, "tac_map", a, max(b, a + 4.0), p1, "tacmap", "one named place and no footage: a location map", False))
             elif len(co) >= 2 and not pl:
-                proposals.append((4, "tac_map", a, max(b, a + 4.0), _tac_params(sent, [], co, True), "tacmap", "country-to-country context", False))
+                ctx_key = "ctx:" + "|".join(sorted(c.name for c in co))   # the same wide view of the same countries says nothing new a minute later
+                if st - last_at.get(ctx_key, -1e9) >= CONTEXT_REPEAT_S:
+                    last_at[ctx_key] = st
+                    proposals.append((4, "tac_map", a, max(b, a + 4.0), _tac_params(sent, [], co, True), "tacmap", "country-to-country context", False))
             elif pl and has_footage:      # one named place over footage: a short map shows where it is, then back to the clip
                 p1 = _tac_params(sent, pl, co, False)
                 if p1:
@@ -1667,5 +1672,103 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     if cfg.get("split_shots", True):
         _split_long_shots(plan, meta_by_start, counts)
     _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)))
+    _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts)
     counts["empty_stretches"] = len(gap_notes)
     return {"counts": counts, "notes": gap_notes}
+
+
+# ------------------------------------------------------------------------------------------------ final coverage --------------------
+# Ahmed test render (2026-11-08): seconds of bare backdrop (gaps under the 2 s motion-card minimum, or opened by trims that run after the
+# empty-stretch rule), a source chip left on the plate after its clip ended, and a 0.8 s clip flash between two cards. This runs last, on the
+# finished timeline: every second shows footage or a full-frame graphic, footage marks only sit on footage, and a clip seen for less than
+# FLASH_S between two graphics is covered by the graphic before it.
+FLASH_S = 1.5
+HOLE_HOLD_S = 2.0          # a bare gap up to this long is closed by its neighbours (longer ones are filled with motion graphics earlier)
+
+
+def _opaque(ly: Layer) -> bool:
+    return ly.kind in FULL_KINDS and not (ly.params or {}).get("over")
+
+
+def _spans_union(spans: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    out: List[List[float]] = []
+    for a, b in sorted(spans):
+        if b - a <= 1e-6:
+            continue
+        if out and a <= out[-1][1] + 1e-6:
+            out[-1][1] = max(out[-1][1], b)
+        else:
+            out.append([a, b])
+    return [(a, b) for a, b in out]
+
+
+def _final_coverage(plan: Any, total: float, counts: Dict[str, int]) -> None:
+    if total <= 0:
+        return
+    full = sorted((ly for ly in plan.layers if _opaque(ly)), key=lambda x: x.start)
+    # 1 a clip glimpsed between two graphics: the graphic before it holds instead of a flash
+    for i, a in enumerate(full[:-1]):
+        b = min(full[i + 1:], key=lambda x: x.start)
+        gap = b.start - a.end
+        if 0.04 < gap < FLASH_S and any(sh.start < b.start and sh.end > a.end for sh in plan.shots):
+            mid = fr((a.end + b.start) / 2.0)                         # both graphics share the glimpse: neither runs long or into another scene
+            a.end, b.start = mid, mid
+            counts["flashes_covered"] = counts.get("flashes_covered", 0) + 1
+    # 2 any bare second: hold the piece before it (a card, or the clip when it still has frames), else start the next one earlier
+    shots = sorted(plan.shots, key=lambda x: x.start)
+    covered = _spans_union([(x.start, x.end) for x in shots] + [(ly.start, ly.end) for ly in full])
+    holes, cur = [], 0.0
+    for a, b in covered + [(total, total)]:
+        if a - cur > 0.04:
+            holes.append((cur, min(a, total)))
+        cur = max(cur, b)
+    for h0, h1 in holes:
+        if h1 - h0 > HOLE_HOLD_S:                    # a long stretch is the empty-stretch rule's (motion graphics from the narration), not a hold
+            continue
+        prev_l = max((ly for ly in full if abs(ly.end - h0) < 0.05), key=lambda x: x.end, default=None)
+        prev_s = max((sh for sh in shots if abs(sh.end - h0) < 0.05), key=lambda x: x.end, default=None)
+        next_l = min((ly for ly in full if abs(ly.start - h1) < 0.05), key=lambda x: x.start, default=None)
+        next_s = min((sh for sh in shots if abs(sh.start - h1) < 0.05), key=lambda x: x.start, default=None)
+        if prev_s is not None and (_clip_seconds(prev_s.path) or 0.0) - prev_s.seek >= (h1 - prev_s.start):
+            prev_s.end = fr(h1)
+        elif prev_l is not None and next_l is not None:
+            mid = fr((h0 + h1) / 2.0)
+            prev_l.end, next_l.start = mid, mid
+        elif prev_l is not None:
+            prev_l.end = fr(h1)
+        elif next_l is not None:
+            next_l.start = fr(h0)
+        elif next_s is not None and next_s.seek >= h1 - h0:          # the next clip starts a moment earlier in its own source
+            next_s.seek, next_s.start = round(next_s.seek - (h1 - h0), 3), fr(h0)
+        elif prev_s is not None:                                     # the clip's last frame holds (the renderer clones it) instead of bare plate
+            prev_s.end = fr(h1)
+        elif next_s is not None:
+            next_s.start = fr(h0)
+        else:
+            continue
+        counts["holes_closed"] = counts.get("holes_closed", 0) + 1
+    # 3 footage marks (source chip, badge) only where footage is actually seen
+    seen = [(sh.start, sh.end) for sh in plan.shots]
+    blocked = _spans_union([(ly.start, ly.end) for ly in plan.layers if _opaque(ly)])
+    keep: List[Layer] = []
+    for ly in plan.layers:
+        if ly.kind not in ("status_chip", "kit_badge"):
+            keep.append(ly)
+            continue
+        vis = []
+        for a, b in seen:
+            a, b = max(a, ly.start), min(b, ly.end)
+            for x, y in blocked:                       # minus the graphics drawn over the footage
+                if y <= a or x >= b:
+                    continue
+                if x - a >= 1.0:
+                    vis.append((a, x))
+                a = max(a, y)
+            if b - a >= 1.0:
+                vis.append((a, b))
+        if not vis:
+            counts["orphan_marks"] = counts.get("orphan_marks", 0) + 1
+            continue
+        for a, b in vis:
+            keep.append(Layer(ly.kind, fr(a), fr(b), dict(ly.params or {}), dim=ly.dim))
+    plan.layers[:] = keep

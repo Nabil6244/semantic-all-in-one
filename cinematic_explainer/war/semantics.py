@@ -354,6 +354,17 @@ def _referent(text: str, end: int) -> Tuple[str, str]:
     return " ".join(ref), period
 
 
+_MONTH_RX = r"(?:" + "|".join(MONTHS) + r"|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\.?"
+
+
+def _is_day_of_month(sentence: str, start: int, end: int, val: float) -> bool:
+    if not (1 <= val <= 31 and val == int(val)):
+        return False
+    before, after = sentence[max(0, start - 12):start].lower(), sentence[end:end + 14].lower()
+    return bool(re.search(r"\b" + _MONTH_RX + r"\s+$", before) or re.match(r"(?:st|nd|rd|th)?\s+(?:of\s+)?" + _MONTH_RX + r"\b", after)
+                or re.match(r"(?:st|nd|rd|th)\b", after))
+
+
 def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tuple[int, Tuple[int, int]]]]:
     numbers: List[Number] = []
     years: List[Tuple[int, Tuple[int, int]]] = []
@@ -368,6 +379,8 @@ def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tup
         if not is_pct and not mult and 1900 <= val <= 2099 and "," not in m.group(1) and val == int(val):
             years.append((int(val), span))
             continue
+        if not is_pct and not mult and _is_day_of_month(sentence, m.start(), m.end(), val):
+            continue                      # 'October 26' / '26 October' / '26th' is a date, never a statistic
         unit = "%" if is_pct else ""
         ref, period = _referent(sentence, m.end())
         if not unit:
@@ -617,11 +630,32 @@ def _intro_figure(text: str, ents: Sequence[Entity]) -> Optional[Tuple[Entity, s
         m = re.search(r"\b((?:" + "|".join(ROLE_WORDS) + r")(?:\s+of\s+\w+)?)\s*$", before, flags=re.IGNORECASE)
         if m:
             return e, m.group(1).strip()
+    for e in ents:     # 'Putin claimed ...', 'Zelensky also said ...': the speaker is on screen while the claim is narrated (role from the catalog)
+        if e.kind == "figure" and re.match(r"\s+(?:also\s+|then\s+|again\s+|has\s+|had\s+|now\s+)?(?:" + "|".join(set(SPEECH_VERBS + CLAIM_VERBS))
+                                            + r"|warns|vowed|vows|admitted|admits|denied|denies|promised|threatened)\b", text[e.span[1]:e.span[1] + 30]):
+            return e, ""
     return None
 
 
 _COMP_FROM_TO = re.compile(r"\bfrom\s+(?:about\s+|around\s+|roughly\s+)?(\d[\d,]*(?:\.\d+)?)\s*([A-Za-z%][\w%]*(?:\s+(?:a|per)\s+\w+)?)?\s+to\s+(?:about\s+|around\s+|roughly\s+)?(\d[\d,]*(?:\.\d+)?)\s*([A-Za-z%][\w%]*(?:\s+(?:a|per)\s+\w+)?)?", re.IGNORECASE)
 _COMP_VS = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*([A-Za-z%][\w%]*)?\s*(?:versus|vs\.?|compared (?:with|to)|against)\s+(\d[\d,]*(?:\.\d+)?)\s*([A-Za-z%][\w%]*)?", re.IGNORECASE)
+
+
+_CONTRAST = re.compile(r"\b(?:but|while|whereas|yet|however|compared with|compared to|against|than)\b", re.IGNORECASE)
+
+
+def _contrast_pair(sentence: str, offset: int) -> Optional[Comparison]:
+    """'holds just over 10 percent ..., but ISW assessed it holds 20.4 percent': two figures of the same unit on either side of a contrast
+    word are one comparison (shown side by side), never a lone '10'."""
+    nums, _years = find_numbers(sentence, offset)
+    for i, a in enumerate(nums):
+        for b in nums[i + 1:]:
+            if not a.unit or a.unit.lower() != b.unit.lower() or a.value == b.value:
+                continue
+            between = sentence[a.span[1] - offset:b.span[0] - offset]
+            if _CONTRAST.search(between):
+                return Comparison(kind="versus", a=a, b=b, span=(a.span[0], b.span[1]))
+    return None
 
 
 def _comparison(sentence: str, offset: int) -> Optional[Comparison]:
@@ -645,7 +679,7 @@ def _comparison(sentence: str, offset: int) -> Optional[Comparison]:
         if kind == "from_to" and (a.unit.lower() != b.unit.lower() and u1 and u2):
             continue
         return Comparison(kind=kind, a=a, b=b, span=(offset + m.start(), offset + m.end()))
-    return None
+    return _contrast_pair(sentence, offset)
 
 
 _DATED_CLAUSE = re.compile(r"^(?:In|By|On|Since)\s+((?:\d{1,2}\s+)?(?:(?:" + "|".join(m.capitalize() for m in MONTHS) + r")\s+)?(?:19|20)\d\d)\s*,?\s+(.{8,120})$")

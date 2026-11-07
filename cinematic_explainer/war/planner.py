@@ -436,7 +436,7 @@ def _cands_intro(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
                 e0 = min(e0, fr(hand))
         params = {"name": fig.name, "role": role or S._get(fig.entry, "role", ""), "image": _portrait(ctx, fig), "statement": "", "statement_date": "",
                   "venue": "", "status": "attributed", "source": "", "role_verified": bool(role), "figure_id": fig.id}
-        out.append(Candidate("figure", BASE_SCORE["figure"] - 8 + (4 if fig.subject else 0), f"{fig.name} introduced with a role in the narration",
+        out.append(Candidate("figure", BASE_SCORE["figure"] - 8 + (4 if fig.subject else 0), (f"{fig.name} introduced with a role in the narration" if role else f"{fig.name} speaks or claims in the narration"),
                              start=s0, end=e0, sentence=sent.index, key=f"figure:{fig.id}:intro", params=params))
     elif any(e.kind == "figure" for e in sent.entities) and sent.quote is None:
         names = [e.name for e in sent.entities if e.kind == "figure"]
@@ -489,7 +489,10 @@ def _cands_numbers(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
     value = int(round(n.value)) if n.unit != "%" or abs(n.value - round(n.value)) < 1e-9 else n.value
     label = (n.unit if n.unit != "%" else "") + ((" " + n.period) if n.period else "")
     sub = f"Reported by {claimant}" if claimant else "As stated in the narration"
-    params = {"value": value if isinstance(value, int) and value < 10_000_000 else int(round(n.value)), "prefix": "", "label": label,
+    big = re.search(r"(\d[\d,]*(?:\.\d+)?)\s+(million|billion|trillion)\b", n.raw or "", re.IGNORECASE)
+    if big:                    # '3.7 billion dollars' stays '3.7 BILLION', never 3,700,000,000 (the narration's own short form)
+        value = f"{big.group(1)} {big.group(2).lower()}"
+    params = {"value": value if isinstance(value, str) or (isinstance(value, int) and value < 10_000_000) else int(round(n.value)), "prefix": "", "label": label,
               "sub": sub, "suffix": "%" if n.unit == "%" else "", "colour": "red" if sent.claim or sent.disputed else "yellow", "shown": _fmt_value(n) + ("%" if n.unit == "%" else ""),
               "unit": n.unit, "as_of": _year_text(sent), "claimant": claimant, "status": _stat_status(sent, cfg, claimant)}
     out.append(Candidate("number", BASE_SCORE["number"] + (4 if claimant else 0) + (3 if ctx.has_words else 0),
@@ -952,8 +955,8 @@ class _State:
     def check(self, c: Candidate, start: float, end: float, scene_no: Any, over_footage: bool) -> Tuple[bool, str, str]:
         cfg = self.cfg
         full = c.kind in FULL_FRAME
-        if start < cfg["first_at"] - 1e-9 and over_footage:     # the clean-footage opening only applies when there is footage to keep clean
-            return False, "density", f"nothing before {cfg['first_at']:.0f} s"
+        if start < cfg["first_at"] - 1e-9 and over_footage and c.kind != "figure":   # the clean-footage opening only applies when there is
+            return False, "density", f"nothing before {cfg['first_at']:.0f} s"           # footage to keep clean; a named leader may open (the hook)
         if end > self.total + 1e-9:
             return False, "density", "runs past the end of the video"
         for a in self.acc:
@@ -962,6 +965,8 @@ class _State:
                 gap = cfg["map_gap"]          # a geography scene may walk through several map views; same-kind spacing still applies
             if a.scene_no == scene_no and {a.kind, c.kind} == {"figure", "number"}:
                 gap = 0.3                      # who says it, then what is said: one sequence inside a sentence, not two competing cards
+            if c.kind == "figure" and a.kind != "figure" and start >= a.end - 1e-9:
+                gap = min(gap, 0.3)            # a person named after another card is a cut to that person, not clutter (Zelensky lost to a number 0.5 s earlier)
             if start < a.end + gap and end > a.start - gap:
                 same_scene = a.scene_no == scene_no
                 return False, ("conflict_lost" if same_scene else "density"), (
@@ -1176,7 +1181,7 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
                 continue
             ok = False
             reason_code, why = "density", ""
-            if c.start < cfg["first_at"] - 1e-9 and c.end >= cfg["first_at"] + cfg["min_card_s"] - 1e-9:
+            if c.kind != "figure" and c.start < cfg["first_at"] - 1e-9 and c.end >= cfg["first_at"] + cfg["min_card_s"] - 1e-9:
                 c.start = fr(cfg["first_at"])     # the card waits for the opening seconds to pass instead of being dropped
             for shift in range(0, int(cfg["late_start_s"] * FPS) + 1, 5):
                 s2 = fr(c.start + shift / FPS)

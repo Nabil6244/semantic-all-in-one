@@ -720,7 +720,10 @@ def lay_stat_split(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     img = _canvas()
     lw = 640 if has_panel else 900
     _put(img, _grad(lw + 280, H, True, 165, 0), 0, 0, _fade_in(t, 0.0, 0.4) * 0.85)
-    shown, final = _count_text(p["value"], t, 0.15)
+    v = p["value"]
+    if p.get("prefix") or p.get("suffix"):        # '10' + '%' : the unit is part of the figure (a bare '10' for '10 percent' lost the meaning)
+        v = f"{p.get('prefix') or ''}{(f'{v:,}' if isinstance(v, int) and v >= 1000 else v)}{p.get('suffix') or ''}"
+    shown, final = _count_text(v, t, 0.15)
     size = 250
     while size > 90 and _tw(final, T.font("display", size)) > lw:
         size -= 10

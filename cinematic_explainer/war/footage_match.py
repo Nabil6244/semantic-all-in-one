@@ -121,6 +121,8 @@ class Profile:
     """What a piece of text names. Built once per scene and once per clip."""
 
     def __init__(self, text: str):
+        self.topic: Optional["Profile"] = None
+        self.text = str(text or "")
         self.norm = _norm(text)
         self.words = _words(self.norm)
         self.hits = _catalog_hits(str(text or ""))
@@ -132,8 +134,14 @@ class Profile:
         return {f"{k}:{i}" for k in ("figure", "equipment", "place") for i in self.hits[k]}
 
 
-def narration_profile(text: str) -> Profile:
-    return Profile(text)
+def narration_profile(text: str, topic: Optional[Profile] = None) -> Profile:
+    p = Profile(text)
+    p.topic = topic
+    return p
+
+
+def _in_topic(ids: Set[str], topic: Optional[Profile], kind: str) -> bool:
+    return topic is not None and bool(ids) and ids <= set(topic.hits.get(kind, {}))
 
 
 def score_clip(narr: Profile, meta: Optional[Dict[str, Any]], path: str = "") -> Dict[str, Any]:
@@ -143,7 +151,8 @@ def score_clip(narr: Profile, meta: Optional[Dict[str, Any]], path: str = "") ->
     if not text.strip():
         return {"score": 0.0, "reasons": [], "contradictions": [], "subject_match": False, "informative": False}
     clip = Profile(text)
-    score, reasons, contra = 0.0, [], []
+    topic = getattr(narr, "topic", None)    # the whole script: a clip about the video's own subject (the Kerch bridge, Russia AND Ukraine) is
+    score, reasons, contra = 0.0, [], []    # not contradicted because this one sentence names Moscow or only one side
     subject_match = False
     # equipment: the exact system, or a different named system (contradiction, look-alikes included)
     n_eq, c_eq = set(narr.hits["equipment"]), set(clip.hits["equipment"])
@@ -178,14 +187,14 @@ def score_clip(narr: Profile, meta: Optional[Dict[str, Any]], path: str = "") ->
             score += 0.3
             subject_match = True
             reasons.append("names the same place: " + ", ".join(sorted(narr.hits["place"][i] for i in both)))
-        elif len(c_pl) and not (n_eq & c_eq) and not (n_fi & c_fi):
+        elif len(c_pl) and not (n_eq & c_eq) and not (n_fi & c_fi) and not _in_topic(c_pl, topic, "place"):
             contra.append("clip names " + ", ".join(sorted(clip.hits["place"].values())) + ", the narration " + ", ".join(sorted(narr.hits["place"].values())))
     # countries
     if narr.countries and clip.countries:
         if narr.countries & clip.countries:
             score += 0.1
             reasons.append("same country: " + ", ".join(sorted(narr.countries & clip.countries)))
-        else:
+        elif not (topic is not None and clip.countries <= topic.countries):
             contra.append("clip is about " + ", ".join(sorted(clip.countries)) + ", the narration about " + ", ".join(sorted(narr.countries)))
     # period
     if narr.years and clip.years:
@@ -200,9 +209,33 @@ def score_clip(narr: Profile, meta: Optional[Dict[str, Any]], path: str = "") ->
         k = min(0.2, 0.05 * len(shared))
         score += k
         reasons.append("shared words: " + ", ".join(sorted(shared)[:6]))
+    contra += _graphic_source(meta, narr)
     if contra:
         score = max(0.0, score - 0.4)
     return {"score": round(min(1.0, score), 3), "reasons": reasons, "contradictions": contra, "subject_match": subject_match, "informative": True}
+
+
+# Another channel's map, commentary or 'frontline changes' video is not footage of the event: its own graphics, numbers and logos end up on
+# screen (render 033 opened on 'Putin Claimed 1,301 km². The Map Says ...' while the narration said 6,500). Judged from the clip's own title
+# and channel, no pixels and no model.
+_GRAPHIC_TITLE = re.compile(r"\b(?:the map|maps?|mapped|mapping|map update|frontline changes|front ?line update|territorial (?:changes|control)|"
+                            r"explained|explainer|analysis|debrief|breakdown|infographic|animated|animation|every day|day by day|timelapse)\b", re.IGNORECASE)
+_GRAPHIC_CHANNEL = re.compile(r"(?:mapper|maps?\b|mapping|debrief|analysis|explained|\bisw\b|deepstate|geopolitic)", re.IGNORECASE)
+_AREA = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:km²|km2|sq\.? ?km|square kilomet(?:er|re)s)", re.IGNORECASE)
+
+
+def _graphic_source(meta: Optional[Dict[str, Any]], narr: "Profile") -> List[str]:
+    m = meta if isinstance(meta, dict) else {}
+    title = str(m.get("video_title") or m.get("title") or "")
+    channel = str(m.get("channel") or m.get("author") or "")
+    out: List[str] = []
+    if title and _GRAPHIC_TITLE.search(title) or channel and _GRAPHIC_CHANNEL.search(channel):
+        out.append(f"another channel's map or commentary video ('{title[:60]}', {channel or 'unknown channel'}), not footage of the event")
+    said = {float(x.replace(",", "")) for x in _AREA.findall(narr.text)}
+    shown = {float(x.replace(",", "")) for x in _AREA.findall(title)}
+    if said and shown and not (said & shown):
+        out.append(f"the clip's title gives a different area ({', '.join(f'{v:,.0f}' for v in sorted(shown))} km²) from the narration")
+    return out
 
 
 def classify(meta: Optional[Dict[str, Any]], scored: Dict[str, Any]) -> str:
@@ -276,11 +309,12 @@ def match_scenes(scenes: Sequence[Dict[str, Any]], pool: Optional[Iterable[Any]]
     used_by: Dict[str, str] = {}          # path -> first scene no that used it
     uses: Dict[str, int] = {}             # path -> how many scenes use it so far
     prev_path = ""
+    topic = Profile(" ".join(str(x.get("text") or "") for x in scenes))
     for sc in scenes:
         s = dict(sc)
         no = str(s.get("scene_no", ""))
         try:
-            narr = narration_profile(str(s.get("text") or ""))
+            narr = narration_profile(str(s.get("text") or ""), topic)
             own_path = s.get("footage") or ""
             own_meta = dict(s.get("footage_meta") or {})
             pinned = bool(own_path) and (own_meta.get("user_supplied") or own_meta.get("pinned") or own_meta.get("kind") == "user"
