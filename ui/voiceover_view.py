@@ -188,7 +188,7 @@ def build(view: Any, app: Any) -> None:
               subtitle="Semantic voices: natural narration. The audio is made online at about 2-3x real time, so a 10-minute script takes a few minutes.")
     go.grid(row=3, column=0, sticky="ew", pady=(0, 12))
     view._vo_plan_var = ctk.StringVar(value="")
-    ctk.CTkLabel(go.body, textvariable=view._vo_plan_var, text_color=T.ACCENT, font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
+    ctk.CTkLabel(go.body, textvariable=view._vo_plan_var, text_color=T.ACCENT_TEXT, font=ctk.CTkFont(size=13, weight="bold"), anchor="w",
                  justify="left", wraplength=620).grid(row=0, column=0, sticky="w", pady=(0, 8))
     bar = ctk.CTkFrame(go.body, fg_color="transparent")
     bar.grid(row=1, column=0, sticky="w")
