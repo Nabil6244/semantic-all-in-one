@@ -52,11 +52,25 @@ async function main() {
 
   // ---------------------------------------------------------------- ground
   window.__stage = 'ground';
+  const groundU = { uNeed: { value: 0 }, uUrban: { value: new THREE.Color(cfg.climate && cfg.climate.sand ? 0xc9bda5 : 0xb7ae9c) } };
   {
     const { M, sp, x0, hs, n } = T;
     const pos = new Float32Array(M * M * 18), col = new Float32Array(M * M * 18);
     const L = cfg.climate || {}, c = new THREE.Color(), grassA = new THREE.Color(L.grassA ?? 0x7f9f52), grassB = new THREE.Color(L.grassB ?? 0x9aae5e), dry = new THREE.Color(L.dry ?? 0xb6ad78),
       greenA = new THREE.Color(0x7f9f52), greenB = new THREE.Color(0x9aae5e), built = new THREE.Color(0xb9ae98), rock = new THREE.Color(L.rock ?? 0x9b9583), sand = new THREE.Color(L.sand ?? 0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
+    // Ground that is (or will be) built over: the lowest house rank within ~90 m, so the ground turns urban as the city reaches it.
+    // Parks (land use "green") and water stay as they are.
+    const UB = 64, urbanCell = new Map(), ur = new Float32Array(M * M * 6);
+    if (!REAL) for (let i = 0; i < NL; i++) {
+      const o = i * 11, k = Math.floor(lotsA[o] / UB) * 100003 + Math.floor(lotsA[o + 1] / UB), r = lotsA[o + 6];
+      if (!(urbanCell.get(k) <= r)) urbanCell.set(k, r);
+    }
+    const urbanRank = (x, z) => {
+      let best = 1e9; const ci = Math.floor(x / UB), cj = Math.floor(z / UB);
+      for (let a = ci - 1; a <= ci + 1; a++) for (let b = cj - 1; b <= cj + 1; b++) { const r = urbanCell.get(a * 100003 + b); if (r !== undefined && r < best) best = r; }
+      return best;
+    };
+    let ut = 0;
     let p = 0;
     const put = (i, j) => { pos[p++] = x0 + i * sp; pos[p++] = hs[j * n + i]; pos[p++] = x0 + j * sp; };
     const tri = (a, b, d, k) => {
@@ -77,6 +91,13 @@ async function main() {
         if (slope > 0.55) c.lerp(rock, clamp((slope - 0.55) * 1.2, 0, 0.45));
       }
       c.multiplyScalar(0.94 + r * 0.1);
+      {
+        const cx = x0 + ((a[0] + b[0] + d[0]) / 3) * sp, cz = x0 + ((a[1] + b[1] + d[1]) / 3) * sp;
+        const lc = landCls ? landClassAt(landCls, T.half, cx, cz) : 0;
+        const ok = y >= 1.6 && !bed && lc !== LAND.green;   // land only: not sea, shore sand, river bed or a park
+        const rk = ok && !REAL ? urbanRank(cx, cz) : 1e9;
+        ur[ut++] = rk; ur[ut++] = rk; ur[ut++] = rk;
+      }
       for (let v = 0; v < 3; v++) { col[p - 9 + v * 3] = c.r; col[p - 8 + v * 3] = c.g; col[p - 7 + v * 3] = c.b; }
     };
     for (let j = 0; j < M; j++) for (let i = 0; i < M; i++) {
@@ -88,6 +109,15 @@ async function main() {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     geo.computeVertexNormals();
     let groundMat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+    if (!REAL) {
+      geo.setAttribute('aUrban', new THREE.BufferAttribute(ur, 1));
+      groundMat.onBeforeCompile = (sh) => {
+        sh.uniforms.uNeed = groundU.uNeed; sh.uniforms.uUrban = groundU.uUrban;
+        sh.vertexShader = 'attribute float aUrban; varying float vUrban;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvUrban = aUrban;');
+        sh.fragmentShader = 'uniform float uNeed; uniform vec3 uUrban; varying float vUrban;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+          '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, uUrban, 0.72 * step(vUrban, uNeed));');
+      };
+    }
     if (REAL) {
       // smooth shaded ground. With a ground picture (landuse colours over the dry/green base, or a satellite photo) the
       // picture colours the land; the vertex colours only keep the sea bed and the sand line
@@ -358,7 +388,7 @@ async function main() {
     updateHouses(need, s.year, prevStyle, curStyle, mixK, densityOf(s.pop, s.year));
     updateTrees(need, s.year);
     updateLandmarks(t);
-    roadU.uNeed.value = need;
+    roadU.uNeed.value = need; groundU.uNeed.value = need;
     const ra = styleOf(prevStyle).road, rb = styleOf(curStyle).road;
     roadU.uRoad.value.setHex(ra).lerp(new THREE.Color(rb), mixK);
     waterU.uTime.value = t;

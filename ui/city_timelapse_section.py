@@ -399,6 +399,18 @@ def on_generate(app: Any) -> None:
             _start(app, "city-timelapse-world", lambda: (ct.build_world(wb, progress=_progress(app), cancel=app._ct_cancel.is_set, log=_log(app)), job())[1],
                    after_check)
             return
+        lb = c.get("landuse_build")
+        if lb:      # a world built before land use existed: offer the one small download that colours parks, fields and sand correctly
+            if messagebox.askyesno("Add land use to this city?", f"The world \"{lb['id']}\" was built without land use, so its ground is coloured by guess "
+                                   "(green meadows even in a dense city).\n\nAdd it now? A few MB from OpenStreetMap, downloaded once; "
+                                   "parks and fields stay green, built-up areas turn pale, sand and bare ground stay dry."):
+                app._ct_status_var.set(f"Adding land use to \"{lb['id']}\"…")
+                _start(app, "city-timelapse-landuse", lambda: ct.add_landuse(lb, log=_log(app)), lambda _ok: _plan(app, ct, o, work))
+                return
+            try:
+                ct.skip_landuse(lb["id"])
+            except Exception:  # noqa: BLE001
+                pass
         _plan(app, ct, o, work)
 
     _start(app, "city-timelapse-check", job, after_check)

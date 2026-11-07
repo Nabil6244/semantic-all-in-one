@@ -24,6 +24,21 @@ class RunnerTest(unittest.TestCase):
             self.assertEqual(len(tl["holds"]), p["eras"])
             self.assertTrue(tl["credits"])
 
+    @unittest.skipUnless((HERE / "worlds" / "istanbul" / "meta.json").is_file() and not (HERE / "worlds" / "istanbul" / "landuse_cls.u8").exists(),
+                         "needs a built world without land use")
+    def test_world_without_land_use_offers_it_once(self):
+        marker = HERE / "worlds" / "istanbul" / "landuse_skipped"
+        marker.unlink(missing_ok=True)
+        try:
+            c = runner.check(str(HERE / "samples" / "istanbul_dev.csv"))
+            self.assertEqual(c["errors"], [])
+            self.assertEqual(c["landuse_build"]["id"], "istanbul")
+            self.assertGreater(c["landuse_build"]["size_m"], 1000)
+            runner.skip_landuse("istanbul")                      # the user said no: never asked again
+            self.assertNotIn("landuse_build", runner.check(str(HERE / "samples" / "istanbul_dev.csv")))
+        finally:
+            marker.unlink(missing_ok=True)
+
     def test_missing_world_asks_to_build(self):
         with tempfile.TemporaryDirectory() as d:
             csv = Path(d) / "x.csv"

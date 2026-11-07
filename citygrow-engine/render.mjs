@@ -169,7 +169,7 @@ async function main() {
   catch (e) { emit({ event: 'error', code: e.code || 'PLAN', world: e.worldId, message: e.message }); process.exit(1); }
   const { tl, lots, trees, roads, landmarks, events, warnings, meta, worldDir } = plan;
   for (const w of warnings) emit({ event: 'warning', message: w });
-  emit({ event: 'plan', duration: +tl.duration.toFixed(2), eras: tl.holds.length, lots: lots.length, trees: trees.length, roads: roads.length, landmarks: landmarks.length, plan_ms: Date.now() - t0 });
+  emit({ event: 'plan', world: plan.worldId, landuse: plan.hasLanduse, duration: +tl.duration.toFixed(2), eras: tl.holds.length, lots: lots.length, trees: trees.length, roads: roads.length, landmarks: landmarks.length, plan_ms: Date.now() - t0 });
   const name = path.basename(a.story).replace(/\.csv$/i, '');
   const outDir = a.outdir ? path.resolve(a.outdir) : path.join(HERE, 'out'); fs.mkdirSync(outDir, { recursive: true });
   if (a.plan) {

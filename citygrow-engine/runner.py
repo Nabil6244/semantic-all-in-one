@@ -114,7 +114,43 @@ def check(csv: str, *, cancel=None, log=print) -> dict:
                 res["errors"].append(e.get("message"))
         else:
             res["errors"].append(e.get("message"))
+    p = r.get("plan") or {}
+    if not e and p.get("world") and p.get("landuse") is False and not (HERE / "worlds" / str(p["world"]) / "landuse_skipped").exists():
+        res["landuse_build"] = _landuse_request(str(p["world"]))
     return res
+
+
+def _landuse_request(world_id: str) -> Optional[dict]:
+    """A world built before land use existed: its centre and size, to add land use (parks, fields, sand, built-up: one small OpenStreetMap download)."""
+    try:
+        meta = json.loads((HERE / "worlds" / world_id / "meta.json").read_text(encoding="utf-8"))
+        return {"id": world_id, "center": meta["center"], "size_m": meta["size_m"]}
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def skip_landuse(world_id: str) -> None:
+    """The user said no: do not ask again for this world."""
+    (HERE / "worlds" / world_id / "landuse_skipped").write_text("skipped", encoding="utf-8")
+
+
+def add_landuse(lb: dict, *, log=print) -> bool:
+    """Adds land use to an existing world (DOWNLOADS from OpenStreetMap: call only after the user agreed). True when it worked."""
+    from importlib import util
+    spec = util.spec_from_file_location("ctl_build_real", HERE / "tools" / "build_real.py")
+    real = util.module_from_spec(spec)
+    spec.loader.exec_module(real)
+    wid = str(lb["id"])
+    log(f"{TAG} adding land use to world '{wid}'")
+    w = real.World(wid)
+    res = real.build_landuse(w)
+    ok = "landuse_areas" in res
+    if ok:
+        meta = dict(w.meta, landuse=True)
+        (w.dir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+    else:
+        log(f"{TAG} land use could not be downloaded now; the ground follows the climate rule")
+    return ok
 
 
 def _world_request(csv: str, world_id: str) -> Optional[dict]:
