@@ -86,7 +86,10 @@ export async function runAgentPool({
   onAccountState = () => {}, now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)),
   coolDownMs = agentConfig.coolDownMs, minScenes = agentConfig.minScenes, maxBatch = agentConfig.maxBatch,
   maxChars = agentConfig.maxMessageChars, batchGapMs = agentConfig.batchGapMs, maxRounds = 2, ui = false,
+  startGapMs = agentConfig.startGapMs ?? 0,
 }) {
+  const startOrder = new Map(accounts.map((a, k) => [a.id, k]));   // the k-th account sends its first request k * startGapMs after the first
+  const started = new Set();
   const state = new Map(accounts.map((a) => [a.id, { gone: false, coolUntil: 0, page: null, lastBatchAt: 0 }]));
   const unrun = [];
   let batchesRun = 0;
@@ -139,6 +142,15 @@ export async function runAgentPool({
           if (!workLeft() && busy === 0) return;
           await sleep(1000);
           continue;
+        }
+        if (!started.has(a.id)) {
+          started.add(a.id);
+          const wait = (startOrder.get(a.id) || 0) * Math.max(0, startGapMs);
+          if (wait > 0) {
+            onAccountState(a, "waiting", `starting in ${Math.round(wait / 1000)} s (accounts start one after another)`);
+            await sleep(wait);
+            if (isStopped()) return;
+          }
         }
         const job = nextJob(a);
         if (!job) {

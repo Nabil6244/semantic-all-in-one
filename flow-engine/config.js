@@ -216,6 +216,9 @@ export const agent = {
   stopGraceMs: 30000,       // after Stop, images already made are still downloaded for this long
   downloadParallel: 8,      // agent images downloaded at once per account (4 left a 24-scene batch waiting on CDN; 8 overlaps better)
   coolDownMs: 600000,       // an account Flow asked to slow down gets no new agent batch for this long
+  // Accounts start one after another, this far apart: 4-5 Google accounts sending their first request within 3 s from one machine
+  // was followed by "unusual activity" on 2 of them at the start (owner, 2026-11-07; ledger: accounts 5-8, always the first request).
+  startGapMs: 20000,
 };
 
 /**

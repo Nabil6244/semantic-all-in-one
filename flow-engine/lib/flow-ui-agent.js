@@ -418,6 +418,27 @@ export async function agentStillBusy(page) {
  * (a page call that times out is "busy"), so a slow but working request always keeps its full wait.
  */
 export const NO_ACTIVITY_MS = 90000;
+
+/**
+ * Google's anti-abuse answer shown on the page ("unusual activity"), as the UI and agent modes show it (the API path already reads
+ * PUBLIC_ERROR_UNUSUAL_ACTIVITY). Only text after our own message counts, or a banner / dialog / toast, so an old message further up
+ * the chat never stops a new request.
+ */
+export const UNUSUAL_RX = /unusual (?:activity|traffic)|PUBLIC_ERROR_UNUSUAL|automated (?:queries|requests)/i;
+export function unusualIn({ body = "", alerts = "", marker = "" } = {}) {
+  if (UNUSUAL_RX.test(String(alerts || ""))) return true;
+  const t = String(body || "");
+  const at = marker ? t.lastIndexOf(marker) : -1;
+  return at >= 0 && UNUSUAL_RX.test(t.slice(at + marker.length));
+}
+async function unusualShown(page, marker = "") {
+  const got = await bounded(page.evaluate(() => ({
+    body: document.body?.innerText || "",
+    alerts: [...document.querySelectorAll('[role="alert"], [role="alertdialog"], [role="dialog"], [aria-live], mat-snack-bar-container, .mat-mdc-snack-bar-container')]
+      .map((el) => el.innerText || "").join("\n"),
+  })), PAGE_CALL_TIMEOUT_MS, null);
+  return got ? unusualIn({ ...got, marker }) : false;
+}
 export const REPLY_GROWTH_CHARS = 40;
 export function agentLooksDead({ sinceClickMs, everBusy, tiles, replyGrowth, noActivityMs = NO_ACTIVITY_MS }) {
   if (everBusy || tiles > 0) return false;
@@ -590,6 +611,15 @@ export async function generateAgentBatchViaUI(page, {
       }
     }
 
+    if (await unusualShown(page)) {
+      // Google is already showing "unusual activity" on this account: nothing is pasted, its scenes go to another account.
+      diag.outcome = "unusual_activity";
+      writeUiAgentLog(outputDir, { ...diag, ts: new Date().toISOString(), totalElapsedMs: Date.now() - startedAt });
+      const err = new Error("Flow shows 'unusual activity' on this account (before anything was sent)");
+      err.unusual = true;
+      throw tagSubmission(err, Submission.NOT_SUBMITTED);
+    }
+
     diag.stage = "locating_prompt_editor";
     const editor = page.locator(PROMPT_EDITOR_SELECTOR).first();
     await editor.waitFor({ state: "visible", timeout: 20000 });
@@ -670,6 +700,10 @@ export async function generateAgentBatchViaUI(page, {
           break;
         }
       }
+      if (!ordered.length && Date.now() - diag.generationClickedAt > 3000 && (await unusualShown(page, marker))) {
+        diag.unusual = true;         // Google answered this paste with "unusual activity": nothing will come, hand the scenes on now
+        break;
+      }
       if (ordered.length >= n && !busy) break;
       if (!busy && !ordered.length && Date.now() - diag.generationClickedAt > REFUSAL_GRACE_MS && (await agentRefusals(page, marker)) > 0) {
         diag.refused = true;      // refused in reply to THIS paste and nothing made: stop now, not after the whole timeout
@@ -712,6 +746,8 @@ export async function generateAgentBatchViaUI(page, {
           ? "partial"
           : diag.refused
             ? "refused"
+            : diag.unusual
+              ? "unusual_activity"
             : shouldStop?.()
               ? "stopped"
               : diag.noActivity

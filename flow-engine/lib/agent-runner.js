@@ -96,6 +96,7 @@ export function noPictureAnywhere(diag) {
 }
 
 export const activeAgentScenes = new Map();
+export const UNUSUAL_ON_PAGE = "unusual activity shown on the page";
 
 /** The ledger key of a scene on the agent path (the standard path's identity: generationMode is not part of it). */
 export function agentSceneKey({ prompt, promptKey = null, index = 0, settings = {} }) {
@@ -346,6 +347,11 @@ export async function runAgentSlice(params) {
             emit("status", { message: `${err.message}: sending ${batch.length} scenes as two requests of ${half} and ${batch.length - half}` });
             return;
           }
+          if (sub === Submission.NOT_SUBMITTED && err?.unusual) {
+            coolDown = UNUSUAL_ON_PAGE;
+            emit("status", { message: `Flow shows "unusual activity" on ${label}: its ${batch.length} scene(s) go to other accounts` });
+            return rest(batch, coolDown);
+          }
           if (sub === Submission.NOT_SUBMITTED) return notCreated(batch, LedgerState.FAILED_BEFORE_SUBMISSION, String(err?.message || err));
           if (sub === Submission.REJECTED) return notCreated(batch, LedgerState.REJECTED, String(err?.message || err));
           for (const it of batch) {
@@ -355,6 +361,13 @@ export async function runAgentSlice(params) {
           return;
         }
         const images = uiResult?.images || [];
+        if (!images.length && uiResult?.diag?.outcome === "unusual_activity") {
+          // Google answered the paste with "unusual activity" and no picture appeared: nothing was made. The account rests (cool-down)
+          // and these scenes go to the other accounts now, instead of waiting out the whole reply time.
+          coolDown = UNUSUAL_ON_PAGE;
+          emit("status", { message: `Flow shows "unusual activity" on ${label}: its ${batch.length} scene(s) go to other accounts` });
+          return rest(batch, coolDown);
+        }
         if (!images.length && uiResult?.diag?.outcome === "refused") {
           // Flow refused the whole paste (its policy filter, often over one prompt): nothing was made, so it is safe to send
           // again. Each scene goes through the standard path with its own prompt; only a prompt Flow refuses on its own fails.
