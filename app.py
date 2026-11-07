@@ -502,6 +502,17 @@ SOURCE_BADGE = {
 _UNASSIGNED_BADGE = ("Unassigned", _WARNING, "transparent")
 
 
+def _hydrated_failed_source(rec: dict, scene) -> AssetSource:
+    """The source a failed or cancelled manifest record was fetched from (its own `source`, else the row's), never a blanket Local."""
+    try:
+        return AssetSource(str(rec.get("source") or ""))
+    except ValueError:
+        try:
+            return SceneAssetRouter.classify(scene) or AssetSource.LOCAL
+        except Exception:
+            return AssetSource.LOCAL
+
+
 def _manifest_record_matches_row(rec: dict, scene) -> bool:
     """True when an AssetManifest record was produced for the prompt/query
     this row requests NOW — the same rule AssetManager._cache_hit applies at
@@ -2646,6 +2657,8 @@ class VideoGeneratorApp(ctk.CTk):
                     status=SceneStatus.NEEDS_ACTION,
                     error=str(rec.get("error") or "Previous attempt failed"),
                 )
+                # A reopened failed / cancelled scene keeps the source it was fetched from (a YouTube row read "Local — Cancelled").
+                self._asset_results[key].source = _hydrated_failed_source(rec, scene)
 
     def _sync_primary_cta_overscaled(self) -> None:
         """Overscaled's own, independent branch of the SAME primary-CTA
@@ -12278,6 +12291,17 @@ class VideoGeneratorApp(ctk.CTk):
             if want_local != have_local:
                 self._asset_manager = self._build_asset_manager(images_dir, self._scene_rows)
                 self._asset_manager_local_only = want_local
+        # Retry / Change source / Alternative on a style's Visuals rows use the style's own downloader rules (War Documentary: 8 s YouTube
+        # cuts, no Gemini because its CSV directs). A manager set up for one style is rebuilt when another style is active.
+        style_tag = "war" if getattr(self, "_war_active", False) else ""
+        if self._asset_manager is not None and getattr(self._asset_manager, "_style_tag", "") != style_tag:
+            self._asset_manager = self._build_asset_manager(images_dir, self._scene_rows)
+            self._asset_manager_local_only = bool(self._production_mode_is_local())
+        if self._asset_manager is not None and style_tag == "war":
+            from cinematic_explainer.war import app_section as _war_rules
+            _war_rules.war_manager(self._asset_manager)
+        if self._asset_manager is not None:
+            self._asset_manager._style_tag = style_tag
         # The cached manager's video provider captured the checked accounts
         # when it was built; Retry / Alternatives / Fix All reuse it, so
         # re-read the current checkboxes or accounts unchecked since the last

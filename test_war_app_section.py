@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 _SCRIPT = r'''
 import os, sys, tempfile, time
@@ -447,3 +448,35 @@ class TestStopReachesTheDownload(unittest.TestCase):
     def test_the_app_passes_a_rows_stop_to_the_style_fetch_manager(self):
         src = (Path(__file__).resolve().parent / "app.py").read_text(encoding="utf-8")
         self.assertIn('getattr(self, "_style_fetch_manager", None)', src)
+
+
+class StyleRulesOnRetry(unittest.TestCase):
+    """Ahmed test project (2026-11-08): Retry in the Visuals tab recorded 3.5 s YouTube clips (War needs 8 s) and reopened YouTube rows read
+    'Local — Cancelled'."""
+
+    def test_reopened_failed_scene_keeps_its_source(self):
+        import app as A
+        from providers.base import AssetSource
+
+        row = SimpleNamespace(asset_type="youtube_video", prompt="x", stock=None)
+        self.assertEqual(A._hydrated_failed_source({"status": "failed", "source": "youtube_video"}, row), AssetSource.YOUTUBE_VIDEO)
+
+    def test_retry_manager_gets_war_rules_and_loses_them_after_war(self):
+        import app as A
+        from cinematic_explainer.war.app_section import WAR_YT_CLIP_S
+
+        def build(*_a, **_k):
+            return SimpleNamespace(images_dir=Path(tempfile.gettempdir()), settings={"gemini_enabled": True}, youtube_provider=SimpleNamespace(clip_duration=3.5),
+                                   flow_video_provider=None, flow_image_provider=None, archive_provider=1, nasa_provider=1,
+                                   local_provider=SimpleNamespace(library_dir=None), recovery=SimpleNamespace(skipped=set()))
+
+        fake = SimpleNamespace(_asset_manager=None, _scene_rows=[], _war_active=True, _hydrated_skipped=set(), _build_asset_manager=build,
+                               _production_mode_is_local=lambda: False, _local_assets_dir=lambda: None, _apply_footage_quality=lambda m: None)
+        fake.youtube_provider = None
+        m = A.VideoGeneratorApp._ensure_asset_manager(fake, Path(tempfile.gettempdir()))
+        self.assertEqual(m.youtube_provider.clip_duration, WAR_YT_CLIP_S)
+        self.assertFalse(m.settings["gemini_enabled"])
+        fake._war_active = False
+        m2 = A.VideoGeneratorApp._ensure_asset_manager(fake, Path(tempfile.gettempdir()))
+        self.assertIsNot(m2, m)                                  # rebuilt with the app's own rules
+        self.assertEqual(m2.youtube_provider.clip_duration, 3.5)
