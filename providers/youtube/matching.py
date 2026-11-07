@@ -22,6 +22,7 @@ _STOPWORDS = {
 }
 
 _WORD_RE = re.compile(r"[a-z0-9]+")
+_FULL_SCORE_WINDOWS = 25   # transcript windows that get the fuzzy (difflib) score, picked by word overlap
 
 
 def _tokens(text: str) -> set:
@@ -59,12 +60,22 @@ def best_transcript_match(
     if not query_tokens or not segments:
         return None
 
+    # Word overlap is cheap (sets); the fuzzy ratio is difflib, quadratic in the text. Scoring every window of a long video with difflib
+    # held a YouTube scene for minutes (stall report 2026-11-08), so only the windows with the most shared words get the full score.
+    seg_tokens = [_tokens(s.text) for s in segments]
+    ranked = []
+    for i in range(len(segments)):
+        toks = set().union(*seg_tokens[i:i + window + 1])
+        if toks:
+            ranked.append((len(query_tokens & toks) / len(query_tokens | toks), i, toks))
+    ranked.sort(key=lambda r: (-r[0], r[1]))
+
     best_segment = None
     best_score = min_score
-    for i in range(len(segments)):
+    for _overlap, i, toks in sorted(ranked[:_FULL_SCORE_WINDOWS], key=lambda r: r[1]):
         group = segments[i:i + window + 1]
         combined = " ".join(s.text for s in group)
-        score = _score(query_tokens, query_text, _tokens(combined), combined)
+        score = _score(query_tokens, query_text, toks, combined)
         if score > best_score:
             best_score = score
             best_segment = group[0]

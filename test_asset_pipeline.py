@@ -2250,6 +2250,20 @@ class TestBrowserPlaybackClient(unittest.TestCase):
         self.assertEqual(len(pool._all), 3)
         self.assertEqual(pool.jobs_completed, 7)
 
+    def test_transcript_match_on_a_long_video_is_fast_and_still_finds_the_line(self):
+        """Stall report 2026-11-08: difflib on every window of a long transcript held a YouTube scene for minutes."""
+        from providers.youtube.base import TranscriptSegment
+        from providers.youtube.matching import best_transcript_match
+
+        filler = "today we talk about many different things in the news and what people think about them"
+        segs = [TranscriptSegment(i * 3.0, 3.0, f"{filler} part {i}") for i in range(20000)]
+        segs[15123] = TranscriptSegment(15123 * 3.0, 3.0, "russian missiles struck the power plant near kharkiv overnight")
+        t0 = time.time()
+        m = best_transcript_match(segs, "Russian missiles hit a power plant near Kharkiv overnight, cutting power to the city")
+        self.assertLess(time.time() - t0, 3.0)
+        self.assertIsNotNone(m)
+        self.assertIn(m[0].start, (15122 * 3.0, 15123 * 3.0))     # the window that holds the line
+
     def test_browser_unavailable(self):
         from providers.youtube.acquisition import browser_client as bc
 
