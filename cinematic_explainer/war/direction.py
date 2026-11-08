@@ -35,7 +35,7 @@ from ..render import Layer, Shot
 from . import semantics as S
 
 FPS = 25
-SOFT = {"kicker", "status_chip", "kit_badge", "kit_grain"}          # never block a decoration
+SOFT = {"kicker", "status_chip", "kit_badge", "kit_grain", "bc_source"}          # never block a decoration
 DIM = {"kit_sticker", "kit_scale", "kit_recap", "kit_bignum"}
 MOTIONS = ["push_in", "pan_right", "push_out", "pan_left"]
 
@@ -730,7 +730,9 @@ CSV_GRAPHIC = {"map": "map", "number": "number", "stat": "number", "figure": "nu
                "satellite": "satellite", "before after": "satellite", "before/after": "satellite", "satellite image": "satellite",
                "front line": "map", "frontline": "map", "capture": "map", "advance": "map", "retreat": "map", "territory": "map",
                "locator": "locator", "inset map": "locator", "minimap": "locator", "mini map": "locator",
-               "document page": "article", "strategic": "map", "strategic site": "map"}
+               "document page": "article", "strategic": "map", "strategic site": "map",
+               "label": "bc_label", "keyword": "bc_label", "keyword label": "bc_label", "caption": "bc_caption", "quote box": "bc_caption",
+               "caption box": "bc_caption", "big word": "bc_bigword", "bigword": "bc_bigword", "big figure": "bc_bigword"}
 _PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split"), "equipment": ("equipment", "split"), "speaker": ("figure",),
                   "timeline": ("timeline",), "institution": ("institution",), "source": ("evidence",),
                   "claim": ("evidence", "figure")}   # a leader's claim with no outlet line: the claimant's portrait card carries it
@@ -821,6 +823,31 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             hl_ = (hl[1] if len(hl) > 1 else text).strip().rstrip(".")
             return full("lay_document", {"outlet": m.group(1).strip(), "text": text, "highlight": hl_, "quote": " ".join(hl_.split()[:12])}), ""
         return None, "no named report or outlet"
+    if kind in ("bc_label", "bc_caption", "bc_bigword"):     # broadcast overlays the CSV asks for, from the sentence's own words
+        from . import broadcast as _bc
+
+        for sent in sents:
+            if kind == "bc_label":
+                lab = _bc._label_of(sent, text)
+                if lab:
+                    a = max(r["_start"], A.time_at(lab[1]) - 0.1)
+                    return Layer("bc_label", a, min(r["_end"] + 0.4, a + 2.8), {"text": lab[0], "sub": lab[2]}, dim=False), ""
+            elif kind == "bc_caption":
+                cap = _bc._caption_of(sent, text) or (" ".join(sent.text.split()[:14]) if sent.text else None)
+                if cap:
+                    a = A.time_at(sent.span[0]) + 0.2
+                    return Layer("bc_caption", a, min(r["_end"] + 0.3, a + min(5.0, max(2.6, len(cap.split()) * 0.36))),
+                                 {"text": cap.rstrip("."), "quote": sent.quote is not None}, dim=False), ""
+            else:
+                bw = _bc._bigword_of(sent)
+                if bw:
+                    a = max(r["_start"], A.time_at(bw[2]) - 0.15)
+                    return Layer("bc_bigword", a, min(r["_end"] + 0.3, a + 2.6), {"text": bw[0], "sub": bw[1], "accent": "yellow"}, dim=False), ""
+        if kind == "bc_bigword":
+            h2 = _phrase_or_lead(sents[0].text) if sents else ""
+            if h2:
+                return Layer("bc_bigword", r["_start"] + 0.2, min(r["_end"], r["_start"] + 2.8), {"text": " ".join(h2.split()[:3]), "accent": "yellow"}, dim=False), ""
+        return None, f"the narration has nothing for a {kind[3:]}"
     if kind == "locator":
         for sent in sents:
             from . import maps_tactical as _mt
@@ -1217,9 +1244,10 @@ LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay
                 "lay_logistics"}
 MOTION_KINDS = {"kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords", "kit_title", "kit_datecard", "kit_quote"}
 FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag", "lay_satellite", "lay_document",
-              "kit_chart"} | LAYOUT_KINDS | MOTION_KINDS
+              "kit_chart", "lay_speaker_quote"} | LAYOUT_KINDS | MOTION_KINDS
 FULL_GAP = 1.2
 CORNER_KINDS = {"kit_speaker", "kit_stamp", "kit_tag", "kit_ribbon", "kit_sticker", "kit_flyover", "kit_chips", "map_inset", "kit_flag",
+                "bc_source", "bc_label", "bc_caption", "bc_bigword",
                 "status_chip", "evidence_card", "source_label"}     # cards that sit in a corner or cross the frame: they coexist with a clip
 ICON_GAP = 15.0            # one icon explainer per this many seconds
 COUNTRY_MAP_GAP = 30.0     # a country on its own gets a map again only after this long (Ukraine and Russia are named in every other sentence)
@@ -1719,6 +1747,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 art = _gl.article_of(sent)
                 if art:
                     ka = max(a, st + 0.2)
+                    if r.get("footage"):
+                        art = dict(art, plate=str(r["footage"]), plate_t=1.0)       # the reference's blurred plate: the scene's own clip
                     proposals.append((3, "lay_document", ka, min(b + 1.0, ka + 5.0), art, "article", f"a report cited ({art['outlet']})", False))
             # 4c drones / missiles / aircraft launched or flying: the named system crosses the frame as the words are spoken
             if cfg.get("flyovers", True) and st - last_at.get("kit_flyover", -999) >= 25.0:
@@ -1854,9 +1884,22 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
 
             st_stats["linked_maps"] = _me2.continuity(plan)
         st_stats["hook"] = _story.hook(plan, rows, cfg)
-        for k_, v_ in list(st_stats["rhythm"].items()) + list(st_stats["hook"].items()):
+        if cfg.get("storyline", True):
+            from . import storyline as _sl
+
+            st_stats["roadmap"] = _sl.roadmap(plan, rows, cat)
+            st_stats.update(_sl.callbacks_and_recap(plan, rows, cat))
+            st_stats["flashes"] = _sl.flashes(plan, rows, cat)
+        for k_, v_ in list(st_stats["rhythm"].items()) + list(st_stats["hook"].items()) + [(k, v) for k, v in st_stats.items() if isinstance(v, int)]:
             if v_:
                 counts["story_" + k_] = v_
+    if cfg.get("broadcast", True):                # news-documentary marks on the footage: source tag, keyword label, caption box, big figure
+        from . import broadcast as _bc
+
+        bc = _bc.apply(plan, rows, cfg, cat)
+        for k_, v_ in bc.items():
+            if v_:
+                counts["bc_" + k_] = v_
     full_spans = [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS]
 
     # ---- 9 badges (replace the equivalent old illustrative chip) ---------------------------------------------------------------------
@@ -1887,10 +1930,25 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     hard = [x for x in ribbon_cuts]
     if cfg.get("split_shots", True):
         _split_long_shots(plan, meta_by_start, counts)
+    if cfg.get("story", True) and cfg.get("storyline", True):     # strike lines over fitting footage cut faster (rhythm by meaning)
+        from . import storyline as _sl2
+
+        counts["story_paced"] = _sl2.pace(plan, rows, cat)
+    eng: Dict[str, Any] = {}
+    if cfg.get("engagement", True):               # where would it sag? measured on the plan; slow stretches of fitting footage re-cut
+        from . import engagement as _eng
+
+        eng = _eng.check(plan, rows)
+        if cfg.get("engagement_fix", True):
+            n_fix = _eng.fix(plan, rows, eng)
+            if n_fix:
+                eng = _eng.check(plan, rows)
+                eng["fixed"] = n_fix
+                counts["engagement_fixed"] = n_fix
     _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)))
     _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts)
     counts["empty_stretches"] = len(gap_notes)
-    return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats}
+    return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats, "engagement": eng}
 
 
 # ------------------------------------------------------------------------------------------------ final coverage --------------------

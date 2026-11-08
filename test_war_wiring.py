@@ -50,6 +50,9 @@ CSV_ROWS = [
     ("flyover", "Russia launched dozens of Shahed drones at Kyiv overnight.", "kit_flyover"),
     ("front line", "In February 2024, Russian forces captured Avdiivka after months of fighting.", "tac_map"),
     ("locator", "The strike hit Odesa's port at dawn.", "map_inset"),
+    ("label", "Russia fired 44 Iskander-M missiles overnight.", "bc_label"),
+    ("caption", "Officials said the depot had burned for two full days.", "bc_caption"),
+    ("big word", "America approved 2.1 billion dollars of interceptors.", "bc_bigword"),
 ]
 
 

@@ -294,7 +294,8 @@ class GraphicFloor(unittest.TestCase):
                 self.assertIn(words.lower().split()[0], said)
 
     def test_switch_off(self):
-        self.assertLessEqual(len(self.graphics(self.plan(graphic_floor=False))), 2)
+        # 2026-11-08: the broadcast overlays and the storyline have switches of their own (config "broadcast", "storyline")
+        self.assertLessEqual(len(self.graphics(self.plan(graphic_floor=False, broadcast=False, storyline=False))), 2)
 
 
 class MotionFill(unittest.TestCase):

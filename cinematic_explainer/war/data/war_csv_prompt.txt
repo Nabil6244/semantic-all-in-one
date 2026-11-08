@@ -59,6 +59,9 @@ COLUMNS
     satellite   a before/after satellite comparison; only when you will attach two image files (add an images column: before.jpg|after.jpg)
                 or one image (images column with one file, or asset_type local with a picture)
     locator     a place named over a clip: a small corner map shows where it is while the clip keeps playing
+    label       a figure or a named system spoken over a clip ("44 missiles", "Iskander-M"): a yellow keyword label top-left
+    caption     reported or quoted words over a clip ("officials said ...", "Zelensky warned ..."): a white caption box on the clip
+    big word    a headline figure over a clip ("2.1 billion dollars", "1 percent"): the figure huge on the clip itself
   map rows that say a place was captured, retaken, lost or abandoned, with a date, also show that area changing hands on the map.
   On a footage row (youtube_video, stock_video ...) the graphic is laid OVER the clip: title, date, quote, kinetic, radar, dossier and
   keywords darken the clip and play on top of it; sticker, speaker card, stamp, steps and number sit in a corner or on one side of it;

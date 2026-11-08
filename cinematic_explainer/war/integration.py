@@ -199,7 +199,9 @@ GRAPHIC_NAMES = {"tac_map": "Tactical / political map", "tac_route": "Route map"
                  "lay_equipment_compare": "Equipment compare", "lay_stat_split": "Stat split", "lay_timeline": "Timeline", "lay_claim": "Claim panel",
                  "lay_inset": "Inset caption", "lay_logistics": "Supply chain", "figure_card": "Portrait card", "equipment_card": "Equipment card",
                  "institution_card": "Institution card", "evidence_card": "Source card", "stat_number": "Number card", "stat_compare": "Compare bars",
-                 "timeline": "Timeline (classic)", "split_compare": "Split compare"}
+                 "timeline": "Timeline (classic)", "split_compare": "Split compare", "bc_source": "Source tag", "bc_label": "Keyword label",
+                 "bc_caption": "Caption box", "bc_bigword": "Big word over footage", "lay_speaker_quote": "Speaker quote card",
+                 "fx_flash": "Light flash", "fx_roadmap": "Roadmap words"}
 _INDEX_SKIP = {"kit_grain", "kit_badge", "status_chip", "kicker", "source_label", "shot_headline"}
 
 
@@ -219,6 +221,15 @@ def graphics_index(layers: List[Any]) -> str:
         used[ly.kind] = used.get(ly.kind, 0) + 1
     tot = [f"{GRAPHIC_NAMES.get(k, k)}: {n}" for k, n in sorted(used.items(), key=lambda kv: -kv[1])]
     return "GRAPHICS IN THIS VIDEO (time, graphic, seconds)\n" + "\n".join(lines) + f"\n\n{len(used)} kinds used\n" + "\n".join(tot) + "\n"
+
+
+def preview_engagement(project_dir: str, scenes: List[dict], config: Optional[dict] = None) -> str:
+    """The engagement check for scenes that are ready (after Generate scenes), without rendering: the readable report."""
+    from . import engagement as _eng, planner
+
+    plan = planner.plan(load_scenes(Path(project_dir), scenes, config=config), config=config)
+    rep_e = ((plan.stats or {}).get("direction") or {}).get("engagement")
+    return _eng.text(rep_e) if rep_e else ""
 
 
 def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None, *, match: bool = True, config: Optional[dict] = None,
@@ -375,7 +386,15 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
         if progress_cb:
             progress_cb(0.05 + 0.95 * k, msg)
 
-    res = segments.render_with_fallback(shots, layers, str(out), audio_path=voiceover_path, state_dir=str(state), cancel_check=cancel_check,
+    audio_path = voiceover_path
+    try:                                  # music bed ducked under the voice, sound on the graphics, -14 LUFS master (war/audio.py)
+        from . import audio as _audio
+
+        prog(0.0, "mixing the sound")
+        audio_path = _audio.build_mix(voiceover_path, total_end, layers, str(state / "war_mix.m4a"), config or {})
+    except Exception as exc:  # noqa: BLE001 - the voice alone still makes the film
+        log.warning("sound mix skipped: %s", exc)
+    res = segments.render_with_fallback(shots, layers, str(out), audio_path=audio_path, state_dir=str(state), cancel_check=cancel_check,
                                         progress_cb=prog, workers=workers)
     rep = build_report(sc, plan)
     credit_lines = list(getattr(plan, "credits", []) or [])
@@ -395,6 +414,17 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
             result["credits_path"] = str(cp)
         except OSError as exc:
             log.warning("credits file not written: %s", exc)
+        try:                                  # where the video might sag (war/engagement.py), measured on the plan
+            from . import engagement as _eng
+
+            rep_e = ((getattr(plan, "stats", {}) or {}).get("direction") or {}).get("engagement")
+            if rep_e:
+                ep = out.with_suffix(".engagement.txt")
+                ep.write_text(_eng.text(rep_e), encoding="utf-8")
+                result["engagement_path"] = str(ep)
+                result["engagement"] = rep_e.get("summary")
+        except OSError as exc:
+            log.warning("engagement report not written: %s", exc)
         try:                                  # where every graphic is in the video, so each one in the graphics sheets can be found
             gp = out.with_suffix(".graphics.txt")
             gp.write_text(graphics_index(layers), encoding="utf-8")

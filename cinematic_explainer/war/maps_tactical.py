@@ -1073,6 +1073,7 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         if pl.get("site"):
             sx, sy = view.pt(pl["lat"], pl["lon"])
             ME.draw_site(img, sx, sy, pl["site"], t - pl["start"])
+    _banner_and_inset(img, params, g, view, t)                          # map_events: count banner, round picture of the scene's own clip
     for iso, (fx, fy), fs in flag_marks:
         _map_flag(img, iso, fx, fy - 30, t - fs)
 
@@ -1280,6 +1281,52 @@ def _number_panel(img: Image.Image, spec: dict, t: float) -> Tuple[int, int, int
         ld.text((20, 108), str(spec.get("line", "")), font=fl, fill=(190, 194, 200, 255))
         img.alpha_composite(L.fade(lay, k), (box[0] - int((1 - k) * 40), box[1]))
     return box
+
+
+def _banner_and_inset(img: Image.Image, params: dict, g: Dict[str, Any], view: Any, t: float) -> None:
+    """banner {text, sub, start}: the narration's count big at the top ('1,214 DRONES' / '29 OCTOBER').
+    inset {place, video, at, start}: a round picture of the scene's own clip in a white ring, pinned to the named place by a short line."""
+    bn = params.get("banner") if isinstance(params.get("banner"), dict) else None
+    if bn and t >= float(bn.get("start", 0.6)):
+        k = M.ease_out(M.ramp(t, float(bn.get("start", 0.6)), 0.35))
+        lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        d = ImageDraw.Draw(lay)
+        f, fs = T.font("display", 58), T.font("bold", 22)
+        txt, sub = str(bn.get("text") or "").upper(), str(bn.get("sub") or "").upper()
+        tw = d.textlength(txt, font=f)
+        y = 64 + int(12 * (1 - k))
+        d.text(((W - tw) / 2 + 3, y + 3), txt, font=f, fill=(0, 0, 0, 170))
+        d.text(((W - tw) / 2, y), txt, font=f, fill=(255, 255, 255, 255))
+        if sub:
+            sw = d.textlength(sub, font=fs)
+            d.text(((W - sw) / 2, y + 66), sub, font=fs, fill=(255, 255, 255, 230), stroke_width=2, stroke_fill=(0, 0, 0, 200))
+        img.alpha_composite(L.fade(lay, k))
+    ins = params.get("inset") if isinstance(params.get("inset"), dict) else None
+    if not ins or t < float(ins.get("start", 1.0)):
+        return
+    pl = next((p for p in g["places"] if str(p["name"]).lower() == str(ins.get("place") or "").lower()), g["places"][0] if g["places"] else None)
+    if pl is None:
+        return
+    from . import graphics_lib as GL
+
+    fr_ = GL._still(str(ins.get("video") or ""), float(ins.get("at", 1.0)))
+    if fr_ is None:
+        return
+    k = M.ease_out(M.ramp(t, float(ins.get("start", 1.0)), 0.4))
+    R = int(110 * (0.6 + 0.4 * k))
+    px, py = view.pt(pl["lat"], pl["lon"])
+    cx = int(min(W - R - 30, max(R + 30, px - 190 if px > W / 2 else px + 190)))
+    cy = int(min(H - R - 40, max(R + 90, py - 120)))
+    lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    d.line([(px, py), (cx, cy)], fill=(255, 255, 255, 220), width=3)
+    d.ellipse([cx - R - 6, cy - R - 6, cx + R + 6, cy + R + 6], fill=(255, 255, 255, 255))
+    disc = GL._cover(fr_, 2 * R, 2 * R, 1.0 + 0.05 * k).convert("RGBA")
+    m = Image.new("L", (2 * R, 2 * R), 0)
+    ImageDraw.Draw(m).ellipse([0, 0, 2 * R - 1, 2 * R - 1], fill=255)
+    disc.putalpha(m)
+    lay.alpha_composite(disc, (cx - R, cy - R))
+    img.alpha_composite(L.fade(lay, k))
 
 
 def tac_map(t: float, dur: float, params: dict) -> Optional[Image.Image]:

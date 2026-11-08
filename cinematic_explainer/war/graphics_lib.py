@@ -178,9 +178,11 @@ def _typeset(p: dict) -> Tuple[Image.Image, List[Tuple[str, Tuple[int, int, int,
     y += 24
     title = str(p.get("title") or "").strip()
     if title:
-        for ln in _wrap_px(d, title.upper(), ft, pw - 112)[:3]:
+        for ln in _wrap_px(d, title, ft, pw - 112)[:3]:
+            tw = d.textlength(ln, font=ft)
+            d.rectangle([50, y + 2, 62 + tw, y + 50], fill=(255, 196, 0))      # the reference's yellow headline highlight
             d.text((56, y), ln, font=ft, fill=(20, 20, 24))
-            y += 52
+            y += 54
         y += 16
     lines = []
     for ln in _wrap_px(d, str(p.get("text") or ""), fb, pw - 112)[:16]:
@@ -205,6 +207,62 @@ def _wrap_px(d: ImageDraw.ImageDraw, text: str, f, width: int) -> List[str]:
 
 
 _DESK: List[Image.Image] = []
+_PLATES: "OrderedDict[tuple, Image.Image]" = OrderedDict()
+
+
+_STILLS: "OrderedDict[tuple, Optional[Image.Image]]" = OrderedDict()
+
+
+def _still(video: str, at: float) -> Optional[Image.Image]:
+    """One sharp frame of a clip (cached): the round map inset's picture."""
+    import subprocess
+
+    k = (str(video), round(float(at), 1))
+    if k not in _STILLS:
+        im = None
+        try:
+            r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, float(at)):.2f}", "-i", str(video), "-frames:v", "1", "-vf", "scale=480:-2",
+                                "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True, timeout=60)
+            if r.stdout:
+                import io
+
+                im = Image.open(io.BytesIO(r.stdout)).convert("RGB")
+        except Exception:
+            im = None
+        _STILLS[k] = im
+        while len(_STILLS) > 12:
+            _STILLS.popitem(last=False)
+    return _STILLS[k]
+
+
+def _plate(video: str, at: float) -> Optional[Image.Image]:
+    """The reference's article backdrop: the scene's own clip, one frame, blurred and dimmed, with faint topographic lines and rings."""
+    import subprocess
+
+    k = (str(video), round(float(at), 1))
+    if k in _PLATES:
+        return _PLATES[k]
+    try:
+        r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, float(at)):.2f}", "-i", str(video), "-frames:v", "1", "-vf",
+                            f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"],
+                           capture_output=True, timeout=60)
+        if len(r.stdout) < W * H * 3:
+            return None
+        im = Image.frombytes("RGB", (W, H), r.stdout[:W * H * 3]).filter(ImageFilter.GaussianBlur(14))
+    except Exception:
+        return None
+    im = Image.blend(im, Image.new("RGB", (W, H), (20, 28, 36)), 0.35).convert("RGBA")
+    d = ImageDraw.Draw(im)
+    for i in range(9):                                          # topographic contour lines
+        cx, cy = W * 0.2, H * 0.8
+        rr = 120 + 95 * i
+        d.ellipse([cx - rr * 1.6, cy - rr, cx + rr * 1.6, cy + rr], outline=(255, 255, 255, 26), width=2)
+    for (x, y, rr) in ((90, 160, 34), (1180, 560, 26), (230, 610, 12)):
+        d.ellipse([x - rr, y - rr, x + rr, y + rr], outline=(255, 255, 255, 70), width=2)
+    _PLATES[k] = im
+    while len(_PLATES) > 6:
+        _PLATES.popitem(last=False)
+    return im
 
 
 def _desk() -> Image.Image:
@@ -235,7 +293,8 @@ def lay_document(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         need = 1
         hls = [r for ln, r in lines if words and len(words & set(re.findall(r"\w+", ln.lower()))) >= need]
     # the desk
-    img = _desk().copy()
+    pl = _plate(str(p["plate"]), float(p.get("plate_t", 1.0))) if p.get("plate") else None
+    img = (pl if pl is not None else _desk()).copy()
     # the page: floats in, slight tilt, camera drifts toward the highlight
     k = M.ease_out(M.ramp(t, 0.0, 0.7))
     zoom = 1.0 + 0.10 * M.ease_in_out(M.clamp01(t / max(dur, 0.1)))
@@ -460,7 +519,58 @@ def kit_flyover(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     return img
 
 
-GFX_CARDS = {"lay_satellite": lay_satellite, "lay_document": lay_document, "kit_chart": kit_chart, "kit_flyover": kit_flyover}
+def lay_speaker_quote(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """Black panel, gold NAME and role, the quote typing on word by word (`words_t` when given), a round portrait in a white ring on the
+    right (initials when there is no portrait). The reference's 'official says' card."""
+    p = p or {}
+    name, quote = str(p.get("name") or "").strip(), str(p.get("quote") or "").strip()
+    if not name or not quote:
+        return None
+    img = Image.new("RGBA", (W, H), (14, 14, 16, 255))
+    d = ImageDraw.Draw(img)
+    gold = (232, 178, 64, 255)
+    k = M.ease_out(M.ramp(t, 0.0, 0.5))
+    # portrait circle, partly off the right edge
+    R = 300
+    cx, cy = int(W - 250 + 60 * (1 - k)), H // 2 + 20
+    d.ellipse([cx - R - 14, cy - R - 14, cx + R + 14, cy + R + 14], fill=(236, 236, 236, 255))
+    ph = _load(p.get("portrait"))
+    disc = Image.new("RGBA", (2 * R, 2 * R), (40, 44, 52, 255))
+    if ph is not None:
+        disc = _cover(ph, 2 * R, 2 * R, 1.0 + 0.04 * M.clamp01(t / max(dur, 0.1)), 0.5, 0.35).convert("RGBA")
+    else:
+        dd = ImageDraw.Draw(disc)
+        ini = "".join(w[0] for w in name.split()[:2]).upper()
+        fi = T.font("display", 200)
+        dd.text((R - dd.textlength(ini, font=fi) / 2, R - 120), ini, font=fi, fill=gold)
+    m = Image.new("L", (2 * R, 2 * R), 0)
+    ImageDraw.Draw(m).ellipse([0, 0, 2 * R - 1, 2 * R - 1], fill=255)
+    disc.putalpha(m)
+    img.alpha_composite(disc, (cx - R, cy - R))
+    # text column
+    x0, w0 = 70, 560
+    fn, fr_, fq = T.font("display", 54), T.font("bold", 22), T.font("display", 36)
+    y = 150
+    d.text((x0, y), name.upper(), font=fn, fill=gold)
+    y += 66
+    for ln in _wrap_px(d, str(p.get("role") or "").upper(), fr_, w0)[:2]:
+        d.text((x0, y), ln, font=fr_, fill=gold)
+        y += 28
+    y += 34
+    words = ("“" + quote + "”").upper().split()
+    wt = [float(v) for v in (p.get("words_t") or [])]
+    if len(wt) == len(words):
+        shown = [w_ for w_, tt in zip(words, wt) if tt <= t]
+    else:
+        shown = words[:int(math.ceil(len(words) * M.clamp01((t - 0.5) / max(0.8, min(3.0, 0.22 * len(words))))))]
+    for ln in _wrap_px(d, " ".join(shown), fq, w0)[:6]:
+        d.text((x0, y), ln, font=fq, fill=(245, 245, 245, 255))
+        y += 44
+    return L.fade(img, min(M.ramp(t, 0.0, 0.25), _out(t, dur)))
+
+
+GFX_CARDS = {"lay_satellite": lay_satellite, "lay_document": lay_document, "kit_chart": kit_chart, "kit_flyover": kit_flyover,
+             "lay_speaker_quote": lay_speaker_quote}
 FULL = {"lay_satellite", "lay_document", "kit_chart"}
 
 

@@ -254,7 +254,9 @@ class FootageAttributionTests(unittest.TestCase):
             chips = [ly.params["text"] for ly in plan.layers if ly.kind == "status_chip"]
             badges = [ly.params.get("kind") for ly in plan.layers if ly.kind == "kit_badge"]     # the direction pass shows the same label as a badge
             self.assertTrue("ILLUSTRATIVE FOOTAGE" in chips or "illustrative" in badges)
-            self.assertTrue(any(c.startswith("UNVERIFIED") and "Some Channel" in c for c in chips))
+            srcs = [ly.params["text"] for ly in plan.layers if ly.kind == "bc_source"]          # 2026-11-08: the source sits in the top-right tag
+            self.assertTrue(any(c.startswith("UNVERIFIED") for c in chips))
+            self.assertTrue(any("Some Channel" in c for c in chips + srcs))
             flags = {d.scene_no: d.flags for d in plan.log}
             self.assertIn("footage_generic", flags[1])
             self.assertIn("rights_clearance_needed", flags[2])

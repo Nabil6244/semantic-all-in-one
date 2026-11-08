@@ -408,6 +408,11 @@ def _push_in(p: Dict[str, Any], ev: Dict[str, Any]) -> None:
         p.update({"focus": foc, "focus_times": ft, "close_steps": cs})
 
 
+_COUNT = re.compile(r"\b(\d[\d,]{1,6})\s+(drones|missiles|ballistic missiles|rockets|shells|strikes|attacks)\b", re.IGNORECASE)
+_BDATE = re.compile(r"\b(?:\d{1,2}(?:st|nd|rd|th)?\s+)?(?:january|february|march|april|may|june|july|august|september|october|november|december)"
+                    r"(?:\s+\d{1,2}(?:st|nd|rd|th)?)?(?:,?\s+(?:19|20)\d{2})?\b", re.IGNORECASE)
+
+
 def attach(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: Any) -> Dict[str, Any]:
     """Tactical maps over sentences that state a capture / retreat get the event drawn (and its place pinned). Returns counts."""
     from . import semantics as S
@@ -460,7 +465,25 @@ def attach(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: 
             add = [s for s in site_marks if s["name"].lower() not in names][:3]
             p["places"] = list(p.get("places") or []) + [{"name": s["name"], "kind": "pin", "start": s["start"]} for s in add]
             out["sites"] += len(add)
-        if evs or site_marks:
+        for r in span_rows:                      # the count the narration gives, big over the map; the scene's own clip in a round inset
+            text = str(r.get("text") or "")
+            if not p.get("banner"):
+                m = _COUNT.search(text)
+                if m:
+                    A2 = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
+                    dm = _BDATE.search(text)
+                    p["banner"] = {"text": f"{m.group(1)} {m.group(2)}", "sub": dm.group(0) if dm else "",
+                                   "start": round(max(0.4, A2.time_at(m.start()) - ly.start), 2)}
+                    out["banners"] = out.get("banners", 0) + 1
+            if not p.get("inset") and r.get("footage") and p.get("places"):
+                from .broadcast import _fits
+
+                if _fits(r.get("footage_meta") or {}):
+                    first = p["places"][0]
+                    p["inset"] = {"place": first.get("name") if isinstance(first, dict) else first, "video": str(r["footage"]), "at": 1.5,
+                                  "start": round(max(1.2, float((first.get("start") if isinstance(first, dict) else 0) or 0) + 0.8), 2)}
+                    out["insets"] = out.get("insets", 0) + 1
+        if evs or site_marks or p.get("banner") or p.get("inset"):
             ly.params = p
     return out
 

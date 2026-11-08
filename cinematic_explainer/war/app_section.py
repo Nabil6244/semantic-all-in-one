@@ -721,6 +721,15 @@ def on_render_click(app) -> None:
                 if app._war_cancel.is_set():
                     raise segments.RenderCancelled()
                 if media_only:
+                    try:            # where the video might sag, before anything is rendered (war/engagement.py)
+                        rep = integration.preview_engagement(str(project_dir), scenes)
+                        if rep:
+                            (Path(project_dir) / "state").mkdir(parents=True, exist_ok=True)
+                            (Path(project_dir) / "state" / "war_engagement.txt").write_text(rep, encoding="utf-8")
+                            for ln in rep.splitlines()[:12]:
+                                log(ln)
+                    except Exception as exc:  # noqa: BLE001 - a report never stops Generate scenes
+                        log(f"engagement check skipped: {exc}")
                     return_rows(rows)
                     return
             elif scenes is None:
