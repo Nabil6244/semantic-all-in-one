@@ -16,7 +16,10 @@ from cinematic_explainer.war import planner
 ROOT = Path(__file__).resolve().parent
 FIXTURE = ROOT / "test_fixtures" / "war_plan_guard.json"
 SCENES = ROOT / "test_fixtures" / "war_guard_scenes.csv"
-ALLOWED: dict = {}          # {"variant:kind@start": "why it changed"}
+ALLOWED: dict = {          # {"variant:kind@start": "why it changed"}
+    "csv:kit_title@0.0": "2026-11-08 owner: too much text on the dark plate; CSV title / date / kinetic cards hold at most 4.5 s",
+    "csv:tac_map@6.8": "2026-11-08 the map now starts when the shorter title card ends (same end time)",
+}
 SKIP_KINDS = {"kit_grain"}  # film grain spans the whole timeline and follows the length, not a decision
 
 

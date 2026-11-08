@@ -618,6 +618,52 @@ def _probe_sync(path: Path) -> Tuple[int, float, float, float, float]:
     return int(v.get("nb_read_packets") or 0), f(v, "duration"), f(a, "duration"), f(v, "start_time"), f(a, "start_time")
 
 
+@lru_cache(maxsize=512)
+def _video_probe(path: str, size: int, mtime: float) -> bool:
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=codec_type,width", "-of", "csv=p=0", path],
+                           capture_output=True, text=True, timeout=30)
+        return "video" in r.stdout and r.returncode == 0
+    except Exception:
+        return True                      # ffprobe missing or stuck: never drop footage on a probe failure
+
+
+def has_video(path: str) -> bool:
+    """The file has a real video stream (an MP4 shell of a few hundred bytes has none and stops a render)."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return False
+    if st.st_size < 4096:
+        return False
+    return _video_probe(path, st.st_size, st.st_mtime)
+
+
+def is_empty_container(path: str) -> bool:
+    """A readable media file that holds no video stream (the empty MP4 shell a cut past the source's end leaves). An unreadable file is
+    not judged here (the render-time check handles it)."""
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", path], capture_output=True,
+                           text=True, timeout=30)
+    except Exception:
+        return False
+    return r.returncode == 0 and "video" not in r.stdout
+
+
+def swap_pictureless(shots: Sequence[Shot], backdrop: Optional[str]) -> List[Shot]:
+    """Shots whose clip has no picture play the backdrop instead (their graphics stay), so one empty download never stops the render."""
+    if not backdrop or not os.path.isfile(backdrop):
+        return list(shots)
+    out = []
+    for s in shots:
+        if s.path and os.path.isfile(s.path) and not has_video(s.path):
+            log.warning("clip %s has no picture: the backdrop plays there", Path(s.path).name)
+            out.append(dataclasses.replace(s, path=backdrop, seek=s.start % 20.0, treat=None, dissolve_in=0.0))
+        else:
+            out.append(s)
+    return out
+
+
 def validate_inputs(shots: Sequence[Shot]) -> None:
     for s in shots:
         if not s.path or not Path(s.path).is_file():
@@ -631,10 +677,12 @@ def validate_inputs(shots: Sequence[Shot]) -> None:
 def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, audio_path: Optional[str] = None,
                      state_dir: Optional[str] = None, cancel_check: Optional[Callable[[], bool]] = None,
                      progress_cb: Optional[Callable[[float, str], None]] = None, workers: Optional[int] = None, codec: str = "x264",
-                     temp_dir: Optional[str] = None) -> Dict[str, Any]:
-    """Render shots + layers to out_path. Raises RenderCancelled / MissingInput / RenderError. Never leaves a temp folder behind."""
+                     temp_dir: Optional[str] = None, audio_fallback: Optional[str] = None, backdrop_path: Optional[str] = None) -> Dict[str, Any]:
+    """Render shots + layers to out_path. Raises RenderCancelled / MissingInput / RenderError. Never leaves a temp folder behind.
+    audio_fallback: the plain voiceover, used when the mixed sound (audio_path) fails a check. backdrop_path: the plate a piece falls back to."""
     t_start = time.time()
     cancel = cancel_check or (lambda: False)
+    shots = swap_pictureless(shots, backdrop_path)
     validate_inputs(shots)
     pieces = plan_pieces(shots, layers)
     if not pieces:
@@ -657,6 +705,7 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
     procs: "set[subprocess.Popen]" = set()
     procs_lock = threading.Lock()
     hits = misses = 0
+    retried: List[int] = []
     done = [0]
     lock = threading.Lock()
     ext = "mkv" if codec == "ffv1" else "mp4"
@@ -678,7 +727,24 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
                     done[0] += p.frames
                 _progress()
                 return
-        _render_piece(p, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
+        try:
+            _render_piece(p, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
+        except RenderCancelled:
+            raise
+        except RenderError as exc:                  # one awkward clip never costs the whole film its graphics: simpler, then the backdrop
+            simple = dataclasses.replace(p, treat=None, dissolve=0.0)
+            log.warning("piece %d failed (%s); retrying as a plain cut", p.index, str(exc)[-200:])
+            try:
+                _render_piece(simple, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
+            except RenderError as exc2:
+                plate = backdrop_path or ""
+                if not plate or not os.path.isfile(plate):
+                    raise
+                log.warning("piece %d failed again (%s); its graphics play over the backdrop", p.index, str(exc2)[-200:])
+                _render_piece(dataclasses.replace(simple, path=plate, seek=(p.f0 / FPS) % 20.0), layers, out, codec, cards, cancel, errors,
+                              procs, procs_lock, stats)
+            with lock:
+                retried.append(p.index)
         if cache:
             cache.put(skey, key, out)
         with lock:
@@ -717,6 +783,12 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
             _mux_audio(joined, audio_path, part, duration)
         else:
             shutil.copy2(joined, part)
+        if audio_path and audio_fallback and audio_fallback != audio_path:
+            frames_chk, v_chk, a_chk, vs_chk, as_chk = _probe_sync(part)
+            if not a_chk or abs(a_chk - v_chk) > 1.0 / FPS or abs(vs_chk) > 1e-3 or abs(as_chk) > 1e-3:
+                log.warning("mixed sound out of step with the picture; using the plain voiceover")
+                _mux_audio(joined, audio_fallback, part, duration)
+                audio_path = audio_fallback
         got = _probe_duration(part)
         if got and abs(got - duration) > 2.5 / FPS:
             raise RenderError(f"output duration {got:.3f}s differs from the plan {duration:.3f}s")
@@ -728,7 +800,7 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
         os.replace(part, final)
         result = {"ok": True, "out": str(final), "frames": total_frames, "duration_s": duration, "segments": len(pieces),
                   "cache_hits": hits, "cache_misses": misses, "workers": n_workers, "reused_frames": int(stats.get("reused_frames", 0)),
-                  "card_errors": list(errors), "fallback": False, "seconds": time.time() - t_start}
+                  "card_errors": list(errors), "fallback": False, "seconds": time.time() - t_start, "retried_pieces": sorted(retried)}
     finally:
         shutil.rmtree(work, ignore_errors=True)
         try:
@@ -741,6 +813,7 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
 def render_with_fallback(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, **kw: Any) -> Dict[str, Any]:
     """Segmented render; if it fails for a reason other than cancel or missing footage, the Phase 1 single-graph renderer is used with the
     layers it can draw (its card kinds), and the result says so. Memory-heavy on long videos: that is why it is only the fallback."""
+    shots = swap_pictureless(shots, kw.get("backdrop_path"))          # an empty download stops neither renderer
     try:
         return render_segmented(shots, layers, out_path, **kw)
     except (RenderCancelled, MissingInput):
@@ -749,10 +822,20 @@ def render_with_fallback(shots: Sequence[Shot], layers: Sequence[Layer], out_pat
         log.error("segmented render failed (%s); falling back to the Phase 1 renderer", exc)
         from ..render import render as phase1_render
 
-        known = set(_phase1_cards.CARDS)
-        usable = [ly for ly in layers if ly.kind in known]
+        table = all_cards()                          # the War cards too: a fallback film keeps its graphics
+        usable = [ly for ly in layers if ly.kind in table]
         skipped = len(layers) - len(usable)
         t0 = time.time()
-        stats = phase1_render(list(shots), usable, out_path)
+        audio = kw.get("audio_fallback") or kw.get("audio_path")
+        silent = out_path + ".silent.mp4" if audio else out_path
+        stats = phase1_render(list(shots), usable, silent, card_table=table)
+        if audio:                                    # the narration is attached here too (the Phase 1 renderer writes picture only)
+            try:
+                _mux_audio(Path(silent), str(audio), Path(out_path), shots[-1].end)
+            finally:
+                try:
+                    os.remove(silent)
+                except OSError:
+                    pass
         return {"ok": True, "out": out_path, "frames": stats.get("frames"), "fallback": True, "fallback_reason": str(exc)[-300:],
                 "skipped_layers": skipped, "seconds": time.time() - t0}

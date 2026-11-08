@@ -109,7 +109,7 @@ def read_scenes_csv(path: str) -> List[dict]:
         sc: Dict[str, Any] = {"text": text}
         no = (r.get(no_col) or "").strip() if no_col else ""
         sc["scene_no"] = int(no) if no.isdigit() else len(out) + 1
-        for key in ("asset_type", "prompt", "footage", "graphic", "images"):
+        for key in ("asset_type", "prompt", "footage", "graphic", "images", "stock"):
             if key in cols and (r.get(cols[key]) or "").strip():
                 sc[key] = r[cols[key]].strip()
         if start_col and end_col and (r.get(start_col) or "").strip() and (r.get(end_col) or "").strip():
@@ -156,6 +156,12 @@ WAR_YT_CLIP_S = 8.0               # War scenes run 5-10 s and are cut into 3-6 s
 def war_manager(manager: Any) -> Any:
     """The app's AssetManager set up for War Documentary: no Gemini (the CSV directs), YouTube cuts long enough for a scene."""
     manager.settings["gemini_enabled"] = False
+    try:                                   # archive_video rows: the CSV's own searches, relevant clips only, in parallel (war/archive_fast.py)
+        from . import archive_fast
+
+        archive_fast.install(manager)
+    except Exception:  # noqa: BLE001 - the shared archive search still works
+        pass
     yp = getattr(manager, "youtube_provider", None)
     if yp is not None and float(getattr(yp, "clip_duration", 0.0) or 0.0) < WAR_YT_CLIP_S:
         yp.clip_duration = WAR_YT_CLIP_S
@@ -178,9 +184,87 @@ def csv_rows(scenes: List[dict]) -> List[Any]:
                 prompt = " || ".join(q.strip() + " footage" for q in prompt.split("||") if q.strip())   # news footage, not a studio interview
             if at in AI_TYPES and prompt and AI_LOOK not in prompt:
                 prompt = f"{prompt.rstrip('. ')}. {AI_LOOK}"         # every AI clip in the same documentary look
-            rows.append(SceneRow.from_csv_row({"scene_number": str(sc.get("scene_no")), "script_segment": str(sc.get("text") or ""),
-                                               "asset_type": at, "prompt": prompt}))
+            row = SceneRow.from_csv_row({"scene_number": str(sc.get("scene_no")), "script_segment": str(sc.get("text") or ""),
+                                         "asset_type": at, "prompt": prompt})
+            if at in STOCK_FALLBACK_TYPES:              # nothing real found: archive -> YouTube (HD re-uploads of the same newsreels) -> stock
+                fb = list(getattr(row, "fallbacks", None) or [])
+                if at == "archive_video":
+                    fb.append("youtube_video")
+                sq = str(sc.get("stock") or "").strip() or stock_query_for(prompt, str(sc.get("text") or ""))
+                if sq:
+                    row.stock = sq
+                    fb.append("stock_video")
+                row.fallbacks = fb
+            rows.append(row)
     return rows
+
+
+STOCK_FALLBACK_TYPES = ("youtube_video", "archive_video", "nasa_video")
+_STOCK_STOP = {"the", "a", "an", "of", "in", "on", "at", "and", "or", "to", "for", "by", "with", "from", "into", "as", "is", "was", "that",
+               "this", "then", "footage", "archive", "archival", "video", "film", "clip", "newsreel", "historical", "history", "documentary",
+               "real", "rare", "original", "hd", "4k", "battle", "war", "operation", "offensive", "counteroffensive", "advance", "invasion",
+               "army", "sixth", "front", "eastern", "western", "soviet", "german", "russian", "ukrainian", "american", "british", "red"}
+_STOCK_GOOD = re.compile(r"\b(ruins?|smoke|fire|snow|winter|soldiers?|troops|tanks?|aircraft|planes?|river|bridge|factory|city|street|"
+                         r"ships?|boats?|explosions?|artillery|trenches?|prisoners?|crowd|refugees?|sniper|rifle|map|missiles?|drones?|"
+                         r"railway|train|convoy|trucks?|night|sky|clouds?|fields?|forest|steppe|rubble|buildings?|flag|helmet)\b", re.IGNORECASE)
+
+
+def stock_query_for(prompt: str, text: str = "") -> str:
+    """A plain stock search (2-3 words, no names, no dates) for the subject the CSV searched for: 'Stalingrad 1942 city ruins Volga' ->
+    'city ruins'; 'German soldiers Stalingrad winter starvation' -> 'soldiers winter'. Stock sites have no Stalingrad: they have the shot."""
+    words: List[str] = []
+    for q in [x for x in re.split(r"\|\|", prompt or "") if x.strip()] + [text]:
+        for w in re.findall(r"[A-Za-z][A-Za-z'-]+", q):
+            lw = w.lower()
+            if w[0].isupper() and lw not in ("soldiers", "snow", "winter"):
+                continue                                         # a name (Stalingrad, Volga, Luftwaffe): no stock site has it
+            if lw in _STOCK_STOP or len(lw) < 4 or lw in words:
+                continue
+            if _STOCK_GOOD.search(lw):
+                words.append(lw)
+        if len(words) >= 2:
+            break
+    return " ".join(words[:3])
+
+
+def audit_held(images_dir: Path, rows: List[Any], log=lambda m: None) -> List[str]:
+    """Clips the Visuals table holds for archive / YouTube rows that cannot be footage of their scene: an empty file, an archive item that
+    fails War's relevance or period check (fetched by the old search), or a credit roll / black cut. Their records are marked failed, so
+    this Generate fetches them again. A clip the user picked (Change source, local file) is never touched."""
+    from asset_manager import AssetManifest
+    from . import archive_fast as AF
+    from .segments import is_empty_container
+
+    if not Path(images_dir).is_dir():
+        return []
+    man = AssetManifest(Path(images_dir))
+    redo: List[str] = []
+    for r in rows:
+        if r.asset_type not in ("archive_video", "youtube_video", "video") or r.asset_type == "video":
+            continue
+        no = str(r.scene_number)
+        rec = man.get(no) or {}
+        if str(rec.get("status") or "").lower() not in ("complete", "ready", "done") or rec.get("user_override") or rec.get("source") == "manual":
+            continue
+        path = str(rec.get("local_path") or "")
+        why = ""
+        if path and Path(path).is_file() and is_empty_container(path):
+            why = "empty file"
+        elif str(rec.get("provider") or rec.get("source") or "").startswith("archive"):
+            queries = AF.csv_queries(r)
+            names, plain = AF.key_terms(queries)
+            cand = AF.ArchiveCandidate(identifier=str(rec.get("provider_asset_id") or ""), title=str(rec.get("title") or rec.get("video_title") or ""),
+                                       description="")
+            if rec.get("selection_method") != "war_relevance" and AF.relevance(cand, names, plain, AF.query_years(queries)) <= 0:
+                why = f"off-topic archive item ({cand.title[:60]})"
+            elif path and Path(path).is_file():
+                why = AF.frame_problem(path)
+        if why:
+            rec = dict(rec, status="failed", error=f"War clip check: {why}")
+            man.set(no, rec)
+            log(f"scene {no}: {why}: fetching again")
+            redo.append(no)
+    return redo
 
 
 def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_AI_CAP) -> Dict[str, Any]:
@@ -212,6 +296,13 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     from . import integration
 
     rows = csv_rows(scenes)
+    if fetch:
+        try:                    # clips already in the table that are not footage of the scene are fetched again (the user's own picks stay)
+            redo = audit_held(images_dir, rows, log)
+            if redo:
+                log(f"Re-fetching {len(redo)} clip(s) that do not show their scene: scenes {', '.join(redo)}")
+        except Exception as exc:  # noqa: BLE001 - an audit never stops Generate scenes
+            log(f"clip check skipped: {exc}")
     over = set(ai_plan(scenes, images_dir, ai_cap)["over"])
     if over:
         log(f"AI clip limit {ai_cap} reached: scenes {', '.join(sorted(over, key=lambda x: int(x) if x.isdigit() else 0))} use the map or cards instead")
@@ -763,9 +854,14 @@ def on_render_click(app) -> None:
             elif result:
                 n = len(result.get("plan_log") or [])
                 msg = f"Done: {out_path.name} ({n} scenes planned"
-                if result.get("render", {}).get("fallback"):
+                rr = result.get("render", {}) or {}
+                if rr.get("fallback"):
                     msg += "; used the fallback renderer"
+                if rr.get("retried_pieces"):
+                    msg += f"; {len(rr['retried_pieces'])} piece(s) re-rendered plainly"
                 msg += ")"
+                if rr.get("fallback_reason"):           # why the main renderer stopped, so it can be fixed (it is also in the plan report)
+                    app._append_log(f"{TAG} fallback reason: {str(rr['fallback_reason'])[-300:]}\n")
                 app._war_status_var.set(msg)
                 app._append_log(f"{TAG} {msg}; plan report: {result.get('report_path')}\n")
                 gfx = result.get("graphics") or {}

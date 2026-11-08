@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image
 
@@ -92,20 +92,25 @@ def filter_graph(shots: Sequence[Shot], layers: Sequence[Layer]) -> str:
     return ";\n".join(p for p in parts if p)
 
 
-def _frame_bytes(t: float, layers: Sequence[Layer], blank: bytes) -> Tuple[bytes, int]:
+def _frame_bytes(t: float, layers: Sequence[Layer], blank: bytes, table: Optional[Dict[str, Any]] = None) -> Tuple[bytes, int]:
     active = [ly for ly in layers if ly.start <= t < ly.end]
     if not active:
         return blank, 0
     img = L.blank()
     for ly in active:
-        fn = cards.CARDS[ly.kind]
-        out = fn(t - ly.start, ly.end - ly.start, ly.params)
+        fn = (table or cards.CARDS).get(ly.kind)
+        if fn is None:
+            continue
+        try:
+            out = fn(t - ly.start, ly.end - ly.start, ly.params)
+        except Exception:      # one card that fails never stops the film (the segmented War renderer does the same)
+            out = None
         if out is not None:
             img = Image.alpha_composite(img, out)
     return img.tobytes(), len(active)
 
 
-def render(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, crf: int = 20) -> Dict[str, float]:
+def render(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, crf: int = 20, card_table: Optional[Dict[str, Any]] = None) -> Dict[str, float]:
     """Render the timeline. Returns timing stats {frames, seconds, fps_render, card_frames}."""
     import time
 
@@ -128,7 +133,7 @@ def render(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, crf
     try:
         assert proc.stdin is not None
         for f in range(frames):
-            data, n = _frame_bytes(f / FPS, layers, blank)
+            data, n = _frame_bytes(f / FPS, layers, blank, card_table)
             card_frames += 1 if n else 0
             proc.stdin.write(data)
         proc.stdin.close()

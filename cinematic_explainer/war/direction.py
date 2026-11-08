@@ -737,6 +737,8 @@ _PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split
                   "timeline": ("timeline",), "institution": ("institution",), "source": ("evidence",),
                   "claim": ("evidence", "figure")}   # a leader's claim with no outlet line: the claimant's portrait card carries it
 CSV_MAX_S, CSV_MIN_S = 8.0, 3.0
+TEXT_CARD_KINDS = {"kit_title", "kit_datecard", "kit_kinetic", "kit_keywords"}
+TEXT_CARD_MAX_S = 4.5
 
 
 def _planner_layer(r: Dict[str, Any], cfg: Dict[str, Any], cat: Any, want: Sequence[str]) -> Optional[Layer]:
@@ -1088,6 +1090,8 @@ def _csv_graphics(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any]
         st, en = r["_start"], r["_end"]
         a = fr(max(st, min(ly.start, en - CSV_MIN_S)))
         b = fr(min(max(ly.end, a + CSV_MIN_S), max(en, a + CSV_MIN_S), a + CSV_MAX_S))     # never into the next scene (its own graphic)
+        if ly.kind in TEXT_CARD_KINDS:            # a title / date / kinetic line lands and goes: the reference never holds type 6-8 s
+            b = fr(min(b, a + TEXT_CARD_MAX_S))
         ly.start, ly.end = a, b
         ly.params = dict(ly.params or {}, csv_graphic=True)
         if ly.kind in MOTION_KINDS and dec is not None and "no_footage" not in dec.flags:

@@ -509,7 +509,9 @@
     "St Petersburg",
     "Saint Petersburg",
     "St. Petersburg",
-    "Санкт-Петербург"
+    "Санкт-Петербург",
+    "Leningrad",
+    "Petrograd"
    ],
    "lat": 59.93,
    "lon": 30.34,
@@ -643,6 +645,361 @@
    "type": "country",
    "region": "",
    "approximate": true
+  },
+  {
+   "id": "stalingrad",
+   "name": "Stalingrad",
+   "aliases": [
+    "Stalingrad",
+    "Volgograd",
+    "Tsaritsyn"
+   ],
+   "lat": 48.71,
+   "lon": 44.51,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "kalach",
+   "name": "Kalach-na-Donu",
+   "aliases": [
+    "Kalach",
+    "Kalach-na-Donu",
+    "Kalach on the Don"
+   ],
+   "lat": 48.69,
+   "lon": 43.53,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "smolensk",
+   "name": "Smolensk",
+   "aliases": [
+    "Smolensk"
+   ],
+   "lat": 54.78,
+   "lon": 32.05,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "vyazma",
+   "name": "Vyazma",
+   "aliases": [
+    "Vyazma"
+   ],
+   "lat": 55.21,
+   "lon": 34.29,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "rzhev",
+   "name": "Rzhev",
+   "aliases": [
+    "Rzhev"
+   ],
+   "lat": 56.26,
+   "lon": 34.33,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "oryol",
+   "name": "Oryol",
+   "aliases": [
+    "Oryol",
+    "Orel"
+   ],
+   "lat": 52.97,
+   "lon": 36.06,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "prokhorovka",
+   "name": "Prokhorovka",
+   "aliases": [
+    "Prokhorovka"
+   ],
+   "lat": 51.04,
+   "lon": 36.73,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "konigsberg",
+   "name": "Königsberg",
+   "aliases": [
+    "Königsberg",
+    "Konigsberg"
+   ],
+   "lat": 54.71,
+   "lon": 20.51,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "gdansk",
+   "name": "Gdańsk",
+   "aliases": [
+    "Gdańsk",
+    "Gdansk",
+    "Danzig"
+   ],
+   "lat": 54.35,
+   "lon": 18.65,
+   "type": "city",
+   "region": "Poland",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "normandy",
+   "name": "Normandy beaches",
+   "aliases": [
+    "Normandy",
+    "Omaha Beach",
+    "Utah Beach",
+    "Juno Beach",
+    "Sword Beach",
+    "Gold Beach"
+   ],
+   "lat": 49.37,
+   "lon": -0.88,
+   "type": "site",
+   "region": "France",
+   "approximate": true,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "dunkirk",
+   "name": "Dunkirk",
+   "aliases": [
+    "Dunkirk",
+    "Dunkerque"
+   ],
+   "lat": 51.03,
+   "lon": 2.38,
+   "type": "city",
+   "region": "France",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "paris",
+   "name": "Paris",
+   "aliases": [
+    "Paris"
+   ],
+   "lat": 48.86,
+   "lon": 2.35,
+   "type": "city",
+   "region": "France",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "london",
+   "name": "London",
+   "aliases": [
+    "London"
+   ],
+   "lat": 51.51,
+   "lon": -0.13,
+   "type": "city",
+   "region": "United Kingdom",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "el_alamein",
+   "name": "El Alamein",
+   "aliases": [
+    "El Alamein",
+    "Alamein"
+   ],
+   "lat": 30.83,
+   "lon": 28.95,
+   "type": "city",
+   "region": "Egypt",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "tobruk",
+   "name": "Tobruk",
+   "aliases": [
+    "Tobruk"
+   ],
+   "lat": 32.08,
+   "lon": 23.96,
+   "type": "city",
+   "region": "Libya",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "anzio",
+   "name": "Anzio",
+   "aliases": [
+    "Anzio"
+   ],
+   "lat": 41.45,
+   "lon": 12.63,
+   "type": "city",
+   "region": "Italy",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "arnhem",
+   "name": "Arnhem",
+   "aliases": [
+    "Arnhem"
+   ],
+   "lat": 51.98,
+   "lon": 5.91,
+   "type": "city",
+   "region": "Netherlands",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "bastogne",
+   "name": "Bastogne",
+   "aliases": [
+    "Bastogne"
+   ],
+   "lat": 50.0,
+   "lon": 5.72,
+   "type": "city",
+   "region": "Belgium",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "dresden",
+   "name": "Dresden",
+   "aliases": [
+    "Dresden"
+   ],
+   "lat": 51.05,
+   "lon": 13.74,
+   "type": "city",
+   "region": "Germany",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "hamburg",
+   "name": "Hamburg",
+   "aliases": [
+    "Hamburg"
+   ],
+   "lat": 53.55,
+   "lon": 9.99,
+   "type": "city",
+   "region": "Germany",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "prague",
+   "name": "Prague",
+   "aliases": [
+    "Prague",
+    "Praha"
+   ],
+   "lat": 50.08,
+   "lon": 14.44,
+   "type": "city",
+   "region": "Czechia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "vienna",
+   "name": "Vienna",
+   "aliases": [
+    "Vienna",
+    "Wien"
+   ],
+   "lat": 48.21,
+   "lon": 16.37,
+   "type": "city",
+   "region": "Austria",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "budapest",
+   "name": "Budapest",
+   "aliases": [
+    "Budapest"
+   ],
+   "lat": 47.5,
+   "lon": 19.04,
+   "type": "city",
+   "region": "Hungary",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "belgrade",
+   "name": "Belgrade",
+   "aliases": [
+    "Belgrade"
+   ],
+   "lat": 44.79,
+   "lon": 20.45,
+   "type": "city",
+   "region": "Serbia",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "athens",
+   "name": "Athens",
+   "aliases": [
+    "Athens"
+   ],
+   "lat": 37.98,
+   "lon": 23.73,
+   "type": "city",
+   "region": "Greece",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "rome",
+   "name": "Rome",
+   "aliases": [
+    "Rome"
+   ],
+   "lat": 41.9,
+   "lon": 12.5,
+   "type": "city",
+   "region": "Italy",
+   "approximate": false,
+   "note": "historical / world place, public coordinates rounded"
   }
  ]
 }

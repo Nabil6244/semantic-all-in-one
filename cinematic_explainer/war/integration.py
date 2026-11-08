@@ -103,6 +103,10 @@ def footage_from_record(rec: dict, project_dir: Path) -> "tuple[Optional[str], s
         return (clip, "") if clip else (None, "still image could not be turned into a clip")
     if p.suffix.lower() not in _VIDEO_SUFFIX:
         return None, f"unsupported file type {p.suffix}"
+    from .segments import is_empty_container
+
+    if is_empty_container(str(p)):   # an empty MP4 shell (a cut asked past the source's end): no picture, so no footage
+        return None, "downloaded file has no picture"
     return str(p), ""
 
 
@@ -380,7 +384,8 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
     from . import backdrop as _bd
 
     total_end = max([float(x.get("end") or 0.0) for x in sc] + [0.0])
-    shots = _bd.fill_gaps(shots, total_end, _bd.ensure_backdrop(state))
+    plate_path = _bd.ensure_backdrop(state)
+    shots = _bd.fill_gaps(shots, total_end, plate_path)
 
     def prog(k: float, msg: str) -> None:
         if progress_cb:
@@ -394,7 +399,8 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
         audio_path = _audio.build_mix(voiceover_path, total_end, layers, str(state / "war_mix.m4a"), config or {})
     except Exception as exc:  # noqa: BLE001 - the voice alone still makes the film
         log.warning("sound mix skipped: %s", exc)
-    res = segments.render_with_fallback(shots, layers, str(out), audio_path=audio_path, state_dir=str(state), cancel_check=cancel_check,
+    res = segments.render_with_fallback(shots, layers, str(out), audio_path=audio_path, audio_fallback=voiceover_path,
+                                        backdrop_path=str(plate_path) if plate_path else None, state_dir=str(state), cancel_check=cancel_check,
                                         progress_cb=prog, workers=workers)
     rep = build_report(sc, plan)
     credit_lines = list(getattr(plan, "credits", []) or [])

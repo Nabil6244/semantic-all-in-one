@@ -8,7 +8,9 @@ COLUMNS
 - script_segment: the scene's narration copied EXACTLY from the script, every word in order. One scene = one sentence, or two short ones about the same thing. Never reword, shorten or merge across a change of topic. Every word of the script must appear in exactly one row.
 - asset_type: one of
     youtube_video   real news / archive / official footage of THIS event (most scenes that describe what happened)
-    archive_video   historical footage (past wars, years, earlier events)
+    archive_video   historical film that exists on the Internet Archive (archive.org): newsreels and government film from before about 1970
+                    (WWII, Korea, the early Cold War, Vietnam-era newsreels), e.g. Die Deutsche Wochenschau, Universal Newsreel, British Pathé,
+                    Movietone, US Army Signal Corps, Soviet newsreels. For anything after about 1970, or any recent war, use youtube_video.
     stock_video     generic footage of what the sentence describes (only when no real footage would exist)
     flow_video      an AI-generated cinematic shot, for an idea no real or stock footage can show: a symbol or a mood (chess pieces on a dark
                     board, an empty ministry corridor at night, a warship's silhouette in fog, a hand turning a radio dial). Costs credits: use sparingly
@@ -17,11 +19,19 @@ COLUMNS
     none            no footage: the scene is data, a map, a statistic, a quote card or a figure. The editor draws a labelled map or graphic from the narration.
 - prompt:
     youtube_video / archive_video: 2 search phrases separated by " || ", most specific first, e.g. "Pokrovsk Ukraine frontline drone footage || Donetsk oblast fighting". Name the real place, event and equipment the sentence names.
+    archive_video searches are matched against archive titles and descriptions, so write them the way an archivist titles film:
+      the place + the year + what is on film, 3-6 words, plus a newsreel name when one fits: "Stalingrad 1942 newsreel ||
+      Wochenschau Stalingrad 1942", "German prisoners Stalingrad 1943 || Soviet newsreel Stalingrad surrender 1943". Always include the
+      year. Never a modern word (drone, footage of the anniversary), never an abstract idea (turning point, brutal fighting): only what a
+      camera filmed then. If no camera could have filmed the moment (a decision, a plan, a feeling), use none and a graphic instead.
     stock_video: 2 to 5 words, one filmable subject, no place, no date, no name (e.g. "armored column on road").
     flow_video: one sentence describing a single cinematic shot: the subject, the setting and the light, e.g. "a lone chess king toppling
       on a dark board, cold light from one side". Never a real named person, a real event shown as if filmed, a flag-burning, a dead body,
       text or a logo. The tool adds the look (muted colours, film grain) itself.
     nasa_video / local / none: empty.
+- stock (optional column, after graphic): for youtube_video / archive_video rows, 2-3 plain words for a stock shot to use if no real
+  footage of the event is found: a filmable subject with no names, places or dates ("city ruins smoke", "soldiers in snow", "river at
+  night"). Leave it empty to let the editor derive one. Stock shots are labelled illustrative.
 - graphic: the on-screen graphic for this scene, or empty to let the editor choose. The editor builds it ONLY from this scene's
   script_segment, so pick one the sentence can actually fill:
     title       a section opener or strong statement: the sentence's words as a cinematic title card
