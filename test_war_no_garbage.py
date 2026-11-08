@@ -422,8 +422,10 @@ class CsvGraphicColumn(unittest.TestCase):
         sc, p = self.plan()
         self.assertNotIn("error", p.stats["direction"])
         got = {int(ly.start // 7) + 1: ly.kind for ly in p.layers if (ly.params or {}).get("csv_graphic")}
-        self.assertEqual(got, {1: "kit_title", 2: "kit_datecard", 3: "kit_quote", 4: "lay_equipment_hero", 6: "kit_recap", 7: "kit_radar",
-                               8: "tac_map", 10: "kit_dossier"})
+        # 2026-11-08, the owner: the script's numbers are the source of truth, so a CSV 'number' on "rose from 2000 in March to 46000 by
+        # December" is shown (46000 BY DECEMBER) instead of being held back for want of a named claimant
+        self.assertEqual(got, {1: "kit_title", 2: "kit_datecard", 3: "kit_quote", 4: "lay_equipment_hero", 5: "kit_bignum", 6: "kit_recap",
+                               7: "kit_radar", 8: "tac_map", 10: "kit_dossier"})
         q = next(ly for ly in p.layers if ly.kind == "kit_quote")
         self.assertEqual(q.params["quote"], "I need ammunition, not a ride.")
         d = next(ly for ly in p.layers if ly.kind == "kit_datecard")

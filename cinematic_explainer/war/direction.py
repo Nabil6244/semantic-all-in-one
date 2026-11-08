@@ -28,6 +28,7 @@ Rules (each fires only when the narration gives a reason; nothing decorates ever
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from ..render import Layer, Shot
@@ -722,9 +723,16 @@ CSV_GRAPHIC = {"map": "map", "number": "number", "stat": "number", "figure": "nu
                "organization": "institution", "supply": "supply", "supply chain": "supply", "logistics": "supply", "sticker": "sticker",
                "steps": "steps", "chips": "steps", "route": "route", "situation map": "route", "claim": "claim", "source": "source",
                "evidence": "source", "ratio": "ratio", "scale": "scale", "flag": "flag", "stamp": "stamp", "speaker card": "speaker_card",
-               "name": "speaker_card", "lower third": "speaker_card", "auto": "", "none": "", "": ""}
+               "name": "speaker_card", "lower third": "speaker_card", "auto": "", "none": "", "": "",
+               "chart": "chart", "bar chart": "chart", "bars": "chart", "percent": "chart", "percentage": "chart", "line chart": "chart",
+               "graph": "chart", "donut": "chart", "article": "article", "news": "article", "news article": "article", "screenshot": "article",
+               "report page": "article", "flyover": "flyover", "fly-over": "flyover", "drone": "flyover", "missile": "flyover", "aircraft": "flyover",
+               "satellite": "satellite", "before after": "satellite", "before/after": "satellite", "satellite image": "satellite",
+               "front line": "map", "frontline": "map", "capture": "map", "advance": "map", "retreat": "map", "territory": "map",
+               "locator": "locator", "inset map": "locator", "minimap": "locator", "mini map": "locator",
+               "document page": "article", "strategic": "map", "strategic site": "map"}
 _PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split"), "equipment": ("equipment", "split"), "speaker": ("figure",),
-                  "timeline": ("timeline",), "institution": ("institution",), "route": ("map",), "source": ("evidence",),
+                  "timeline": ("timeline",), "institution": ("institution",), "source": ("evidence",),
                   "claim": ("evidence", "figure")}   # a leader's claim with no outlet line: the claimant's portrait card carries it
 CSV_MAX_S, CSV_MIN_S = 8.0, 3.0
 
@@ -743,6 +751,23 @@ def _planner_layer(r: Dict[str, Any], cfg: Dict[str, Any], cat: Any, want: Seque
     params = dict(c.params)
     params.pop("image_record", None)
     return Layer(P.LAYER_KIND[c.kind], c.start, c.end, params, dim=c.kind not in P.NO_DIM)
+
+
+_STILL_EXT = (".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff")
+
+
+def _still_of(r: Dict[str, Any]) -> str:
+    """The row's own picture: a still attached as footage (the renderer turns it into '<image>.war.mp4'; the card wants the image)."""
+    f = str(r.get("footage") or "")
+    if f.lower().endswith(".war.mp4"):                       # still_to_clip names it <stem>.war.mp4
+        base = f[:-len(".war.mp4")]
+        for ext in _STILL_EXT + tuple(e.upper() for e in _STILL_EXT):
+            if Path(base + ext).is_file():
+                return base + ext
+    if f.lower().endswith(_STILL_EXT):
+        return f
+    lp = str((r.get("footage_meta") or {}).get("local_path") or "")
+    return lp if lp.lower().endswith(_STILL_EXT) else ""
 
 
 def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> Tuple[Optional[Layer], str]:
@@ -766,10 +791,47 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
                     break
         if ly is not None:
             return ly, ""
-        fallback = {"compare": "compare_kit", "claim": "stamp", "route": "map"}.get(kind)
+        fallback = {"compare": "compare_kit", "claim": "stamp", "route": "map", "number": "number_raw", "source": "source_doc"}.get(kind)
         if fallback is None:
             return None, f"the narration has nothing for a {kind} card"
         kind = fallback          # versus/ratio card, CLAIMED stamp, or the places on the tactical map
+    if kind == "route":
+        kind = "map"                              # the tactical map draws the movement the sentence states (from a country too)
+    if kind == "number_raw":                      # the script states a figure: it is shown as the script says it, labelled with its own words
+        for sent in sents:
+            nums = [n for n in sent.numbers if not n.is_year]
+            if len(nums) >= 2 and re.search(r"\bfrom\b.*\bto\b", sent.text[nums[0].span[0] - 12:nums[1].span[1]], re.IGNORECASE):
+                def lab_(n):
+                    w = re.findall(r"[\w'’-]+", sent.text[n.span[1]:n.span[1] + 40])[:2]
+                    return " ".join(w) if w and w[0].lower() in ("in", "by", "on", "at", "during", "per", "a") else (n.unit or " ".join(w))
+                return full("kit_versus", {"a": nums[0].raw, "a_label": lab_(nums[0]), "b": nums[1].raw, "b_label": lab_(nums[1]), "title": ""}), ""
+            for n in sent.numbers:
+                if n.is_year:
+                    continue
+                after = re.findall(r"[\w'’-]+", sent.text[n.span[1]:n.span[1] + 60])[:4]
+                lab = (n.unit if n.unit and n.unit != "%" else " ".join(after)).strip()
+                return full("kit_bignum", {"value": n.raw, "label": lab.upper(), "sub": n.period or "", "colour": "yellow", "count": False}), ""
+        return None, "no figure in the narration"
+    if kind == "source_doc":                      # a named report / study / outlet: its document page with what it found highlighted
+        m = re.search(r"\b(?:report|study|assessment|analysis|investigation|survey)\s+(?:by|from|of)\s+(?:the\s+)?([A-Z][\w'’&.-]*(?:\s+(?:for|of|the|and|on|[A-Z][\w'’&.-]*))*?)"
+                      r"(?=\s+(?:found|said|says|showed|shows|concluded|estimated|reported|warned)\b|[,.])", text) or \
+            re.search(r"\baccording to\s+(?:the\s+)?([A-Z][\w'’&.-]*(?:\s+[A-Z][\w'’&.-]*){0,5})", text)
+        if m:
+            hl = re.split(r"\b(?:found|said|says|showed|shows|concluded|estimated|reported|warned)\b\s*(?:that\s+)?", text, maxsplit=1)
+            hl_ = (hl[1] if len(hl) > 1 else text).strip().rstrip(".")
+            return full("lay_document", {"outlet": m.group(1).strip(), "text": text, "highlight": hl_, "quote": " ".join(hl_.split()[:12])}), ""
+        return None, "no named report or outlet"
+    if kind == "locator":
+        for sent in sents:
+            from . import maps_tactical as _mt
+
+            pts = [p_ for p_ in (_mt.resolve_place(e.name)[0] for e in _places(sent)) if p_][:2]
+            if pts:
+                lat0, lon0 = sum(p_["lat"] for p_ in pts) / len(pts), sum(p_["lon"] for p_ in pts) / len(pts)
+                return Layer("map_inset", r["_start"], min(r["_end"], r["_start"] + 5.0),
+                             {"pins": [{"lat": p_["lat"], "lon": p_["lon"], "label": p_["name"], "start": 0.4 + 0.3 * i} for i, p_ in enumerate(pts)],
+                              "pos": "tr", "width": 320, "frame": [lon0 - 5.5, lat0 - 3.0, lon0 + 5.5, lat0 + 3.0]}, dim=False), ""
+        return None, "no place named"
     if kind == "map":
         for sent in sents:
             pl, co = _places(sent), _countries(sent)
@@ -777,6 +839,37 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             if p:
                 return Layer("tac_map", r["_start"], r["_end"], _narrate_map(p, text, A, r["_start"], _countries_in(A)), dim=False), ""
         return None, "no place or country named"
+    if kind in ("chart", "article", "flyover", "satellite"):
+        from . import graphics_lib as GL
+
+        if kind == "chart":
+            for sent in sents:
+                c = GL.chart_of(sent.text, sent.numbers)
+                if c:
+                    return full("kit_chart", c), ""
+            return None, "fewer than three labelled figures (or two dated percentages) in the narration"
+        if kind == "article":
+            for sent in sents:
+                a = GL.article_of(sent)
+                if a:
+                    return full("lay_document", dict(a, image=_still_of(r) or None)), ""
+            return full("lay_document", {"text": text, "highlight": h, "quote": h, "image": _still_of(r) or None}), ""
+        if kind == "flyover":
+            f = GL.flyover_of(text) or next(({"name": n, "label": m.group(0).upper(), "count": 1} for rx, n in GL._FLY_NAMES
+                                             for m in [re.search(rx, text, re.IGNORECASE)] if m), None)
+            if f:
+                return Layer("kit_flyover", r["_start"], min(r["_end"], r["_start"] + 4.0), f, dim=False), ""
+            return None, "no drone, missile or aircraft named"
+        imgs = [x.strip() for x in str(r.get("images") or "").split("|") if x.strip()]
+        if not imgs and _still_of(r):
+            imgs = [_still_of(r)]
+        d0 = _date_of(text)
+        place = next((e.name for sent in sents for e in _places(sent)), "")
+        if len(imgs) >= 2:
+            return full("lay_satellite", {"before": imgs[0], "after": imgs[1], "caption": h, "after_date": d0 or "AFTER", "place": place}), ""
+        if len(imgs) == 1:
+            return full("lay_satellite", {"before": imgs[0], "after": imgs[0], "single": True, "caption": h, "after_date": d0 or "", "place": place}), ""
+        return None, "a satellite card needs an image: the row's images column (before|after, or one file) or a local still"
     if kind == "quote":
         for sent in sents:
             q = _quote_of(sent)
@@ -796,6 +889,14 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             rt = ratio_of(sent.text)
             if rt:
                 return full("kit_bignum", {"value": rt["value"], "label": rt["label"].upper(), "sub": rt["sub"], "colour": "yellow", "count": False}), ""
+        if kind == "compare_kit":
+            for sent in sents:
+                nums = [n for n in sent.numbers if not n.is_year]
+                if len(nums) >= 2:
+                    def lab(n):
+                        w = re.findall(r"[\w'’-]+", sent.text[n.span[1]:n.span[1] + 50])[:3]
+                        return n.unit if n.unit and n.unit != "%" else " ".join(w)
+                    return full("kit_versus", {"a": nums[0].raw, "a_label": lab(nums[0]), "b": nums[1].raw, "b_label": lab(nums[1]), "title": ""}), ""
         return None, "no comparison or 'N in M' ratio stated"
     if kind == "scale":
         ms = _SCALE.search(text)
@@ -826,6 +927,13 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
 
         for sent in sents:
             spk = speaker_of(sent.text)
+            if not spk:
+                m = re.match(r"\W*([A-Z][\w'’-]+(?:\s+[A-Z][\w'’-]+){1,3}),\s+([^,.;]{3,60}),", sent.text)
+                fig = getattr(sent, "intro_figure", None)
+                if m:
+                    spk = (m.group(1), m.group(2).strip())
+                elif fig:
+                    spk = (fig[0].name, str(fig[1]))
             if spk:
                 return Layer("kit_speaker", r["_start"], min(r["_end"], r["_start"] + 4.0), {"name": spk[0], "role": spk[1]}, dim=False), ""
         return None, "no named person with a role"
@@ -906,12 +1014,16 @@ def _csv_wins(plan: Any, counts: Dict[str, int]) -> None:
     csv = [(ly.start, ly.end) for ly in plan.layers if (ly.params or {}).get("csv_graphic")]
     if not csv:
         return
+    csv_full = [(ly.start, ly.end) for ly in plan.layers if (ly.params or {}).get("csv_graphic") and ly.kind in FULL_KINDS
+                and not (ly.params or {}).get("over")]
     keep = []
     for ly in plan.layers:
         if (ly.params or {}).get("csv_graphic") or ly.kind in SOFT or ly.kind in ("shot_headline", "kit_badge", "kit_grain"):
             keep.append(ly)
             continue
-        hit = [(a, b) for a, b in csv if ly.start < b - 0.01 and ly.end > a + 0.01]
+        # a small card (name, stamp, tag, sticker, fly-over ...) lies beside an overlay the CSV asked for; only a full-frame CSV card hides it
+        span = csv_full if ly.kind in CORNER_KINDS else csv
+        hit = [(a, b) for a, b in span if ly.start < b - 0.01 and ly.end > a + 0.01]
         if not hit:
             keep.append(ly)
             continue
@@ -978,6 +1090,14 @@ _NOT_A_GRAPHIC = SOFT | {"shot_headline", "kit_ribbon", "kit_stamp", "kit_flag"}
 def _floor_options(sent: Any, has_footage: bool, layouts: bool) -> List[Tuple[str, Dict[str, Any], float]]:
     """(kind, params, seconds) the sentence truthfully supports, most specific first. The hook tag is always possible."""
     out: List[Tuple[str, Dict[str, Any], float]] = []
+    from . import graphics_lib as GL
+
+    ch = GL.chart_of(sent.text, sent.numbers)               # the script's own figures, three or more, each with its label: a chart
+    if ch:
+        out.append(("kit_chart", ch, 5.0))
+    art = GL.article_of(sent)                                # a cited report: the document page with the reported words highlighted
+    if art:
+        out.append(("lay_document", art, 5.0))
     pl, co = _places(sent), _countries(sent)
     if pl:
         p = _tac_params(sent, pl, co, False)
@@ -1096,8 +1216,11 @@ def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_n
 LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay_equipment_compare", "lay_stat_split", "lay_timeline", "lay_claim",
                 "lay_logistics"}
 MOTION_KINDS = {"kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords", "kit_title", "kit_datecard", "kit_quote"}
-FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag"} | LAYOUT_KINDS | MOTION_KINDS
+FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag", "lay_satellite", "lay_document",
+              "kit_chart"} | LAYOUT_KINDS | MOTION_KINDS
 FULL_GAP = 1.2
+CORNER_KINDS = {"kit_speaker", "kit_stamp", "kit_tag", "kit_ribbon", "kit_sticker", "kit_flyover", "kit_chips", "map_inset", "kit_flag",
+                "status_chip", "evidence_card", "source_label"}     # cards that sit in a corner or cross the frame: they coexist with a clip
 ICON_GAP = 15.0            # one icon explainer per this many seconds
 COUNTRY_MAP_GAP = 30.0     # a country on its own gets a map again only after this long (Ukraine and Russia are named in every other sentence)
 _LOGISTICS = [(r"\brefiner(?:y|ies)\b", "Refinery", "flame"), (r"\b(?:pipeline|pipelines)\b", "Pipeline", "pipe"), (r"\b(?:rail|railway|railways|train|trains)\b", "Rail", "truck"),
@@ -1342,6 +1465,7 @@ def _speakers(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Di
     from .map_build import speaker_of
 
     corner = ("kit_stamp", "kit_chips", "kit_speaker", "evidence_card", "figure_card") + tuple(FULL_KINDS)
+    carded: set = set()
     for r in rows:
         dec = log_by_no.get(str(r["_no"]))
         if dec is None or "no_footage" in dec.flags or not str(r.get("text") or "").strip():
@@ -1349,9 +1473,17 @@ def _speakers(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Di
         A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
         for sent in A.sentences:
             spk = speaker_of(sent.text)
-            if not spk:
-                continue
-            a = fr(max(r["_start"], A.time_at(sent.span[0]) + 0.2))
+            at_char = sent.span[0]
+            if not spk:                  # a known person named over footage, first time in the video: the catalogue's name and role (a lower third)
+                fig = next((e for e in sent.entities if e.kind == "figure" and e.specific and not e.ambiguous and e.entry
+                            and (e.id or e.name) not in carded and e.entry.get("role")), None)
+                if fig is None:
+                    continue
+                role = re.split(r"\s+(?:since|from|until)\s+|\s*\(", str(fig.entry["role"]))[0].strip()
+                spk = (str(fig.entry.get("name") or fig.name), role[:48])
+                at_char = fig.span[0]
+            carded.add(spk[0])
+            a = fr(max(r["_start"], A.time_at(at_char) + 0.2))
             b = fr(min(r["_end"] + 0.5, a + 4.0))
             if b - a < 1.5 or any(ly.kind in corner and ly.start < b and ly.end > a for ly in plan.layers):
                 continue
@@ -1474,6 +1606,31 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 last_at["kit_ribbon"] = st
                 ribbon_cuts.append(st)
 
+        # ---- 5a chart: three or more labelled figures in one sentence are a chart, not one big number -----------------------------------
+        if cfg.get("charts", True) and last_kind != "kit_chart":
+            from . import graphics_lib as _gl
+
+            for sent in A.sentences:
+                ch = _gl.chart_of(sent.text, sent.numbers)
+                if not ch:
+                    continue
+                old = next((ly for ly in plan.layers if ly.kind in ("stat_number", "kit_bignum", "stat_compare") and st - 0.01 <= ly.start < en
+                            and not (ly.params or {}).get("csv_graphic")), None)
+                if old is None:
+                    break
+                a0, b0 = old.start, min(en + 0.5, max(old.end, old.start + 5.0))
+                plan.layers[:] = [x for x in plan.layers if not (x.kind == "kicker" and abs(x.start - old.start) < 0.01)]
+                old_span = (old.start, old.end, old.kind)
+                old.kind, old.params, old.dim, old.end = "kit_chart", ch, False, fr(b0)
+                busy.items = [x for x in busy.items if x != old_span] + [(old.start, old.end, "kit_chart")]   # the next scene sees the real span
+                dec.flags.append("dir:chart")
+                dec.candidates.append({"kind": "kit_chart", "score": 0.0, "reason": f"direction: {len(ch['items'])} labelled figures in one sentence",
+                                       "accepted": True, "start": a0, "end": old.end})
+                counts["chart"] = counts.get("chart", 0) + 1
+                last_at["kit_chart"] = st
+                picked = picked or "kit_chart"
+                break
+
         # ---- 5 big number (swap of an accepted stat_number) ------------------------------------------------------------------------
         for ly in plan.layers:
             if ly.kind == "stat_number" and st - 0.01 <= ly.start < en and st - last_at.get("kit_bignum", -999) >= 40.0 and last_kind != "kit_bignum":
@@ -1555,6 +1712,23 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                         proposals.append((5, "kit_sticker", ka, max(min(b, ka + 3.2), ka + 2.4), {"name": name, "x": 0.68, "y": 0.46, "size": 260, "label": lab, "label_style": "tape"}, "sticker",
                                           f"'{mm.group(0)}' named over {'missing' if not has_footage else 'generic'} footage", True))
                         break
+            # 4b cited report -> the document page with the reported words highlighted (full frame, the clip returns after it)
+            if cfg.get("articles", True) and sent.citation is not None and st - last_at.get("lay_document", -999) >= 30.0:
+                from . import graphics_lib as _gl
+
+                art = _gl.article_of(sent)
+                if art:
+                    ka = max(a, st + 0.2)
+                    proposals.append((3, "lay_document", ka, min(b + 1.0, ka + 5.0), art, "article", f"a report cited ({art['outlet']})", False))
+            # 4c drones / missiles / aircraft launched or flying: the named system crosses the frame as the words are spoken
+            if cfg.get("flyovers", True) and st - last_at.get("kit_flyover", -999) >= 25.0:
+                from . import graphics_lib as _gl
+
+                fo = _gl.flyover_of(sent.text)
+                if fo:
+                    mm = re.search(r"\b" + re.escape(fo["label"].split()[0].lower()), sent.text.lower())
+                    ka = max(a, A.time_at(sent.span[0] + mm.start()) - 0.3) if mm else max(a, st + 0.3)
+                    proposals.append((4, "kit_flyover", max(st + 0.2, ka - 1.5), en + 0.5, fo, "flyover", f"'{fo['label'].lower()}' in flight", False))
             # 4 emphasis tag
             idx = sent.index
             if (idx == 0 and topic_change and not first_scene) or _POINT.search(sent.text):
@@ -1569,7 +1743,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
             old = next((ly for ly in plan.layers if ly.kind == "map_card" and st - 0.01 <= ly.start < en
                         and not ((ly.params or {}).get("control") or (ly.params or {}).get("snapshot"))), None)
             if old is not None and last_kind != "tac_map":
+                was_csv = bool((old.params or {}).get("csv_graphic"))
                 old.kind, old.params, old.dim = "tac_map", _narrate_map(tac[4], text, A, old.start, _countries_in(A)), False
+                if was_csv:
+                    old.params["csv_graphic"] = True
                 dec.flags.append("dir:tacmap")
                 dec.candidates.append({"kind": "tac_map", "score": 0.0, "reason": "direction: " + tac[6] + " (replaces the plain map card)", "accepted": True,
                                        "start": old.start, "end": old.end})
@@ -1578,18 +1755,19 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 picked = "tac_map"
         proposals = [x for x in proposals if not (picked == "tac_map" and x[1] == "tac_map")]
         for pri, kind, a, b, params, rule, why, dim in proposals:
-            if picked is not None and kind != "kit_stamp":
-                break
+            if picked is not None and kind not in ("kit_stamp", "kit_flyover"):
+                continue                                  # an overlay (stamp, fly-over) may still join the scene's one graphic
             if kind == last_kind and not (kind == "tac_map" and a - last_at.get("tac_map_end", -999.0) >= 4.0):
                 continue                                  # two maps in a row only with time between them
             if kind == "kit_tag" and st - last_at.get("kit_tag", -999) < 25.0:
                 continue
-            ign = ("shot_headline",) if kind in ("kit_stamp", "kit_sticker", "kit_scale", "kit_recap", "kit_chips", "kit_tag", "tac_map") else ()
-            need = {"tac_map": 3.6, "kit_stamp": 1.4, "kit_tag": 2.0, "kit_recap": 3.0, "kit_chips": 3.0, "kit_sticker": 2.2, "kit_scale": 3.0}.get(kind, 2.0)
+            ign = ("shot_headline",) if kind in ("kit_stamp", "kit_sticker", "kit_scale", "kit_recap", "kit_chips", "kit_tag", "tac_map", "lay_document",
+                                                 "kit_flyover") else ()
+            need = {"tac_map": 3.6, "kit_stamp": 1.4, "kit_flyover": 2.2, "lay_document": 3.4, "kit_tag": 2.0, "kit_recap": 3.0, "kit_chips": 3.0, "kit_sticker": 2.2, "kit_scale": 3.0}.get(kind, 2.0)
             slot = busy.free(a, min(b + (1.0 if kind in ("tac_map", "kit_recap", "kit_chips") else 0.0), en + 0.5), need, ignore=ign)
             if not slot:
                 continue
-            end = slot[1] if kind != "kit_stamp" else min(slot[1], slot[0] + 2.6)
+            end = slot[1] if kind not in ("kit_stamp", "kit_flyover") else min(slot[1], slot[0] + (2.6 if kind == "kit_stamp" else 3.6))
             if kind == "tac_map" and _near_full([sp for sp in full_spans], slot[0], end):
                 after = max((y for x, y in full_spans if x < end and y + FULL_GAP > slot[0]), default=slot[0])
                 if end - (after + FULL_GAP) < need:
@@ -1599,6 +1777,9 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 kind, params, rule = "lay_inset", {"caption": params["text"], "caption_sub": "", "notes": []}, "inset"
             if add(kind, slot[0], end, params, dec, rule, why, en, dim=dim):
                 last_at[kind] = st
+                if kind == "lay_document":
+                    full_spans.append((slot[0], end))
+                    _yield_headline(plan, slot[0], end)
                 if kind == "tac_map":
                     full_spans.append((slot[0], end))
                     last_at["tac_map_end"] = end
@@ -1606,9 +1787,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                     for sent_ in A.sentences:
                         for c in _countries(sent_):
                             last_at["country:" + c.name] = st
-                picked = picked or kind
-                if kind != "kit_stamp":
-                    break
+                if kind not in ("kit_stamp", "kit_flyover"):     # overlays join the scene's one graphic; they do not take its place
+                    picked = picked or kind
+                elif kind == "kit_stamp":
+                    picked = picked or kind
 
         if picked and picked != "kit_stamp":
             last_kind = picked
@@ -1643,6 +1825,40 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         _graphic_floor(plan, rows, cat, log_by_no, counts, float(cfg.get("graphic_gap", GRAPHIC_GAP)), float(cfg.get("first_at", 4.0)),
                        layouts=bool(cfg.get("layouts", True)))
 
+    ev_stats: Dict[str, Any] = {}
+    if cfg.get("map_events", True):               # what the script says changed hands, and strategic sites it names, on the tactical maps
+        from . import map_events as _me
+
+        ev_stats = _me.attach(plan, rows, cfg, cat)
+        ev_stats["linked_maps"] = _me.continuity(plan) if cfg.get("map_continuity", True) else 0
+        for k_, v_ in ev_stats.items():
+            if v_:
+                counts["map_" + k_] = v_
+    fl_stats: Dict[str, Any] = {}
+    if cfg.get("frontline", True):                # sourced front lines on the territorial maps (frontline.py); no library -> nothing happens
+        from . import frontline as _fl
+
+        fl_stats = _fl.attach(plan, rows, cfg)
+        if fl_stats.get("attached"):
+            counts["frontline"] = fl_stats["attached"]
+    st_stats: Dict[str, Any] = {}
+    if cfg.get("story", True):                    # long map runs get cards on the narration's beats; the opening becomes a montage hook
+        from . import story as _story
+
+        st_stats["rhythm"] = _story.map_rhythm(plan, rows, cat, cfg)
+        for ly in plan.layers:                    # a map that now starts after a card travels on from the map before it again
+            if ly.kind == "tac_map" and isinstance(ly.params, dict):
+                ly.params.pop("enter_from", None)
+        if cfg.get("map_events", True) and cfg.get("map_continuity", True):
+            from . import map_events as _me2
+
+            st_stats["linked_maps"] = _me2.continuity(plan)
+        st_stats["hook"] = _story.hook(plan, rows, cfg)
+        for k_, v_ in list(st_stats["rhythm"].items()) + list(st_stats["hook"].items()):
+            if v_:
+                counts["story_" + k_] = v_
+    full_spans = [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS]
+
     # ---- 9 badges (replace the equivalent old illustrative chip) ---------------------------------------------------------------------
     for r in rows:
         dec = log_by_no.get(str(r["_no"]))
@@ -1674,7 +1890,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)))
     _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts)
     counts["empty_stretches"] = len(gap_notes)
-    return {"counts": counts, "notes": gap_notes}
+    return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats}
 
 
 # ------------------------------------------------------------------------------------------------ final coverage --------------------

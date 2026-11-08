@@ -46,6 +46,8 @@ from PIL import Image, ImageDraw
 
 from . import geo_data as G
 from . import map_fx as FX
+from . import frontline as FL
+from . import map_events as ME
 from . import maps as MP
 from . import motion as M
 from . import stickers as ST
@@ -57,6 +59,8 @@ log = logging.getLogger("cinematic_explainer.war.maps_tactical")
 W, H = T.W, T.H
 SS = 2
 BADGE_DEFAULT = "ILLUSTRATIVE MAP – APPROXIMATE POSITIONS"
+FL_BADGE = "SOURCED CONTROL MAP · NOT LIVE · PLACES APPROXIMATE"
+CTL_BADGE = "ILLUSTRATIVE MAP · AS DESCRIBED IN THE NARRATION · AREAS APPROXIMATE"
 
 BG = (21, 23, 27, 255)
 GRID = (64, 70, 80, 255)
@@ -122,6 +126,9 @@ def resolve_place(ref: Any) -> Tuple[Optional[Dict[str, Any]], str]:
         name = str(ref or "").strip()
     if not name:
         return None, "no name"
+    site = ME.find_site(name)                                            # a strategic site is more specific than the town it is near
+    if site:
+        return {"name": site["name"], "lat": float(site["lat"]), "lon": float(site["lon"]), "approximate": True, "site": site.get("type", "")}, ""
     try:
         from . import catalog as C
 
@@ -182,6 +189,18 @@ def _find_region(name: str) -> Any:
     return None
 
 
+def _route_end(ref: Any, get: Any) -> Optional[Dict[str, Any]]:
+    """A route end: a place, or a country the sentence moves from / to ("from Belarus toward Kyiv"): its label point (approximate)."""
+    if isinstance(ref, str) and ref.strip() and resolve_place(ref)[0] is None:
+        f = G.find_country(ref)
+        if f is not None:
+            lon, lat = f.centroid
+            if f.iso == "RUS":                          # Russia's centroid is in Siberia: its European side is where it borders the theatre
+                lon, lat = 38.5, 53.5
+            return {"name": f.name, "lat": float(lat), "lon": float(lon), "approximate": True}
+    return get(ref, "route end")
+
+
 def _gather(params: dict) -> Dict[str, Any]:
     """Resolve everything the card names once: places, routes, glyphs, focus steps, skipped list. Pure function of params."""
     skipped: List[str] = []
@@ -201,6 +220,8 @@ def _gather(params: dict) -> Dict[str, Any]:
         p = get(r, "place")
         if p is None:
             continue
+        if any(abs(q["lat"] - p["lat"]) < 0.02 and abs(q["lon"] - p["lon"]) < 0.02 for q in places):
+            continue                                                      # the same spot named twice (a site and its alias) gets one marker
         spec = r if isinstance(r, dict) else {}
         kind = str(spec.get("kind") or "pin")
         kind = "zone" if kind == "target_zone" else kind
@@ -211,7 +232,7 @@ def _gather(params: dict) -> Dict[str, Any]:
     for i, r in enumerate(params.get("routes") or []):
         if not isinstance(r, dict):
             continue
-        a, b = get(r.get("from"), "route from"), get(r.get("to"), "route to")
+        a, b = _route_end(r.get("from"), get), _route_end(r.get("to"), get)
         if a and b:
             routes.append({"a": a, "b": b, "style": str(r.get("style") or "dashed_blue"), "label": str(r.get("label") or ""), "colour": str(r.get("colour") or ""),
                            "start": float(r.get("start", _T(params, "routes", i, _after_places(params) + 0.3 + 0.7 * i))), "length": float(r.get("length", 1.2))})
@@ -241,7 +262,7 @@ def _gather(params: dict) -> Dict[str, Any]:
             if isinstance(r, dict) and r.get("country"):
                 pts += _country_points(str(r["country"]))
             else:
-                x = get(r, "focus")
+                x = _route_end(r, get) if isinstance(r, str) else get(r, "focus")
                 if x:
                     pts.append(x)
         if pts:
@@ -344,9 +365,23 @@ def _scaled(v: MP.View, f: float) -> MP.View:
 WIDE = 1.32                     # the establishing shot opens this much wider than the subject frame
 
 
-def _cine(view: MP.View, g: Dict[str, Any], t: float, dur: float) -> MP.View:
-    """Establishing shot and travel: opens wide, settles onto the subject in 1.5 s, then drifts a little toward where the first route ends."""
-    m = 1.0 + (WIDE - 1.0) * (1.0 - M.ease_out(M.ramp(t, 0.0, 1.5)))
+def _enter_view(params: dict, w: int = W, h: int = H) -> Optional[MP.View]:
+    e = params.get("enter_from")
+    try:
+        return MP.View(float(e[0]), float(e[1]), float(e[2]), w, h) if e and len(e) == 3 and float(e[2]) > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _cine(view: MP.View, g: Dict[str, Any], t: float, dur: float, enter: Optional[MP.View] = None) -> MP.View:
+    """Establishing shot and travel: opens wide, settles onto the subject in 1.5 s, then drifts a little toward where the first route ends.
+    With `enter` (the previous map's last frame) the camera instead travels on from there: one continuous journey across maps."""
+    if enter is not None:
+        k = M.ease_in_out(M.ramp(t, 0.0, 1.8))
+        if k < 1.0:
+            hw = math.exp(math.log(enter.hw) + (math.log(view.hw) - math.log(enter.hw)) * k)
+            return MP.View(enter.cx + (view.cx - enter.cx) * k, enter.cy + (view.cy - enter.cy) * k, hw, view.w, view.h)
+    m = 1.0 + (WIDE - 1.0) * (1.0 - M.ease_out(M.ramp(t, 0.0, 1.5))) if enter is None else 1.0
     cx, cy = view.cx, view.cy
     if g["routes"]:
         r = g["routes"][0]
@@ -836,11 +871,12 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     look = look if look in FX.LOOKS else "night"
     ft = params.get("focus_times") if g["steps"] and len(params.get("focus_times") or []) == len(views) else None
     view, _moving = _camera(views, t, max(dur, 0.1), ft)
-    view = _cine(view, g, t, dur)
+    enter = _enter_view(params)
+    view = _cine(view, g, t, dur, enter)
     info["view"] = view.key()
     fills = _fills(params, theme)
     late = [f for f in fills if float(f.get("start") or 0.0) > 0.0]       # these light up when named; the rest are in the base map
-    mosaic, mv = _mosaic(views + [_scaled(v, WIDE) for v in views], theme, [f for f in fills if f not in late],
+    mosaic, mv = _mosaic(views + [_scaled(v, WIDE) for v in views] + ([enter] if enter is not None else []), theme, [f for f in fills if f not in late],
                          params.get("graticule", True) is not False, look)
     img = _crop(mosaic, mv, view)
     basecrop = img.copy()                                                  # the bare map, to test whether a label anchor really is open water
@@ -872,6 +908,25 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         col = tuple(POL_FILL.get(str(fl.get("role")), NEIGH_P + (255,)))[:3]
         only = (lambda bb: not MP._in_crimea(bb)) if feat.iso == "RUS" else None    # Crimea stays in Ukraine's recognised borders
         MP._draw_feature(od, feat, view, vb_now, col + (int(255 * k),), (236, 238, 242, int(235 * k)), (0, 0, 0, 0), SS, 2 * SS, only=only)
+
+    # sourced front line (frontline.py): above the country fills, under regions, routes and markers; only when the params carry one
+    fl_spec = params.get("frontline") if isinstance(params.get("frontline"), dict) else None
+    fl_info: Optional[dict] = None
+    if fl_spec:
+        img = Image.alpha_composite(img, ov.reduce(SS))
+        ov = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
+        od = ImageDraw.Draw(ov)
+        img, fl_info = FL.draw(img, view, dict(fl_spec, alpha_boost=1.7) if theme == "political" else fl_spec, t)   # over flat country fills the area needs more weight
+        info["frontline"] = fl_info
+    # what the script says happened on the ground (map_events.py): a town / region changing hands, advance and withdrawal arrows
+    ctl = [e for e in (params.get("control") or []) if isinstance(e, dict)]
+    ctl_info: Optional[dict] = None
+    if ctl:
+        img = Image.alpha_composite(img, ov.reduce(SS))
+        ov = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
+        od = ImageDraw.Draw(ov)
+        img, ctl_info = ME.draw_control(img, view, ctl, t)
+        info["control"] = ctl_info
 
     # region highlights (the first layer after the base map): a soft tint, a clean outline, a name tag
     region_tags: List[Tuple[str, Tuple[float, float], float]] = []
@@ -987,6 +1042,8 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         k = M.ease_out(M.ramp(t, pl["start"], 0.35))
         cy -= (1 - k) * 18 * SS                                   # the marker drops in
         col = pl["colour"]
+        if pl.get("site"):
+            continue                                              # strategic sites get their own typed marker after this pass
         if pl["kind"] == "zone":
             rr = 30 * SS
             for seg in MP._dashes([(cx + rr * math.cos(a / 40 * 2 * math.pi), cy + rr * math.sin(a / 40 * 2 * math.pi)) for a in range(41)], 8 * SS, 6 * SS):
@@ -1012,13 +1069,17 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         rr = 6 * SS * (0.4 + 0.6 * k)
         od.ellipse([cx - rr, cy - rr, cx + rr, cy + rr], fill=col[:3] + (int(255 * k),))
     img = Image.alpha_composite(img, ov.reduce(SS))
+    for pl in g["places"]:
+        if pl.get("site"):
+            sx, sy = view.pt(pl["lat"], pl["lon"])
+            ME.draw_site(img, sx, sy, pl["site"], t - pl["start"])
     for iso, (fx, fy), fs in flag_marks:
         _map_flag(img, iso, fx, fy - 30, t - fs)
 
     # text layer
     d = ImageDraw.Draw(img)
     fb = T.font("bold", 13)
-    badge_text = str(params.get("badge") or BADGE_DEFAULT).upper()
+    badge_text = str(params.get("badge") or (FL_BADGE if fl_info and fl_info.get("drawn") else CTL_BADGE if ctl_info and ctl_info.get("events") else BADGE_DEFAULT)).upper()
     bw = int(L.spaced_width(d, badge_text, fb, 0.08)) + 22
     badge = (20, 16, 20 + bw, 16 + 28)
     d.rectangle(badge, fill=(10, 12, 16, 240), outline=(170, 176, 186, 255), width=1)
@@ -1046,6 +1107,14 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     loc = FX.locator(img, view, look, theme, [(pl["lat"], pl["lon"]) for pl in g["places"]], 20, 52, M.ease_out(M.ramp(t, 0.5, 0.5)))
     if loc:
         reserved.append(loc)
+    if fl_info and fl_info.get("drawn"):                                  # the data stamp (what / when / who) beside the locator
+        reserved.append(FL.draw_stamp(img, fl_info.get("current_spec") or fl_spec, (loc[2] + 8) if loc else 20, badge[3] + 6 if not loc else loc[1], t))
+        if fl_info.get("ticker"):                                         # a sequence: the big date ticker sits above the scale bar
+            if theme == "political":                                      # the colour key owns the bottom-left corner
+                reserved.append(FL.draw_ticker(img, fl_info["ticker"], W - 24, H - 140, right=True))
+            else:
+                reserved.append(FL.draw_ticker(img, fl_info["ticker"], 24, H - 176))
+        d = ImageDraw.Draw(img)
     if theme == "political":
         n_leg = min(4, len(_fills(params, theme)))
         reserved.append((20, H - 84 - 22 * n_leg, 330, H - 82))           # the fill legend
@@ -1076,6 +1145,15 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         _outlined(ImageDraw.Draw(lay), (10 - tb[0], 10 - tb[1]), txt, fl, WHITE)
         img.alpha_composite(L.fade(lay, k), (r[0] - 6, r[1] - 6))
         info["labels"].append((txt, r))
+        if pl.get("site") and ME.TYPE_LABEL.get(pl["site"]):                # a strategic site says what it is under its name
+            tt = ME.TYPE_LABEL[pl["site"]]
+            ftt = T.font("bold", 11)
+            tr = (r[0], r[3] + 1, r[0] + int(L.spaced_width(d, tt, ftt, 0.2)) + 4, r[3] + 16)
+            if placer.free(tr):
+                placer.take(tt, tr)
+                tl = Image.new("RGBA", img.size, (0, 0, 0, 0))
+                L.spaced(ImageDraw.Draw(tl), (tr[0] + 2, tr[1] + 1), tt, ftt, AMBER[:3] + (255,), 0.2)
+                img.alpha_composite(L.fade(tl, k))
     for label, (rx, ry), rk in region_tags:                               # region name tags, below the subject's own labels in priority
         txt = label.upper()
         rf = T.font("bold", 15)
@@ -1099,6 +1177,13 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         placer.take(txt, r)
         d.rectangle(r, fill=(10, 12, 16, 240), outline=(170, 176, 186, 255), width=1)
         L.spaced(d, (r[0] + 9, r[1] + 6), txt, fs, (224, 228, 234, 255), 0.08)
+
+    if fl_info and fl_info.get("labels"):
+        info["frontline_labels"] = FL.draw_labels(img, fl_info, placer)
+        d = ImageDraw.Draw(img)
+    if ctl_info and ctl_info.get("chips"):
+        info["control_chips"] = ME.draw_chips(img, ctl_info, placer)
+        d = ImageDraw.Draw(img)
 
     # quiet context: cities, countries, seas, rivers (never over the subject's own labels)
     fc, fcs = T.font("regular", 17), T.font("display", 24)
@@ -1172,7 +1257,7 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
             d.rectangle([lx, ly + i * 22, lx + 16, ly + i * 22 + 14], fill=tuple(POL_FILL.get(str(fl.get("role")), NEIGH_P + (255,)))[:3] + (255,), outline=(236, 238, 242, 255))
             d.text((lx + 24, ly + i * 22 - 1), nm.upper(), font=fl2, fill=WHITE, stroke_width=2, stroke_fill=HALO)
     ft_ = T.font("regular", 12)
-    src = "Map data: Natural Earth (public domain). Schematic."
+    src = FL.source_line(fl_info.get("current_spec") or fl_spec) if fl_info and fl_info.get("drawn") else "Map data: Natural Earth (public domain). Schematic."
     d.text((W - 24 - d.textlength(src, font=ft_), H - 22), src, font=ft_, fill=(150, 156, 166, 255), stroke_width=2, stroke_fill=HALO)
     img = Image.alpha_composite(Image.new("RGBA", img.size, (0, 0, 0, 255)), img)     # the card is opaque: boxes drawn with alpha settle on black
     return img, info
@@ -1221,6 +1306,18 @@ def tac_route(t: float, dur: float, params: dict) -> Optional[Image.Image]:
     if sub.get("_skipped"):
         p["_skipped"] = sub["_skipped"]
     return img
+
+
+def view_at(params: dict, t: float, dur: float) -> Tuple[float, float, float]:
+    """(cx, cy, hw) of the camera at t without drawing anything (for map-to-map continuity)."""
+    theme = "political" if str(params.get("theme") or "tactical") == "political" else "tactical"
+    p = dict(params)
+    g = _gather(p)
+    views = _views(p, g, (W, H), [], theme, _has_panel(p, None))
+    ft = p.get("focus_times") if g["steps"] and len(p.get("focus_times") or []) == len(views) else None
+    v, _ = _camera(views, t, max(dur, 0.1), ft)
+    v = _cine(v, g, t, dur, _enter_view(p))
+    return (v.cx, v.cy, v.hw)
 
 
 def render_info(params: dict, t: float, dur: float = 8.0) -> dict:

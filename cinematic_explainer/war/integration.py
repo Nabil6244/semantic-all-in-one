@@ -188,6 +188,39 @@ def graphics_count(layers: Any) -> Dict[str, int]:
     return dict(sorted(c.items(), key=lambda kv: (-kv[1], kv[0])))
 
 
+GRAPHIC_NAMES = {"tac_map": "Tactical / political map", "tac_route": "Route map", "map_card": "Situation map", "map_inset": "Corner locator map",
+                 "kit_title": "Title card", "kit_datecard": "Date card", "kit_quote": "Quote card", "kit_kinetic": "Kinetic words",
+                 "kit_keywords": "Keywords", "kit_dossier": "Dossier file", "kit_radar": "Radar sweep", "kit_chapter": "Chapter label",
+                 "kit_bignum": "Big number", "kit_versus": "Versus comparison", "kit_chart": "Animated chart", "kit_icons": "Icon explainer",
+                 "kit_sticker": "Pictogram sticker", "kit_recap": "Numbered recap", "kit_chips": "Note chips", "kit_scale": "Scale row",
+                 "kit_speaker": "Name / role card", "kit_stamp": "CLAIMED / UNVERIFIED stamp", "kit_tag": "Hook tag", "kit_ribbon": "Section ribbon",
+                 "kit_flag": "Waving flag", "kit_flyover": "Drone / missile fly-over", "lay_document": "Document highlight",
+                 "lay_satellite": "Satellite before/after", "lay_figure_hero": "Person hero", "lay_figure_pair": "Two people", "lay_equipment_hero": "Equipment hero",
+                 "lay_equipment_compare": "Equipment compare", "lay_stat_split": "Stat split", "lay_timeline": "Timeline", "lay_claim": "Claim panel",
+                 "lay_inset": "Inset caption", "lay_logistics": "Supply chain", "figure_card": "Portrait card", "equipment_card": "Equipment card",
+                 "institution_card": "Institution card", "evidence_card": "Source card", "stat_number": "Number card", "stat_compare": "Compare bars",
+                 "timeline": "Timeline (classic)", "split_compare": "Split compare"}
+_INDEX_SKIP = {"kit_grain", "kit_badge", "status_chip", "kicker", "source_label", "shot_headline"}
+
+
+def graphics_index(layers: List[Any]) -> str:
+    """'0:12  Date card (kit_datecard)  3.6 s' per graphic in time order, then the totals: where to find each graphic in the video."""
+    lines, used = [], {}
+    for ly in sorted(layers, key=lambda l: l.start):
+        if ly.kind in _INDEX_SKIP:
+            continue
+        m, s_ = divmod(int(ly.start), 60)
+        extra = ""
+        p = ly.params or {}
+        if ly.kind == "tac_map":
+            bits = [x for x, on in (("capture", p.get("control")), ("front line", p.get("frontline")), ("route", p.get("routes"))) if on]
+            extra = f"  [{', '.join(bits)}]" if bits else ""
+        lines.append(f"{m}:{s_:02d}  {GRAPHIC_NAMES.get(ly.kind, ly.kind)} ({ly.kind})  {ly.end - ly.start:.1f} s{extra}")
+        used[ly.kind] = used.get(ly.kind, 0) + 1
+    tot = [f"{GRAPHIC_NAMES.get(k, k)}: {n}" for k, n in sorted(used.items(), key=lambda kv: -kv[1])]
+    return "GRAPHICS IN THIS VIDEO (time, graphic, seconds)\n" + "\n".join(lines) + f"\n\n{len(used)} kinds used\n" + "\n".join(tot) + "\n"
+
+
 def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None, *, match: bool = True, config: Optional[dict] = None,
                 discovery_provider: Any = None) -> List[dict]:
     """Scene dicts with footage resolved from the explicit list, war_scenes.json and the project's asset manifest (same scene numbering as the
@@ -229,6 +262,9 @@ def load_scenes(project_dir: Path, scenes: Optional[List[dict]] = None, *, match
         if not foot and why:
             sc["footage_meta"].setdefault("no_footage_reason", why)
         sc.setdefault("scene_no", no)
+        if sc.get("images"):                  # the CSV's images column (before|after for a satellite comparison): project-relative paths made absolute
+            sc["images"] = "|".join(str(Path(x.strip()) if Path(x.strip()).is_absolute() else project_dir / x.strip())
+                                    for x in str(sc["images"]).split("|") if x.strip())
         out.append(sc)
     if match:
         try:       # estimate which clip fits each narration (metadata only); a failure leaves every scene exactly as resolved above
@@ -343,6 +379,8 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
                                         progress_cb=prog, workers=workers)
     rep = build_report(sc, plan)
     credit_lines = list(getattr(plan, "credits", []) or [])
+    fl_credits = list(((getattr(plan, "stats", {}) or {}).get("direction") or {}).get("frontline", {}).get("credits") or [])
+    credit_lines += [c for c in fl_credits if c not in credit_lines]      # front-line sources are credited with their dates and licences
     unresolved = [f"scene {e['scene_no']}: {e.get('rights') or 'rights not established'}" for e in rep["entries"]
                   if e.get("kind") != "user" and (not e.get("rights_known") or e["prov"].licence == P.UNKNOWN)]
     result: Dict[str, Any] = {"ok": bool(res.get("ok")), "out": str(out), "render": res, "credits": credit_lines, "rights_not_established": unresolved,
@@ -352,10 +390,17 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
     if write_report:
         try:
             cp = out.with_suffix(".credits.txt")
-            cp.write_text(P.credits_text(rep["entries"]), encoding="utf-8")
+            cp.write_text(P.credits_text(rep["entries"]) + ("\n\nFRONT-LINE DATA\n" + "\n".join(fl_credits) + "\n" if fl_credits else ""),
+                          encoding="utf-8")
             result["credits_path"] = str(cp)
         except OSError as exc:
             log.warning("credits file not written: %s", exc)
+        try:                                  # where every graphic is in the video, so each one in the graphics sheets can be found
+            gp = out.with_suffix(".graphics.txt")
+            gp.write_text(graphics_index(layers), encoding="utf-8")
+            result["graphics_path"] = str(gp)
+        except OSError as exc:
+            log.warning("graphics index not written: %s", exc)
         try:
             rp = out.with_suffix(".report.json")
             rp.write_text(json.dumps({"credits": credit_lines, "rights_not_established": unresolved, "scenes": rep["scenes"], "log": result["plan_log"],

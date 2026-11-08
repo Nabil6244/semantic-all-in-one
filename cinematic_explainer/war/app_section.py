@@ -109,7 +109,7 @@ def read_scenes_csv(path: str) -> List[dict]:
         sc: Dict[str, Any] = {"text": text}
         no = (r.get(no_col) or "").strip() if no_col else ""
         sc["scene_no"] = int(no) if no.isdigit() else len(out) + 1
-        for key in ("asset_type", "prompt", "footage", "graphic"):
+        for key in ("asset_type", "prompt", "footage", "graphic", "images"):
             if key in cols and (r.get(cols[key]) or "").strip():
                 sc[key] = r[cols[key]].strip()
         if start_col and end_col and (r.get(start_col) or "").strip() and (r.get(end_col) or "").strip():
@@ -322,7 +322,99 @@ def build(app, parent, *, row: int) -> None:
     ctk.CTkLabel(bar, text="Paste it into any AI, then choose the CSV it writes as the Scenes file.", font=ctk.CTkFont(size=11), text_color=M._MUTED,
                  anchor="w").grid(row=0, column=1, sticky="w", padx=(10, 0))
     app._build_csv_prompt_script_box(bar, row=1, columnspan=2)
+    fl = ctk.CTkFrame(controls, fg_color="transparent")             # front-line data: optional, dated, sourced control areas for the maps
+    fl.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+    fl.grid_columnconfigure(1, weight=1)
+    app._war_frontline_var = ctk.StringVar(value=frontline_summary())
+    M._make_button(fl, "Add front-line data", lambda: add_frontline(app), size="lg", width=150).grid(row=0, column=0, sticky="w")
+    ctk.CTkLabel(fl, textvariable=app._war_frontline_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=520,
+                 justify="left").grid(row=0, column=1, sticky="w", padx=(10, 0))
     block.grid_remove()
+
+
+def frontline_summary() -> str:
+    """One line on the front-line data the maps can use (the per-user folder plus the app's own, which ships empty)."""
+    try:
+        from . import frontline as FL
+
+        good, bad = FL.load_library()
+    except Exception as exc:  # noqa: BLE001 - a summary line never stops the panel
+        return f"Front-line data could not be read: {exc}"
+    if not good:
+        txt = ("No front-line data yet: maps show what the narration says changed hands (illustrative areas). "
+               "Add a dated, sourced GeoJSON to also draw assessed control areas and front-line history.")
+    else:
+        txt = (f"Front-line data: {len(good)} snapshot(s), {good[0]['as_of']} to {good[-1]['as_of']} "
+               f"({', '.join(sorted({g['source'][:30] for g in good}))}). Maps use it when the narration gives a date.")
+    if bad:
+        txt += f" {len(bad)} file(s) skipped ({bad[0][1]})."
+    return txt
+
+
+def frontline_dir() -> Path:
+    from . import frontline as FL
+
+    return FL.default_dirs()[-1]
+
+
+def import_frontline_file(path: str, *, as_of: str = "", source: str = "", licence: str = "", status: str = "assessed", side: str = "russia") -> Path:
+    """A snapshot file (war.frontline/1 JSON) is copied as it is; a GeoJSON is converted with the date, source and licence given here.
+    Raises ValueError with the reason when something required is missing."""
+    import json as _json
+    import shutil
+
+    from . import frontline as FL
+
+    src = Path(path)
+    dest_dir = frontline_dir()
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        raw = _json.loads(src.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"{src.name} is not readable JSON: {exc}") from None
+    if isinstance(raw, dict) and raw.get("areas") is not None:
+        ok, why = FL.validate(raw)
+        if not ok:
+            raise ValueError(f"{src.name}: {why}")
+        dest = dest_dir / src.name
+        shutil.copyfile(src, dest)
+        return dest
+    return FL.import_geojson(src, dest_dir, as_of=as_of.strip(), source=source.strip(), licence=licence.strip(), status=status, side=side)
+
+
+def add_frontline(app) -> None:
+    """Choose a GeoJSON (or a snapshot file), say its date, source and licence, and it joins the maps' front-line data (per user)."""
+    M = _m(app)
+    path = M.filedialog.askopenfilename(title="Choose front-line data (GeoJSON or snapshot JSON)",
+                                        filetypes=[("GeoJSON or JSON", "*.geojson *.json"), ("All files", "*.*")])
+    if not path:
+        return
+    ask = lambda title, text: (M.ctk.CTkInputDialog(title=title, text=text).get_input() or "").strip()   # noqa: E731
+    meta = {}
+    try:
+        import json as _json
+
+        is_snapshot = isinstance(_json.loads(Path(path).read_text(encoding="utf-8")), dict) and "areas" in _json.loads(Path(path).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        is_snapshot = False
+    if not is_snapshot:
+        meta["as_of"] = ask("Front-line data", "Date this map shows (YYYY-MM-DD):")
+        if not meta["as_of"]:
+            return
+        meta["source"] = ask("Front-line data", "Who made it (source shown on screen and in the credits):")
+        if not meta["source"]:
+            return
+        meta["licence"] = ask("Front-line data", "Licence or permission (e.g. CC BY-SA 4.0, OGL v3.0, permission email):")
+        if not meta["licence"]:
+            return
+    try:
+        dest = import_frontline_file(path, **meta)
+        msg = f"Added {dest.name}. " + frontline_summary()
+    except Exception as exc:  # noqa: BLE001 - shown to the user
+        msg = f"Front-line data not added: {exc}"
+    var = getattr(app, "_war_frontline_var", None)
+    if var is not None:
+        var.set(msg)
 
 
 def csv_prompt_text(script: str = "") -> str:
