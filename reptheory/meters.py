@@ -82,7 +82,7 @@ def draw_share(cv: Image.Image, ctx: D.Ctx, sh: dict, t: float) -> None:
     """A half-circle gauge from 0 to ALL; the needle steps to each share on its word, the number under it rolls to match, the scale is green to red."""
     d = ImageDraw.Draw(cv, "RGBA"); cx, cy, r = int(ctx.W * 0.28), int(ctx.H * 0.60), int(ctx.H * 0.28); a = min(1.0, t / 0.35)
     for i in range(40):
-        f0 = i / 40; col = tuple(int(g + (rr - g) * f0) for g, rr in zip((74, 222, 128), (232, 64, 52)))
+        f0 = i / 40; col = tuple(int(g + (rr - g) * f0) for g, rr in zip(T.GREEN, (232, 64, 52)))
         d.arc((cx - r, cy - r, cx + r, cy + r), 180 + 180 * f0, 180 + 180 * (i + 0.8) / 40, fill=col + (int(255 * a),), width=ctx.px(22))
     v = 0.0
     for s in sh["steps"]:
@@ -98,7 +98,7 @@ def draw_meter(cv: Image.Image, ctx: D.Ctx, mt: dict, t_abs: float, start: float
     lv = mt["start"]
     for s in mt["steps"]:
         if t_abs >= s["at"]: lv = lv + (s["level"] - lv) * T.ease_out(min(1.0, (t_abs - s["at"]) / 0.6))
-    d.rounded_rectangle((x - w / 2, y0, x + w / 2, y0 + h), radius=ctx.px(10), fill=(24, 24, 27, int(230 * a)), outline=(90, 90, 96, int(255 * a)), width=ctx.px(3))
+    d.rounded_rectangle((x - w / 2, y0, x + w / 2, y0 + h), radius=ctx.px(10), fill=T.P(24, 24, 27, int(230 * a)), outline=(90, 90, 96, int(255 * a)), width=ctx.px(3))
     fh = int((h - ctx.px(10)) * lv); col = T.RED if lv > 0.66 else T.ORANGE
     d.rounded_rectangle((x - w / 2 + ctx.px(6), y0 + h - ctx.px(5) - fh, x + w / 2 - ctx.px(6), y0 + h - ctx.px(5)), radius=ctx.px(6), fill=col + (int(255 * a),))
     f = ctx.font(T.BODY_FONT, 24); lw = D._text_w(d, "LOAD", f, ctx.px(2)); D.text_spaced(d, (x - lw / 2, y0 - ctx.px(36)), "LOAD", f, T.SOFT_WHITE + (int(255 * a),), ctx.px(2))
@@ -108,11 +108,11 @@ def draw_effort(cv: Image.Image, ctx: D.Ctx, ef: dict, t_abs: float) -> None:
     u = t_abs - ef["at"]
     if u < 0: return
     d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, u / 0.3); x0, x1, y = int(ctx.W * 0.30), int(ctx.W * 0.70), int(ctx.H * 0.90); h = ctx.px(18); p = T.ease_in_out(min(1.0, u / 1.2))
-    d.rounded_rectangle((x0, y, x1, y + h), radius=h // 2, fill=(30, 30, 33, int(230 * a)))
+    d.rounded_rectangle((x0, y, x1, y + h), radius=h // 2, fill=T.P(30, 30, 33, int(230 * a)))
     xe = x0 + (x1 - x0) * 0.92 * p
     for i in range(30):
         f0 = i / 30; xa = x0 + (x1 - x0) * 0.92 * f0; xb = x0 + (x1 - x0) * 0.92 * (i + 1) / 30
-        if xa < xe: d.rectangle((xa, y + 3, min(xb, xe), y + h - 3), fill=tuple(int(g + (rr - g) * f0) for g, rr in zip((74, 222, 128), (232, 64, 52))) + (int(255 * a),))
+        if xa < xe: d.rectangle((xa, y + 3, min(xb, xe), y + h - 3), fill=tuple(int(g + (rr - g) * f0) for g, rr in zip(T.GREEN, (232, 64, 52))) + (int(255 * a),))
     xl = x0 + (x1 - x0) * 0.92; d.line((xl, y - ctx.px(14), xl, y + h + ctx.px(14)), fill=T.WHITE + (int(255 * a),), width=ctx.px(3))
     f = ctx.font(T.BODY_FONT, 22); D.text_spaced(d, (xl - ctx.px(28), y - ctx.px(44)), "LIMIT", f, T.WHITE + (int(255 * a),), ctx.px(2)); D.text_spaced(d, (x0, y - ctx.px(44)), "EFFORT", f, T.GREY + (int(255 * a),), ctx.px(2))
     if p >= 1: q = min(1.0, (u - 1.2) / 0.5); rr = ctx.px(10) + ctx.px(30) * q; d.ellipse((xl - rr, y + h / 2 - rr, xl + rr, y + h / 2 + rr), outline=T.RED + (int(200 * (1 - q)),), width=ctx.px(3))

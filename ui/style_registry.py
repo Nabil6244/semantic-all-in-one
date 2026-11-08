@@ -52,6 +52,14 @@ EXTRA_BLURBS[ROBLOX_CINEMA] = ("History told in a block-toy 3D world: planned fr
                                "tabletop maps, cut to your voice, with music and sound. From a story CSV or plain narration.")
 EXTRA_CARDS[ROBLOX_CINEMA] = ("\u25A6", "History as a block-world film", "A story CSV or narration (+ voice-over)", "War and history stories")
 
+# Cat Theory: the Rep Theory engine with the white cat theme (reptheory/theme.py "cat"); appended here so nothing above changes
+CAT_THEORY = "Cat Theory"
+BUILT_ON[CAT_THEORY] = "Rep Theory"
+GROUPS = tuple((title, tuple(x for n in names for x in ((n, CAT_THEORY) if n == "Rep Theory" else (n,)))) for title, names in GROUPS)
+EXTRA_BLURBS[CAT_THEORY] = ("Cat behaviour explainers told the Rep Theory way (hook, roadmap, claim, proof, try-it test, comment payoff) on a white "
+                            "canvas: soft storybook cat pictures through Flow, study cards, equations and charts. No 3D.")
+EXTRA_CARDS[CAT_THEORY] = ("\u2665", "Cat explainers on a white canvas", "Voiceover (scenes file optional)", "Cat behaviour, health and care")
+
 
 def with_extras(choices: Tuple[str, ...]) -> Tuple[str, ...]:
     """The app's choices plus the card-only styles, each right after the style it is built on."""

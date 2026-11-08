@@ -20,7 +20,6 @@ from PIL import Image, ImageDraw
 from . import draw as D, meters as M, narrative as N, theme as T
 
 KINDS = ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow")
-GREEN = (74, 222, 128)
 W_ = r"[A-Za-z][A-Za-z'-]*"
 
 def _words(s: str, n: int = 2, last: bool = False) -> str:
@@ -241,7 +240,7 @@ def draw_lever(cv, ctx, c, t):
             _label(d, ctx, (ex, y1 - bh - ctx.px(48)), c["obj"], 34, T.ORANGE, q)
     q = _p(t, c["at"] + 1.4, 0.45)      # the formula box
     if q > 0:
-        x0, y0, x1, y1 = W * 0.70, H * 0.26, W * 0.95, H * 0.60; d.rounded_rectangle((x0, y0, x1, y1), radius=ctx.px(20), fill=(24, 24, 27, int(235 * q)), outline=(90, 90, 96, int(255 * q)), width=ctx.px(3))
+        x0, y0, x1, y1 = W * 0.70, H * 0.26, W * 0.95, H * 0.60; d.rounded_rectangle((x0, y0, x1, y1), radius=ctx.px(20), fill=T.P(24, 24, 27, int(235 * q)), outline=(90, 90, 96, int(255 * q)), width=ctx.px(3))
         cx = (x0 + x1) / 2; _label(d, ctx, (cx, y0 + ctx.px(30)), "LOAD", 64, T.RED if load > 0.8 else T.WHITE, q); _label(d, ctx, (cx, y0 + ctx.px(110)), "=", 48, T.GREY, _p(t, c["at"] + 1.6, 0.3))
         _label(d, ctx, (cx, y0 + ctx.px(170)), f"{c['a']} × {c['b']}", 38 if len(c["a"] + c["b"]) < 16 else 28, T.ORANGE, _p(t, c["at"] + 1.8, 0.3))
 
@@ -257,7 +256,7 @@ def draw_seesaw(cv, ctx, c, t):
         d.ellipse((x - r, y - 2 * r - ctx.px(6), x + r, y - ctx.px(6)), fill=tuple(col) + (int(255 * a),)); _label(d, ctx, (x, y - 2 * r - ctx.px(64)), lab, 40, T.WHITE, a)
     if last:
         q = _p(t, last["at"] + 0.3, 0.3); bal = abs(tilt) < 0.25
-        _label(d, ctx, (cx, cy + s * 1.7 + ctx.px(30)), "BALANCED" if bal else f"TIPS {c['right'] if tilt > 0 else c['left']}", 56, GREEN if bal else T.RED, q)
+        _label(d, ctx, (cx, cy + s * 1.7 + ctx.px(30)), "BALANCED" if bal else f"TIPS {c['right'] if tilt > 0 else c['left']}", 56, T.GREEN if bal else T.RED, q)
 
 def draw_gap(cv, ctx, c, t):
     d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); x0, x1, y0, y1 = W * 0.14, W * 0.80, H * 0.16, H * 0.70
@@ -293,7 +292,7 @@ def draw_panels(cv, ctx, c, t):
             e = _p(t, _open(c), 0.35)
             if e > 0: d.rounded_rectangle((x0, y0, x0 + pw, y0 + ph), radius=ctx.px(24), outline=(70, 70, 76, int(200 * e)), width=ctx.px(3))
             continue
-        off = (1 - q) * ctx.px(40); d.rounded_rectangle((x0, y0 + off, x0 + pw, y0 + ph + off), radius=ctx.px(24), fill=(28, 28, 32, int(235 * min(1, q))), outline=tuple(col) + (int(255 * min(1, q)),), width=ctx.px(5))
+        off = (1 - q) * ctx.px(40); d.rounded_rectangle((x0, y0 + off, x0 + pw, y0 + ph + off), radius=ctx.px(24), fill=T.P(28, 28, 32, int(235 * min(1, q))), outline=tuple(col) + (int(255 * min(1, q)),), width=ctx.px(5))
         _label(d, ctx, (x0 + pw / 2, y0 + ph / 2 - ctx.px(34) + off), c[key], 60 if len(c[key]) < 10 else 42, col if key == "b" else T.WHITE, q)
     p = _p(t, c["a_at"] + 0.3, max(0.4, c["b_at"] - c["a_at"]))      # the dashed arc from the first panel to the second
     if p > 0:
@@ -309,7 +308,7 @@ def draw_tearoff(cv, ctx, c, t):
         a = _p(t, _open(c) + 0.1 * i, 0.35); x = x0 + i * (pw + gap)
         d.rounded_rectangle((x, y0, x + pw, y0 + ph), radius=ctx.px(14), fill=(236, 233, 226, int(255 * a)))
         d.rectangle((x, y0, x + pw, y0 + ctx.px(46)), fill=T.RED + (int(255 * a),))
-        for k in range(4): rx = x + pw * (0.2 + 0.2 * k); d.ellipse((rx - ctx.px(8), y0 - ctx.px(12), rx + ctx.px(8), y0 + ctx.px(12)), fill=(40, 40, 44, int(255 * a)))
+        for k in range(4): rx = x + pw * (0.2 + 0.2 * k); d.ellipse((rx - ctx.px(8), y0 - ctx.px(12), rx + ctx.px(8), y0 + ctx.px(12)), fill=T.P(40, 40, 44, int(255 * a)))
         q = _p(t, pg["at"], 0.3); words = pg["text"].split(" ", 1)
         _label(d, ctx, (x + pw / 2, y0 + ph * 0.30), words[0], 96 if len(words[0]) < 5 else 64, T.RED if pg.get("red") else (30, 30, 34), q)
         if len(words) > 1: _label(d, ctx, (x + pw / 2, y0 + ph * 0.64), words[1], 40, (70, 70, 76), q)
@@ -325,7 +324,7 @@ def draw_battery(cv, ctx, c, t):
     for s in c["steps"]:
         if t >= s["at"]: lv = lv + (s["level"] - lv) * T.ease_in_out(_p(t, s["at"], 0.8)); charging = s["charge"] and t < s["at"] + 1.2
     d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(24), outline=T.WHITE + (int(255 * a),), width=ctx.px(8)); d.rounded_rectangle((x0 + bw, y0 + bh * 0.32, x0 + bw + ctx.px(28), y0 + bh * 0.68), radius=ctx.px(8), fill=T.WHITE + (int(255 * a),))
-    col = T.RED if lv < 0.35 else T.ORANGE if lv < 0.7 else GREEN; m = ctx.px(18)
+    col = T.RED if lv < 0.35 else T.ORANGE if lv < 0.7 else T.GREEN; m = ctx.px(18)
     if lv > 0.02: d.rounded_rectangle((x0 + m, y0 + m, x0 + m + (bw - 2 * m) * lv, y0 + bh - m), radius=ctx.px(12), fill=tuple(col) + (int(255 * a),))
     if charging:
         cx, cy, s = x0 + bw / 2, y0 + bh / 2, bh * 0.36; d.polygon([(cx + s * 0.15, cy - s), (cx - s * 0.45, cy + s * 0.1), (cx - s * 0.02, cy + s * 0.1), (cx - s * 0.15, cy + s), (cx + s * 0.45, cy - s * 0.1), (cx + s * 0.02, cy - s * 0.1)], fill=T.WHITE + (255,))
@@ -336,7 +335,7 @@ def draw_battery(cv, ctx, c, t):
         for i, lab in enumerate("MTWTFSS"):
             q = _p(t, wk["at"] + 0.06 * i, 0.3); x = xs + i * (cw + gap); tr = i in wk["train"]
             d.rounded_rectangle((x, y, x + cw, y + cw), radius=ctx.px(12), fill=(T.ORANGE if tr else (32, 52, 40)) + (int(235 * q),)); _label(d, ctx, (x + cw / 2, y + ctx.px(14)), lab, 40, T.WHITE, q)
-            _label(d, ctx, (x + cw / 2, y + cw - ctx.px(40)), "TRAIN" if tr else "REST", 20, T.WHITE if tr else GREEN, q, head=False)
+            _label(d, ctx, (x + cw / 2, y + cw - ctx.px(40)), "TRAIN" if tr else "REST", 20, T.WHITE if tr else T.GREEN, q, head=False)
 
 def draw_clipboard(cv, ctx, c, t):
     d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); bw, bh = W * 0.40, H * 0.72; x0, y0 = (W - bw) / 2, H * 0.06 + (1 - T.ease_out(a)) * ctx.px(60)
@@ -357,7 +356,7 @@ def draw_clipboard(cv, ctx, c, t):
 
 def draw_road(cv, ctx, c, t):
     d = ImageDraw.Draw(cv, "RGBA"); W, H = ctx.W, ctx.H; a = _p(t, _open(c), 0.35); hy = H * 0.30; cx = W * 0.5
-    d.polygon([(cx - W * 0.02, hy), (cx + W * 0.02, hy), (cx + W * 0.42, H), (cx - W * 0.42, H)], fill=(44, 44, 48, int(255 * a)))
+    d.polygon([(cx - W * 0.02, hy), (cx + W * 0.02, hy), (cx + W * 0.42, H), (cx - W * 0.42, H)], fill=T.P(44, 44, 48, int(255 * a)))
     for e in (-1, 1): d.line((cx + e * W * 0.02, hy, cx + e * W * 0.42, H), fill=T.SOFT_WHITE + (int(200 * a),), width=ctx.px(4))
     off = (t * 0.6) % 1.0      # the centre dashes keep moving toward the viewer
     for k in range(9):

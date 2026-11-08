@@ -119,7 +119,7 @@ def draw_strike(cv, ctx, c, t):
     a = _p(t, c["at"] - 0.1); s = _p(t, c["strike_at"], 0.3); fade = 1 - _p(t, c["strike_at"] + 1.1, 0.4)
     if a <= 0 or fade <= 0: return
     d = ImageDraw.Draw(cv, "RGBA"); f = ctx.font(T.HEAD_FONT, 84 if len(c["text"]) < 14 else 64); w = D._text_w(d, c["text"], f, ctx.px(2)); x, y = (ctx.W - w) / 2, ctx.H * 0.09
-    d.rounded_rectangle((x - ctx.px(30), y - ctx.px(14), x + w + ctx.px(30), y + f.size * 1.25), radius=ctx.px(16), fill=(14, 14, 16, int(200 * a * fade)))
+    d.rounded_rectangle((x - ctx.px(30), y - ctx.px(14), x + w + ctx.px(30), y + f.size * 1.25), radius=ctx.px(16), fill=T.P(14, 14, 16, int(200 * a * fade)))
     D.text_spaced(d, (x, y), c["text"], f, T.WHITE + (int(255 * a * fade),), ctx.px(2))
     if s > 0:
         yl = y + f.size * 0.62; d.line((x - ctx.px(16), yl + ctx.px(8), x - ctx.px(16) + (w + ctx.px(32)) * T.ease_out(s), yl - ctx.px(8) * s), fill=T.RED + (int(255 * fade),), width=ctx.px(12))
@@ -162,7 +162,7 @@ def draw_measure(cv, ctx, c, t):
             for yy in (ya, yb): d.line((x - ctx.px(18), yy, x + ctx.px(18), yy), fill=col, width=ctx.px(4))
             if p >= 0.9:
                 f = ctx.font(T.HEAD_FONT, 40); tw = D._text_w(d, h["text"], f, ctx.px(1)); lx = x - ctx.px(46) - tw if right else x + ctx.px(18)      # the label sits on the inner side of the ruler
-                d.rounded_rectangle((lx, ym - ctx.px(30), lx + ctx.px(28) + tw, ym + ctx.px(32)), radius=ctx.px(10), fill=(14, 14, 16, 220))
+                d.rounded_rectangle((lx, ym - ctx.px(30), lx + ctx.px(28) + tw, ym + ctx.px(32)), radius=ctx.px(10), fill=T.P(14, 14, 16, 220))
                 D.text_spaced(d, (lx + ctx.px(14), ym - ctx.px(26)), h["text"], f, T.ORANGE + (255,), ctx.px(1))
     if w:
         q = T.ease_back(_p(t, w["at"], 0.4))
@@ -176,9 +176,9 @@ def draw_hazard(cv, ctx, c, t):
     if u < 0 or u > 3.0: return
     e = T.ease_out(min(1.0, u / 0.4)) - T.ease_in_out(max(0.0, (u - 2.4) / 0.6)); y0, hh = ctx.H * 0.12, ctx.px(84); W = ctx.W
     band = Image.new("RGBA", (W + ctx.px(200), hh), YELLOW + (255,)); bd = ImageDraw.Draw(band); s = ctx.px(70)
-    for x in range(-hh, band.width + hh, 2 * s): bd.polygon([(x, hh), (x + s, hh), (x + s + hh, 0), (x + hh, 0)], fill=(20, 20, 22, 255))
+    for x in range(-hh, band.width + hh, 2 * s): bd.polygon([(x, hh), (x + s, hh), (x + s + hh, 0), (x + hh, 0)], fill=T.P(20, 20, 22, 255))
     f = ctx.font(T.HEAD_FONT, 52); tw = bd.textlength("WARNING", font=f); bx = band.width / 2 - tw / 2
-    bd.rectangle((bx - ctx.px(30), 0, bx + tw + ctx.px(30), hh), fill=YELLOW + (255,)); bd.text((bx, (hh - f.size) / 2 - ctx.px(6)), "WARNING", font=f, fill=(20, 20, 22, 255))
+    bd.rectangle((bx - ctx.px(30), 0, bx + tw + ctx.px(30), hh), fill=YELLOW + (255,)); bd.text((bx, (hh - f.size) / 2 - ctx.px(6)), "WARNING", font=f, fill=T.P(20, 20, 22, 255))
     band = band.rotate(-2.5, expand=True, resample=Image.BICUBIC); x = int(-band.width + (band.width - ctx.px(100)) * e)
     cv.paste(band, (x, int(y0)), band)
 
@@ -197,7 +197,7 @@ def draw_band(cv, ctx, c, t):
     a = _p(t, c["at"], 0.35)
     if a <= 0: return
     d = ImageDraw.Draw(cv, "RGBA"); f = ctx.font(T.HEAD_FONT, 34); w = D._text_w(d, c["text"], f, ctx.px(2)) + ctx.px(56); x0, y0 = (ctx.W - w) / 2, ctx.H * 0.07
-    d.rounded_rectangle((x0, y0, x0 + w, y0 + ctx.px(62)), radius=ctx.px(31), fill=(20, 20, 22, int(225 * a)), outline=T.ORANGE + (int(255 * a),), width=ctx.px(3))
+    d.rounded_rectangle((x0, y0, x0 + w, y0 + ctx.px(62)), radius=ctx.px(31), fill=T.P(20, 20, 22, int(225 * a)), outline=T.ORANGE + (int(255 * a),), width=ctx.px(3))
     D.text_spaced(d, (x0 + ctx.px(28), y0 + ctx.px(11)), c["text"], f, T.ORANGE + (int(255 * a),), ctx.px(2))
 
 DRAW = {"cta": draw_cta, "band": draw_band, "strike": draw_strike, "bubble": draw_bubble, "aside": draw_aside, "measure": draw_measure, "hazard": draw_hazard}

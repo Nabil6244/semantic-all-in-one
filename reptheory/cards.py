@@ -47,7 +47,7 @@ def steps(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float, ticks: bool 
             q = T.ease_out((t - items[i - 1]["at"] - 0.2) / 0.5); d.line((x0, y - gap + r, x0, y - gap + r + (gap - 2 * r) * q), fill=T.ORANGE_DEEP + (255,), width=ctx.px(5))
         if p <= 0: d.ellipse((x0 - r, y - r, x0 + r, y + r), outline=T.DIM + (255,), width=ctx.px(4)); continue
         d.ellipse((x0 - r, y - r, x0 + r, y + r), fill=T.ORANGE + (int(255 * min(1, p * 2)),))
-        if ticks: q = min(1.0, p); d.line((x0 - ctx.px(16), y + ctx.px(2), x0 - ctx.px(4), y + ctx.px(14) * min(1, q * 2)), fill=(20, 20, 22, 255), width=ctx.px(7)); d.line((x0 - ctx.px(4), y + ctx.px(14), x0 - ctx.px(4) + ctx.px(22) * max(0, q * 2 - 1), y + ctx.px(14) - ctx.px(28) * max(0, q * 2 - 1)), fill=(20, 20, 22, 255), width=ctx.px(7)) if q > 0.5 else None
+        if ticks: q = min(1.0, p); d.line((x0 - ctx.px(16), y + ctx.px(2), x0 - ctx.px(4), y + ctx.px(14) * min(1, q * 2)), fill=T.P(20, 20, 22, 255), width=ctx.px(7)); d.line((x0 - ctx.px(4), y + ctx.px(14), x0 - ctx.px(4) + ctx.px(22) * max(0, q * 2 - 1), y + ctx.px(14) - ctx.px(28) * max(0, q * 2 - 1)), fill=T.P(20, 20, 22, 255), width=ctx.px(7)) if q > 0.5 else None
         else: lw = D._text_w(d, str(i + 1), nf, 0); D.text_spaced(d, (x0 - lw / 2, y - ctx.px(27)), str(i + 1), nf, (20, 20, 22, 255), 0)
         dim = 0.45 if i + 1 < n and t >= items[i + 1]["at"] else 1.0      # the step being said is bright, the ones before it step back
         D.text_spaced(d, (x0 + r + ctx.px(36) + int((1 - e) * 40 * ctx.S), y - ctx.px(48)), it["text"], f, T.WHITE + (int(255 * min(1, p * 1.6) * dim),), ctx.px(1))
@@ -64,7 +64,7 @@ def versus(cv: Image.Image, ctx: D.Ctx, v: dict, t: float) -> None:
         for ln in lines: w = D._text_w(d, ln, f, ctx.px(1)); D.text_spaced(d, (x0 + (pw - w) / 2, yy), ln, f, T.WHITE + (a,), ctx.px(1)); yy += ctx.px(96)
     bp = T.ease_back((t - v["b"]["at"] - 0.1) / 0.45)
     if bp > 0:
-        rr = int(ctx.px(58) * min(1.0, bp)); cx, cy = ctx.W // 2, y0 + ph // 2; d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=(14, 14, 16, 255), outline=T.ORANGE + (255,), width=ctx.px(5))
+        rr = int(ctx.px(58) * min(1.0, bp)); cx, cy = ctx.W // 2, y0 + ph // 2; d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=T.P(14, 14, 16, 255), outline=T.ORANGE + (255,), width=ctx.px(5))
         if bp > 0.6: bf = ctx.font(T.HEAD_FONT, 52); bw = D._text_w(d, "VS", bf, 0); D.text_spaced(d, (cx - bw / 2, cy - ctx.px(34)), "VS", bf, T.WHITE + (255,), 0)
 
 def takeaway(cv: Image.Image, ctx: D.Ctx, tk: dict, t: float) -> None:
@@ -111,7 +111,7 @@ def chapter(cv: Image.Image, ctx: D.Ctx, ch: dict, t: float) -> None:
 
 
 # ---------------------------------------------------------------- Step 4 cards (detected in variety.py from the sentence's own shape)
-GREEN, RED = (74, 222, 128), (232, 64, 52)
+RED = (232, 64, 52)      # green is T.GREEN (theme.py): a darker mint on the cat canvas
 
 def _txt(d, ctx, xy, text, size, col, a, head=True, centre=False):
     f = ctx.font(T.HEAD_FONT if head else T.BODY_FONT, size); x, y = xy
@@ -144,7 +144,7 @@ def mistake(cv: Image.Image, ctx: D.Ctx, mk: dict, t: float) -> None:
     for (kind, s), x0 in zip(sides, xs):
         p = (t - s["at"]) / 0.5
         if p <= 0: continue
-        e = T.ease_back(min(1.0, p)); col = RED if kind == "wrong" else GREEN; a = min(1, p * 1.6) * (0.55 if kind == "wrong" and len(sides) == 2 and t >= sides[1][1]["at"] + 0.3 else 1.0)
+        e = T.ease_back(min(1.0, p)); col = RED if kind == "wrong" else T.GREEN; a = min(1, p * 1.6) * (0.55 if kind == "wrong" and len(sides) == 2 and t >= sides[1][1]["at"] + 0.3 else 1.0)
         yy = y0 + int((1 - min(1, e)) * 50 * ctx.S); d.rounded_rectangle((x0, yy, x0 + pw, yy + ph), radius=ctx.px(24), fill=col + (int(26 * a),), outline=col + (int(255 * a),), width=ctx.px(5))
         _txt(d, ctx, (x0 + pw / 2, yy + ctx.px(24)), (mk.get("labels") or ("WRONG", "RIGHT"))[0 if kind == "wrong" else 1], 34, col, a, head=False, centre=True)
         f = ctx.font(T.HEAD_FONT, 62); lines = _wrap_lines(d, s["text"], f, pw - ctx.px(80)); ly = yy + (ph - len(lines) * ctx.px(72)) // 2 + ctx.px(20)
@@ -154,14 +154,14 @@ def mistake(cv: Image.Image, ctx: D.Ctx, mk: dict, t: float) -> None:
             d.line((x0 + pw - m - ctx.px(60), yy + m, x0 + pw - m - ctx.px(60) + ctx.px(60) * min(1, q * 2), yy + m + ctx.px(60) * min(1, q * 2)), fill=RED + (255,), width=w)
             if q > 0.5: qq = (q - 0.5) * 2; d.line((x0 + pw - m, yy + m, x0 + pw - m - ctx.px(60) * qq, yy + m + ctx.px(60) * qq), fill=RED + (255,), width=w)
         if q > 0 and kind == "right":
-            bx, by = x0 + pw - m - ctx.px(60), yy + m + ctx.px(30); d.line((bx, by, bx + ctx.px(22) * min(1, q * 2), by + ctx.px(26) * min(1, q * 2)), fill=GREEN + (255,), width=w)
-            if q > 0.5: qq = (q - 0.5) * 2; d.line((bx + ctx.px(22), by + ctx.px(26), bx + ctx.px(22) + ctx.px(44) * qq, by + ctx.px(26) - ctx.px(56) * qq), fill=GREEN + (255,), width=w)
+            bx, by = x0 + pw - m - ctx.px(60), yy + m + ctx.px(30); d.line((bx, by, bx + ctx.px(22) * min(1, q * 2), by + ctx.px(26) * min(1, q * 2)), fill=T.GREEN + (255,), width=w)
+            if q > 0.5: qq = (q - 0.5) * 2; d.line((bx + ctx.px(22), by + ctx.px(26), bx + ctx.px(22) + ctx.px(44) * qq, by + ctx.px(26) - ctx.px(56) * qq), fill=T.GREEN + (255,), width=w)
 
 def slider(cv: Image.Image, ctx: D.Ctx, sl: dict, t: float) -> None:
     """Make it easier or harder: a track from EASIER to HARDER whose knob slides to each end as that version is said, the version written under its end."""
     d = ImageDraw.Draw(cv, "RGBA"); x0, x1, y = int(ctx.W * 0.14), int(ctx.W * 0.86), int(ctx.H * 0.46); a = min(1.0, t / 0.4)
     d.rounded_rectangle((x0, y - ctx.px(8), x1, y + ctx.px(8)), radius=ctx.px(8), fill=T.DIM + (int(255 * a),))
-    _txt(d, ctx, (x0, y - ctx.px(96)), "EASIER", 40, GREEN, a, head=False); _txt(d, ctx, (x1 - ctx.px(170), y - ctx.px(96)), "HARDER", 40, RED, a, head=False)
+    _txt(d, ctx, (x0, y - ctx.px(96)), "EASIER", 40, T.GREEN, a, head=False); _txt(d, ctx, (x1 - ctx.px(170), y - ctx.px(96)), "HARDER", 40, RED, a, head=False)
     pos = 0.5
     for key, end in (("easier", 0.0), ("harder", 1.0)):
         s = sl.get(key)
@@ -169,14 +169,14 @@ def slider(cv: Image.Image, ctx: D.Ctx, sl: dict, t: float) -> None:
         q = T.ease_in_out(min(1.0, (t - s["at"]) / 0.6)); pos = pos + (end - pos) * q
         f = ctx.font(T.HEAD_FONT, 54); lines = _wrap_lines(d, s["text"], f, (x1 - x0) * 0.45); ly = y + ctx.px(60)
         for ln in lines: _txt(d, ctx, (x0 if end == 0 else x1 - D._text_w(d, ln, f, ctx.px(1)), ly), ln, 54, T.WHITE, min(1, (t - s["at"]) / 0.4)); ly += ctx.px(64)
-    kx = x0 + (x1 - x0) * pos; kr = ctx.px(30); col = tuple(int(g + (r - g) * pos) for g, r in zip(GREEN, RED))
-    d.rectangle((x0, y - ctx.px(8), kx, y + ctx.px(8)), fill=col + (int(255 * a),)); d.ellipse((kx - kr, y - kr, kx + kr, y + kr), fill=(20, 20, 22, 255), outline=col + (255,), width=ctx.px(6))
+    kx = x0 + (x1 - x0) * pos; kr = ctx.px(30); col = tuple(int(g + (r - g) * pos) for g, r in zip(T.GREEN, RED))
+    d.rectangle((x0, y - ctx.px(8), kx, y + ctx.px(8)), fill=col + (int(255 * a),)); d.ellipse((kx - kr, y - kr, kx + kr, y + kr), fill=T.P(20, 20, 22, 255), outline=col + (255,), width=ctx.px(6))
 
 def dial(cv: Image.Image, ctx: D.Ctx, dl: dict, t: float) -> None:
     """How hard: a gauge from green to red whose needle swings up to the stated effort, the number under it."""
     d = ImageDraw.Draw(cv, "RGBA"); cx, cy, r = int(ctx.W * 0.30), int(ctx.H * 0.62), int(ctx.H * 0.30); a = min(1.0, t / 0.4)
     for i in range(40):      # the scale: green to red
-        f0 = i / 40; col = tuple(int(g + (rr - g) * f0) for g, rr in zip(GREEN, RED)); a0 = math.radians(180 + 180 * f0); a1 = math.radians(180 + 180 * (i + 0.8) / 40)
+        f0 = i / 40; col = tuple(int(g + (rr - g) * f0) for g, rr in zip(T.GREEN, RED)); a0 = math.radians(180 + 180 * f0); a1 = math.radians(180 + 180 * (i + 0.8) / 40)
         d.arc((cx - r, cy - r, cx + r, cy + r), math.degrees(a0), math.degrees(a1), fill=col + (int(255 * a),), width=ctx.px(22))
     p, land_t = _roll(t, dl["at"]); v = dl["value"] * T.ease_in_out(p); ang = math.radians(180 + 180 * v / dl["max"])      # the needle swings up from the scene's start and lands on its word
     d.line((cx, cy, cx + (r - ctx.px(40)) * math.cos(ang), cy + (r - ctx.px(40)) * math.sin(ang)), fill=T.WHITE + (255,), width=ctx.px(8)); d.ellipse((cx - ctx.px(16), cy - ctx.px(16), cx + ctx.px(16), cy + ctx.px(16)), fill=T.WHITE + (255,))
@@ -189,13 +189,16 @@ def study(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); cx, cy = int(ctx.W * 0.28), int(ctx.H * 0.52); w, h = int(ctx.H * 0.40), int(ctx.H * 0.52); p = t / 0.8; rp, _land = _roll(t, st["at"])      # papers fan in from the first frame, the count lands on its word
     for i in range(3, -1, -1):      # the papers fan in, back to front
         q = T.ease_out(min(1.0, max(0.0, p - 0.12 * i))); ang = (i - 1.5) * 4 * q; off = (i - 1.5) * ctx.px(26) * q
-        card = Image.new("RGBA", (w, h), (0, 0, 0, 0)); dc = ImageDraw.Draw(card); dc.rounded_rectangle((0, 0, w - 1, h - 1), radius=ctx.px(16), fill=(236, 232, 224, int(255 * min(1, q * 2))))
-        for k in range(3): dc.rectangle((ctx.px(30), ctx.px(90) + k * ctx.px(30), w - ctx.px(30 + (k % 3) * 40), ctx.px(100) + k * ctx.px(30)), fill=(170, 165, 158, int(255 * min(1, q * 2))))
+        card = Image.new("RGBA", (w, h), (0, 0, 0, 0)); dc = ImageDraw.Draw(card); cat = T.THEME == "cat"; qa = int(255 * min(1, q * 2))      # cat: cream notes with peach lines, the front one taped on
+        dc.rounded_rectangle((0, 0, w - 1, h - 1), radius=ctx.px(22 if cat else 16), fill=((255, 251, 244) if cat else (236, 232, 224)) + (qa,), outline=(T.DIM + (qa,)) if cat else None, width=ctx.px(3) if cat else 0)
+        for k in range(3): dc.rounded_rectangle((ctx.px(30), ctx.px(90) + k * ctx.px(30), w - ctx.px(30 + (k % 3) * 40), ctx.px(100) + k * ctx.px(30)), radius=ctx.px(5), fill=((250, 200, 176) if cat else (170, 165, 158)) + (qa,))
+        if cat and i == 0: dc.rectangle((w // 2 - ctx.px(60), 0, w // 2 + ctx.px(60), ctx.px(30)), fill=(247, 118, 72, int(qa * 0.55)))      # a strip of tape on the front note
         card = card.rotate(ang, resample=Image.BICUBIC, expand=True); cv.paste(card, (int(cx - card.width / 2 + off), int(cy - card.height / 2)), card)
     d = ImageDraw.Draw(cv, "RGBA"); e = T.ease_in_out(rp); v = st["value"] * e
     if st.get("year"): import datetime; y0 = datetime.date.today().year; v = y0 + (st["value"] - y0) * e      # a year rolls back from today to the one stated
     _txt(d, ctx, (cx, cy - h / 2 + ctx.px(24)), st["kind"], 32, T.ORANGE_DEEP, min(1, p * 2), head=False, centre=True)
-    _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:.0f}" if st.get("year") else f"{v:,.0f}", 130, (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, (60, 60, 62), min(1, p * 2), head=False, centre=True)
+    _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:.0f}" if st.get("year") else f"{v:,.0f}", 130, T.WHITE if T.THEME == "cat" else (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, T.SOFT_WHITE if T.THEME == "cat" else (60, 60, 62), min(1, p * 2), head=False, centre=True)
+    if T.THEME == "cat" and rp >= 1: sp = T.ease_back(min(1.0, (t - _land - 0.2) / 0.35)); D.paw(d, cx + w * 0.30, cy + h * 0.36, ctx.px(26) * max(0.0, sp), T.ORANGE + (int(200 * min(1.0, max(0.0, sp))),)) if sp > 0 else None      # the paw stamp lands once the number has rolled in
 
 def graph(cv: Image.Image, ctx: D.Ctx, gr: dict, t: float) -> None:
     """A change over time: axes draw on, then the line draws itself, bending up, down or level at each word that says so; a dot rides its head and pulses at each bend."""
@@ -211,7 +214,7 @@ def graph(cv: Image.Image, ctx: D.Ctx, gr: dict, t: float) -> None:
         s = dict(s, at=ats[i]); q = T.ease_in_out((t - s["at"]) / 0.7)
         if q <= 0: break
         (ax_, ay), (bx, by) = pts[i], pts[i + 1]; k = 12; line = [(ax_ + (bx - ax_) * j / k * q, ay + (by - ay) * (0.5 - 0.5 * math.cos(math.pi * j / k * q))) for j in range(k + 1)]      # an eased bend, not a corner
-        col = GREEN if s["dir"] == "up" else RED if s["dir"] == "down" else T.SOFT_WHITE; d.line(line, fill=col + (255,), width=ctx.px(9), joint="curve"); head = line[-1]
+        col = T.GREEN if s["dir"] == "up" else RED if s["dir"] == "down" else T.SOFT_WHITE; d.line(line, fill=col + (255,), width=ctx.px(9), joint="curve"); head = line[-1]
         land = t - s["at"] - 0.7
         if 0 <= land < 0.6: qq = T.ease_out(land / 0.6); rr = ctx.px(14 + 30 * qq); d.ellipse((bx - rr, by - rr, bx + rr, by + rr), outline=col + (int(220 * (1 - qq)),), width=ctx.px(4))
     if t >= segs[0]["at"]: r = ctx.px(13); d.ellipse((head[0] - r, head[1] - r, head[0] + r, head[1] + r), fill=T.WHITE + (255,))
@@ -248,8 +251,8 @@ def calendar(cv: Image.Image, ctx: D.Ctx, cl: dict, t: float) -> None:
         d.rounded_rectangle((x, yy, x + cw, yy + ch), radius=ctx.px(18), fill=col + (int(255 * a),), outline=(T.ORANGE if i in on else T.DIM) + (int(255 * a),), width=ctx.px(3))
         _txt(d, ctx, (x + cw / 2, yy + ctx.px(22)), lab, 34, (20, 20, 22) if q > 0.5 else T.GREY, a, head=False, centre=True)
         if q > 0:      # the tick draws on
-            bx, by, s = x + cw / 2 - ctx.px(34), yy + ch * 0.58, ctx.px(1); d.line((bx, by, bx + 24 * s * min(1, q * 2), by + 26 * s * min(1, q * 2)), fill=(20, 20, 22, 255), width=ctx.px(10))
-            if q > 0.5: qq = (q - 0.5) * 2; d.line((bx + 24 * s, by + 26 * s, bx + 24 * s + 46 * s * qq, by + 26 * s - 56 * s * qq), fill=(20, 20, 22, 255), width=ctx.px(10))
+            bx, by, s = x + cw / 2 - ctx.px(34), yy + ch * 0.58, ctx.px(1); d.line((bx, by, bx + 24 * s * min(1, q * 2), by + 26 * s * min(1, q * 2)), fill=T.P(20, 20, 22, 255), width=ctx.px(10))
+            if q > 0.5: qq = (q - 0.5) * 2; d.line((bx + 24 * s, by + 26 * s, bx + 24 * s + 46 * s * qq, by + 26 * s - 56 * s * qq), fill=T.P(20, 20, 22, 255), width=ctx.px(10))
     last = max(on.values()) if on else 0.0; _txt(d, ctx, (ctx.W / 2, y0 + ch + ctx.px(46)), cl["total"], 58, T.WHITE, (t - last - 0.3) / 0.4, centre=True)
 
 def result(cv: Image.Image, ctx: D.Ctx, rs: dict, t: float) -> None:
@@ -257,7 +260,7 @@ def result(cv: Image.Image, ctx: D.Ctx, rs: dict, t: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); tiers = rs["tiers"]; n = len(tiers); x0, x1 = int(ctx.W * 0.16), int(ctx.W * 0.84); rh = ctx.px(128); y0 = int(ctx.H * 0.48 - n * rh / 2)
     _txt(d, ctx, (x0, y0 - ctx.px(70)), "YOUR RESULT", 34, T.ORANGE, t / 0.4, head=False); live = [i for i, tr in enumerate(tiers) if t >= tr["at"]]; k = live[-1] if live else -1
     for i, tr in enumerate(tiers):
-        y = y0 + i * rh; col = tuple(int(g + (r - g) * (i / max(1, n - 1))) for g, r in zip(RED, GREEN)); p = (t - tr["at"]) / 0.45
+        y = y0 + i * rh; col = tuple(int(g + (r - g) * (i / max(1, n - 1))) for g, r in zip(RED, T.GREEN)); p = (t - tr["at"]) / 0.45
         d.rounded_rectangle((x0, y, x1, y + rh - ctx.px(16)), radius=ctx.px(18), fill=(255, 255, 255, 10), outline=(col if p > 0 else T.DIM) + (255 if p > 0 else 120,), width=ctx.px(3))
         if p <= 0: _txt(d, ctx, (x0 + ctx.px(40), y + ctx.px(30)), "? ? ?", 44, T.DIM, 1, head=False); continue      # a band not yet said waits, locked
         a = min(1.0, p * 1.6) * (1.0 if i == k else 0.5); e = T.ease_back(min(1.0, p)); mw = ctx.px(380); w = int(mw * min(1.0, e)); size = 52
@@ -282,8 +285,11 @@ def engage(cv: Image.Image, ctx: D.Ctx, en: dict, t: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); at = en["at"]; a = min(1.0, t / 0.4)
     if en["kind"] == "comment":
         bw, bh = int(ctx.W * 0.62), ctx.px(230); x0, y0 = (ctx.W - bw) // 2, int(ctx.H * 0.36); e = T.ease_back(min(1.0, t / 0.5)); y0 += int((1 - e) * 40 * ctx.S)
-        d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(22), fill=(28, 28, 31, int(255 * a)), outline=T.DIM + (int(255 * a),), width=ctx.px(3))
-        r = ctx.px(40); d.ellipse((x0 + ctx.px(40), y0 + ctx.px(40), x0 + ctx.px(40) + 2 * r, y0 + ctx.px(40) + 2 * r), fill=T.ORANGE + (int(255 * a),)); _txt(d, ctx, (x0 + ctx.px(150), y0 + ctx.px(44)), "YOU", 30, T.GREY, a, head=False)
+        d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(22), fill=T.P(28, 28, 31, int(255 * a)), outline=T.DIM + (int(255 * a),), width=ctx.px(3))
+        r = ctx.px(40); ax, ay = x0 + ctx.px(40), y0 + ctx.px(40)
+        if T.THEME == "cat":      # the avatar is a cat: two ears on the circle
+            for sx in (-1, 1): ex = ax + r + sx * r * 0.62; d.polygon([(ex - r * 0.42, ay + r * 0.45), (ex + r * 0.42, ay + r * 0.45), (ex + sx * r * 0.12, ay - r * 0.55)], fill=T.ORANGE + (int(255 * a),))
+        d.ellipse((ax, ay, ax + 2 * r, ay + 2 * r), fill=T.ORANGE + (int(255 * a),)); _txt(d, ctx, (x0 + ctx.px(150), y0 + ctx.px(44)), "YOU", 30, T.GREY, a, head=False)
         txt = en["text"]; k = int((t - at - 0.35) / 0.03)
         if t < at + 0.35:      # typing dots before the words come
             for j in range(3): q = 0.5 + 0.5 * math.sin((t * 6) - j * 0.9); rr = ctx.px(9); cx, cy = x0 + ctx.px(170) + j * ctx.px(34), y0 + ctx.px(130); d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=T.SOFT_WHITE + (int(255 * a * q),))
@@ -295,7 +301,7 @@ def engage(cv: Image.Image, ctx: D.Ctx, en: dict, t: float) -> None:
         return
     if en["kind"] == "link":      # "it's linked below": the link button drops in with an arrow pointing down to the description
         e = T.ease_back(min(1.0, max(0.0, (t - at) / 0.5))); f = ctx.font(T.HEAD_FONT, 60); label = "LINK IN DESCRIPTION"; w = D._text_w(d, label, f, ctx.px(1)) + ctx.px(120); h = ctx.px(120)
-        cx, cy = ctx.W / 2, ctx.H * 0.42 - (1 - e) * ctx.px(60); d.rounded_rectangle((cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2), radius=h // 2, fill=(28, 28, 31, int(255 * a)), outline=T.ORANGE + (int(255 * min(1.0, e)),), width=ctx.px(4))
+        cx, cy = ctx.W / 2, ctx.H * 0.42 - (1 - e) * ctx.px(60); d.rounded_rectangle((cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2), radius=h // 2, fill=T.P(28, 28, 31, int(255 * a)), outline=T.ORANGE + (int(255 * min(1.0, e)),), width=ctx.px(4))
         _txt(d, ctx, (cx, cy - ctx.px(38)), label, 60, T.WHITE, a, centre=True); bob = math.sin(t * 5) * ctx.px(10); ay = cy + h / 2 + ctx.px(60) + bob; s_ = ctx.px(34)
         if t >= at: d.polygon([(cx - s_, ay), (cx + s_, ay), (cx, ay + s_ * 1.2)], fill=T.ORANGE + (255,)); d.rectangle((cx - ctx.px(9), ay - ctx.px(60), cx + ctx.px(9), ay), fill=T.ORANGE + (255,))
         return
@@ -314,7 +320,7 @@ def teaser(cv: Image.Image, ctx: D.Ctx, name: str, t: float) -> None:
     """The last seconds of a unit: a NEXT tag and the next unit's name slide in at the top right (clear of the caption strip)."""
     if t < 0: return
     d = ImageDraw.Draw(cv, "RGBA"); e = T.ease_out(t / 0.5); a = min(1.0, t / 0.3); f = ctx.font(T.HEAD_FONT, 46); w = D._text_w(d, name, f, ctx.px(1)) + ctx.px(200); x = ctx.W - ctx.px(70) - w + int((1 - e) * 80 * ctx.S); y = int(ctx.H * 0.05)
-    d.rounded_rectangle((x, y, x + w, y + ctx.px(84)), radius=ctx.px(16), fill=(14, 14, 16, int(230 * a)), outline=T.ORANGE + (int(255 * a),), width=ctx.px(3))
+    d.rounded_rectangle((x, y, x + w, y + ctx.px(84)), radius=ctx.px(16), fill=T.P(14, 14, 16, int(230 * a)), outline=T.ORANGE + (int(255 * a),), width=ctx.px(3))
     d.rounded_rectangle((x + ctx.px(12), y + ctx.px(14), x + ctx.px(150), y + ctx.px(70)), radius=ctx.px(10), fill=T.ORANGE + (int(255 * a),))
     _txt(d, ctx, (x + ctx.px(81), y + ctx.px(22)), "NEXT", 32, (16, 16, 18), a, head=False, centre=True); _txt(d, ctx, (x + ctx.px(176), y + ctx.px(16)), name, 46, T.WHITE, a)
 
@@ -335,7 +341,7 @@ def question(cv: Image.Image, ctx: D.Ctx, qn: dict, t: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); at = qn["at"]; a = min(1.0, t / 0.4); f = ctx.font(T.HEAD_FONT, 66); bw = int(ctx.W * 0.60); lines = _wrap_lines(d, qn["text"], f, bw - ctx.px(110)); bh = len(lines) * ctx.px(84) + ctx.px(90)
     x0, y0 = int(ctx.W * 0.24), int(ctx.H * 0.46 - bh / 2); e = T.ease_back(min(1.0, t / 0.5)); y0 += int((1 - e) * 50 * ctx.S); r = ctx.px(52)
     d.ellipse((x0 - ctx.px(150), y0 + bh - 2 * r, x0 - ctx.px(150) + 2 * r, y0 + bh), fill=T.SOFT_WHITE + (int(255 * a),)); d.ellipse((x0 - ctx.px(150) + r * 0.55, y0 + bh - 1.6 * r, x0 - ctx.px(150) + r * 1.45, y0 + bh - 0.75 * r), fill=(60, 60, 64, int(255 * a)))
-    d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(34), fill=(34, 34, 38, int(255 * a))); d.polygon([(x0, y0 + bh - ctx.px(60)), (x0 - ctx.px(30), y0 + bh), (x0 + ctx.px(50), y0 + bh - ctx.px(20))], fill=(34, 34, 38, int(255 * a)))
+    d.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=ctx.px(34), fill=T.P(34, 34, 38, int(255 * a))); d.polygon([(x0, y0 + bh - ctx.px(60)), (x0 - ctx.px(30), y0 + bh), (x0 + ctx.px(50), y0 + bh - ctx.px(20))], fill=T.P(34, 34, 38, int(255 * a)))
     if t < at + 0.45:
         for j in range(3): q = 0.5 + 0.5 * math.sin(t * 6 - j * 0.9); rr = ctx.px(11); cx, cy = x0 + ctx.px(70) + j * ctx.px(40), y0 + bh / 2; d.ellipse((cx - rr, cy - rr, cx + rr, cy + rr), fill=T.SOFT_WHITE + (int(255 * a * q),))
         return
@@ -370,7 +376,7 @@ def slots(cv: Image.Image, ctx: D.Ctx, sl: dict, t: float) -> None:
         box = (int(x0 + i * (bw + gap)), y0, int(x0 + i * (bw + gap) + bw), y0 + bh); p = (t - it["at"]) / 0.45
         if p <= 0: _dashed_box(d, box, (118, 118, 124, int(255 * a)), ctx.px(3), ctx.px(12)); continue      # an empty slot waiting for its item: visible, not black on black
         e = T.ease_back(min(1.0, p)); cur = live and i == live[-1]; s = 0.85 + 0.15 * e; cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2; w2, h2 = bw * s / 2, bh * s / 2
-        d.rounded_rectangle((cx - w2, cy - h2, cx + w2, cy + h2), radius=ctx.px(14), fill=(24, 24, 27, 255), outline=(T.RED if cur else (70, 70, 74)) + (255,), width=ctx.px(5 if cur else 3))
+        d.rounded_rectangle((cx - w2, cy - h2, cx + w2, cy + h2), radius=ctx.px(14), fill=T.P(24, 24, 27, 255), outline=(T.RED if cur else (70, 70, 74)) + (255,), width=ctx.px(5 if cur else 3))
         dim = 1.0 if cur else 0.55
         _txt(d, ctx, (cx, cy - h2 + ctx.px(18)), f"{sl['noun']} {i + 1}", 26, T.GREY, dim, head=False, centre=True)
         f = ctx.font(T.HEAD_FONT, 38); lines = _wrap_lines(d, it["text"], f, bw - ctx.px(30))[:2] if it["text"] else []
@@ -388,17 +394,17 @@ def race(cv: Image.Image, ctx: D.Ctx, rc: dict, t: float) -> None:
     st = (t - rc["at"]) / 0.3      # the start burst
     if st > 0: r = ctx.px(40) * T.ease_back(min(1.0, st)); cx, cy = xs - ctx.px(80), (ys[0] + ys[1]) / 2; d.regular_polygon((cx, cy, r), 12, fill=T.RED + (255,)); _txt(d, ctx, (cx, cy - ctx.px(20)), "GO", 34, T.WHITE, 1, centre=True)
     for k, (lane, y) in enumerate(zip((rc["fast"], rc["slow"]), ys)):
-        d.rounded_rectangle((xs, y - h / 2, xf, y + h / 2), radius=h // 2, fill=(30, 30, 33, int(255 * a)))
+        d.rounded_rectangle((xs, y - h / 2, xf, y + h / 2), radius=h // 2, fill=T.P(30, 30, 33, int(255 * a)))
         reach = T.ease_in_out(max(0.0, (t - rc["at"]) / 0.7)) if k == 0 else 0.6 * T.ease_in_out(max(0.0, (t - rc["at"]) / 0.9)) + 0.4 * T.ease_in_out(max(0.0, (t - max(rc["at"] + 0.9, lane["at"])) / 0.8))      # the slow one is still on its way when the fast one has arrived
         x = xs + (xf - xs) * min(1.0, reach)
         if x > xs + h: d.rounded_rectangle((xs, y - h / 2, x, y + h / 2), radius=h // 2, fill=(T.RED if k == 0 else (150, 150, 150)) + (255,))
         lw = D._text_w(d, lane["text"], ctx.font(T.HEAD_FONT, 28), ctx.px(1)); _txt(d, ctx, (max(xs + ctx.px(20), x - lw - ctx.px(24)), y - ctx.px(17)), lane["text"], 28, T.WHITE if k == 0 else (30, 30, 32), 1 if x > xs + lw + ctx.px(40) else 0, head=False)
-        if k == 0 and reach >= 1: p = min(1.0, (t - rc["at"] - 0.7) / 0.3); d.line((xf + ctx.px(26), y, xf + ctx.px(40), y + ctx.px(16) * p), fill=GREEN + (255,), width=ctx.px(7)); d.line((xf + ctx.px(40), y + ctx.px(16), xf + ctx.px(40) + ctx.px(26) * p, y - ctx.px(22) * p), fill=GREEN + (255,), width=ctx.px(7))
+        if k == 0 and reach >= 1: p = min(1.0, (t - rc["at"] - 0.7) / 0.3); d.line((xf + ctx.px(26), y, xf + ctx.px(40), y + ctx.px(16) * p), fill=T.GREEN + (255,), width=ctx.px(7)); d.line((xf + ctx.px(40), y + ctx.px(16), xf + ctx.px(40) + ctx.px(26) * p, y - ctx.px(22) * p), fill=T.GREEN + (255,), width=ctx.px(7))
         if k == 1 and t >= lane["at"]: D.pill(cv, ctx, xf - ctx.px(150), y + ctx.px(40), "LATE", min(1.0, (t - lane["at"]) / 0.4))      # from the slow word on, also after the lane arrives
 
 def formula(cv: Image.Image, ctx: D.Ctx, fm: dict, t: float) -> None:
     """A claim as a formula ("a big bicep can't save you" -> BIG BICEP ≠ SAFE... built only from the sentence's words): left side, the sign slams in, right side, each on its word."""
-    d = ImageDraw.Draw(cv, "RGBA"); size = 120; parts = [(fm["a"]["text"], fm["a"]["at"], T.WHITE), (fm["sign"], fm["b"]["at"] - 0.15, T.RED if fm["sign"] == "≠" else T.ORANGE), (fm["b"]["text"], fm["b"]["at"], T.RED if fm["sign"] == "≠" else GREEN)]
+    d = ImageDraw.Draw(cv, "RGBA"); size = 120; parts = [(fm["a"]["text"], fm["a"]["at"], T.WHITE), (fm["sign"], fm["b"]["at"] - 0.15, T.RED if fm["sign"] == "≠" else T.ORANGE), (fm["b"]["text"], fm["b"]["at"], T.RED if fm["sign"] == "≠" else T.GREEN)]
     while True:      # the whole formula fits on one line: it shrinks before it runs off the frame
         f = ctx.font(T.HEAD_FONT, size); ws = [D._text_w(d, p[0], f, ctx.px(2)) for p in parts]; gap = ctx.px(40)
         if sum(ws) + 2 * gap <= ctx.W * 0.88 or size <= 56: break
@@ -436,8 +442,8 @@ def promise(cv: Image.Image, ctx: D.Ctx, pr: dict, t: float) -> None:
     """A payoff promised for later ("I'll show you what 8 out of 10 had in common"): M cells, N of them turn into red question marks on the number, then a lock closes over them."""
     if not pr["n"]:      # promised without a share: the board it will fill, blurred and locked, with what is promised under it
         d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, t / 0.35); bw, bh = int(ctx.W * 0.42), ctx.px(72); x0 = (ctx.W - bw) // 2; y0 = int(ctx.H * 0.30)
-        for k, col in enumerate(((232, 64, 52), (250, 160, 40), (250, 210, 60), (74, 222, 128))):
-            q = min(1.0, max(0.0, (t - pr["at"] - 0.12 * k) / 0.4)); d.rounded_rectangle((x0, y0 + k * (bh + ctx.px(16)), x0 + bw, y0 + k * (bh + ctx.px(16)) + bh), radius=ctx.px(12), fill=(30, 30, 33, int(230 * a)), outline=col + (int(150 * q),), width=ctx.px(3))
+        for k, col in enumerate(((232, 64, 52), (250, 160, 40), (250, 210, 60), T.GREEN)):
+            q = min(1.0, max(0.0, (t - pr["at"] - 0.12 * k) / 0.4)); d.rounded_rectangle((x0, y0 + k * (bh + ctx.px(16)), x0 + bw, y0 + k * (bh + ctx.px(16)) + bh), radius=ctx.px(12), fill=T.P(30, 30, 33, int(230 * a)), outline=col + (int(150 * q),), width=ctx.px(3))
             d.rectangle((x0 + ctx.px(24), y0 + k * (bh + ctx.px(16)) + ctx.px(26), x0 + int(bw * 0.45), y0 + k * (bh + ctx.px(16)) + ctx.px(44)), fill=col + (int(70 * q),))
         lk = (t - pr["at"] - 0.6) / 0.4
         if lk > 0:
@@ -466,11 +472,11 @@ def stopwatch(cv: Image.Image, ctx: D.Ctx, sw: dict, t_abs: float) -> None:
     if t_abs < sw["start"] or t_abs > sw["end"]: return
     d = ImageDraw.Draw(cv, "RGBA"); stopped = sw.get("stop") is not None and t_abs >= sw["stop"]; secs = (min(t_abs, sw["stop"]) if stopped else t_abs) - sw["start"]
     a = min(1.0, (t_abs - sw["start"]) / 0.3, (sw["end"] - t_abs) / 0.3); cx, cy, r = int(ctx.W * 0.91), int(ctx.H * 0.27), ctx.px(88); col = T.RED if stopped else T.WHITE      # below the NEXT teaser pill
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(14, 14, 16, int(200 * a)), outline=(80, 80, 84, int(255 * a)), width=ctx.px(7)); d.rectangle((cx - ctx.px(14), cy - r - ctx.px(26), cx + ctx.px(14), cy - r - ctx.px(8)), fill=(160, 160, 164, int(255 * a)))
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=T.P(14, 14, 16, int(200 * a)), outline=(80, 80, 84, int(255 * a)), width=ctx.px(7)); d.rectangle((cx - ctx.px(14), cy - r - ctx.px(26), cx + ctx.px(14), cy - r - ctx.px(8)), fill=(160, 160, 164, int(255 * a)))
     tg = sw.get("target") or 0; hit = tg and secs >= tg      # the stated target: the ring counts toward it, a tick mark on the rim, green once reached
-    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (min(secs, tg) / tg if tg else (secs % 60) / 60), fill=((74, 222, 128) if hit else T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(10))
-    if tg: _txt(d, ctx, (cx, cy + r + ctx.px(14)), f"TARGET {tg} S", 26, (74, 222, 128) if hit else T.SOFT_WHITE, a, head=False, centre=True)
-    _txt(d, ctx, (cx, cy - ctx.px(31)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 52, (74, 222, 128) if hit and not stopped else col, a, centre=True)
+    d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * (min(secs, tg) / tg if tg else (secs % 60) / 60), fill=(T.GREEN if hit else T.RED if stopped else T.ORANGE) + (int(255 * a),), width=ctx.px(10))
+    if tg: _txt(d, ctx, (cx, cy + r + ctx.px(14)), f"TARGET {tg} S", 26, T.GREEN if hit else T.SOFT_WHITE, a, head=False, centre=True)
+    _txt(d, ctx, (cx, cy - ctx.px(31)), f"{secs:0.1f}" if secs < 10 else f"{secs:0.0f}", 52, T.GREEN if hit and not stopped else col, a, centre=True)
 
 def _panels_done(c) -> float:
     ts = [x["at"] for x in (c.values() if isinstance(c, dict) else []) if isinstance(x, dict) and "at" in x]

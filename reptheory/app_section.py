@@ -37,9 +37,15 @@ def read_scenes_file(path: str):
 
 PROMPT_FILE = Path(__file__).with_name("scenes_csv_prompt.txt")      # bundled next to the package (packaging.prompt_files)
 
-def prompt_text(script: str = "") -> str:
+CAT_PROMPT_FILE = Path(__file__).with_name("cat_scenes_csv_prompt.txt")      # Cat Theory's own CSV prompt (cats, white canvas, no 3D)
+
+def style_name(app) -> str: return "Cat Theory" if is_cat(app) else STYLE_NAME
+
+def is_cat(app) -> bool: return bool(getattr(app, "_rt_cat", False))      # Cat Theory: this section with the white cat theme (app._on_style_pick sets it)
+
+def prompt_text(script: str = "", cat: bool = False) -> str:
     from app_csv_prompts import SCRIPT_PLACEHOLDER
-    text = PROMPT_FILE.read_text(encoding="utf-8"); script = (script or "").strip()
+    text = (CAT_PROMPT_FILE if cat else PROMPT_FILE).read_text(encoding="utf-8"); script = (script or "").strip()
     return text.replace(SCRIPT_PLACEHOLDER, script) if script else text
 
 def copy_prompt(app) -> None:
@@ -50,11 +56,11 @@ def copy_prompt(app) -> None:
             if box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None): app._on_csv_prompt_script_edited(box); break      # typed in but not yet left: the click must not lose it
         except Exception: pass
     script = app._main_script_text()
-    try: text = prompt_text(script)
+    try: text = prompt_text(script, cat=is_cat(app))
     except OSError as exc: M.messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}"); return
     app.clipboard_clear(); app.clipboard_append(text)
-    app._rt_status_var.set("Rep Theory prompt copied with your script. Paste it into any AI, save the reply as a .csv, then choose it as the Scenes file." if script else
-                           "Rep Theory prompt copied. Paste it into any AI, replace its last line with your script, save the reply as a .csv, then choose it as the Scenes file.")
+    app._rt_status_var.set(f"{style_name(app)} prompt copied with your script. Paste it into any AI, save the reply as a .csv, then choose it as the Scenes file." if script else
+                           f"{style_name(app)} prompt copied. Paste it into any AI, replace its last line with your script, save the reply as a .csv, then choose it as the Scenes file.")
 
 GUIDE_PROMPT_FILE = Path(__file__).with_name("full_guide_prompt.txt")      # the "Full Guide" script blueprint (Step 6), bundled like the CSV prompt
 
@@ -173,6 +179,8 @@ def end_card_settings(app) -> dict:
 def activate(app) -> None:
     if getattr(app, "_rt_running", False): return
     app._rt_block.grid(); app._rt_status_var.set("")
+    try: app._rt_render_btn.configure(text=f"Render {style_name(app)}")      # Rep Theory or Cat Theory
+    except Exception: pass
     on_workspace(app)      # this project's own choices (scenes CSV, Flow pictures ...), as they were when it was last used
     import visual_bridge
     visual_bridge.restore(app, OWNER)      # the pictures of the last Generate scenes, back in the Visuals tab
@@ -183,7 +191,7 @@ def _inputs_key(app) -> tuple:
 
 def needs_scenes(app) -> bool:
     """Flow pictures are the assets Rep Theory fetches: with them on, Generate scenes puts them in the Visuals tab first. Without them nothing is fetched."""
-    return bool(app._rt_flow_var.get()) and getattr(app, "_rt_ready_key", None) != _inputs_key(app)
+    return (bool(app._rt_flow_var.get()) or is_cat(app)) and getattr(app, "_rt_ready_key", None) != _inputs_key(app)      # Cat Theory always uses Flow pictures
 
 def deactivate(app) -> None:
     block = getattr(app, "_rt_block", None)
@@ -201,8 +209,8 @@ def sync_cta(app) -> None:
         app._cta_action = "import_audio"; app.stage_var.set("PLAN"); app.hint_var.set("Select or import a voiceover to continue."); app._set_generate_btn(state="normal", text="Import Voiceover"); return
     app._cta_action = "rt_render"
     if needs_scenes(app): app.stage_var.set("PLAN"); app.hint_var.set("Click Generate scenes: the Flow pictures are made into the Visuals tab for you to check before rendering."); app._set_generate_btn(state="normal", text="Generate scenes"); return
-    hint = "The pictures are in the Visuals tab: change any there, then click Render Rep Theory." if app._rt_flow_var.get() else "Click Render Rep Theory: the visuals are planned from the narration, then rendered."
-    app.stage_var.set("RENDER"); app.hint_var.set(hint); app._set_generate_btn(state="normal", text="Render Rep Theory")
+    hint = f"The pictures are in the Visuals tab: change any there, then click Render {style_name(app)}." if (app._rt_flow_var.get() or is_cat(app)) else "Click Render Rep Theory: the visuals are planned from the narration, then rendered."
+    app.stage_var.set("RENDER"); app.hint_var.set(hint); app._set_generate_btn(state="normal", text=f"Render {style_name(app)}")
 
 def cta(app, action: str) -> None:
     cancel(app) if action == "rt_cancel" else on_render_click(app)
@@ -223,6 +231,7 @@ def on_render_click(app) -> None:
     out_path = ws.next_final_path(); app.output_var.set(str(out_path)); project_dir = Path(ws.root); model = app.model_var.get().strip() or "base"; state_dir = getattr(ws, "state_dir", None)
     quality = "preview" if app._rt_preview_var.get() else "final"; title = app._rt_title_var.get().strip(); end_card = end_card_settings(app)
     smart, want3d, wantflow, mixlooks = bool(app._rt_smart_var.get()), bool(app._rt_3d_var.get()), bool(app._rt_flow_var.get()), bool(app._rt_variety_var.get()); flow_settings, flow_accounts = None, None
+    if is_cat(app): want3d, wantflow = False, True      # Cat Theory: no 3D body; every picture is a cat drawn through Flow (the gym trainee library never shows)
     if wantflow:
         try: flow_settings, flow_accounts = app._image_flow_run_settings()      # the app's own Flow switches (agent / UI mode) and the video profile's accounts
         except Exception as exc: app._append_log(f"{TAG} Flow settings unavailable ({exc}); Flow pictures use agent mode defaults.\n")
@@ -268,7 +277,7 @@ def on_render_click(app) -> None:
                 if not sentences: raise RuntimeError("the narration has no words to plan from")
                 log(f"{len(sentences)} sentences read from the narration")
             result = engine.run_rep_theory(project_dir, sentences, str(voiceover), str(out_path), quality=quality, title=title, cancel_check=app._rt_cancel.is_set, progress_cb=progress, log=log, end_card=end_card, planner="beats" if smart else "legacy", per_beat=smart, illustrate=wantflow, clips3d=want3d, variety=mixlooks and smart,
-                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts, media_only=media_only, table=table)
+                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts, media_only=media_only, table=table, theme="cat" if is_cat(app) else "")
             if media_only:
                 def listed(rows) -> None:      # shown at once, each row's state then follows the manifest (as Health Cinema does)
                     app.after(0, lambda: (visual_bridge.fill(app, OWNER, rows), app._rt_status_var.set(f"Scenes listed in the Visuals tab; making their pictures through Flow...")))

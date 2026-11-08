@@ -60,7 +60,8 @@ def remember_opening(project_dir, scenes: List[dict], title: str = "") -> None:
 def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_path: str, *, quality: str = "final", title: str = "", cancel_check: Optional[Callable[[], bool]] = None,
                    progress_cb: Optional[Callable[[float, str], None]] = None, log: Callable[[str], None] = lambda m: None, write_report: bool = True, max_seconds: float = 0.0,
                    end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, clips3d: bool = False, variety: bool = False, flow_mode: str = "agent", flow_settings: Optional[dict] = None, flow_accounts=None,
-                   media_only: bool = False, table: Optional[Dict[int, dict]] = None, sound: bool = True) -> Dict:
+                   media_only: bool = False, table: Optional[Dict[int, dict]] = None, sound: bool = True, theme: str = "") -> Dict:
+    if T.set_theme(theme) == "cat": clips3d = False      # Cat Theory (theme.py): white canvas, cat pictures, no 3D body
     t0 = time.time(); cancelled = cancel_check or (lambda: False); prog = progress_cb or (lambda k, m: None)
     if quality not in T.SIZES: raise ValueError(f"quality must be one of {list(T.SIZES)} (16:9 landscape only)")
     W, H = T.SIZES[quality]; total = _probe(voiceover_path) if voiceover_path else 0.0; sents = timeline(sentences, total)
@@ -105,6 +106,7 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     scenes = P.never_empty(scenes)      # after every look is chosen: no scene renders with nothing on it
     log(f"[REP THEORY CADENCE] {ST.develop(scenes)} phrases added where a scene would hold 3 s with nothing new")
     log(f"[REP THEORY GATE] {G.thicken_pictures(scenes)} picture shot(s) with one thing on them got their key phrase")
+    log(f"[REP THEORY GATE] {G.fill_empty_openings(scenes)} picture shot(s) that opened with an empty side got their first words")
     from . import meters as MT
     log(f"[REP THEORY METERS] {MT.plan(scenes)} load meter / effort bar overlay(s)")      # meters.py      # plan-only (gate.py)
     from . import tricks as TR
@@ -130,6 +132,12 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             return {"ok": True, "media_only": True, "requests": wanted, "scenes": len(scenes)}
         try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, settings=flow_settings, account_ids=flow_accounts, chosen=table, generate_missing=table is None)}")      # after Generate scenes, a missing picture is retried in the Visuals tab, never here
         except Exception as ex: log(f"[REP THEORY ART] beat pictures unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
+    if T.THEME == "cat":      # no gym trainee in a cat video: a scene left with the trainee / pose / prop art says its words instead
+        swapped = 0
+        for sc in scenes:
+            if sc["kind"] in ("trainee", "pose", "prop", "hold", "anatomy") or (sc["kind"] == "illus" and str(sc.get("art") or "").startswith("rep_")):
+                sc["kind"] = "callout"; sc["art"] = ""; sc["prop"] = ""; swapped += 1
+        if swapped: log(f"[CAT THEORY] {swapped} scene(s) without a cat picture show their words instead of the trainee")
     from . import picture as PIC
     log(f"[REP THEORY PICTURES] full-frame framing planned; {PIC.plan(scenes)} shot(s) re-frame the picture before them")
     plain = [sc for sc in scenes if sc["kind"] in ("callout", "takeaway") or (sc["kind"] == "illus" and not PIC.cue_count(sc))]      # coverage report: what no graphic acted out

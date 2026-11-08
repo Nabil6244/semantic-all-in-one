@@ -3233,8 +3233,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Roblox Cinema"
         if getattr(self, "_pt_active", False):   # Product Trailer (ui/product_trailer_section.py): opt-in, per session
             return "Product Trailer"
-        if getattr(self, "_rt_active", False):   # Rep Theory (reptheory/): opt-in, per session
-            return "Rep Theory"
+        if getattr(self, "_rt_active", False):   # Rep Theory (reptheory/): opt-in, per session; Cat Theory is the same engine with its white cat theme
+            return "Cat Theory" if getattr(self, "_rt_cat", False) else "Rep Theory"
         if getattr(self, "_health_active", False):   # Health Cinema (health_cinema/): opt-in, per session
             return "Health Cinema"
         if getattr(self, "_war_active", False):   # War Documentary (cinematic_explainer/war): opt-in, per session
@@ -3317,7 +3317,7 @@ class VideoGeneratorApp(ctk.CTk):
             self._war_deactivate()
         if choice != "Health Cinema":
             self._health_deactivate()
-        if choice != "Rep Theory":
+        if choice not in ("Rep Theory", "Cat Theory"):
             self._reptheory_deactivate()
         if choice != "Weather":
             self._weather_deactivate()
@@ -3359,7 +3359,8 @@ class VideoGeneratorApp(ctk.CTk):
             _rc_section.activate(self)
             self._sync_primary_cta()
             return
-        if choice == "Rep Theory":   # its own branch (reptheory/app_section.py), loaded only now
+        if choice in ("Rep Theory", "Cat Theory"):   # its own branch (reptheory/app_section.py), loaded only now; Cat Theory = the white cat theme
+            self._rt_cat = choice == "Cat Theory"
             self._reptheory_activate()
             ws = getattr(self, "_workspace", None)
             if ws is not None:
@@ -3495,7 +3496,7 @@ class VideoGeneratorApp(ctk.CTk):
             health_block.grid() if active == "Health Cinema" else health_block.grid_remove()
         rt_block = getattr(self, "_rt_block", None)
         if rt_block is not None:
-            rt_block.grid() if active == "Rep Theory" else rt_block.grid_remove()
+            rt_block.grid() if active in ("Rep Theory", "Cat Theory") else rt_block.grid_remove()
         pt_block = getattr(self, "_pt_block", None)
         if pt_block is not None:
             pt_block.grid() if active == "Product Trailer" else pt_block.grid_remove()

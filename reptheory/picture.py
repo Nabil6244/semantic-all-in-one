@@ -38,12 +38,24 @@ def _centroid(w: np.ndarray, default=(0.5, 0.5)) -> tuple:
     ys, xs = np.mgrid[0:w.shape[0], 0:w.shape[1]]
     return float((xs * w).sum() / s / w.shape[1]), float((ys * w).sum() / s / w.shape[0])
 
+def _white_paper(im: Image.Image) -> Image.Image:
+    """Cat Theory: the drawing's paper (its border tone, often a warm off-white) is lifted to pure white, so when the picture is multiplied onto the canvas no box edge shows."""
+    a = np.asarray(im, dtype=np.float32); h, w = a.shape[:2]; b = max(4, int(min(h, w) * 0.04))
+    border = np.concatenate([a[:b].reshape(-1, 3), a[-b:].reshape(-1, 3), a[:, :b].reshape(-1, 3), a[:, -b:].reshape(-1, 3)])
+    paper = np.maximum(np.percentile(border, 70, axis=0), 180.0)      # never "levels" a dark border (a picture drawn edge to edge)
+    a = np.clip(a * (255.0 / paper), 0, 255)
+    return Image.fromarray(a.astype("uint8"), "RGB")
+
 def study(path: str) -> Optional[dict]:
     """{img, size, wide, subject (x, y), red: mask or None, red_c (x, y), red_axis (x0, y0, x1, y1), free: 'left'|'right'} for one picture file; None when unreadable."""
-    if path in _cache: return _cache[path]
+    key = (path, T.THEME)      # the cat theme levels the picture's paper: a different picture from the same file
+    if key in _cache: return _cache[key]
     try: im = Image.open(path).convert("RGB")
-    except Exception: _cache[path] = None; return None
-    a = np.asarray(im, dtype=np.float32); lum = a.mean(axis=2); ink = np.clip((lum - 28) / 90, 0, 1)
+    except Exception: _cache[key] = None; return None
+    if T.THEME == "cat": im = _white_paper(im)
+    a = np.asarray(im, dtype=np.float32); lum = a.mean(axis=2)
+    if T.THEME == "cat": lum = 255.0 - lum      # the cat pictures are drawn on white: the subject is what is darker than the paper
+    ink = np.clip((lum - 28) / 90, 0, 1)
     red = _red(a); share = float(red.mean()); W, H = im.size
     subj = _centroid(ink); halves = (float(ink[:, : W // 2].mean()), float(ink[:, W // 2:].mean()))
     rows = np.nonzero(ink.mean(axis=1) > 0.02)[0]; top = float(rows[0]) / H if len(rows) else 0.0      # where the subject starts (its head, usually)
@@ -59,7 +71,7 @@ def study(path: str) -> Optional[dict]:
         if abs(p1[0] - 0.5) + abs(p1[1] - 0.5) < abs(p0[0] - 0.5) + abs(p0[1] - 0.5): p0, p1 = p1, p0
         info["red_axis"] = (*p0, *p1)
         g = np.repeat(lum[..., None], 3, axis=2) * 0.85; info["grey"] = Image.fromarray(np.clip(a * (1 - red[..., None]) + g * red[..., None], 0, 255).astype("uint8"))      # the picture with its red paint turned to ink grey
-    _cache[path] = info; return info
+    _cache[key] = info; return info
 
 def _path(art: str) -> Optional[str]:
     e = L.find(art) if art else None
@@ -132,6 +144,11 @@ def _revealed(info: dict, t_rel: float) -> Image.Image:
     front = T.ease_out(t_rel / REVEAL_S) * 1.25; m = np.clip((front - info["proj"]) / 0.18, 0, 1) * info["red"]
     return Image.composite(info["img"], info["grey"], Image.fromarray((m * 255).astype("uint8"), "L"))
 
+def _crop(src: Image.Image, box: tuple) -> Image.Image:
+    """src.crop, except that on the light (cat) canvas the part past the picture's edge is the canvas colour, not black."""
+    if T.THEME != "cat": return src.crop(box)
+    x0, y0, x1, y1 = box; out = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), T.BG_TOP); out.paste(src, (-x0, -y0)); return out
+
 def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
     """Draws the full-frame picture for time t (seconds into the scene). Returns {"x", "width"[, "anchor_y"]} for the words (1080p px), or None when this picture keeps the inset look."""
     info = study(_path(sc.get("art")) or "")
@@ -142,7 +159,11 @@ def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
         sc["_layout"] = ("right" if info["subject"][0] <= 0.55 else "left", "framed")
     side = sc["_layout"][0]; aw = int(ctx.W * AREA); ax0 = int(ctx.W * 0.02) if side == "right" else ctx.W - aw - int(ctx.W * 0.02); rect = (ax0, 0, ax0 + aw, ctx.H)
     box = _window(info, cam, p, aw, ctx.H)
-    cv.paste(src.crop(tuple(int(round(v)) for v in box)).resize((aw, ctx.H), Image.BICUBIC), rect[:2], _feather(aw, ctx.H, side, vertical=True))      # outside the picture is black
+    shot = _crop(src, tuple(int(round(v)) for v in box)).resize((aw, ctx.H), Image.BICUBIC)
+    if T.THEME == "cat":      # the cat pictures are ink on white paper: multiplied onto the canvas, the paper vanishes and no box edge shows
+        from PIL import ImageChops
+        shot = ImageChops.multiply(cv.crop(rect).convert("RGB"), shot.convert("RGB"))
+    cv.paste(shot, rect[:2], _feather(aw, ctx.H, side, vertical=True))      # outside the picture is black
     sc["_shown"] = (box, rect)      # where the picture is on screen this frame: overlays() pins labels to its parts
     text_x = (ax0 + aw) / ctx.S + 50 if side == "right" else 110
     return {"x": text_x, "width": 0.0 if side == "right" else ax0 / ctx.S - 170}
@@ -291,7 +312,7 @@ def _draw_cues(cv: Image.Image, ctx, sc: dict, t: float, info: dict) -> int:
             D.leader(cv, ctx, (pt[0] + dx * r * 0.75, pt[1] - r * 0.4), (lx, ly + ctx.px(6)), min(1.0, max(0.0, (tr - 0.1) / 0.35)), "", 0.0)      # the line draws from the part to its label
             pa = min(1.0, max(0.0, (tr - 0.35) / 0.35))
             if pa > 0:
-                bx = lx - (0 if dx > 0 else lw); ImageDraw.Draw(cv, "RGBA").rounded_rectangle((bx, ly - ctx.px(30), bx + lw, ly + ctx.px(42)), radius=ctx.px(36), fill=(10, 10, 12, int(215 * pa)))
+                bx = lx - (0 if dx > 0 else lw); ImageDraw.Draw(cv, "RGBA").rounded_rectangle((bx, ly - ctx.px(30), bx + lw, ly + ctx.px(42)), radius=ctx.px(36), fill=T.PLATE + (int(215 * pa),))
                 D.pill(cv, ctx, bx, ly - ctx.px(30), label, (tr - 0.35) / 0.4)
         elif c["kind"] == "arrow":
             o = last_pt or to_screen(sc, *(info["red_c"] if info["red"] is not None else info["subject"]), info) or ((rx0 + rx1) / 2, (ry0 + ry1) / 2); L_ = ctx.px(150) * q
@@ -309,12 +330,12 @@ def _draw_cues(cv: Image.Image, ctx, sc: dict, t: float, info: dict) -> int:
             p0 = to_screen(sc, (bx0 + bx1) / 2, by0 + 0.02, info) or ((rx0 + rx1) / 2, ry0 + ctx.px(60)); p1 = to_screen(sc, (bx0 + bx1) / 2, by1 - 0.02, info) or (p0[0], ry1 - ctx.px(40))
             if info["red"] is not None and abs(info["red_axis"][3] - info["red_axis"][1]) > abs(info["red_axis"][2] - info["red_axis"][0]):      # a long upright red region: the line runs along it
                 p0 = to_screen(sc, info["red_axis"][0], info["red_axis"][1], info) or p0; p1 = to_screen(sc, info["red_axis"][2], info["red_axis"][3], info) or p1
-            p0, p1 = clamp(p0), clamp(p1); d.line((p0, (p0[0] + (p1[0] - p0[0]) * q, p0[1] + (p1[1] - p0[1]) * q)), fill=(74, 222, 128, 235), width=ctx.px(6))
+            p0, p1 = clamp(p0), clamp(p1); d.line((p0, (p0[0] + (p1[0] - p0[0]) * q, p0[1] + (p1[1] - p0[1]) * q)), fill=T.GREEN + (235,), width=ctx.px(6))
         elif c["kind"] == "badge":
             e = T.ease_back(min(1.0, tr / 0.4)); R = ctx.px(78) * e; top = to_screen(sc, bx1 if away < 0 else bx0, by0 + 0.1 * (by1 - by0), info) or (rx1 - ctx.px(120), ry0 + ctx.px(140))
             cxb, cyb = clamp((top[0] - away * ctx.px(40), top[1])); cxb = min(max(cxb, rx0 + R + ctx.px(10)), rx1 - R - ctx.px(10)); cyb = max(cyb, ry0 + R + ctx.px(50))
             if R > 2:
-                d.ellipse((cxb - R, cyb - R, cxb + R, cyb + R), fill=(14, 14, 16, 235), outline=T.ORANGE + (255,), width=ctx.px(5))
+                d.ellipse((cxb - R, cyb - R, cxb + R, cyb + R), fill=T.PLATE + (235,), outline=T.ORANGE + (255,), width=ctx.px(5))
                 f = ctx.font(T.HEAD_FONT, int(64 * e) + 1); tw = D._text_w(d, c["text"], f, 0); D.text_spaced(d, (cxb - tw / 2, cyb - ctx.px(52) * e), c["text"], f, T.WHITE + (255,), 0)
                 fu = ctx.font(T.BODY_FONT, int(26 * e) + 1); uw = D._text_w(d, c["unit"], fu, ctx.px(2)); D.text_spaced(d, (cxb - uw / 2, cyb + ctx.px(18) * e), c["unit"], fu, T.ORANGE + (255,), ctx.px(2))
         elif c["kind"] == "inset":
@@ -360,7 +381,7 @@ def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
             cv.paste(lay, (0, 0), lay)
             if k > 0.6 and label:
                 bx = lx - (0 if dx > 0 else lw); pa = min(1.0, max(0.0, (t - at - 0.35) / 0.4))
-                if pa > 0: __import__("PIL.ImageDraw", fromlist=["ImageDraw"]).Draw(cv, "RGBA").rounded_rectangle((bx, ly - ctx.px(30), bx + lw, ly + ctx.px(42)), radius=ctx.px(36), fill=(10, 10, 12, int(215 * pa)))      # a dark plate: the label reads over any ink
+                if pa > 0: __import__("PIL.ImageDraw", fromlist=["ImageDraw"]).Draw(cv, "RGBA").rounded_rectangle((bx, ly - ctx.px(30), bx + lw, ly + ctx.px(42)), radius=ctx.px(36), fill=T.PLATE + (int(215 * pa),))      # a dark plate: the label reads over any ink
                 D.pill(cv, ctx, bx, ly - ctx.px(30), label, (t - at - 0.35) / 0.4)
             n += 1
     n += _draw_cues(cv, ctx, sc, t, info)
@@ -371,7 +392,7 @@ def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
     mo = sc.get("morph")
     if mo and t >= mo["at"] - sc["start"]:      # the figure used to widen / slim on the word: here an arrow and its word beside the subject
         pt = to_screen(sc, info["subject"][0], info["subject"][1], info) or (ctx.W * 0.4, ctx.H * 0.5); q = T.ease_back(min(1.0, (t - mo["at"] + sc["start"]) / 0.5)); up = mo["to"] > 0
-        d = __import__("PIL.ImageDraw", fromlist=["ImageDraw"]).Draw(cv, "RGBA"); x, y = pt[0] + ctx.px(170), pt[1]; s = ctx.px(34) * q; col = (74, 222, 128) if up else (90, 190, 255)
+        d = __import__("PIL.ImageDraw", fromlist=["ImageDraw"]).Draw(cv, "RGBA"); x, y = pt[0] + ctx.px(170), pt[1]; s = ctx.px(34) * q; col = T.GREEN if up else (90, 190, 255)
         d.polygon([(x, y - s * (1 if up else -1)), (x - s * 0.8, y + s * 0.4 * (1 if up else -1)), (x + s * 0.8, y + s * 0.4 * (1 if up else -1))], fill=col + (255,))
         D.pill(cv, ctx, x + ctx.px(30), y - ctx.px(30), "BIGGER" if up else "LEANER", (t - mo["at"] + sc["start"]) / 0.4); n += 1
     return n

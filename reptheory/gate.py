@@ -132,3 +132,28 @@ def thicken_pictures(scenes: List[dict]) -> int:
         if not sc.get("pages"): sc["pages"] = [{"at": sc["start"], "headline": "", "headline_at": sc["start"], "value": "", "chips": [], "kicker": ""}]
         sc["pages"][-1].setdefault("chips", []).append({"text": key.upper(), "at": at}); sc["decisions"].append(f"quality gate: a picture shot with one thing on it gets its key phrase '{key.upper()}'"); n += 1
     return n
+
+EMPTY_OPEN_S = 1.5      # a picture shot may open on the picture alone for this long; longer and the words side sits empty (Cat Theory render 4: the lap shot)
+
+def fill_empty_openings(scenes: List[dict]) -> int:
+    """A picture shot whose first page has nothing on it until a later page arrives more than EMPTY_OPEN_S in gets a chip on that first page: the key phrase of the words
+    spoken before the next page, on its own word. Plan-only, no render time. Returns how many shots were filled."""
+    from . import narrative as N
+    n = 0
+    for sc in scenes:
+        pages = sc.get("pages") or []
+        if not (sc.get("look") == "flow" or sc["kind"] == "illus") or len(pages) < 2: continue
+        first = pages[0]
+        if first.get("headline") or first.get("chips") or first.get("value"): continue
+        nxt = float(pages[1]["at"])
+        if nxt - sc["start"] <= EMPTY_OPEN_S: continue
+        ws = [w for w in (sc.get("words") or []) if float(w["t0"]) < nxt - 0.3]
+        if not ws: continue
+        key, pos = N.key_phrase(" ".join(w["w"] for w in ws), 3); key = N.phrase(key, ws) if key else ""
+        shown = {pg.get("headline") for pg in pages} | {c["text"] for pg in pages for c in pg.get("chips", [])}
+        if not key or key.upper() in shown: continue
+        i = pos if isinstance(pos, int) else len(ws) // 2
+        at = min(max(float(ws[min(i, len(ws) - 1)]["t0"]), sc["start"] + 0.4), nxt - 0.6)
+        first.setdefault("chips", []).append({"text": key.upper(), "at": at}); sc["decisions"].append(f"quality gate: the picture opened with nothing beside it; its first words get '{key.upper()}'"); n += 1
+    return n
+

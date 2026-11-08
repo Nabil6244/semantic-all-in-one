@@ -66,7 +66,7 @@ def draw_list(cv: Image.Image, ctx: D.Ctx, c: dict, t: float) -> None:
         q = T.ease_out(_p(u, 0.25 + 0.22 * i)) * a
         if q <= 0: continue
         y = y0 + i * rh + (1 - q) * ctx.px(24); x0, x1 = W * 0.16, W * 0.84; r = rh * 0.32
-        d.rounded_rectangle((x0, y, x1, y + rh * 0.82), radius=ctx.px(18), fill=(30, 30, 34, int(240 * q)))
+        d.rounded_rectangle((x0, y, x1, y + rh * 0.82), radius=ctx.px(18), fill=T.P(30, 30, 34, int(240 * q)))
         _avatar(d, ctx, x0 + ctx.px(26) + r, y + rh * 0.41, r, AVATAR[i % len(AVATAR)], q)
         fs = 34 if len(it["text"]) < 40 else 28; D.text_spaced(d, (x0 + ctx.px(52) + 2 * r, y + rh * 0.41 - fs * ctx.S * 0.62), it["text"], ctx.font(T.BODY_FONT, fs), T.WHITE + (int(255 * q),), 0)
         tag = f"Q{i + 1}"; ft = ctx.font(T.HEAD_FONT, 30); D.text_spaced(d, (x1 - ctx.px(30) - D._text_w(d, tag, ft, 0), y + rh * 0.41 - ctx.px(20)), tag, ft, T.ORANGE + (int(255 * q),), 0)
@@ -78,15 +78,15 @@ def draw_track(cv: Image.Image, ctx: D.Ctx, c: dict, t: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); W = ctx.W; r = ctx.px(13); gap = ctx.px(12); n = c["of"]
     x1, y = W - ctx.px(60), ctx.px(64); x0 = x1 - n * (2 * r) - (n - 1) * gap
     lab = f"Q{c['n']} / {n}"; f = ctx.font(T.HEAD_FONT, 34); lw = D._text_w(d, lab, f, ctx.px(1))
-    d.rounded_rectangle((x0 - lw - ctx.px(46), y - ctx.px(30), x1 + ctx.px(20), y + ctx.px(30)), radius=ctx.px(30), fill=(14, 14, 16, int(210 * a)))
+    d.rounded_rectangle((x0 - lw - ctx.px(46), y - ctx.px(30), x1 + ctx.px(20), y + ctx.px(30)), radius=ctx.px(30), fill=T.P(14, 14, 16, int(210 * a)))
     D.text_spaced(d, (x0 - lw - ctx.px(24), y - ctx.px(22)), lab, f, T.WHITE + (int(255 * a),), ctx.px(1))
     for i in range(n):
         cx = x0 + r + i * (2 * r + gap); k = i + 1
-        col = (74, 222, 128) if k < c["n"] else T.ORANGE if k == c["n"] else (90, 90, 96); rr = r * (1 + 0.35 * (1 - _p(t, c["at"], 0.4))) if k == c["n"] and c.get("new") else r
+        col = T.GREEN if k < c["n"] else T.ORANGE if k == c["n"] else (90, 90, 96); rr = r * (1 + 0.35 * (1 - _p(t, c["at"], 0.4))) if k == c["n"] and c.get("new") else r
         d.ellipse((cx - rr, y - rr, cx + rr, y + rr), fill=tuple(col) + (int(255 * a),))
-        if k < c["n"]: d.line((cx - r * 0.45, y, cx - r * 0.1, y + r * 0.4, cx + r * 0.5, y - r * 0.4), fill=(20, 20, 22, int(255 * a)), width=max(2, ctx.px(3)))
+        if k < c["n"]: d.line((cx - r * 0.45, y, cx - r * 0.1, y + r * 0.4, cx + r * 0.5, y - r * 0.4), fill=T.P(20, 20, 22, int(255 * a)), width=max(2, ctx.px(3)))
     if c.get("new"):
         u = t - c["at"]; q = min(_p(u, 0.15), max(0.0, min(1.0, (2.8 - u) / 0.4)))
         if q > 0:
             ft = ctx.font(T.BODY_FONT, 28); tw = D._text_w(d, c["text"], ft, 0); xr = x1 + ctx.px(20)
-            d.rounded_rectangle((xr - tw - ctx.px(40), y + ctx.px(44), xr, y + ctx.px(100)), radius=ctx.px(14), fill=(30, 30, 34, int(230 * q))); D.text_spaced(d, (xr - tw - ctx.px(20), y + ctx.px(54)), c["text"], ft, T.WHITE + (int(255 * q),), 0)
+            d.rounded_rectangle((xr - tw - ctx.px(40), y + ctx.px(44), xr, y + ctx.px(100)), radius=ctx.px(14), fill=T.P(30, 30, 34, int(230 * q))); D.text_spaced(d, (xr - tw - ctx.px(20), y + ctx.px(54)), c["text"], ft, T.WHITE + (int(255 * q),), 0)

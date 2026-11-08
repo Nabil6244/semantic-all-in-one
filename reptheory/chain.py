@@ -92,8 +92,8 @@ def draw(cv: Image.Image, ctx: D.Ctx, ch: dict, t_abs: float) -> None:
         p = T.ease_back(min(1.0, max(0.0, (u - 0.06 * i) / 0.35))); done = all_done or (cur is not None and i < cur); live = cur == i
         lift = int(ctx.px(26) * T.ease_out(min(1.0, max(0.0, (u - 0.4) / 0.4)))) if live else 0; s = 0.9 + 0.1 * p + (0.08 if live else 0.0)
         cx, cy = x0 + i * (cw + gap) + cw / 2, y0 + ch_h / 2 - lift; w2, h2 = cw * s / 2, ch_h * s / 2
-        col = (74, 222, 128) if done else T.RED if live else (250, 196, 40) if it["warn"] else (70, 70, 76)
-        d.rounded_rectangle((cx - w2, cy - h2, cx + w2, cy + h2), radius=ctx.px(16), fill=(26, 26, 29, int(255 * a * min(1.0, p * 2))), outline=col + (int(255 * a * min(1.0, p * 2)),), width=ctx.px(6 if live else 3))
+        col = T.GREEN if done else T.RED if live else (250, 196, 40) if it["warn"] else (70, 70, 76)
+        d.rounded_rectangle((cx - w2, cy - h2, cx + w2, cy + h2), radius=ctx.px(16), fill=T.P(26, 26, 29, int(255 * a * min(1.0, p * 2))), outline=col + (int(255 * a * min(1.0, p * 2)),), width=ctx.px(6 if live else 3))
         if live:
             for k in range(3): rr = ctx.px(6) * (k + 1); d.rounded_rectangle((cx - w2 - rr, cy - h2 - rr, cx + w2 + rr, cy + h2 + rr), radius=ctx.px(18), outline=T.RED + (int(70 * a / (k + 1)),), width=ctx.px(3))
         dim = 1.0 if (live or done) else 0.5
@@ -101,16 +101,16 @@ def draw(cv: Image.Image, ctx: D.Ctx, ch: dict, t_abs: float) -> None:
         if it["warn"] and not done:      # a warning triangle in place of the number
             r = ctx.px(34); d.polygon([(cx, cy - r - ctx.px(10)), (cx - r, cy + r * 0.6 - ctx.px(10)), (cx + r, cy + r * 0.6 - ctx.px(10))], fill=(250, 196, 40, int(255 * a * dim)))
         else:
-            f_n = ctx.font(T.HEAD_FONT, 84); nn = str(it.get("n", i + 1)); nw = D._text_w(d, nn, f_n, 0); D.text_spaced(d, (cx - nw / 2, cy - ctx.px(66)), nn, f_n, ((74, 222, 128) if done else T.ORANGE if live else T.SOFT_WHITE) + (int(255 * a * dim),), 0)
+            f_n = ctx.font(T.HEAD_FONT, 84); nn = str(it.get("n", i + 1)); nw = D._text_w(d, nn, f_n, 0); D.text_spaced(d, (cx - nw / 2, cy - ctx.px(66)), nn, f_n, (T.GREEN if done else T.ORANGE if live else T.SOFT_WHITE) + (int(255 * a * dim),), 0)
         f_m = ctx.font(T.HEAD_FONT, 30); lines = D._wrap(d, it["name"], f_m, cw * s - ctx.px(24)) or [""]
         for k, ln in enumerate(lines[:2]): lw = D._text_w(d, ln, f_m, ctx.px(1)); D.text_spaced(d, (cx - lw / 2, cy + ctx.px(34) + k * ctx.px(36)), ln, f_m, T.WHITE + (int(255 * a * dim),), ctx.px(1))
         by = cy + h2 + ctx.px(14)      # under the card: its target with a tick (done) or a lock (to come)
         if it["target"] or not done:
             lab = it["target"] or ""; f_b = ctx.font(T.BODY_FONT, 24); lw = D._text_w(d, lab, f_b, ctx.px(2)) + ctx.px(34)
-            if done: d.line((cx - lw / 2, by + ctx.px(14), cx - lw / 2 + ctx.px(8), by + ctx.px(22)), fill=(74, 222, 128, int(255 * a)), width=ctx.px(4)); d.line((cx - lw / 2 + ctx.px(8), by + ctx.px(22), cx - lw / 2 + ctx.px(22), by + ctx.px(4)), fill=(74, 222, 128, int(255 * a)), width=ctx.px(4))
+            if done: d.line((cx - lw / 2, by + ctx.px(14), cx - lw / 2 + ctx.px(8), by + ctx.px(22)), fill=T.GREEN + (int(255 * a),), width=ctx.px(4)); d.line((cx - lw / 2 + ctx.px(8), by + ctx.px(22), cx - lw / 2 + ctx.px(22), by + ctx.px(4)), fill=T.GREEN + (int(255 * a),), width=ctx.px(4))
             else: d.rectangle((cx - lw / 2, by + ctx.px(10), cx - lw / 2 + ctx.px(16), by + ctx.px(26)), fill=(232, 64, 52, int(255 * a * dim))); d.arc((cx - lw / 2 + ctx.px(2), by, cx - lw / 2 + ctx.px(14), by + ctx.px(16)), 180, 360, fill=(232, 64, 52, int(255 * a * dim)), width=ctx.px(3))
             if lab: D.text_spaced(d, (cx - lw / 2 + ctx.px(30), by + ctx.px(2)), lab, f_b, T.SOFT_WHITE + (int(255 * a * dim),), ctx.px(2))
         if live and u > 0.5:
             D.pill(cv, ctx, cx - ctx.px(46), cy - h2 - ctx.px(64), "YOU", min(1.0, (u - 0.5) / 0.3), accent=T.RED)
         if i < n - 1:      # the link between cards
-            lx = cx + w2 + ctx.px(2); d.line((lx, cy, lx + gap - ctx.px(4), cy), fill=((74, 222, 128) if done else (70, 70, 76)) + (int(220 * a),), width=ctx.px(3))
+            lx = cx + w2 + ctx.px(2); d.line((lx, cy, lx + gap - ctx.px(4), cy), fill=(T.GREEN if done else (70, 70, 76)) + (int(220 * a),), width=ctx.px(3))

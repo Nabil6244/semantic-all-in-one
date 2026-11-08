@@ -31,7 +31,7 @@ class Pen:
         for a, b in zip(pts, pts[1:]): self.d.line([a, b], fill=col + (255,), width=w)
         for p in pts: self.d.ellipse((p[0] - w / 2, p[1] - w / 2, p[0] + w / 2, p[1] + w / 2), fill=col + (255,))
     def head(self, c: Pt):
-        r = self.L * HEAD; self.d.ellipse((c[0] - r, c[1] - r, c[0] + r, c[1] + r), outline=LIMB + (255,), width=max(3, int(self.L * 0.12)), fill=(14, 14, 16, 255))
+        r = self.L * HEAD; self.d.ellipse((c[0] - r, c[1] - r, c[0] + r, c[1] + r), outline=LIMB + (255,), width=max(3, int(self.L * 0.12)), fill=T.P(14, 14, 16, 255))
     def line(self, a: Pt, b: Pt, w: float = 0.07, col=(120, 120, 128), alpha: int = 255): self.d.line([a, b], fill=col + (alpha,), width=max(2, int(self.L * w)))
     def box(self, x0, y0, x1, y1, col=(60, 60, 66)): self.d.rectangle((x0, y0, x1, y1), fill=col + (255,), outline=(140, 140, 148, 255), width=max(2, int(self.L * 0.05)))
 

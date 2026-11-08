@@ -25,10 +25,11 @@ class Ctx:
         if self._back is None:      # vertical gradient + soft vignette + a faint warm glow behind the subject: restrained depth, no texture that could crawl
             import numpy as np
             W, H = self.W, self.H; y = np.linspace(0, 1, H)[:, None, None]; top, bot = np.array(T.BG_TOP), np.array(T.BG_BOT); base = top + (bot - top) * y; base = np.repeat(base, W, axis=1)
-            xx, yy = np.meshgrid(np.linspace(-1, 1, W), np.linspace(-1, 1, H)); r = np.sqrt((xx * 0.9) ** 2 + yy ** 2); vig = np.clip(1.0 - 0.38 * r ** 2, 0.55, 1.0)[..., None]
+            xx, yy = np.meshgrid(np.linspace(-1, 1, W), np.linspace(-1, 1, H)); r = np.sqrt((xx * 0.9) ** 2 + yy ** 2); vig = np.clip(1.0 - (0.06 if T.THEME == "cat" else 0.38) * r ** 2, 0.55, 1.0)[..., None]      # the light cat canvas only softly darkens at the edges
             gx, gy = (xx + 0.42) / 0.7, (yy + 0.05) / 0.8; glow = np.exp(-(gx ** 2 + gy ** 2) * 2.2)[..., None] * np.array([26, 11, 3])[None, None, :]
             rng = np.random.default_rng(7); grain = rng.normal(0, 1.1, (H, W, 1))     # fixed grain: identical every frame, so it never shimmers
             self._back = Image.fromarray(np.clip(base * vig + glow + grain, 0, 255).astype("uint8"), "RGB")
+            if T.THEME == "cat": _cat_decor(self._back, W, H)
         return self._back.copy()
     def file_art(self, path: str) -> Optional[Image.Image]:
         """A user-supplied picture (the end card's product image), RGBA, cached; None when it cannot be read."""
@@ -73,6 +74,22 @@ def paste_art(cv: Image.Image, ctx: Ctx, ref: str, cx: float, cy: float, height:
         pad = int(abs(shear) + 2); r = r.transform((w + 2 * pad, h), Image.AFFINE, (1, -shear / h, -pad, 0, 1, 0), resample=Image.BILINEAR); x0 -= pad
     if rot: r = r.rotate(rot, resample=Image.BILINEAR, expand=True, center=(r.width / 2, r.height)); x0 -= (r.width - w) // 2; y0 -= r.height - h      # sways about its base
     cv.paste(r, (x0, y0), r); return (x0, y0, x0 + r.width, y0 + r.height)
+
+def paw(d, cx: float, cy: float, r: float, fill) -> None:
+    """A paw print (Cat Theory): the main pad and four toes, r = the main pad's radius."""
+    d.ellipse((cx - r, cy - r * 0.78, cx + r, cy + r * 0.92), fill=fill)
+    for dx, dy, k in ((-1.02, -1.05, 0.42), (-0.38, -1.55, 0.44), (0.38, -1.55, 0.44), (1.02, -1.05, 0.42)):
+        tr = r * k; tx, ty = cx + dx * r, cy + dy * r; d.ellipse((tx - tr, ty - tr * 1.15, tx + tr, ty + tr * 1.15), fill=fill)
+
+def _cat_decor(im: Image.Image, W: int, H: int) -> None:
+    """Cat Theory backdrop: a faint trail of paw prints across the lower corner and a few soft dots, drawn once (fixed: nothing shimmers)."""
+    import random
+    S = W / 1920; layer = Image.new("RGBA", (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(layer); rng = random.Random(11)
+    for i in range(7):      # a walk from bottom-left up and across, alternating feet
+        cx = W * (0.04 + 0.075 * i); cy = H * (0.93 - 0.05 * i) + (16 if i % 2 else -16) * S; paw(d, cx, cy, 15 * S, (238, 196, 170, 70))
+    for _ in range(26):
+        x, y, r = rng.uniform(0, W), rng.uniform(0, H), rng.uniform(3, 7) * S; d.ellipse((x - r, y - r, x + r, y + r), fill=(247, 160, 130, 34))
+    im.paste(layer, (0, 0), layer)
 
 def ghost_word(cv: Image.Image, ctx: Ctx, word: str, t: float, alpha: int = 6):
     """The topic as huge, nearly invisible type behind the picture: fills the frame and drifts slowly the other way from the camera, so a plain backdrop is never a static one."""
@@ -160,7 +177,13 @@ def overlay_paste(cv: Image.Image, layer: Image.Image, alpha: float = 1.0, xy=(0
 def _tag_draw(d, ctx: Ctx, text: str, bg_a: float, bar_p: float, text_a: float, text_dy: float):
     """One section label at its fixed place: dark plate, red bar (`bar_p` of its height, growing from the bottom), spaced all-caps text."""
     f = ctx.font(T.BODY_FONT, 30); x, y = ctx.px(72), ctx.px(58); bh = ctx.px(46); w = _text_w(d, text, f, ctx.px(2.5)) + ctx.px(26) + ctx.px(34)
-    if bg_a > 0: d.rectangle((x, y, x + w, y + bh), fill=(14, 14, 15, int(210 * bg_a)))
+    if T.THEME == "cat":      # a pet video's label: a soft white pill with a coral paw where the red bar was
+        bh = ctx.px(52); w += ctx.px(30)
+        if bg_a > 0: d.rounded_rectangle((x, y, x + w, y + bh), radius=bh // 2, fill=(255, 255, 255, int(235 * bg_a)), outline=T.DIM + (int(255 * bg_a),), width=ctx.px(2))
+        if bar_p > 0: paw(d, x + ctx.px(30), y + bh * 0.58, ctx.px(8) * min(1.0, bar_p), T.ORANGE + (int(255 * min(1.0, bar_p)),))
+        if text_a > 0: text_spaced(d, (x + ctx.px(54), y + ctx.px(9) + int(text_dy * ctx.S)), text, f, T.WHITE + (int(255 * text_a),), ctx.px(2))
+        return
+    if bg_a > 0: d.rectangle((x, y, x + w, y + bh), fill=T.PLATE + (int(210 * bg_a),))
     if bar_p > 0: d.rectangle((x, y + int(bh * (1 - bar_p)), x + ctx.px(7), y + bh), fill=T.RED + (int(255 * (text_a if bar_p >= 1 else 1.0)),))
     if text_a > 0: text_spaced(d, (x + ctx.px(26), y + ctx.px(6) + int(text_dy * ctx.S)), text, f, T.WHITE + (int(255 * text_a),), ctx.px(2.5))
 
@@ -193,6 +216,10 @@ def pill(cv: Image.Image, ctx: Ctx, x: float, y: float, text: str, p: float, acc
     yo = int((1 - T.ease_out(p)) * 18 * ctx.S); box = (int(x), int(y) + yo, int(x) + ww, int(y) + yo + h)
     ta = min(1.0, (p - PILL_TEXT_AT) / 0.25)      # the outline and its text arrive together: the plate only starts once the first letters can be seen
     if ta <= 0: return w
+    if T.THEME == "cat":      # a soft filled chip with a paw before the words
+        aa = int(255 * min(1, ta * 2)); box = (box[0], box[1], box[0] + ww + ctx.px(34), box[3])
+        d.rounded_rectangle(box, radius=h // 2, fill=(255, 232, 218, aa), outline=accent + (aa,), width=ctx.px(3)); paw(d, int(x) + pad + ctx.px(6), box[1] + h * 0.56, ctx.px(8), accent + (aa,))
+        text_spaced(d, (int(x) + pad + ctx.px(34), int(y) + yo + (h - ctx.px(size)) // 2 - ctx.px(3)), text, f, T.WHITE + (int(255 * ta),), ctx.px(1.5)); return w + ctx.px(34)
     d.rounded_rectangle(box, radius=h // 2, fill=(255, 255, 255, int(14 * p)), outline=accent + (int(255 * min(1, ta * 2)),), width=ctx.px(3))
     text_spaced(d, (int(x) + pad, int(y) + yo + (h - ctx.px(size)) // 2 - ctx.px(3)), text, f, T.WHITE + (int(255 * ta),), ctx.px(1.5))
     return w
@@ -220,7 +247,7 @@ def split_headline(headline: str) -> Tuple[str, str]:
 def key_colour(headline: str, kicker: str = "") -> tuple:
     """Colour of the key words by what the line means: red for a mistake / warning / negative, green for the right way, orange otherwise."""
     if (kicker or "").upper() in ("MISTAKE", "WARNING", "MYTH") or NEG_WORDS.search(headline or ""): return T.RED
-    if POS_WORDS.search(headline or ""): return (74, 222, 128)
+    if POS_WORDS.search(headline or ""): return T.GREEN
     return T.ORANGE
 
 def callout_column(cv: Image.Image, ctx: Ctx, headline: str, hl_p: float, value: str, val_p: float, chips: List[Tuple[str, float]], x: float = 1130, anchor_y: float = 0.5, kicker: str = "", k_p: float = 1.0, floor: float = 0.0, width: float = 0.0):
@@ -374,7 +401,7 @@ def tier_board(cv: Image.Image, ctx: Ctx, tier: dict, t: float, thumb: Optional[
     pill_txt = ("RANKED " + (f"{tier.get('rank') or 1}" + (f" / {tier['total']}" if tier.get("total") else "") if placed >= 1 else "0" + (f" / {tier['total']}" if tier.get("total") else ""))); pf = ctx.font(T.BODY_FONT, 28)
     d.text((x0, y0 - ctx.px(60)), pill_txt, font=pf, fill=T.ORANGE + (int(255 * intro),))
     cxp, cyp, cw, chh = ctx.px(1330), ctx.px(190), ctx.px(470), ctx.px(640); slide = (1 - T.ease_out((t - 0.25) / 0.6)) * ctx.px(220); wait = 0.5 + 0.5 * math.sin(t * 3.0) if placed <= 0 else 1.0      # the card breathes while it waits
-    d.rounded_rectangle((cxp + slide, cyp, cxp + slide + cw, cyp + chh), radius=ctx.px(16), fill=(18, 18, 20, 240), outline=T.ORANGE + (int(255 * intro * (0.55 + 0.45 * wait)),), width=ctx.px(3))
+    d.rounded_rectangle((cxp + slide, cyp, cxp + slide + cw, cyp + chh), radius=ctx.px(16), fill=T.P(18, 18, 20, 240), outline=T.ORANGE + (int(255 * intro * (0.55 + 0.45 * wait)),), width=ctx.px(3))
     text_spaced(d, (cxp + slide + ctx.px(28), cyp + ctx.px(24)), "RANKED" if placed >= 1 else "NOW RANKING", ctx.font(T.BODY_FONT, 30), T.ORANGE + (255,), ctx.px(3))
     if now_name: text_spaced(d, (cxp + slide + cw / 2, cyp + chh - ctx.px(86)), now_name, ctx.font(T.BODY_FONT, 34), T.WHITE + (255,), ctx.px(1.5), anchor_x="c")
     if placed >= 1 and letter:      # the card closes on the verdict: the tier letter, big

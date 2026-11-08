@@ -25,6 +25,10 @@ INK_ANATOMY = ("Manga ink anatomical sketch, greyscale, the muscles and tendons 
                "no logos, no watermark, the body part on one side of the frame with the other side empty black")
 REAL_STYLE = "Realistic detailed illustration with studio lighting, solid pure black background (#000000), no text, no letters, no numbers, no brand logos, no watermark, subject fully inside the frame"
 
+CAT_STYLE = ("Soft hand-drawn storybook illustration of a domestic cat, clean ink line art with warm watercolour shading, a single orange accent, plain solid pure white background (#FFFFFF), "
+             "no text, no letters, no numbers, no logos, no watermark, no border, no people unless the sentence names them (then only hands or a friendly owner), "
+             "the subject in one side of the frame (about 60%) with the other side empty white for on-screen text")      # the cat niche (theme.THEME == "cat")
+
 # id -> (kind, subject sentence, style)
 ART = {
     "rep_stand_v1": ("character", f"Full-body front view of {CHARACTER}, standing relaxed, arms hanging at his sides, calm focused expression", STYLE),

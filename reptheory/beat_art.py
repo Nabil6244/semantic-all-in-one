@@ -23,9 +23,14 @@ def _red_part(text: str) -> str:
     m = FOCUS_RX.search(text)
     return f" Paint his {m.group(1).lower()} glowing red over the ink." if m else ""
 
+def _cat() -> bool:
+    from . import theme as T
+    return T.THEME == "cat"
+
 def prompt_for(text: str, hook: bool = False) -> str:
     """Flow prompt for one beat: what the narration says at this moment, drawn in the reference style (ink, one side empty, the named part in red, the rival when there is an opponent)."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
+    if _cat(): return f"A single scene from a cat behaviour explainer video, illustrating exactly this narration: \"{text}\". {A.CAT_STYLE}."
     if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):      # tissue: the realistic anatomy picture we always had, word for word, so pictures made before are reused
         return (f"A clear anatomical illustration that shows what this sentence of a fitness explainer is about: \"{text}\". Show the relevant muscles, tendons or bones of the body part concerned, "
                 f"{A.REAL_STYLE}.")
@@ -39,6 +44,7 @@ def prompt_for(text: str, hook: bool = False) -> str:
 def own_prompt(text: str) -> str:
     """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
+    if _cat(): return f"{text}. {A.CAT_STYLE}."      # the cat niche: no trainee cast, white background
     if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing
     cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "") + \
            (f" The tradesman is {A.TRADESMAN}." if re.search(r"\btradesm[ae]n\b|\bworker\b", text, re.I) else "")
