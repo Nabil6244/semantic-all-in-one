@@ -1,8 +1,8 @@
 """Code-drawn graphic cards for Rep Theory: a stat ring, numbered steps, a versus panel, a spoken-word takeaway and a chapter banner. Nothing to generate or download (no per-video asset burden): each card is
 drawn from the words and numbers of the beat it belongs to, and every element arrives on the time its words are spoken. Times in the card dicts are relative to the scene start."""
 from __future__ import annotations
-import math
-from typing import List
+import math, re
+from typing import Optional, List
 from PIL import Image, ImageDraw
 
 from . import draw as D, theme as T
@@ -95,6 +95,15 @@ def chapter(cv: Image.Image, ctx: D.Ctx, ch: dict, t: float) -> None:
     """A chapter banner for the first moments of a new part of a long video: PART n / N, its title, and a progress bar showing where in the video the viewer is."""
     T_IN, T_HOLD, T_OUT = 0.45, 2.4, 0.5
     if t > T_IN + T_HOLD + T_OUT: return
+    if T.THEME == "jung":      # an old book's chapter opening: the scene dims, a gold Roman numeral, thin gold rules, the title in ivory serif
+        a = max(0.0, min(1.0, t / T_IN, (T_IN + T_HOLD + T_OUT - t) / T_OUT)); from .film import roman
+        lay = Image.new("RGBA", (ctx.W, ctx.H), (8, 6, 4, int(238 * a))); d = ImageDraw.Draw(lay); cx, cy = ctx.W / 2, ctx.H * 0.47      # nearly opaque: the card is its own moment, the scene under it does not show through
+        num = roman(int(ch["n"])); fn = ctx.font(T.HEAD_FONT, 150); nw = D._text_w(d, num, fn, 0); e = T.ease_out(min(1.0, t / 0.7))
+        d.text((cx - nw / 2, cy - ctx.px(190) + int((1 - e) * 20 * ctx.S)), num, font=fn, fill=T.ORANGE + (int(255 * a),))
+        rw = ctx.px(220) * e; d.rectangle((cx - rw, cy + ctx.px(8), cx + rw, cy + ctx.px(10)), fill=T.ORANGE + (int(200 * a),))
+        title = ch["title"][:34]; ft = ctx.font(T.HEAD_FONT, 64); tw = D._text_w(d, title, ft, ctx.px(4))
+        D.text_spaced(d, (cx - tw / 2, cy + ctx.px(36)), title, ft, T.WHITE + (int(255 * a * min(1.0, max(0.0, (t - 0.25) / 0.5))),), ctx.px(4))
+        D.overlay_paste(cv, lay, 1.0); return
     a = min(1.0, t / T_IN, (T_IN + T_HOLD + T_OUT - t) / T_OUT); a = max(0.0, a); lay = Image.new("RGBA", (ctx.W, ctx.H), (0, 0, 0, 0)); d = ImageDraw.Draw(lay); x, y = ctx.px(100), int(ctx.H * 0.80)
     d.rounded_rectangle((x - ctx.px(34), y - ctx.px(36), x + ctx.px(960), y + ctx.px(190)), radius=ctx.px(22), fill=(8, 8, 10, 200))
     D.text_spaced(d, (x, y - ctx.px(10)), f"PART {ch['n']:02d} / {ch['of']:02d}", ctx.font(T.BODY_FONT, 30), T.ORANGE + (255,), ctx.px(5))
@@ -501,3 +510,60 @@ CARD_DONE = {
 
 from . import diagrams as _DG      # the Phase 3 diagrams finish on their last mark
 CARD_DONE.update(_DG.DONE)
+
+
+QUOTE_RX = re.compile(r"(?:wrote|said|put it|once said|tells us|writes)\s*[:,]\s*(.+)$", re.I)
+
+def quote_payload(text: str, words: list, source: str = "") -> Optional[dict]:
+    """The quote card's content from its sentence: the words after "wrote:" / "said:" (or in quotation marks), else the whole sentence; each word keeps its spoken time.
+    None when the sentence has no words. `source` (the book / letter and year) is shown under it: never invented, only what the scenes CSV gives."""
+    text = (text or "").strip()
+    if not text: return None
+    m = re.search(r"[\"\u201c](.+?)[\"\u201d]", text) or QUOTE_RX.search(text); body = (m.group(1) if m else text).strip().strip("\"\u201c\u201d")
+    toks = body.split(); ws = list(words or []); times = []
+    if toks: toks[0] = toks[0][:1].upper() + toks[0][1:]      # a quote starts with a capital, even when the narration runs it on after "wrote:"
+    if ws and toks:      # the quote's words are the sentence's last len(toks) words
+        tail = ws[-len(toks):] if len(ws) >= len(toks) else ws; times = [float(w["t0"]) for w in tail]
+    while len(times) < len(toks): times.append(times[-1] + 0.25 if times else 0.0)
+    return {"words": [{"w": w, "t0": t0} for w, t0 in zip(toks, times)], "source": re.sub(r"\s+", " ", source or "").strip(), "at": times[0] if times else 0.0}
+
+def quote(cv: Image.Image, ctx: D.Ctx, q: dict, t: float) -> None:
+    """A quote on its own: a large opening mark in the accent colour, the quote's words appearing as they are spoken (ivory, serif in the Jung theme), the source fading in under it."""
+    d = ImageDraw.Draw(cv, "RGBA"); a = min(1.0, t / 0.4); x0, y0, maxw = ctx.px(250), int(ctx.H * 0.36), ctx.W - ctx.px(500)
+    por = _quote_portrait(ctx) if T.THEME == "jung" else None
+    if por is not None:      # Carl Jung Theory: his portrait in a round sepia frame beside the quote
+        maxw = ctx.W - ctx.px(250) - ctx.px(720); pe = T.ease_out(min(1.0, t / 0.6)); px_, py_ = ctx.W - ctx.px(560), int(ctx.H * 0.50 - por.height / 2 + (1 - pe) * 24 * ctx.S)
+        lay = por.copy(); lay.putalpha(lay.getchannel("A").point(lambda v: int(v * pe))); cv.paste(lay, (px_, py_), lay)
+    mark = ctx.font(T.HEAD_FONT, 260); e = T.ease_back(min(1.0, t / 0.5)); d.text((ctx.px(120), y0 - ctx.px(150) + int((1 - e) * 30 * ctx.S)), "\u201c", font=mark, fill=T.ORANGE + (int(230 * a),))
+    face = "sys:Georgia Italic" if T.THEME == "jung" else T.HEAD_FONT; size = 66 if len(q["words"]) <= 18 else 54; f = ctx.font(face, size); lh = ctx.px(size * 1.32)
+    x, y, line = x0, y0, 0; space = D._text_w(d, " ", f, 0)
+    for w in q["words"]:
+        ww = D._text_w(d, w["w"], f, 0)
+        if x > x0 and x + ww > x0 + maxw: x, y = x0, y + lh; line += 1
+        p = (t - w["t0"]) / 0.3
+        if p > 0: d.text((x, y + int((1 - T.ease_out(min(1.0, p))) * 14 * ctx.S)), w["w"], font=f, fill=T.WHITE + (int(255 * min(1.0, p)),))
+        x += ww + space
+    if q.get("source"):
+        last = q["words"][-1]["t0"] if q["words"] else 0.0; sp = (t - last - 0.4) / 0.5
+        if sp > 0:
+            sy = y + lh + ctx.px(30); d.rectangle((x0, sy + ctx.px(22), x0 + int(ctx.px(60) * min(1.0, sp)), sy + ctx.px(25)), fill=T.ORANGE + (int(255 * min(1.0, sp)),))
+            _txt(d, ctx, (x0 + ctx.px(80), sy), q["source"].upper(), 30, T.ORANGE, min(1.0, sp), head=False)
+
+
+def _quote_portrait(ctx: D.Ctx):
+    """Jung's main reference portrait as a round sepia medallion with a gold ring (cached per size); None when there is no reference image."""
+    k = ("jung_medallion",)
+    if k not in ctx._art:
+        ctx._art[k] = None
+        try:
+            from . import art as AR
+            refs = AR.jung_refs()
+            if refs:
+                from PIL import ImageOps
+                size = ctx.px(400); im = ImageOps.fit(Image.open(refs[0]).convert("L"), (size, size), centering=(0.55, 0.32))
+                sep = ImageOps.colorize(im, (24, 16, 10), (236, 214, 176)).convert("RGBA"); m = Image.new("L", (size, size), 0); ImageDraw.Draw(m).ellipse((0, 0, size - 1, size - 1), fill=255)
+                sep.putalpha(m); ring = Image.new("RGBA", (size + ctx.px(20), size + ctx.px(20)), (0, 0, 0, 0)); rd = ImageDraw.Draw(ring)
+                rd.ellipse((0, 0, ring.width - 1, ring.height - 1), outline=T.ORANGE + (255,), width=ctx.px(4)); ring.paste(sep, (ctx.px(10), ctx.px(10)), sep); ctx._art[k] = ring
+        except Exception: ctx._art[k] = None
+    return ctx._art[k]
+

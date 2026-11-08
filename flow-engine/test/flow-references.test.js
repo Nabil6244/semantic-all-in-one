@@ -83,6 +83,7 @@ function fakePage({ assets = [], failUpload = false, noAddButton = false } = {})
   const names = (files) => files.map((f) => path.basename(f));
   const loc = (kind, key) => ({
     first() { return this; },
+    filter() { return this; },      // pickerItem: only visible entries (the fake page shows every listed name)
     async waitFor({ timeout } = {}) {
       if (kind === "add" && noAddButton) throw new Error("timeout");
       if (kind === "button" && /upload/i.test(key) && !state.picker) throw new Error("timeout");

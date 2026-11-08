@@ -39,13 +39,19 @@ PROMPT_FILE = Path(__file__).with_name("scenes_csv_prompt.txt")      # bundled n
 
 CAT_PROMPT_FILE = Path(__file__).with_name("cat_scenes_csv_prompt.txt")      # Cat Theory's own CSV prompt (cats, white canvas, no 3D)
 
-def style_name(app) -> str: return "Cat Theory" if is_cat(app) else STYLE_NAME
+JUNG_PROMPT_FILE = Path(__file__).with_name("jung_scenes_csv_prompt.txt")      # Carl Jung Theory's own CSV prompt (Jung paintings, ideas, sourced quotes)
 
-def is_cat(app) -> bool: return bool(getattr(app, "_rt_cat", False))      # Cat Theory: this section with the white cat theme (app._on_style_pick sets it)
+def theme_of(app) -> str: return getattr(app, "_rt_theme", "") or ""      # "" Rep Theory, "cat" Cat Theory, "jung" Carl Jung Theory (app._on_style_pick sets it)
 
-def prompt_text(script: str = "", cat: bool = False) -> str:
+def style_name(app) -> str: return {"cat": "Cat Theory", "jung": "Carl Jung Theory"}.get(theme_of(app), STYLE_NAME)
+
+def is_cat(app) -> bool: return theme_of(app) in ("cat", "jung")      # a niche on this engine: Flow pictures always, never the 3D body
+
+def prompt_text(script: str = "", cat=False) -> str:
+    """The CSV prompt with the script in it. cat: True / "cat" for Cat Theory, "jung" for Carl Jung Theory, False / "" for Rep Theory."""
     from app_csv_prompts import SCRIPT_PLACEHOLDER
-    text = (CAT_PROMPT_FILE if cat else PROMPT_FILE).read_text(encoding="utf-8"); script = (script or "").strip()
+    f = {"jung": JUNG_PROMPT_FILE, "cat": CAT_PROMPT_FILE, True: CAT_PROMPT_FILE}.get(cat, PROMPT_FILE)
+    text = f.read_text(encoding="utf-8"); script = (script or "").strip()
     return text.replace(SCRIPT_PLACEHOLDER, script) if script else text
 
 def copy_prompt(app) -> None:
@@ -56,7 +62,7 @@ def copy_prompt(app) -> None:
             if box.get("1.0", "end").strip() != getattr(box, "_csv_synced", None): app._on_csv_prompt_script_edited(box); break      # typed in but not yet left: the click must not lose it
         except Exception: pass
     script = app._main_script_text()
-    try: text = prompt_text(script, cat=is_cat(app))
+    try: text = prompt_text(script, cat=theme_of(app))
     except OSError as exc: M.messagebox.showerror("Copy the CSV prompt", f"The prompt file could not be read: {exc}"); return
     app.clipboard_clear(); app.clipboard_append(text)
     app._rt_status_var.set(f"{style_name(app)} prompt copied with your script. Paste it into any AI, save the reply as a .csv, then choose it as the Scenes file." if script else
@@ -277,7 +283,7 @@ def on_render_click(app) -> None:
                 if not sentences: raise RuntimeError("the narration has no words to plan from")
                 log(f"{len(sentences)} sentences read from the narration")
             result = engine.run_rep_theory(project_dir, sentences, str(voiceover), str(out_path), quality=quality, title=title, cancel_check=app._rt_cancel.is_set, progress_cb=progress, log=log, end_card=end_card, planner="beats" if smart else "legacy", per_beat=smart, illustrate=wantflow, clips3d=want3d, variety=mixlooks and smart,
-                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts, media_only=media_only, table=table, theme="cat" if is_cat(app) else "")
+                                          flow_mode=(flow_settings or {}).get("generationMode", "agent"), flow_settings=flow_settings, flow_accounts=flow_accounts, media_only=media_only, table=table, theme=theme_of(app))
             if media_only:
                 def listed(rows) -> None:      # shown at once, each row's state then follows the manifest (as Health Cinema does)
                     app.after(0, lambda: (visual_bridge.fill(app, OWNER, rows), app._rt_status_var.set(f"Scenes listed in the Visuals tab; making their pictures through Flow...")))

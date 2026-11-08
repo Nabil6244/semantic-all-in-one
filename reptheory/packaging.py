@@ -20,4 +20,4 @@ def model_data_files(root) -> List[Tuple[str, str]]:
 
 def prompt_files(root) -> List[Tuple[str, str]]:
     """The "Copy the CSV prompt" and "Copy the script prompt" texts (reptheory/*.txt), next to the package where app_section looks."""
-    return [(str(p), "reptheory") for p in (Path(root) / "reptheory" / n for n in ("scenes_csv_prompt.txt", "full_guide_prompt.txt", "cat_scenes_csv_prompt.txt")) if p.is_file()]
+    return [(str(p), "reptheory") for p in (Path(root) / "reptheory" / n for n in ("scenes_csv_prompt.txt", "full_guide_prompt.txt", "cat_scenes_csv_prompt.txt", "jung_scenes_csv_prompt.txt")) if p.is_file()]

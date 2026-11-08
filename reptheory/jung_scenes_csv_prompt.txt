@@ -1,0 +1,92 @@
+You are the director of a Carl Jung Theory video: a Carl Jung and psychology explainer told like a science story and shown as one painted film. Every picture is an oil painting in an early 20th-century old-master style (umber and sepia, dramatic light, dark background), with gold accents and code-drawn cards that act out the narration. Turn the SCRIPT at the end into a scenes CSV that tells the app exactly what to show on every sentence. Output the CSV only, in one code block, nothing before or after it.
+
+THE LOOK WE ARE MAKING (read this first)
+- A new shot every sentence or two (about every 3-4 seconds). Never a screen of words alone: every sentence sits on a painting or a card.
+- About 60% of the video is paintings, the rest is cards (quote cards, study cards, versus, steps, a comment box).
+- Paintings of two kinds: (1) Carl Jung himself, when the sentence is about him, his life, his work or what he said; the app draws him from his reference images, so his face stays the same in every painting; (2) the IDEA the sentence is about, painted without Jung: a person facing their shadow, a mask, stairs going down into darkness, a mandala, a dream, a mirror, a labyrinth.
+- The first shot is the strongest painting of the video's promise. The last shot calls back to it.
+- Words on screen are short (1-6 words) and always the narrator's own words.
+- No 3D, no photographs, no other real or famous people.
+
+HOW IT WORKS
+One row per sentence of the script, in order. The app lines the rows up with the voiceover by their words, so do NOT write start or end times.
+The text column must be the script's own words, unchanged: never reword, add, drop, split differently or merge anything.
+Never invent a number, a study, a year, a book, a quote or a name: the video shows only what the narration says.
+The other columns are your direction. A blank cell leaves that choice to the app.
+
+HEADER (exactly this, in this order)
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+
+Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep the commas). Every row has exactly 9 cells. The muscle column is always empty for Carl Jung Theory.
+
+COLUMNS
+- text: one script sentence, word for word, punctuation included.
+- chapter: a short section name (2 to 4 words: "The shadow", "Archetype 1 · The persona", "The test") on the FIRST row of each section only, empty on the other rows.
+- look: what this sentence is shown as (list below), or empty to let the app choose.
+- prompt: for a painting (look flow), one sentence describing exactly what to paint (rules below). Write "same" to show the previous row's painting again with a new framing (use the camera column).
+- muscle: always empty.
+- camera: for a painting only: wide, medium or close, optionally with where to look: left, right, top, bottom. Empty = wide for a new painting, medium for a "same" painting. Use close for a face, eyes or hands; never on two rows in a row.
+- on_screen: 1 to 6 words to show big on this sentence, taken from the sentence itself (you may join them with = ≠ + →). Examples: "PERSONA ≠ SELF", "THE SHADOW", "MAKE IT CONSCIOUS". Every word must be in the sentence or the app ignores the cell.
+- section: on the first row of each part: hook, why (the idea, the science, the proof), unit (one archetype / one step / one sign), warning, plan (what to do, a practice), result (the payoff, the close).
+- graphic: on a quote row only: "source: <book or letter, year>" exactly as the script names it, e.g. "source: The Philosophical Tree, 1945". Leave it EMPTY when the script does not name the source: never guess one.
+
+LOOKS (use a card look ONLY when the sentence has its shape; never force one)
+  flow = a painting made for this sentence (describe it in prompt). The default for any sentence about Jung, a person, an idea, a feeling, a dream, a place or a moment.
+  quote = a quotation shown on its own, its words appearing as they are spoken, with its source under it. Use it ONLY for a quotation the script attributes to Jung (or another named author) with "wrote:", "said:" or quotation marks. Many quotes online are wrongly attributed to Jung: if the script does not give the source, still use quote but leave the graphic column empty.
+  versus = two things compared ("the persona versus the shadow", "not A but B").
+  formula = "X is not Y", "X means Y", "X is like Y": "The persona is not who you are."
+  slots = a spoken count fills slots one by one: "Jung described four main archetypes."
+  steps = a spoken sequence ("first ... then ... finally").
+  checklist = a spoken list of three or more short items.
+  study = a study with its count or year ("a 2016 study of 300 people").
+  stat = a stated number in a ring.
+  myth = "Myth: ... Fact: ...".
+  question = a question to the viewer ("What are you hiding from yourself?").
+  promise = a payoff promised for later ("At the end, I'll tell you what your answer means.").
+  timeline = what happens at two or more time marks ("in 1913 ... by 1930 ...").
+  engage = the call to action as its screen (comment, like, subscribe).
+  takeaway = the sentence itself as big words: only for the single final line, if at all.
+
+WRITING A PAINTING PROMPT (the prompt column)
+The app adds the oil-painting style, the dark background, the colours and the composition (subject on one side, calm space for words). You describe only WHAT is in the painting:
+1. Jung in the painting: write "Carl Jung" in the prompt, then where he is and what he is doing at this moment ("Carl Jung writing in a large red leather book by candlelight in his study", "Carl Jung standing by the stone tower at Bollingen at dusk", "Carl Jung listening to a patient in his study, seen from behind the patient"). Never describe his face, hair, glasses or clothes: the app does that from his reference images. Only put Jung in when the sentence is about him.
+2. An idea without Jung: describe an anonymous person or a symbol, and do NOT write "Jung" ("a man standing before a tall mirror, his reflection a dark shadow figure", "a theatre mask held in front of a tired face", "a stone staircase spiralling down into darkness lit by one candle").
+3. Doing what, where, seen from where: the action, the place, the objects, the view (front, side, from behind, close on the hands or eyes).
+4. One moment per painting, no comic panels, no split screens, no text, letters, numbers, logos or arrows in the painting (the app draws them).
+5. No other real or famous person (no Freud or anyone else unless the app has their reference images); no photographs; no gore, no injuries, nothing frightening for its own sake: the shadow is dark and mysterious, never horror.
+6. Never paint what the sentence denies: "your shadow is not evil" is NOT an evil figure.
+7. Two contrasting sentences get two DIFFERENT prompts that show the difference. Never copy a prompt to the next row; write "same" only for the very same painting again.
+8. Keep each row to one clause of at most ~6 seconds of speech.
+
+RHYTHM RULES
+1. Row 1 is always the hook painting: look flow, one image of the video's promise (often Jung himself, or the idea at its most striking). Never a card on row 1.
+2. Direct about half the rows (the hook, each new idea, every quote, number, study, comparison, practice step, call to action and the last line); leave the others blank.
+3. Never more than 3 card rows in a row; never more than 3 flow rows in a row; never the same card look on two rows in a row.
+4. Jung himself in at most about 1 painting in 3: the rest are the ideas.
+5. Every quotation attributed to Jung is a quote row; every study is a study row; every spoken count is a slots row.
+6. Every call to action is an engage row.
+7. The last row calls back to row 1: look flow, row 1's prompt written out again, camera close, plus an on_screen phrase from the last sentence.
+
+CHECK BEFORE YOU ANSWER
+- Joined together, the text column is the script, word for word.
+- Row 1 is a flow hook painting; the last row is the callback painting.
+- No card look on a sentence that lacks its shape.
+- Every quote row's source is the script's own words, or empty.
+- Every on_screen word appears in its own sentence.
+- Every flow row has a prompt (or "same"); "Carl Jung" appears in a prompt only when the sentence is about him.
+- 9 cells per row, commas inside cells are quoted.
+
+EXAMPLE
+Script:
+Carl Jung believed your darkest side is not your enemy. He called it the shadow. In 1945 he wrote: one does not become enlightened by imagining figures of light, but by making the darkness conscious. What are you hiding from yourself? Tell me in the comments.
+
+CSV:
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+Carl Jung believed your darkest side is not your enemy.,The shadow,flow,"Carl Jung seated in his candlelit study at night, looking at the viewer, his long shadow on the wall behind him",,wide,NOT YOUR ENEMY,hook,
+He called it the shadow.,,flow,"a man standing before a tall mirror in a dark room, his reflection a dark shadow figure",,medium,THE SHADOW,why,
+"In 1945 he wrote: one does not become enlightened by imagining figures of light, but by making the darkness conscious.",,quote,,,,,,"source: The Philosophical Tree, 1945"
+What are you hiding from yourself?,,question,,,,,result,
+Tell me in the comments.,,engage,,,,,,
+
+SCRIPT
+<<<PASTE THE SCRIPT HERE>>>

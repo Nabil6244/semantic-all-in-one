@@ -10,6 +10,7 @@ Checks (fractions of the video's length):
   plate_repeat     the same plate back within PLATE_GAP_S
   bad_3d           a 3D clip of a muscle group whose box is not on its limb (the 053 "forearm" that framed the thighs)"""
 from __future__ import annotations
+import re
 import json
 from typing import Dict, List
 
@@ -124,7 +125,7 @@ def thicken_pictures(scenes: List[dict]) -> int:
     n = 0
     for sc in scenes:
         if not (sc.get("look") == "flow" or sc["kind"] == "illus") or sc["end"] - sc["start"] < 2.0 or picture_developments(sc) >= THIN_MIN: continue
-        key, pos = N.key_phrase(sc.get("text", ""), 3); key = N.phrase(key, sc.get("words") or []) if key else ""; shown = {pg.get("headline") for pg in sc.get("pages", [])} | {c["text"] for pg in sc.get("pages", []) for c in pg.get("chips", [])}
+        key, pos = strong_key(sc.get("text", ""), sc.get("words") or [], 3); key = N.phrase(key, sc.get("words") or []) if key else ""; shown = {pg.get("headline") for pg in sc.get("pages", [])} | {c["text"] for pg in sc.get("pages", []) for c in pg.get("chips", [])}
         if not key or key.upper() in shown: continue
         ws = sc.get("words") or []; i = pos if isinstance(pos, int) else len(ws) // 2      # key_phrase gives the word index
         at = float(ws[min(i, len(ws) - 1)]["t0"]) if ws else sc["start"] + 1.0
@@ -132,6 +133,17 @@ def thicken_pictures(scenes: List[dict]) -> int:
         if not sc.get("pages"): sc["pages"] = [{"at": sc["start"], "headline": "", "headline_at": sc["start"], "value": "", "chips": [], "kicker": ""}]
         sc["pages"][-1].setdefault("chips", []).append({"text": key.upper(), "at": at}); sc["decisions"].append(f"quality gate: a picture shot with one thing on it gets its key phrase '{key.upper()}'"); n += 1
     return n
+
+REPORT_RX = re.compile(r"^(.*?\b(?:believed|believes|said|says|wrote|writes|thought|called|argued|claimed|taught|insisted|found|warned)\b)\s+(?:that\s+)?", re.I)
+
+def strong_key(text: str, ws: list, n: int = 3):
+    """(key phrase, word index) like narrative.key_phrase, but a sentence that opens with who said it ("Carl Jung believed your darkest side ...") gives a phrase
+    from what was said, not "CARL JUNG BELIEVED"."""
+    from . import narrative as N
+    m = REPORT_RX.match(text or ""); skip = len(m.group(0).split()) if m and len((text or "")[m.end():].split()) >= 3 else 0
+    rest = " ".join((text or "").split()[skip:]) if skip else text
+    key, pos = N.key_phrase(rest, n)
+    return key, (pos + skip if isinstance(pos, int) and pos >= 0 else pos)
 
 EMPTY_OPEN_S = 1.5      # a picture shot may open on the picture alone for this long; longer and the words side sits empty (Cat Theory render 4: the lap shot)
 
@@ -149,7 +161,7 @@ def fill_empty_openings(scenes: List[dict]) -> int:
         if nxt - sc["start"] <= EMPTY_OPEN_S: continue
         ws = [w for w in (sc.get("words") or []) if float(w["t0"]) < nxt - 0.3]
         if not ws: continue
-        key, pos = N.key_phrase(" ".join(w["w"] for w in ws), 3); key = N.phrase(key, ws) if key else ""
+        key, pos = strong_key(" ".join(w["w"] for w in ws), ws, 3); key = N.phrase(key, ws) if key else ""
         shown = {pg.get("headline") for pg in pages} | {c["text"] for pg in pages for c in pg.get("chips", [])}
         if not key or key.upper() in shown: continue
         i = pos if isinstance(pos, int) else len(ws) // 2

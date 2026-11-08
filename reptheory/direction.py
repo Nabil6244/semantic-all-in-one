@@ -8,17 +8,17 @@ from typing import Callable, Dict, List
 
 from .diagrams import KINDS as DIAGRAMS
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share") + DIAGRAMS
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "quote") + DIAGRAMS
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
-           "list": "steps", "sequence": "steps", "key line": "takeaway", "quote": "takeaway",
+           "list": "steps", "sequence": "steps", "key line": "takeaway", "quotation": "quote", "citation": "quote",
            "stopwatch": "timeline", "sensation": "timeline", "wrong right": "mistake", "wrong/right": "mistake", "difficulty": "slider", "easier harder": "slider",
            "effort": "dial", "gauge": "dial", "research": "study", "review": "study", "evidence": "study",
            "line graph": "graph", "curve": "graph", "chart": "bars", "bar chart": "bars", "dots": "bars", "dot grid": "bars", "week": "calendar", "schedule": "calendar", "plan": "calendar",
            "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist",
            "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise", "sets": "tokens", "reps": "tokens", "holds": "tokens", "weight share": "share", "share of weight": "share",
            "balance": "seesaw", "gap graph": "gap", "area graph": "gap", "split circle": "split", "two panels": "panels", "before after": "panels", "tear-off": "tearoff", "tear off": "tearoff", "pages": "tearoff", "rest battery": "battery", "plan": "clipboard", "journey": "road", "path": "road", "silhouettes": "silrow", "silhouette row": "silrow", "progression": "silrow"}
-CARDS = ("stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share") + DIAGRAMS
+CARDS = ("quote", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share") + DIAGRAMS
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
 NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)", "steps": "two or more steps (first, then, finally)", "takeaway": "words",
@@ -28,6 +28,7 @@ NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)",
          "myth": "Myth: ... and the fact", "question": "a question to the viewer", "checklist": "a list of three short items", "slots": "a count of things (four moments, three moves)",
          "race": "fast against late (stiff X gets there fast, whoever ... first wins)", "formula": "X is not Y / X means Y / X is like Y", "mechanism": "two of muscle, tendon, bone and the pull between them",
          "tokens": "sets and their length (three holds of 15 seconds, 6 x 2 s)", "share": "a share of your weight (half your weight, two thirds, 66% of your body weight)",
+         "quote": "words to show as a quote (the words after 'wrote:' / 'said:', or the sentence)",
          "promise": "a payoff promised for later (I'll show you ... / at the end I'll tell you ...)",
          "lever": "X times Y / the further ..., the heavier ... / a lever", "seesaw": "balance / too far forward / tips back", "gap": "A grows faster than B / the gap between A and B",
          "split": "half X, half Y / part X, part Y / both X and Y", "panels": "turn X into Y / from X to Y / X becomes Y", "tearoff": "two durations (a few months ... one to two years) or one and never",
@@ -141,11 +142,13 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
         part = SECTION_ALIASES.get(str(s.get("section") or "").strip().lower(), "")
         if part:      # the CSV says which part of the video this row is in (variety.section_kind uses it first)
             ps = scene_at(float(s["start"]), float(s["end"])); ps["section_csv"] = part
-        g = parse_graphic(s.get("graphic"), script)
+        src = re.match(r"\s*source\s*:\s*(.+)$", str(s.get("graphic") or ""), re.I)      # a quote row's source (book / letter, year): shown under the quote, never invented
+        if src: scene_at(float(s["start"]), float(s["end"]))["quote_source"] = src.group(1).strip()
+        g = None if src else parse_graphic(s.get("graphic"), script)
         if g:
             gs = scene_at(float(s["start"]), float(s["end"])); gs["graphic_csv"] = g; log(f"[REP THEORY CSV] row {ri}: graphic {g['kind']} with {len(g.get('items', []))} item(s)")
             if g["kind"] == "asset" and not gs.get("directed_look"): gs["look"] = "flow"; gs["directed_look"] = True      # a library asset is shown as the scene's picture
-        elif str(s.get("graphic") or "").strip(): log(f"[REP THEORY CSV] row {ri}: graphic '{s.get('graphic')}' is not one the app builds yet (or uses words the script does not say); the app chooses")
+        elif str(s.get("graphic") or "").strip() and not src: log(f"[REP THEORY CSV] row {ri}: graphic '{s.get('graphic')}' is not one the app builds yet (or uses words the script does not say); the app chooses")
         look = _row_look(s)
         shown = on_screen_ok(s.get("on_screen"), s.get("text", ""))
         if str(s.get("on_screen") or "").strip() and not shown: log(f"[REP THEORY CSV] row {ri}: on_screen '{s.get('on_screen')}' uses words the sentence does not say (or more than {ON_SCREEN_MAX} words); the app picks the words")
@@ -170,7 +173,10 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
             stat["not_buildable"] += 1; log(f"[REP THEORY CSV] row {ri}: look 3d but neither the muscle column nor the sentence names a muscle or exercise; the app chooses"); continue
         if look in CARDS:
             payload = None
-            for txt in dict.fromkeys(x for x in (sc.get("script_text"), sc["text"]) if x):      # the row's own words first (the transcript may drop "percent"), then the transcript's ("twelve-week" -> "12 week")
+            if look == "quote":
+                from .cards import quote_payload
+                payload = quote_payload(sc.get("script_text") or sc["text"], sc.get("words") or [], sc.get("quote_source", ""))
+            for txt in ([] if look == "quote" else dict.fromkeys(x for x in (sc.get("script_text"), sc["text"]) if x)):      # the row's own words first (the transcript may drop "percent"), then the transcript's ("twelve-week" -> "12 week")
                 sv = dict(sc, text=txt); ev = V.evidence(sv, last=True, role="claim") if look == "takeaway" else V.evidence(sv)
                 payload = (ev.get(look) or (None, None))[1]
                 if payload is not None: break
@@ -194,4 +200,4 @@ def build_card(sc: dict) -> None:
     from .variety import FULL_CARDS
     if look in ("stat", "bars"):
         for pg in sc["pages"]: pg["value"] = ""
-    if look in FULL_CARDS: sc["pages"] = []
+    if look in FULL_CARDS or look == "quote": sc["pages"] = []

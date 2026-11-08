@@ -146,8 +146,8 @@ def _revealed(info: dict, t_rel: float) -> Image.Image:
 
 def _crop(src: Image.Image, box: tuple) -> Image.Image:
     """src.crop, except that on the light (cat) canvas the part past the picture's edge is the canvas colour, not black."""
-    if T.THEME != "cat": return src.crop(box)
-    x0, y0, x1, y1 = box; out = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), T.BG_TOP); out.paste(src, (-x0, -y0)); return out
+    if not T.THEME: return src.crop(box)
+    x0, y0, x1, y1 = box; out = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), T.BG_TOP if T.THEME == "cat" else T.BG_BOT); out.paste(src, (-x0, -y0)); return out
 
 def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
     """Draws the full-frame picture for time t (seconds into the scene). Returns {"x", "width"[, "anchor_y"]} for the words (1080p px), or None when this picture keeps the inset look."""
@@ -160,6 +160,7 @@ def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
     side = sc["_layout"][0]; aw = int(ctx.W * AREA); ax0 = int(ctx.W * 0.02) if side == "right" else ctx.W - aw - int(ctx.W * 0.02); rect = (ax0, 0, ax0 + aw, ctx.H)
     box = _window(info, cam, p, aw, ctx.H)
     shot = _crop(src, tuple(int(round(v)) for v in box)).resize((aw, ctx.H), Image.BICUBIC)
+    if T.THEME == "jung": shot = _sink_edges(shot)      # the painting darkens into the umber canvas at its edges: no lighter box around it
     if T.THEME == "cat":      # the cat pictures are ink on white paper: multiplied onto the canvas, the paper vanishes and no box edge shows
         from PIL import ImageChops
         shot = ImageChops.multiply(cv.crop(rect).convert("RGB"), shot.convert("RGB"))
@@ -399,12 +400,24 @@ def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
 
 _feathers: Dict[tuple, Image.Image] = {}
 
+_sinks: Dict[tuple, np.ndarray] = {}
+
+def _sink_edges(shot: Image.Image) -> Image.Image:
+    """Carl Jung Theory: an oval vignette that takes the painting's edges down to the canvas colour, so its (often lighter brown) background never shows as a box."""
+    w, h = shot.size; k = (w, h)
+    if k not in _sinks:
+        xx, yy = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h)); r = np.sqrt(xx ** 2 * 0.85 + yy ** 2)
+        _sinks[k] = np.clip(1.25 - 0.62 * r ** 2.2, 0.0, 1.0)[..., None].astype(np.float32)
+    v = _sinks[k]; a = np.asarray(shot.convert("RGB"), dtype=np.float32)
+    return Image.fromarray((a * v + np.array(T.BG_BOT, dtype=np.float32) * (1 - v)).astype("uint8"), "RGB")
+
 def _feather(w: int, h: int, side: str, vertical: bool = True) -> Image.Image:
     """The picture area's mask: opaque in the middle, soft on every edge (wider on the words' side), so the picture melts into the black canvas without a box."""
-    k = (w, h, side, vertical)
+    wide = T.THEME == "jung"; k = (w, h, side, vertical, wide)      # Carl Jung Theory: much softer edges, the painting melts into the dark
     if k not in _feathers:
-        x = np.linspace(0, 1, w); y = np.linspace(0, 1, h)
-        mx = np.clip((1 - x) / 0.14, 0, 1) * np.clip(x / 0.05, 0, 1) if side == "right" else np.clip(x / 0.14, 0, 1) * np.clip((1 - x) / 0.05, 0, 1)
-        my = np.clip(np.minimum(y, 1 - y) / 0.06, 0, 1) if vertical else np.ones(h)
+        x = np.linspace(0, 1, w); y = np.linspace(0, 1, h); fw, fn, fv = (0.30, 0.12, 0.16) if wide else (0.14, 0.05, 0.06)
+        mx = np.clip((1 - x) / fw, 0, 1) * np.clip(x / fn, 0, 1) if side == "right" else np.clip(x / fw, 0, 1) * np.clip((1 - x) / fn, 0, 1)
+        my = np.clip(np.minimum(y, 1 - y) / fv, 0, 1) if vertical else np.ones(h)
+        if wide: mx, my = mx ** 1.6, my ** 1.6
         _feathers[k] = Image.fromarray((np.outer(my, mx) * 255).astype("uint8"), "L")
     return _feathers[k]

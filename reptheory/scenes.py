@@ -156,6 +156,8 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     elif kind in ("calendar", "result", "warning", "engage"):      # Step 4 cards that fill the frame, the narration's next phrase in a strip under them
         c = sc[kind]; key = {"calendar": "days", "result": "tiers", "warning": "rules"}.get(kind)
         c = dict(c, **{key: [dict(x, at=_rel(sc, x["at"])) for x in c[key]]}) if key else dict(c, at=_rel(sc, c["at"])); getattr(K2, kind)(cv, ctx, c, t); _caption_strip(cv, ctx, sc, t)
+    elif kind == "quote":      # a quote with its source (cards.quote): the words appear as they are spoken
+        q = sc["quote"]; K2.quote(cv, ctx, dict(q, words=[dict(w, t0=_rel(sc, w["t0"])) for w in q["words"]]), t)
     elif kind in ("slots", "race", "formula", "mechanism", "promise"):      # the study's cards (cards.py): each fills the frame, the narration's next phrase in a strip under it
         c = sc[kind]; rel = lambda x: dict(x, at=_rel(sc, x["at"]))
         if kind == "slots": c = dict(rel(c), items=[rel(i) for i in c["items"]])

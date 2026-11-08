@@ -251,6 +251,7 @@ def key_colour(headline: str, kicker: str = "") -> tuple:
     return T.ORANGE
 
 def callout_column(cv: Image.Image, ctx: Ctx, headline: str, hl_p: float, value: str, val_p: float, chips: List[Tuple[str, float]], x: float = 1130, anchor_y: float = 0.5, kicker: str = "", k_p: float = 1.0, floor: float = 0.0, width: float = 0.0):
+    kicker = T.kicker(kicker)      # niche themes: no gym labels
     """Right-hand callout: bold headline, key value (orange), outlined chips. Each piece slides up and fades in as its own time arrives. Stack is centred on anchor_y."""
     d = ImageDraw.Draw(cv, "RGBA"); hf, vf = ctx.font(T.HEAD_FONT, 104), ctx.font(T.HEAD_FONT, 168); x = ctx.px(x)
     room = ctx.px(width) if width else ctx.W - x - ctx.px(80); size = 104      # width (1080p px): a column on the left of a full-frame picture stops before its subject

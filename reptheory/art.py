@@ -29,6 +29,32 @@ CAT_STYLE = ("Soft hand-drawn storybook illustration of a domestic cat, clean in
              "no text, no letters, no numbers, no logos, no watermark, no border, no people unless the sentence names them (then only hands or a friendly owner), "
              "the subject in one side of the frame (about 60%) with the other side empty white for on-screen text")      # the cat niche (theme.THEME == "cat")
 
+JUNG_STYLE = ("Oil painting in the manner of an early 20th-century old-master portrait: rich umber, sepia and ochre palette, visible brushstrokes on canvas, dramatic chiaroscuro "
+              "lighting, a dark warm background, no text, no letters, no numbers, no logos, no watermark, no border, the subject in one side of the frame (about 60%) with the other "
+              "side dark and calm for on-screen text")      # Carl Jung Theory (theme.THEME == "jung"): every picture one painted film
+JUNG_SHEET = ("Carl Jung exactly as in the reference images: an elderly Swiss psychiatrist with swept-back white hair, round wire-rimmed glasses and a white moustache, "
+              "in a dark three-piece suit")      # the verbatim character sentence, used with the reference images (story_character.py pattern)
+JUNG_REFS_FILE = Path(__file__).resolve().parent.parent / "assets" / "jung" / "refs.json"
+
+def jung_refs() -> list:
+    """The reference images for every picture Jung is in (at most 3, Flow's limit): assets/jung/refs.json "use", else the first 3 pictures in assets/jung/refs. [] when none."""
+    folder = JUNG_REFS_FILE.parent / "refs"
+    try: names = json.loads(JUNG_REFS_FILE.read_text(encoding="utf-8")).get("use") or []
+    except Exception: names = []
+    paths = [folder / n for n in names] if names else sorted(p for p in folder.glob("*") if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"))
+    return [str(p) for p in paths if p.is_file()][:3]
+
+def flow_ref_copies(paths: list) -> list:
+    """The reference images under short names (jungref1_<hash>.jpg) for Flow: its asset picker cuts long file names, so a picture uploaded as a 40-character
+    name could not be found again to attach (Carl Jung Theory test 2026-11-08: "not in Flow's asset picker"). Same content, same name: never uploaded twice."""
+    import hashlib, shutil, tempfile
+    out, folder = [], Path(tempfile.gettempdir()) / "rt_flow_refs"; folder.mkdir(parents=True, exist_ok=True)
+    for n, src in enumerate(paths, 1):
+        src = Path(src); h = hashlib.sha1(src.read_bytes()).hexdigest()[:8]; dst = folder / f"jungref{n}_{h}{src.suffix.lower()}"
+        if not dst.is_file(): shutil.copyfile(src, dst)
+        out.append(str(dst))
+    return out
+
 # id -> (kind, subject sentence, style)
 ART = {
     "rep_stand_v1": ("character", f"Full-body front view of {CHARACTER}, standing relaxed, arms hanging at his sides, calm focused expression", STYLE),

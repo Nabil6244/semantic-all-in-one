@@ -62,3 +62,6 @@ graphics_overlays/
 smart_text_overlays/
 sound_check/
 out/
+
+# Carl Jung Theory reference pictures: local only (web photos, copyright unknown; the repo is public). refs.json lists which to use.
+assets/jung/refs/

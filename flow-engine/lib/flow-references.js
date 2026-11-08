@@ -77,13 +77,29 @@ async function openPicker(page, timeoutMs) {
   await page.getByRole("button", { name: /upload media/i }).first().waitFor({ state: "visible", timeout: timeoutMs });
 }
 
+// The picker's entry for a file: the first VISIBLE element with its name. Flow keeps hidden copies of the names in the page, and taking the
+// first match (often hidden) made a listed picture look missing ("not in Flow's asset picker" / "did not list the uploaded reference",
+// Carl Jung Theory 2026-11-08: reference-picker.txt showed jungref2 and jungref3 on screen).
+function pickerItem(page, name) {
+  return page.getByText(name, { exact: false }).filter({ visible: true }).first();
+}
+
 async function listed(page, name, timeoutMs) {
   try {
-    await page.getByText(name, { exact: false }).first().waitFor({ state: "visible", timeout: timeoutMs });
+    await pickerItem(page, name).waitFor({ state: "visible", timeout: timeoutMs });
     return true;
   } catch {
     return false;
   }
+}
+
+async function searchPicker(page, name, timeoutMs) {
+  // The picker's own search box, when it has one: type the file name and take the first match.
+  const box = page.getByRole("textbox", { name: /search/i }).or(page.getByPlaceholder(/search/i)).first();
+  if (!(await box.isVisible().catch(() => false))) return null;
+  await box.fill(name.replace(/\.[a-z]+$/i, ""));
+  const it = pickerItem(page, name);
+  return (await it.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 6000) }).then(() => true, () => false)) ? it : null;
 }
 
 /**
@@ -114,8 +130,18 @@ export async function attachReferenceImages(page, paths, { timeoutMs = 20000, pr
   // 2. Attach each one: select it in the picker, "Add to prompt"; the picker is reopened for the next.
   for (let i = 0; i < files.length; i++) {
     if (i > 0) await openPicker(page, timeoutMs);
-    const item = page.getByText(names[i], { exact: false }).first();
-    try { await item.waitFor({ state: "visible", timeout: timeoutMs }); } catch { throw new Error(`Reference image ${names[i]} is not in Flow's asset picker`); }
+    let item = pickerItem(page, names[i]);
+    let found = await item.waitFor({ state: "visible", timeout: i > 0 ? Math.min(timeoutMs, 8000) : timeoutMs }).then(() => true, () => false);
+    if (!found && i > 0) found = await searchPicker(page, names[i], timeoutMs).then((it) => { if (it) item = it; return !!it; }, () => false);
+    if (!found) {
+      if (i === 0) throw new Error(`Reference image ${names[i]} is not in Flow's asset picker`);
+      // A later reference that the reopened picker does not show (Carl Jung Theory 2026-11-08, every name tried): keep what is attached,
+      // close the picker, and record what it showed so the selector can be fixed. Sending with fewer references beats sending nothing.
+      out.missing = names.slice(i);
+      out.pickerText = await page.locator("body").innerText({ timeout: 3000 }).then((t) => String(t).slice(0, 4000), () => "");
+      try { await page.keyboard.press("Escape"); } catch {}
+      break;
+    }
     await item.click();
     const addToPrompt = page.getByRole("button", { name: /add to prompt/i }).first();
     try { await addToPrompt.waitFor({ state: "visible", timeout: timeoutMs }); } catch { throw new Error(`Flow offered no "Add to prompt" for ${names[i]}`); }

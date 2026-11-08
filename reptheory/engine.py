@@ -7,11 +7,12 @@ from typing import Callable, Dict, List, Optional
 
 from PIL import Image
 
-from . import cadence as C, draw as D, library as L, planner as P, scenes as S, theme as T
+from . import cadence as C, draw as D, film as FM, library as L, planner as P, scenes as S, theme as T
 
 class Cancelled(Exception): pass
 TRANSITION_S = 0.45
-CUT_S = 0.12      # render final 3: a 0.45 s blur on every cut left 13-28% of each 2-4 s scene out of focus; the reference cuts hard, with a sound
+CUT_S = 0.12
+JUNG_DISSOLVE_S = 0.9      # Carl Jung Theory: a chapter change is an ink dissolve (film.py), slower than the focus pull      # render final 3: a 0.45 s blur on every cut left 13-28% of each 2-4 s scene out of focus; the reference cuts hard, with a sound
 NOT_IMPLEMENTED = ["tier list with more than one ranked item per video", "before/after comparison scene", "word-level timing from the transcript when the scenes file has none (words are spread by length inside each sentence)"]
 
 def _ff() -> str:
@@ -61,7 +62,7 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
                    progress_cb: Optional[Callable[[float, str], None]] = None, log: Callable[[str], None] = lambda m: None, write_report: bool = True, max_seconds: float = 0.0,
                    end_card: Optional[dict] = None, planner: str = "legacy", per_beat: bool = False, illustrate: bool = False, clips3d: bool = False, variety: bool = False, flow_mode: str = "agent", flow_settings: Optional[dict] = None, flow_accounts=None,
                    media_only: bool = False, table: Optional[Dict[int, dict]] = None, sound: bool = True, theme: str = "") -> Dict:
-    if T.set_theme(theme) == "cat": clips3d = False      # Cat Theory (theme.py): white canvas, cat pictures, no 3D body
+    if T.set_theme(theme) in T.NO_GYM: clips3d = False      # Cat / Carl Jung Theory (theme.py): the niche's own pictures, no 3D body
     t0 = time.time(); cancelled = cancel_check or (lambda: False); prog = progress_cb or (lambda k, m: None)
     if quality not in T.SIZES: raise ValueError(f"quality must be one of {list(T.SIZES)} (16:9 landscape only)")
     W, H = T.SIZES[quality]; total = _probe(voiceover_path) if voiceover_path else 0.0; sents = timeline(sentences, total)
@@ -132,12 +133,16 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
             return {"ok": True, "media_only": True, "requests": wanted, "scenes": len(scenes)}
         try: log(f"[REP THEORY ART] beat pictures: {BA.prepare(scenes, mode=flow_mode, log=log, directed=variety, settings=flow_settings, account_ids=flow_accounts, chosen=table, generate_missing=table is None)}")      # after Generate scenes, a missing picture is retried in the Visuals tab, never here
         except Exception as ex: log(f"[REP THEORY ART] beat pictures unavailable ({type(ex).__name__}: {ex}); scenes keep their previous treatment")
-    if T.THEME == "cat":      # no gym trainee in a cat video: a scene left with the trainee / pose / prop art says its words instead
+    if T.THEME in T.NO_GYM:      # no gym trainee in a cat or Jung video: a scene left with the trainee / pose / prop art says its words instead
         swapped = 0
         for sc in scenes:
             if sc["kind"] in ("trainee", "pose", "prop", "hold", "anatomy") or (sc["kind"] == "illus" and str(sc.get("art") or "").startswith("rep_")):
                 sc["kind"] = "callout"; sc["art"] = ""; sc["prop"] = ""; swapped += 1
         if swapped: log(f"[CAT THEORY] {swapped} scene(s) without a cat picture show their words instead of the trainee")
+    if T.THEME == "jung":      # every new chapter opens on a chapter card (gold Roman numeral, cards.chapter), also when the variety director is off
+        secs = [sc["section"] for sc in scenes]; order = list(dict.fromkeys(secs))
+        for k, sc in enumerate(scenes):
+            if k and secs[k] != secs[k - 1] and not sc.get("chapter_card"): sc["chapter_card"] = {"n": order.index(secs[k]) + 1, "of": len(order), "title": str(secs[k]).upper()}
     from . import picture as PIC
     log(f"[REP THEORY PICTURES] full-frame framing planned; {PIC.plan(scenes)} shot(s) re-frame the picture before them")
     plain = [sc for sc in scenes if sc["kind"] in ("callout", "takeaway") or (sc["kind"] == "illus" and not PIC.cue_count(sc))]      # coverage report: what no graphic acted out
@@ -170,11 +175,12 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
                 if tc < TRANSITION_S: cv = S.transition(S.frame(ctx, sc, t, tag=False), cv, tc / TRANSITION_S, ctx)
                 proc.stdin.write(cv.tobytes()); continue
             img = S.frame(ctx, sc, t, tag=False)
-            dur_tr = TRANSITION_S if changed else CUT_S      # a new chapter gets the focus pull; every other scene change is a clean cut (a 3-frame dissolve) so each shot is sharp from its start
+            dur_tr = (JUNG_DISSOLVE_S if T.THEME == "jung" else TRANSITION_S) if changed else CUT_S      # a new chapter gets the focus pull; every other scene change is a clean cut (a 3-frame dissolve) so each shot is sharp from its start
             if cur and t < dur_tr:      # the section tag is drawn once, over both
                 outgoing = S.frame(ctx, scenes[cur - 1], scenes[cur - 1]["end"] - scenes[cur - 1]["start"] + t, tag=False)
-                img = S.transition(outgoing, img, t / dur_tr, ctx) if changed else Image.blend(outgoing, img, t / dur_tr)
+                img = (FM.ink_dissolve(outgoing, img, t / dur_tr) if T.THEME == "jung" else S.transition(outgoing, img, t / dur_tr, ctx)) if changed else Image.blend(outgoing, img, t / dur_tr)
             D.section_tag(img, ctx, sc["section"], t if (changed or not cur) else 9.0, scenes[cur - 1]["section"] if changed else None, 0.0)
+            if T.THEME == "jung": img = FM.finish(img, f, T.FPS)      # Carl Jung Theory: grain, dust in the light, lamp flicker (film.py)
             proc.stdin.write(img.tobytes())
             if f % 24 == 0: prog(0.10 + 0.88 * f / n_frames, f"drawing scene {sc['no']}/{len(scenes)} ({sc['kind']})")
         prog(0.98, "finishing the video file"); proc.stdin.close(); rc = proc.wait(timeout=7200); th.join(5); proc.stderr.close()

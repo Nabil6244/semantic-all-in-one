@@ -32,7 +32,8 @@ def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str
     voice = measure_loudness(voiceover, ffmpeg)["lufs"]
     quiet = Path(work) / "rt_silence.wav"
     subprocess.run([ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{duration:.3f}", str(quiet)], check=True, capture_output=True, timeout=300)
-    bed_only, _ = add_music(quiet, Path(work) / "rt_bed_only.wav", duration, text, seed=seed, ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN)
+    from . import theme as T
+    bed_only, _ = add_music(quiet, Path(work) / "rt_bed_only.wav", duration, text, seed=seed, ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN, mood="mystery" if T.THEME == "jung" else None)      # the bed that will play
     if not bed_only: return None
     bed = measure_loudness(str(bed_only), ffmpeg)["lufs"]
     if not (voice > -70 and bed > -70): return None
@@ -46,6 +47,9 @@ def cues(scenes: List[dict]) -> List[dict]:
     for e in C.events(scenes):
         if e["type"] == "primary": out.append({"t": e["t"], "sfx": "fast_whoosh" if e["t"] in chapter_at else "soft_transition", "source": e["what"]})
         elif e["meaningful"] and e["what"] in KIND_SFX: out.append({"t": e["t"], "sfx": KIND_SFX[e["what"]], "source": e["what"]})
+    from . import theme as T
+    if T.THEME == "jung":      # Carl Jung Theory: a low hit when a quote card or a chapter card lands
+        out += [{"t": float(sc["start"]) + 0.05, "sfx": "deep_thud", "source": "quote" if sc["kind"] == "quote" else "chapter"} for sc in scenes if sc["kind"] == "quote" or sc.get("chapter_card")]
     kept: List[dict] = []
     for c in sorted(out, key=lambda c: (c["t"], 0 if c["sfx"] in MAJOR else 1)):
         if any(k["sfx"] == c["sfx"] and c["t"] - k["t"] < SAME_SOUND_GAP_S for k in kept[-6:]): continue
@@ -74,7 +78,9 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
             got = music_gain(voiceover, work, duration, text, title or text[:60], ffmpeg, log)
             if got: gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU:.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
         except Exception as ex: notes.append(f"music level kept at its default ({type(ex).__name__}: {ex})")
-        with_music, credits = add_music(Path(path), work / "rt_audio_music.wav", duration, text, seed=title or text[:60], ffmpeg=ffmpeg, log=log, gain=gain)
+        from . import theme as T
+        mood = "mystery" if T.THEME == "jung" else None      # Carl Jung Theory: the dark beds (Dark Fog, Interloper, Long Note Four), never "wonder"
+        with_music, credits = add_music(Path(path), work / "rt_audio_music.wav", duration, text, seed=title or text[:60], ffmpeg=ffmpeg, log=log, gain=gain, mood=mood)
         if with_music: path = str(with_music); notes += [f"music: {c}" for c in credits]
     except Exception as ex: notes.append(f"music skipped ({type(ex).__name__}: {ex})")
     try:

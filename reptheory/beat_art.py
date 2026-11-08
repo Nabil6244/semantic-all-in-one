@@ -27,10 +27,26 @@ def _cat() -> bool:
     from . import theme as T
     return T.THEME == "cat"
 
+def _jung() -> bool:
+    from . import theme as T
+    return T.THEME == "jung"
+
+JUNG_FLOW_REFS = 3      # references sent per Jung picture (Flow's limit). If Flow's picker cannot show a later one, the engine sends with those it attached
+                        # and saves reference-picker.txt for the fix (flow-engine/lib/flow-references.js); the first one alone always worked (2026-11-08).
+JUNG_RX = re.compile(r"\b(?:jung|carl|he|his|him|himself)\b", re.I)      # a Carl Jung Theory line about the man himself: drawn with his reference images
+
+def wants_refs(prompt: str) -> bool:
+    """A Carl Jung Theory picture that shows Jung (its prompt carries his character sentence): sent to Flow with his reference images."""
+    return _jung() and A.JUNG_SHEET in prompt
+
+def _jung_prompt(desc: str, about_him: bool) -> str:
+    return (f"{A.JUNG_SHEET}. {desc}. {A.JUNG_STYLE}." if about_him else f"{desc}. No real or famous person, no Carl Jung. {A.JUNG_STYLE}.")
+
 def prompt_for(text: str, hook: bool = False) -> str:
     """Flow prompt for one beat: what the narration says at this moment, drawn in the reference style (ink, one side empty, the named part in red, the rival when there is an opponent)."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if _cat(): return f"A single scene from a cat behaviour explainer video, illustrating exactly this narration: \"{text}\". {A.CAT_STYLE}."
+    if _jung(): return _jung_prompt(f"A single scene from a psychology documentary, illustrating exactly this narration: \"{text}\"", bool(JUNG_RX.search(text)))
     if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):      # tissue: the realistic anatomy picture we always had, word for word, so pictures made before are reused
         return (f"A clear anatomical illustration that shows what this sentence of a fitness explainer is about: \"{text}\". Show the relevant muscles, tendons or bones of the body part concerned, "
                 f"{A.REAL_STYLE}.")
@@ -45,6 +61,7 @@ def own_prompt(text: str) -> str:
     """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if _cat(): return f"{text}. {A.CAT_STYLE}."      # the cat niche: no trainee cast, white background
+    if _jung(): return _jung_prompt(text, bool(re.search(r"\b(?:jung|carl)\b", text, re.I)))      # the CSV prompt names Jung when he is in the picture
     if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing
     cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "") + \
            (f" The tradesman is {A.TRADESMAN}." if re.search(r"\btradesm[ae]n\b|\bworker\b", text, re.I) else "")
@@ -68,9 +85,14 @@ def safe_prompt(prompt: str) -> str:
     clause (the action and the body part)."""
     p = SAID_RX.sub(lambda m: f'{m.group(1)}: "{re.split(r"[,;:.!?]", m.group(2))[0].strip()}"', prompt)
     for rx, rep in SAFE_SUBS: p = rx.sub(rep, p)
-    return p + " A calm, friendly fitness illustration for a general audience."
+    return p + (" A calm, friendly illustration for a general audience." if _cat() else " A calm, respectful painting for a general audience." if _jung() else " A calm, friendly fitness illustration for a general audience.")
 
-def art_id(prompt: str) -> str: return "beat_" + hashlib.sha1(prompt.encode("utf-8")).hexdigest()[:12]
+def art_id(prompt: str) -> str:
+    """The picture's library id: a hash of its prompt, and for a Carl Jung Theory picture of Jung also of the references it is drawn from (other references, another picture)."""
+    key = prompt
+    if wants_refs(prompt):
+        refs = A.jung_refs()[:JUNG_FLOW_REFS]; key += "|refs:" + ",".join(hashlib.sha1(Path(r).read_bytes()).hexdigest()[:8] for r in refs)
+    return "beat_" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
 
 def eligible(sc: dict) -> bool:
     return sc["kind"] not in SKIP_KINDS and sc["kind"] != "clip3d" and not SYNTH_RX.search(sc.get("text", "")) and bool(sc.get("text", "").strip())
@@ -117,9 +139,19 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         from providers.flow.provider import FlowProvider
         mgr = FlowEngineManager(log=log); fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE", "generationMode": mode}; fs.update(settings or {})
         prov = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=fs); ids = list(todo)
+        ref_ids = [i for i in ids if wants_refs(todo[i])]; refs = A.flow_ref_copies(A.jung_refs()[:JUNG_FLOW_REFS]) if ref_ids else []
+        if ref_ids and not refs: log(f"[JUNG THEORY ART] no reference images in assets/jung/refs: {len(ref_ids)} picture(s) of Jung are drawn from the description alone")
+        if ref_ids and refs:      # Jung's pictures go in their own batch with his reference images (Flow attaches them through the UI agent: flow-engine/lib/flow-references.js)
+            ids = [i for i in ids if i not in ref_ids] + ref_ids
+            prov_refs = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=dict(fs, referenceImages=refs))
         rows = [SceneRow(scene_number=str(n + 1), script_segment=todo[i], asset_type="image", prompt=todo[i]) for n, i in enumerate(ids)]
-        log(f"[REP THEORY ART] requesting {len(rows)} Flow image(s) for this script (mode {mode})")
-        res = prov.resolve_batch(rows, Path(tempfile.mkdtemp(prefix="rt_beat_")), log=log); retry = []
+        log(f"[REP THEORY ART] requesting {len(rows)} Flow image(s) for this script (mode {mode})" + (f"; {len(ref_ids)} of Jung with {len(refs)} reference image(s)" if ref_ids and refs else ""))
+        if ref_ids and refs:
+            plain = [r for r, i in zip(rows, ids) if i not in ref_ids]; withr = [r for r, i in zip(rows, ids) if i in ref_ids]
+            res = prov.resolve_batch(plain, Path(tempfile.mkdtemp(prefix="rt_beat_")), log=log) if plain else {}
+            res = dict(res or {}); res.update(prov_refs.resolve_batch(withr, Path(tempfile.mkdtemp(prefix="rt_beat_ref_")), log=log) or {})
+        else: res = prov.resolve_batch(rows, Path(tempfile.mkdtemp(prefix="rt_beat_")), log=log)
+        retry = []
         for n, i in enumerate(ids):
             r = res.get(str(n + 1)); path = getattr(r, "path", None) if r is not None else None
             if path and Path(path).is_file(): L.register(path, id=i, kind="scene", subject=todo[i][:120], prompt=todo[i], source="flow", notes=f"flow {mode} {time.strftime('%Y-%m-%d')}"); stat["generated"] += 1
@@ -127,7 +159,13 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         if retry:      # refused or failed: once more in the safer wording, saved under the scene's own id
             log(f"[REP THEORY ART] {len(retry)} picture(s) refused or failed; trying each once more in a safer wording")
             rows2 = [SceneRow(scene_number=str(n + 1), script_segment=todo[i], asset_type="image", prompt=safe_prompt(todo[i])) for n, i in retry]
-            res2 = prov.resolve_batch(rows2, Path(tempfile.mkdtemp(prefix="rt_beat_retry_")), log=log)
+            if ref_ids and refs:      # each picture retried with its own batch's references
+                r_plain = [r for r, (n, i) in zip(rows2, retry) if i not in ref_ids]; r_ref = [r for r, (n, i) in zip(rows2, retry) if i in ref_ids]
+                res2 = dict(prov.resolve_batch(r_plain, Path(tempfile.mkdtemp(prefix="rt_beat_retry_")), log=log) or {}) if r_plain else {}
+                if r_ref:      # the retry sends one reference (the first, the main portrait): fewer pictures to attach through Flow's picker
+                    prov_one = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=dict(fs, referenceImages=refs[:1]))
+                    res2.update(prov_one.resolve_batch(r_ref, Path(tempfile.mkdtemp(prefix="rt_beat_retry_ref_")), log=log) or {})
+            else: res2 = prov.resolve_batch(rows2, Path(tempfile.mkdtemp(prefix="rt_beat_retry_")), log=log)
             for (n, i), row in zip(retry, rows2):
                 r = res2.get(str(n + 1)); path = getattr(r, "path", None) if r is not None else None
                 if path and Path(path).is_file(): L.register(path, id=i, kind="scene", subject=todo[i][:120], prompt=row.prompt, source="flow", notes=f"flow {mode} safer retry {time.strftime('%Y-%m-%d')}"); stat["generated"] += 1; stat["retried"] = stat.get("retried", 0) + 1

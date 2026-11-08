@@ -68,6 +68,8 @@ export function mediaKey(url) {
  * Still-image tile URLs on the page. Gallery tiles often have empty/generic alts
  * (live: strict Option-N filter only saw 1 of 5). Skip video thumbnails and tiny icons.
  */
+const REFERENCE_TILE_WAIT_MS = 12000;      // how long a fresh reference upload may take to show in the gallery before Generate
+
 export async function collectStillUrls(page) {
   return bounded(page
     .evaluate((host) => {
@@ -603,6 +605,10 @@ export async function generateAgentBatchViaUI(page, {
         const ref = await attachReferenceImages(page, referenceImages);
         diag.references = ref.attached;
         diag.referencesUploaded = ref.uploaded;
+        if (ref.missing && ref.missing.length) {      // some later references could not be attached: sent with the ones that were; the picker text is kept for the fix
+          diag.referencesMissing = ref.missing;
+          try { fs.writeFileSync(path.join(outputDir, "reference-picker.txt"), ref.pickerText || ""); } catch {}
+        }
       } catch (e) {
         // Never send the scenes without the pictures that were asked for.
         diag.outcome = "references_not_attached";
@@ -652,6 +658,18 @@ export async function generateAgentBatchViaUI(page, {
     }
 
     const known = new Set((await collectAllStillUrls(page)).map(mediaKey).filter(Boolean));
+    // A reference uploaded just now lands in the gallery a few seconds later, as a tile like any still: wait for it (nothing is generated
+    // yet, so every new tile is an upload) and count it as already there. Counted as new, it filled the expected count and ended the wait
+    // while the agent was still painting (Jung Theory 2026-11-08: timeout_no_media 11 s after the click, references ["jungref1_..."]).
+    const uploads = (diag.referencesUploaded || []).length;
+    if (uploads) {
+      const before = known.size;
+      for (let waited = 0; waited < REFERENCE_TILE_WAIT_MS && known.size - before < uploads; waited += 1000) {
+        await new Promise((r) => setTimeout(r, 1000));
+        for (const u of await collectAllStillUrls(page)) { const k = mediaKey(u); if (k) known.add(k); }
+      }
+      diag.referenceTilesSeen = known.size - before;
+    }
     diag.preExistingStillCount = known.size;
 
     diag.stage = "locating_generate_button";
