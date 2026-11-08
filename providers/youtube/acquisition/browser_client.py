@@ -348,7 +348,7 @@ class BrowserClientPool:
                     c = self._factory()
                     self._all.append(c)
                     return c
-                self._cv.wait()
+                self._cv.wait(timeout=5.0)      # wakes to re-check even if a hand-back notify is missed
 
     def _give(self, c: BrowserPlaybackClient) -> None:
         with self._cv:
