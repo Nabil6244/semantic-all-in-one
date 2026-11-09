@@ -170,6 +170,14 @@ def _kept_anyway(meta: Optional[Dict[str, Any]]) -> bool:
                 or prov in ("manual", "local", "flow", "flow_video") or m.get("recycled"))
 
 
+def _earned(path: Any, meta: Optional[Dict[str, Any]]) -> bool:
+    """A clip the Footage Director / the CSV pick found and checked is kept even when its metadata names another place (the Rostov clip for 'Wagner
+    marched on Moscow'): it is labelled ILLUSTRATIVE instead of dropped, because a title is not proof of what the pictures show."""
+    from .direction import earned_footage
+
+    return earned_footage(path, meta)
+
+
 def footage_info(meta: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """{status, rejected, recycled, mismatch, chip, publisher, published}. The manifest's own 'status' (download state) is never read."""
     m = dict(meta or {})
@@ -1115,7 +1123,7 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
         if path and finfo["rejected"]:
             dec.flags.append("footage_rejected")
             path = ""
-        if path and finfo["mismatch"] and cfg.get("drop_mismatch", True) and _unrelated(meta) and not _kept_anyway(meta):
+        if path and finfo["mismatch"] and cfg.get("drop_mismatch", True) and _unrelated(meta) and not _kept_anyway(meta) and not _earned(path, meta):
             dec.flags.append("mismatch_dropped")        # a clip that does not show what is said is worse than the video's own map, card or footage
             path = ""
         if path:

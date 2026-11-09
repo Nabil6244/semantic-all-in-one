@@ -548,5 +548,28 @@ def kit_quote(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     return L.fade(img, _out_alpha(t, dur) if dur > 0 else 1.0)
 
 
-MOTION_CARDS = {"kit_kinetic": kit_kinetic, "kit_dossier": kit_dossier, "kit_radar": kit_radar, "kit_keywords": kit_keywords,
+def kit_field(t: float, dur: float, p: dict) -> Optional[Image.Image]:
+    """A text-free opaque backing for a card that has no footage under it (a figure, a stamp, a panel intro): the near-black beam plate with drifting
+    dust, a light band crossing slowly and faint rings widening from a drifting centre. It never reads as the grey grid plate and states nothing."""
+    p = p or {}
+    seed = int(p.get("seed") or 0)
+    img = _cine_plate(t, seed, warm=bool(seed % 2))
+    sweep = int(((t * 0.14 + seed * 0.11) % 1.5 - 0.25) * W)
+    band = _memo("mband", _band)
+    x0, x1 = max(0, sweep), min(W, sweep + band.width)
+    if x1 > x0:
+        img.alpha_composite(band.crop((x0 - sweep, 0, x1 - sweep, H)), (x0, 0))
+    rings = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(rings)
+    cx = W * (0.68 + 0.05 * math.sin(t * 0.21 + seed))
+    cy = H * (0.5 + 0.06 * math.cos(t * 0.17 + seed))
+    for i in range(5):
+        k = ((t * 0.09 + i / 5.0) % 1.0)
+        r = 90 + k * 620
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(110, 150, 210, int(46 * (1.0 - k))), width=2)
+    img.alpha_composite(rings)
+    return Image.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, 255)), img)      # the vignette edge is see-through in the plates: settle it on black
+
+
+MOTION_CARDS = {"kit_field": kit_field, "kit_kinetic": kit_kinetic, "kit_dossier": kit_dossier, "kit_radar": kit_radar, "kit_keywords": kit_keywords,
                 "kit_title": kit_title, "kit_datecard": kit_datecard, "kit_quote": kit_quote}

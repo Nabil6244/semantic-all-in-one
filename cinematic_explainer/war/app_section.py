@@ -102,7 +102,17 @@ def read_scenes_csv(path: str) -> List[dict]:
     no_col = next((cols[a] for a in _CSV_NO if a in cols), None)
     start_col, end_col = cols.get("start"), cols.get("end")
     out: List[dict] = []
+    names = list(reader.fieldnames or [])
     for r in reader:
+        extra = r.pop(None, None) or []
+        if extra and text_col in names:
+            # more cells than the header: an unquoted comma in the narration (render 038, scene 13: "Second, Russians are feeling it. ...")
+            # split it, and every later column moved one cell right. The extra cells go back into the narration.
+            cells = [r.get(n) or "" for n in names] + [str(x) for x in extra]
+            i = names.index(text_col)
+            k = len(cells) - len(names)
+            cells = cells[:i] + [",".join(cells[i:i + k + 1])] + cells[i + k + 1:]
+            r = dict(zip(names, cells))
         text = (r.get(text_col) or "").strip()
         if not text:
             continue
@@ -343,14 +353,23 @@ def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_A
 
 
 def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
-                      ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True, listed=None, on_start=None, on_done=None) -> "tuple[List[dict], List[Any]]":
+                      ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True, listed=None, on_start=None, on_done=None,
+                      director: Optional[bool] = None) -> "tuple[List[dict], List[Any]]":
     """(scenes with `footage` set from the Visuals table, the table's rows). The CSV's own searches are fetched for the rows the table does not
     hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic.
-    fetch=False (Render after Generate scenes) fetches nothing: the video uses exactly what the Visuals tab holds."""
+    fetch=False (Render after Generate scenes) fetches nothing: the video uses exactly what the Visuals tab holds.
+
+    director (default: the War setting `war_footage_director`, on): YouTube rows go to the War Footage Director (footage_director.py), which
+    reads the sentence, searches specifically, rejects off-topic / commentary / repeated / unverifiable clips, checks the frames and captures
+    a verified moment; a scene it cannot fill is handed to the War graphics (no_footage + a fitting graphic). Other rows are unchanged."""
     import visual_bridge
     from asset_manager import AssetManifest
+    from . import footage_director as FD
     from . import integration
 
+    if director is None:
+        director = FD.enabled(getattr(manager, "settings", None) if manager is not None else None)
+    state_dir = Path(images_dir).parent
     rows = csv_rows(scenes)
     if fetch:
         try:                    # clips already in the table that are not footage of the scene are fetched again (the user's own picks stay)
@@ -363,7 +382,10 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     if over:
         log(f"AI clip limit {ai_cap} reached: scenes {', '.join(sorted(over, key=lambda x: int(x) if x.isdigit() else 0))} use the map or cards instead")
     todo = []
+    directed = [r for r in rows if director and fetch and r.asset_type == "youtube_video" and str(r.scene_number) not in over]
     for r in (rows if fetch else []):
+        if r in directed:
+            continue
         if r.asset_type in LOCAL_TYPES or str(r.scene_number) in over or visual_bridge.records(images_dir, [r]):
             continue
         errs = manager.validate_rows([r])
@@ -392,11 +414,29 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             threading.Thread(target=watch, daemon=True, name="war-asset-cancel").start()
         try:
             manager.resolve_all(todo, on_scene_start=on_start, on_scene_complete=on_done)
-            fix_repeats(images_dir, rows, manager, log, cancel=cancel)
+            fix_repeats(images_dir, [r for r in rows if r not in directed], manager, log, cancel=cancel)
         except Exception as exc:  # noqa: BLE001 - a failed fetch leaves those scenes on maps/cards; the render still runs
             log(f"footage fetch stopped early: {type(exc).__name__}: {exc}")
         finally:
             stop.set()
+    if directed:
+        log(f"Footage Director: {len(directed)} YouTube scenes (reading the narration, searching, checking frames)…")
+        for r in directed:
+            if on_start is not None:
+                try:
+                    on_start(r, "youtube_video")
+                except Exception:  # noqa: BLE001 - a Visuals-tab callback never stops the fetch
+                    pass
+        try:
+            FD.run(scenes, directed, Path(images_dir), state_dir, log=log, cancel=cancel or (lambda: False),
+                   render_id=Path(images_dir).parent.parent.parent.name)
+        except Exception as exc:  # noqa: BLE001 - a director failure leaves those scenes to the War graphics, never stops the render
+            log(f"Footage Director stopped early: {type(exc).__name__}: {exc}")
+        if listed is not None:
+            try:
+                listed(rows)           # the Visuals tab re-reads every row: director clips, and the scenes handed to graphics with their reason
+            except Exception:  # noqa: BLE001
+                pass
     man = AssetManifest(Path(images_dir)) if Path(images_dir).is_dir() else None
     out: List[dict] = []
     got = 0
@@ -418,6 +458,11 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             sc["footage_meta"] = meta
             got += 1
         out.append(sc)
+    if director:
+        decisions = FD.load_decisions(state_dir)
+        if decisions:
+            out = FD.apply_decisions(out, decisions)
+            got = sum(1 for sc in out if sc.get("footage"))
     want = sum(1 for r in rows if r.asset_type not in LOCAL_TYPES)
     if rows:
         log(f"Footage from the CSV: {got} of {len(rows)} scenes have a clip" + (f" ({want} searched)" if want != len(rows) else ""))

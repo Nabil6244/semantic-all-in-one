@@ -1,0 +1,2018 @@
+{
+ "version": 1,
+ "about": "War Footage Director evaluation set (docs/war/FOOTAGE_DIRECTOR_PLAN.md, Stage 0). Narration and labels from War renders 038 and 033; verdicts judged from the placed clips' frames (docs/war/FOOTAGE_RELEVANCE_AUDIT.md). 'likely_ok' ids were found by specific searches and are title-level only (frames not checked); 'bad_ids' are videos known to be wrong for that scene. No frames are stored here. Render 040 (Bakhmut) is a past-tense historical narrative: its labels include the date each sentence refers to (carried forward and relative dates resolved).",
+ "types": [
+  "EVENT",
+  "LOCATION",
+  "MOVEMENT",
+  "SUBJECT",
+  "CLAIM",
+  "STATISTIC",
+  "ANALYSIS",
+  "QUESTION",
+  "TRANSITION"
+ ],
+ "renders": {
+  "038": {
+   "topic": "Ukraine's drone strikes on Russian oil refineries and Russia's fuel supply (Nov 2026)",
+   "project_date": "2026-11-09",
+   "scenes": [
+    {
+     "scene": "001",
+     "text": "Ukraine says its drones have disabled 51 percent of Russia's oil refining capacity.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukraine drone strike Russian oil refinery fire || Russian refinery drone attack footage",
+     "csv_graphic": "big word",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine",
+      "Russia"
+     ],
+     "actor": "Ukraine",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "RxZltZjIZeI",
+       "start": 88.5,
+       "verdict": "generic",
+       "flags": [
+        "pillarbox",
+        "repeated"
+       ],
+       "reason": "distant smoke over flats; a claim sentence has no footage of its own"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "002",
+     "text": "AP reported that the claim could not be independently verified.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "source",
+     "types": [
+      "CLAIM"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "003",
+     "text": "Overnight on November 5, drones set the Ryazan refinery on fire.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ryazan refinery fire drone attack || Ryazan refinery November 5 drones",
+     "csv_graphic": "date",
+     "types": [
+      "EVENT",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Ryazan"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Ukraine",
+     "date": "November 5",
+     "judged": [
+      {
+       "video_id": "nlSUJNlcGyQ",
+       "start": 150.5,
+       "verdict": "partial",
+       "flags": [
+        "pillarbox"
+       ],
+       "reason": "Ryazan refinery smoke in the title and frames; date unchecked"
+      }
+     ],
+     "likely_ok": [
+      "KASzpezbpbw",
+      "uGl7Jqo9MZo",
+      "JPgnctzCzU8"
+     ],
+     "bad_ids": []
+    },
+    {
+     "scene": "004",
+     "text": "Euromaidan Press counted it as the fifth Russian refinery hit since October 30.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian refinery fire drone strike || Russian oil refinery burning night",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "October 30",
+     "judged": [
+      {
+       "video_id": "RxZltZjIZeI",
+       "start": 88.5,
+       "verdict": "generic",
+       "flags": [
+        "pillarbox",
+        "repeated"
+       ],
+       "reason": "same shot as 001"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "005",
+     "text": "So is Russia really running out of fuel? There are three parts to the answer, and the last one is a surprise.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russia gasoline station queue fuel shortage || Russian drivers fuel shortage",
+     "csv_graphic": "title",
+     "types": [
+      "QUESTION",
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "yWeUAsHY_88",
+       "start": 97.0,
+       "verdict": "partial",
+       "flags": [
+        "pillarbox"
+       ],
+       "reason": "refinery fire then a petrol-station crowd: on topic"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "006",
+     "text": "First, the strikes now reach deep into Russia.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian refinery drone strike fire || drones hit Russia refinery",
+     "csv_graphic": "",
+     "types": [
+      "TRANSITION",
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Ukraine",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "RxZltZjIZeI",
+       "start": 88.5,
+       "verdict": "generic",
+       "flags": [
+        "pillarbox",
+        "repeated"
+       ],
+       "reason": "same shot as 001"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "007",
+     "text": "The IEA says that by late August, only five major Russian refineries had not been hit.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "number",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "late August",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "008",
+     "text": "The IEA says the Moscow refinery, badly damaged in June, is reported to be offline until early 2027.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Moscow refinery drone attack fire || Moscow refinery June strike",
+     "csv_graphic": "date",
+     "types": [
+      "CLAIM",
+      "LOCATION",
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Moscow refinery",
+      "Moscow"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Ukraine",
+     "date": "June",
+     "judged": [
+      {
+       "video_id": "uQYu8H_g6mY",
+       "start": 10.5,
+       "verdict": "match",
+       "flags": [],
+       "reason": "Reuters: Moscow refinery smoke"
+      }
+     ],
+     "likely_ok": [
+      "uQYu8H_g6mY",
+      "igxezz8YESw",
+      "W3fuQOY_2zc",
+      "-FcwSw9IIvo"
+     ],
+     "bad_ids": []
+    },
+    {
+     "scene": "009",
+     "text": "In September, Reuters reported that Kirishi, one of Russia's biggest diesel refineries, had shut down completely.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Kirishi refinery fire September || Kirishi refinery drone strike",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "LOCATION",
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Kirishi"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "September",
+     "judged": [
+      {
+       "video_id": "hy1hGxnomKI",
+       "start": 246.0,
+       "verdict": "wrong",
+       "flags": [
+        "other_place",
+        "studio_caption"
+       ],
+       "reason": "MIRROR NOW: Ozon Rostov warehouse, not Kirishi"
+      }
+     ],
+     "likely_ok": [
+      "FqyaMETWWH8",
+      "eqGW-Ggxadk",
+      "33zqJjh0IDc"
+     ],
+     "bad_ids": [
+      "hy1hGxnomKI"
+     ]
+    },
+    {
+     "scene": "010",
+     "text": "Reuters also said three of Russia's six largest diesel refineries had cut or halted output.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian diesel refinery drone strike fire || Russian refinery smoke after drone attack",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "RxZltZjIZeI",
+       "start": 88.5,
+       "verdict": "generic",
+       "flags": [
+        "pillarbox",
+        "repeated"
+       ],
+       "reason": "same shot as 001"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "011",
+     "text": "Reuters said NORSI and the Volgograd refinery were running at about a fourth of capacity.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "NORSI refinery drone attack || Volgograd refinery drone attack fire",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "STATISTIC",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "NORSI",
+      "Kstovo",
+      "Volgograd"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "y1RdRg7Kle8",
+       "start": 50.04,
+       "verdict": "wrong",
+       "flags": [
+        "not_footage"
+       ],
+       "reason": "poppy field and city bridge inside a narrated video"
+      }
+     ],
+     "likely_ok": [
+      "vwdqzpfkFRA",
+      "1zSzwngecy0",
+      "8raQ-V5CMgs"
+     ],
+     "bad_ids": [
+      "y1RdRg7Kle8"
+     ]
+    },
+    {
+     "scene": "012",
+     "text": "AP noted that strikes increasingly hit equipment that cleans fuel, which takes months to repair.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "refinery unit fire drone strike || Russian refinery equipment damage",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "SUBJECT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "refinery"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "illustrative_ok": true,
+     "judged": [
+      {
+       "video_id": "QCnzlYuhvYA",
+       "start": 52.0,
+       "verdict": "partial",
+       "flags": [
+        "pillarbox"
+       ],
+       "reason": "Omsk refinery fire: refinery damage, any refinery"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "013",
+     "text": "Second, Russians are feeling it. AP reported that drivers had to wait up to 40 hours at gasoline stations.",
+     "csv_asset_type": "Russians are feeling it. AP reported that drivers had to wait up to 40 hours at gasoline stations.",
+     "csv_prompt": "youtube_video",
+     "csv_graphic": "Russia gasoline station long queue drivers || Russian drivers waiting gasoline stations",
+     "types": [
+      "TRANSITION",
+      "CLAIM",
+      "STATISTIC",
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "gas station",
+      "gasoline",
+      "fuel",
+      "queue",
+      "queues"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "csv_row_broken": true,
+     "judged": [],
+     "likely_ok": [
+      "84a04qlFLU4",
+      "JJsu8r1_VxE"
+     ],
+     "bad_ids": []
+    },
+    {
+     "scene": "014",
+     "text": "By late August, Rosstat said gasoline prices were up more than 19 percent this year, and diesel about 18 percent.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "compare",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "late August",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "015",
+     "text": "Russia banned diesel exports and began importing gasoline by rail from Belarus and Kazakhstan.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russia gasoline imports rail Belarus || Belarus Kazakhstan gasoline rail tankers",
+     "csv_graphic": "route",
+     "types": [
+      "EVENT",
+      "MOVEMENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Belarus",
+      "Kazakhstan",
+      "rail"
+     ],
+     "countries": [
+      "Russia",
+      "Belarus",
+      "Kazakhstan"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "map_preferred": true,
+     "judged": [
+      {
+       "video_id": "O9UafciIHCI",
+       "start": 3.48,
+       "verdict": "wrong",
+       "flags": [
+        "studio_presenter",
+        "other_country",
+        "other_subject"
+       ],
+       "reason": "studio presenter; Lithuania and gas, not Belarus rail gasoline"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "O9UafciIHCI"
+     ]
+    },
+    {
+     "scene": "016",
+     "text": "Third, Russia is fighting back. Reuters reported that refining rates rose 25 percent from early to late October, to about 5 million barrels a day.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian refinery repair October || Russian oil refinery operating",
+     "csv_graphic": "number",
+     "types": [
+      "TRANSITION",
+      "CLAIM",
+      "STATISTIC",
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "October",
+     "judged": [
+      {
+       "video_id": "SmioHX2lpyk",
+       "start": 64.0,
+       "verdict": "wrong",
+       "flags": [
+        "graphic_screen",
+        "opposite_meaning",
+        "other_country"
+       ],
+       "reason": "US gas-price graphic and a burning ship for a recovery sentence"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "SmioHX2lpyk"
+     ]
+    },
+    {
+     "scene": "017",
+     "text": "Still, Reuters said Ryazan's main distillation unit was halted again after an October attack.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ryazan refinery attack October || Ryazan refinery fire drone",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "EVENT",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Ryazan"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Ukraine",
+     "date": "October",
+     "judged": [
+      {
+       "video_id": "pLkl0W-G4dg",
+       "start": 543.0,
+       "verdict": "wrong",
+       "flags": [
+        "talking_head",
+        "not_footage"
+       ],
+       "reason": "YouTuber on camera and AI paintings"
+      }
+     ],
+     "likely_ok": [
+      "KASzpezbpbw",
+      "JPgnctzCzU8"
+     ],
+     "bad_ids": [
+      "pLkl0W-G4dg"
+     ]
+    },
+    {
+     "scene": "018",
+     "text": "The Financial Times reported that tankers carrying Russian diesel toward the US changed course on November 2.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "tanker carrying Russian diesel at sea || diesel tanker changed course",
+     "csv_graphic": "article",
+     "types": [
+      "CLAIM",
+      "EVENT",
+      "MOVEMENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "tanker",
+      "tankers"
+     ],
+     "countries": [
+      "Russia",
+      "United States"
+     ],
+     "actor": "",
+     "date": "November 2",
+     "judged": [
+      {
+       "video_id": "er7wb1ElQRw",
+       "start": 29.0,
+       "verdict": "wrong",
+       "flags": [
+        "text_screen",
+        "commentary"
+       ],
+       "reason": "article screenshot and a senator portrait"
+      }
+     ],
+     "likely_ok": [
+      "ZQSQeCeUfdU",
+      "pLT-EvmxVr4"
+     ],
+     "bad_ids": [
+      "er7wb1ElQRw",
+      "f8TA4VQtFFg"
+     ]
+    },
+    {
+     "scene": "019",
+     "text": "ISW noted that four of those tankers had no confirmed buyers.",
+     "csv_asset_type": "flow_video",
+     "csv_prompt": "a lone oil tanker drifting on a dark open sea at dusk, cold light from one side",
+     "csv_graphic": "caption",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "020",
+     "text": "So the strikes are real and costly, but the 51 percent figure is Ukraine's own claim.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukraine drone strike Russian refinery fire || Russian oil refinery burning",
+     "csv_graphic": "stamp",
+     "types": [
+      "ANALYSIS",
+      "CLAIM"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "RxZltZjIZeI",
+       "start": 88.5,
+       "verdict": "generic",
+       "flags": [
+        "pillarbox",
+        "repeated"
+       ],
+       "reason": "same shot as 001"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "021",
+     "text": "Russia is repairing refineries and importing fuel, so the picture is damage without collapse.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian refinery repair || Russia fuel imports rail",
+     "csv_graphic": "title",
+     "types": [
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "mpzObWu06yQ",
+       "start": 8.5,
+       "verdict": "wrong",
+       "flags": [
+        "opposite_meaning",
+        "pillarbox"
+       ],
+       "reason": "explosion for a repair sentence"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "mpzObWu06yQ"
+     ]
+    },
+    {
+     "scene": "022",
+     "text": "Do you think Ukraine can keep this up through winter?",
+     "csv_asset_type": "stock_video",
+     "csv_prompt": "refinery in winter snow",
+     "csv_graphic": "",
+     "types": [
+      "QUESTION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "pixabay:188778",
+       "start": null,
+       "verdict": "generic",
+       "flags": [
+        "off_topic"
+       ],
+       "reason": "couple in a snowy forest"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "023",
+     "text": "Tell me what you think in the comments. Subscribe to Warfront Brief for the next breakdown.",
+     "csv_asset_type": "flow_video",
+     "csv_prompt": "a lone refinery flare burning against a dark night sky, cold light from one side",
+     "csv_graphic": "kinetic",
+     "types": [
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    }
+   ]
+  },
+  "033": {
+   "topic": "Russia's offensive in Ukraine, front-line gains and Russian strikes on power plants (Nov 2026)",
+   "project_date": "2026-11-07",
+   "scenes": [
+    {
+     "scene": "001",
+     "text": "Vladimir Putin claimed Russia seized about 6,500 square kilometers of Ukraine this year, according to ISW.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Putin claimed Russia seized Ukraine footage || Vladimir Putin Russia",
+     "csv_graphic": "claim",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia",
+      "Ukraine"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "speaker": "Putin",
+     "judged": [
+      {
+       "video_id": "7Slaa2VBNAM",
+       "start": 7.27,
+       "verdict": "wrong",
+       "flags": [
+        "other_channel_graphic",
+        "contradicts_number"
+       ],
+       "reason": "another channel's '1,301 km2' graphic for a 6,500 km2 claim"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "7Slaa2VBNAM"
+     ]
+    },
+    {
+     "scene": "002",
+     "text": "Yet DeepState, a Ukrainian mapping group, shows a net Russian gain of only about 2,000 square kilometers over twelve months.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "number",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "003",
+     "text": "In the four weeks to October 26, it showed Russia gaining about 47 square kilometers.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian forces gaining Ukraine footage || Russia offensive Ukraine",
+     "csv_graphic": "date",
+     "types": [
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "October 26",
+     "judged": [
+      {
+       "video_id": "9oHGJaK3VKA",
+       "start": 44.0,
+       "verdict": "wrong",
+       "flags": [
+        "graphic_screen",
+        "other_event"
+       ],
+       "reason": "CBS 'airstrike on military base' map near Lviv"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "004",
+     "text": "The four weeks before that showed Russia losing ground.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian forces losing ground footage || Russia offensive stalling",
+     "csv_graphic": "",
+     "types": [
+      "STATISTIC",
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "S04qNw6l3ms",
+       "start": 237.369,
+       "verdict": "generic",
+       "flags": [],
+       "reason": "soldier with a drone laptop"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "005",
+     "text": "So is Russia's offensive really stalling, and where is Ukraine actually advancing?",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukrainian forces advancing footage || Russia offensive stalling",
+     "csv_graphic": "kinetic",
+     "types": [
+      "QUESTION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia",
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "mVqgbsIp48Y",
+       "start": 220.07,
+       "verdict": "generic",
+       "flags": [],
+       "reason": "BBC soldiers in a field, a question sentence"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "006",
+     "text": "There are three parts to the answer, and the last one is a warning.",
+     "csv_asset_type": "flow_video",
+     "csv_prompt": "three worn radio sets in a row on a dark table, cold light from one side",
+     "csv_graphic": "",
+     "types": [
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "007",
+     "text": "Putin also claimed that Ukraine holds just over 10 percent of Donetsk Oblast, but ISW assessed it holds 20.4 percent.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "compare",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "speaker": "Putin",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "008",
+     "text": "President Zelensky said Ukraine freed 96.2 square kilometers in October, more than Russia seized.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Zelensky Ukrainian forces freed footage || Ukrainian forces October",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "October",
+     "speaker": "Zelensky",
+     "judged": [
+      {
+       "video_id": "dTyKo2kWYTg",
+       "start": 34.25,
+       "verdict": "match",
+       "flags": [
+        "speaker"
+       ],
+       "reason": "Zelensky speaking: the sentence's own speaker"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "009",
+     "text": "That is Kyiv's claim, and DeepState's independent maps show a more complicated picture.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukrainian forces Russian forces footage || Ukraine Russia offensive",
+     "csv_graphic": "stamp",
+     "types": [
+      "CLAIM",
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "an6qfBicbTI",
+       "start": 64.25,
+       "verdict": "wrong",
+       "flags": [
+        "repeated"
+       ],
+       "reason": "drone strike on a van for a claim about maps"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "an6qfBicbTI"
+     ]
+    },
+    {
+     "scene": "010",
+     "text": "DeepState's latest four-week figure, to November 3, rose to about 52 square kilometers, which is still small.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian forces advancing Ukraine footage || Russia offensive Ukraine",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "November 3",
+     "judged": [
+      {
+       "video_id": "xIm4AhiVedI",
+       "start": 479.63,
+       "verdict": "wrong",
+       "flags": [
+        "other_side"
+       ],
+       "reason": "Russian channel drone feed for a DeepState statistic"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "011",
+     "text": "Second, ISW reported that on November 4 and 5, Russian forces kept attacking near Lyman, Borova, Hulyaipole and Dobropillya.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Lyman Borova Hulyaipole Dobropillya attacking footage || Russian forces attacking Lyman",
+     "csv_graphic": "map",
+     "types": [
+      "TRANSITION",
+      "CLAIM",
+      "MOVEMENT",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Lyman",
+      "Borova",
+      "Hulyaipole",
+      "Huliaipole",
+      "Dobropillya",
+      "Dobropillia"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Russia",
+     "date": "November 4",
+     "map_preferred": true,
+     "judged": [
+      {
+       "video_id": "SR-Dj2KRpmc",
+       "start": 29.0,
+       "verdict": "wrong",
+       "flags": [
+        "other_channel_graphic",
+        "talking_head"
+       ],
+       "reason": "another channel's map with a presenter"
+      }
+     ],
+     "likely_ok": [
+      "4OqDCdfZJFE",
+      "tNSEqFPSsq8"
+     ],
+     "bad_ids": []
+    },
+    {
+     "scene": "012",
+     "text": "They made no confirmed advances.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian forces attacking footage || Russian forces Dobropillya",
+     "csv_graphic": "",
+     "types": [
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "Russia",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "an6qfBicbTI",
+       "start": 64.25,
+       "verdict": "wrong",
+       "flags": [
+        "repeated"
+       ],
+       "reason": "same van shot"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "an6qfBicbTI"
+     ]
+    },
+    {
+     "scene": "013",
+     "text": "Ukraine's General Staff counted about 184 Russian assaults on November 5, below the 206 daily average of the week before.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "compare",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "November 5",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "014",
+     "text": "In the south, Ukrainian military observer Kostyantyn Mashovets reported a local advance.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukrainian forces south advance footage || Ukrainian military south",
+     "csv_graphic": "speaker card",
+     "types": [
+      "CLAIM",
+      "MOVEMENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Zaporizhzhia",
+      "Zaporizhia",
+      "Orikhiv",
+      "south"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "",
+     "map_preferred": true,
+     "judged": [
+      {
+       "video_id": "mVqgbsIp48Y",
+       "start": 26.72,
+       "verdict": "wrong",
+       "flags": [
+        "other_channel_graphic",
+        "other_place"
+       ],
+       "reason": "BBC map of Lyman for a southern advance"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "015",
+     "text": "He said Ukrainian forces cleared most of Mala Tokmachka, southeast of Orikhiv.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Mala Tokmachka Orikhiv Ukrainian forces footage || Orikhiv Ukrainian forces",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "EVENT",
+      "LOCATION",
+      "MOVEMENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Mala Tokmachka",
+      "Orikhiv"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "N59NwyBRku0",
+       "start": 35.25,
+       "verdict": "partial",
+       "flags": [],
+       "reason": "118th brigade combat drone video: plausible area, unverified"
+      }
+     ],
+     "likely_ok": [
+      "kS2o6tMX7zM"
+     ],
+     "bad_ids": [
+      "ng1OChgQxi8"
+     ]
+    },
+    {
+     "scene": "016",
+     "text": "But Russia is still pushing there.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian forces pushing Orikhiv footage || Russian forces Zaporizhia",
+     "csv_graphic": "",
+     "types": [
+      "ANALYSIS",
+      "MOVEMENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Orikhiv",
+      "Mala Tokmachka",
+      "Zaporizhzhia"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "map_preferred": true,
+     "judged": [
+      {
+       "video_id": "c1L1ZvQ-62I",
+       "start": 239.25,
+       "verdict": "wrong",
+       "flags": [
+        "other_channel_graphic",
+        "other_place"
+       ],
+       "reason": "Balkan Mapper map of the Dobropillia front"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "017",
+     "text": "ISW says Russian forces seized 104.5 square kilometers in Zaporizhia Oblast between September 1 and mid-October.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "number",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Russia",
+     "date": "September 1",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "018",
+     "text": "Third, Russia is hitting back from the air.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian strikes Ukraine footage || Russia hitting Ukraine air",
+     "csv_graphic": "radar",
+     "types": [
+      "TRANSITION",
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "strike",
+      "strikes",
+      "missile",
+      "missiles",
+      "drone",
+      "drones",
+      "attack",
+      "power"
+     ],
+     "countries": [
+      "Ukraine",
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "an6qfBicbTI",
+       "start": 64.25,
+       "verdict": "wrong",
+       "flags": [
+        "side_reversed",
+        "repeated"
+       ],
+       "reason": "Ukrainian drones hunting Russians for 'Russia is hitting back'"
+      }
+     ],
+     "likely_ok": [
+      "CL9StllHPCY",
+      "YamIJRuRH28"
+     ],
+     "bad_ids": [
+      "an6qfBicbTI"
+     ]
+    },
+    {
+     "scene": "019",
+     "text": "DTEK, Ukraine's largest energy company, reported 78 Russian strikes on power plants and power lines since around November 2.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian strikes power plants footage || Ukraine power lines strikes",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "STATISTIC",
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "power plant",
+      "power plants",
+      "power grid",
+      "energy",
+      "DTEK"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Russia",
+     "date": "November 2",
+     "judged": [
+      {
+       "video_id": "kboRQ4Vm6ac",
+       "start": 21.199,
+       "verdict": "partial",
+       "flags": [
+        "pillarbox"
+       ],
+       "reason": "Channel 4 power-plant strike, phone video"
+      }
+     ],
+     "likely_ok": [
+      "PRwEadk0nnM",
+      "97p8v5TkfXI",
+      "CL9StllHPCY",
+      "YamIJRuRH28"
+     ],
+     "bad_ids": []
+    },
+    {
+     "scene": "020",
+     "text": "In all of 2022, DTEK counted 11 such strikes.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukraine energy company power plants footage || DTEK power plants",
+     "csv_graphic": "",
+     "types": [
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "2022",
+     "judged": [
+      {
+       "video_id": "L6NmbgA9nBo",
+       "start": 5.8,
+       "verdict": "wrong",
+       "flags": [
+        "graphic_screen"
+       ],
+       "reason": "two leader portraits for a 2022 statistic"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "021",
+     "text": "So the evidence supports a narrow conclusion.",
+     "csv_asset_type": "flow_video",
+     "csv_prompt": "two chess kings facing each other on a dark board, cold light from one side",
+     "csv_graphic": "title",
+     "types": [
+      "ANALYSIS",
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "022",
+     "text": "Russia's offensive has slowed sharply, Ukraine has local gains, and the war is far from decided.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukrainian forces Russian forces footage || Russia offensive Ukraine",
+     "csv_graphic": "",
+     "types": [
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia",
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "an6qfBicbTI",
+       "start": 64.25,
+       "verdict": "wrong",
+       "flags": [
+        "repeated"
+       ],
+       "reason": "same van shot"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "an6qfBicbTI"
+     ]
+    },
+    {
+     "scene": "023",
+     "text": "Do you think Russia can restart its offensive before winter?",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Russian forces offensive footage || Russia offensive winter",
+     "csv_graphic": "",
+     "types": [
+      "QUESTION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "03OpMoKcTws",
+       "start": 58.56,
+       "verdict": "generic",
+       "flags": [],
+       "reason": "artillery in fog for a question"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "024",
+     "text": "Tell me what you think in the comments.",
+     "csv_asset_type": "stock_video",
+     "csv_prompt": "soldier silhouette at dusk",
+     "csv_graphic": "",
+     "types": [
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "30520727",
+       "start": null,
+       "verdict": "generic",
+       "flags": [],
+       "reason": "stock silhouette for the call to comment"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "025",
+     "text": "Subscribe to Warfront Brief for the next breakdown.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "title",
+     "types": [
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    }
+   ]
+  },
+  "040": {
+   "topic": "The Battle of Bakhmut, 2022-2023 (historical narrative; render 040 placed no footage)",
+   "project_date": "2026-11-09",
+   "narrative": true,
+   "scenes": [
+    {
+     "scene": "001",
+     "text": "In May 2023, the Wagner Group's leader, Yevgeny Prigozhin, said his fighters had taken Bakhmut.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Prigozhin Bakhmut May 2023 || Wagner Bakhmut capture",
+     "csv_graphic": "claim",
+     "types": [
+      "CLAIM",
+      "EVENT",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Bakhmut",
+      "Prigozhin",
+      "Wagner"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "May 2023",
+     "judged": [
+      {
+       "video_id": "Y5Vq0_8kjJA",
+       "start": 44.26,
+       "verdict": "match",
+       "flags": [],
+       "reason": "Wagner fighters lined up in Prigozhin's own video (contextual)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "002",
+     "text": "Ukraine denied it, and said its troops still held a small part of the city.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "stamp",
+     "types": [
+      "CLAIM"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "May 2023",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "003",
+     "text": "Before the war, about seventy thousand people lived in Bakhmut.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "number",
+     "types": [
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "May 2023",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "004",
+     "text": "The battle had begun in the summer of 2022, and it became one of the longest of the war.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Bakhmut battle 2022 || Bakhmut fighting",
+     "csv_graphic": "map",
+     "types": [
+      "EVENT",
+      "ANALYSIS"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Bakhmut"
+     ],
+     "countries": [],
+     "actor": "",
+     "date": "summer of 2022",
+     "judged": [
+      {
+       "video_id": "VyBYw8e32fA",
+       "start": 44.63,
+       "verdict": "match",
+       "flags": [],
+       "reason": "drone footage of the Bakhmut battle (contextual)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "005",
+     "text": "So why did both sides spend so much on one small city? There are three parts to the answer.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "title",
+     "types": [
+      "QUESTION",
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "006",
+     "text": "First, Wagner recruited prisoners from Russian jails, promising them freedom after six months at the front.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Wagner prisoners recruitment || Prigozhin prison recruitment",
+     "csv_graphic": "",
+     "types": [
+      "TRANSITION",
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Wagner",
+      "prisoners"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "AdQ9vTiF3bA",
+       "start": 280.47,
+       "verdict": "wrong",
+       "flags": [
+        "inset_presenter",
+        "other_event"
+       ],
+       "reason": "CNN studio split screen beside an unrelated story (not the recruiting)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "AdQ9vTiF3bA"
+     ]
+    },
+    {
+     "scene": "007",
+     "text": "Its fighters attacked in small groups, street by street, through the winter.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Bakhmut street fighting winter || Bakhmut urban combat",
+     "csv_graphic": "",
+     "types": [
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Bakhmut"
+     ],
+     "countries": [],
+     "actor": "Russia",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "az62VMjW3Fs",
+       "start": 56.49,
+       "verdict": "partial",
+       "flags": [
+        "inset_presenter"
+       ],
+       "reason": "Bakhmut street with soldiers, a reporter box in the corner"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "008",
+     "text": "Ukrainian soldiers called the battle a meat grinder.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Ukrainian soldiers Bakhmut || Bakhmut frontline",
+     "csv_graphic": "",
+     "types": [
+      "CLAIM",
+      "SUBJECT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Bakhmut",
+      "soldiers"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "",
+     "judged": [
+      {
+       "video_id": "Jl4ZtaY5CqI",
+       "start": 122.59,
+       "verdict": "match",
+       "flags": [],
+       "reason": "Ukrainian soldiers in the field (BBC)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "009",
+     "text": "Second, the city became a symbol. On December 20, 2022, President Zelensky visited troops in Bakhmut.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Zelensky visits Bakhmut December 2022 || Zelensky Bakhmut troops",
+     "csv_graphic": "date",
+     "types": [
+      "TRANSITION",
+      "EVENT",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Zelensky",
+      "Bakhmut"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "December 20, 2022",
+     "judged": [
+      {
+       "video_id": "PdFTHiPMo9I",
+       "start": 65.66,
+       "verdict": "match",
+       "flags": [],
+       "reason": "Zelensky with troops in Bakhmut (exact)"
+      },
+      {
+       "video_id": "PdFTHiPMo9I",
+       "start": 58.8,
+       "verdict": "match",
+       "flags": [],
+       "reason": "Zelensky with troops in Bakhmut (exact)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "010",
+     "text": "The next day, he gave the United States Congress a Ukrainian flag signed by soldiers from the city.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Zelensky Congress Bakhmut flag || Zelensky address Congress flag",
+     "csv_graphic": "",
+     "types": [
+      "EVENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Zelensky",
+      "Congress",
+      "flag"
+     ],
+     "countries": [
+      "Ukraine",
+      "United States"
+     ],
+     "actor": "Ukraine",
+     "date": "December 21, 2022",
+     "judged": [
+      {
+       "video_id": "a2YcOaLph_Q",
+       "start": 64.38,
+       "verdict": "partial",
+       "flags": [],
+       "reason": "Ukrainian soldiers at Bakhmut: the soldiers of the city, not the flag in Congress (contextual)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "011",
+     "text": "Third, the cost. In May 2023, Prigozhin stood among the bodies of his men and blamed Moscow for a shortage of ammunition.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Prigozhin video ammunition Bakhmut || Prigozhin bodies ammunition",
+     "csv_graphic": "claim",
+     "types": [
+      "TRANSITION",
+      "EVENT",
+      "CLAIM"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Prigozhin"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "May 2023",
+     "judged": [
+      {
+       "video_id": "9WUApAN6RDQ",
+       "start": 38.6,
+       "verdict": "wrong",
+       "flags": [
+        "other_subject"
+       ],
+       "reason": "a Moscow shopping mall: the narration blamed Moscow, it did not happen there (render 041)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": [
+      "9WUApAN6RDQ"
+     ]
+    },
+    {
+     "scene": "012",
+     "text": "The White House estimated that Russia had suffered more than one hundred thousand casualties since December, including more than twenty thousand killed.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "number",
+     "types": [
+      "CLAIM",
+      "STATISTIC"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "013",
+     "text": "Ukraine did not publish its own losses.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "stamp",
+     "types": [
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "014",
+     "text": "By September 2023, Ukrainian forces had retaken the villages of Andriivka and Klishchiivka, south of the city.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Klishchiivka Andriivka liberated || Ukraine retakes Klishchiivka",
+     "csv_graphic": "map",
+     "types": [
+      "EVENT",
+      "MOVEMENT",
+      "LOCATION"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Andriivka",
+      "Klishchiivka"
+     ],
+     "countries": [
+      "Ukraine"
+     ],
+     "actor": "Ukraine",
+     "date": "September 2023",
+     "judged": [
+      {
+       "video_id": "_7FCaTpxAwQ",
+       "start": 7.8,
+       "verdict": "match",
+       "flags": [],
+       "reason": "AP aerial of a retaken village (exact)"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "015",
+     "text": "But the city itself stayed in Russian hands.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "map",
+     "types": [
+      "ANALYSIS"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "016",
+     "text": "Bakhmut was a victory Russia paid for with Wagner, and a month later Wagner marched on Moscow.",
+     "csv_asset_type": "youtube_video",
+     "csv_prompt": "Wagner mutiny march on Moscow || Wagner Rostov June 2023",
+     "csv_graphic": "",
+     "types": [
+      "ANALYSIS",
+      "EVENT",
+      "MOVEMENT"
+     ],
+     "footage_wanted": true,
+     "key_terms": [
+      "Wagner",
+      "Moscow"
+     ],
+     "countries": [
+      "Russia"
+     ],
+     "actor": "Russia",
+     "date": "June 2023",
+     "judged": [
+      {
+       "video_id": "k7S9wnKHbiI",
+       "start": 37.33,
+       "verdict": "match",
+       "flags": [],
+       "reason": "Moscow street with a military truck on the mutiny night (WSJ); a map follows after the window"
+      }
+     ],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "017",
+     "text": "Do you think the city was worth what it cost?",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "title",
+     "types": [
+      "QUESTION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    },
+    {
+     "scene": "018",
+     "text": "Tell me in the comments, and subscribe for the next breakdown.",
+     "csv_asset_type": "none",
+     "csv_prompt": "",
+     "csv_graphic": "title",
+     "types": [
+      "TRANSITION"
+     ],
+     "footage_wanted": false,
+     "key_terms": [],
+     "countries": [],
+     "actor": "",
+     "date": "",
+     "judged": [],
+     "likely_ok": [],
+     "bad_ids": []
+    }
+   ]
+  }
+ }
+}

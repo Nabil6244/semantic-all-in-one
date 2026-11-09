@@ -235,33 +235,95 @@ def _treat_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], hard_cut
         prev = sh
 
 
-def _fit_short_clips(plan: Any, counts: Dict[str, int], probe=_clip_seconds) -> None:
+EARNED_HOLD_S = 0.0       # owner's rule: footage is never frozen or stretched; a clip shorter than its scene ends when its frames end
+EARNED_INSERT_S = 3.0     # the one opaque full-frame insert an earned-footage scene may have
+EARNED_SHARE = 0.7        # the earned clip is full-frame for at least this share of its scene
+
+
+def earned_footage(path: Any, meta: Optional[Dict[str, Any]]) -> bool:
+    """Footage the War Footage Director (or the user's own CSV pick) found and checked: a real file whose manifest says war_director, verified or csv_pick.
+    Generic stock and AI illustrations are not earned. Graphics on such a scene go over the clip, never instead of it (protect_earned)."""
+    import os
+
+    m = meta if isinstance(meta, dict) else {}
+    if not path or not os.path.isfile(str(path)) or m.get("generic") or m.get("ai_generated"):
+        return False
+    return bool(m.get("selection_method") == "war_director" or m.get("csv_pick") or str(m.get("verified") or "").lower() in ("true", "verified", "confirmed", "1")
+                or m.get("verified") is True)
+
+
+def earned_rows(rows: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return [r for r in rows if earned_footage(r.get("footage"), r.get("footage_meta"))]
+
+
+def _fit_earned_shot(sh: Any, n: float, counts: Dict[str, int], cuts=None) -> bool:
+    """An earned clip plays from the start of its longest uncut run (a clip with a hard cut inside would show two pieces under MIN_SHOT_S) and
+    ends where that run ends (EARNED_HOLD_S is 0: footage is never frozen). Returns False when that run is under MIN_SHOT_S."""
+    cut_list = sorted(c for c in ((cuts or source_cuts)(sh.path) or []) if 0.15 < c < n - 0.15)
+    bounds = [0.0] + cut_list + [n]
+    runs = [(a, b) for a, b in zip(bounds[:-1], bounds[1:])]
+    cur = next(((x, y) for x, y in runs if x - 0.01 <= sh.seek < y), runs[0])
+    if cur[1] - max(sh.seek, cur[0]) >= MIN_SHOT_S or len(runs) == 1:
+        a, b = cur                                          # the planned start already gives a piece of a usable length
+    else:
+        a, b = max(runs, key=lambda r_: (round(r_[1] - r_[0], 2), -r_[0]))
+        sh.seek = round(a, 3)
+    have = b - max(sh.seek, a) - 0.05 + (EARNED_HOLD_S if b >= n - 0.12 else 0.0)
+    if len(runs) > 1:
+        counts["earned_cut_aware"] = counts.get("earned_cut_aware", 0) + 1
+    if have < MIN_SHOT_S:
+        counts["earned_too_short"] = counts.get("earned_too_short", 0) + 1
+        return False                                        # under a cut's minimum: dropped, the gap rules fill the scene (never a sliver)
+    if have < (sh.end - sh.start) - 0.25:
+        sh.end = fr(sh.start + max(have, 0.0))
+        counts["earned_ended"] = counts.get("earned_ended", 0) + 1
+    return True
+
+
+def _fit_short_clips(plan: Any, counts: Dict[str, int], probe=_clip_seconds, earned: Sequence[str] = ()) -> None:
     """A clip shorter than its scene ends when the clip ends (YouTube cuts are 3.5 s by default): the rest of the scene is left for
-    _broll_returns instead of a held or looped last frame."""
+    _broll_returns instead of a held or looped last frame. An EARNED clip (earned_footage) is never dropped for being short: it holds its last
+    frame: it plays its longest cut-free run (>= MIN_SHOT_S) and ends with it; the rest of the scene is left for the gap rules."""
     lengths: Dict[str, Optional[float]] = {}
-    for sh in plan.shots:
+    drop: List[Any] = []
+    keep = set(earned)
+    for sh in list(plan.shots):
         if sh.path not in lengths:
             lengths[sh.path] = probe(sh.path)
         n = lengths[sh.path]
         if n is None:
             continue
+        if sh.path in keep:
+            if not _fit_earned_shot(sh, n, counts):
+                drop.append(sh)
+            continue
         have = n - sh.seek - 0.05
         if have < (sh.end - sh.start) - 0.25:
-            sh.end = fr(sh.start + max(min(1.0, sh.end - sh.start), have))
             counts["short_clips"] = counts.get("short_clips", 0) + 1
+            if have < MIN_SHOT_S:                 # what is left of the clip is under a cut's minimum: the shot goes, the gap is filled by returns / graphics
+                drop.append(sh)
+                counts["short_clips_dropped"] = counts.get("short_clips_dropped", 0) + 1
+                continue
+            sh.end = fr(sh.start + have)
+    if drop:
+        plan.shots[:] = [x for x in plan.shots if not any(x is d for d in drop)]
 
 
-BROLL_MIN_S, BROLL_MAX_S, BROLL_USES = 1.2, 5.0, 2
+SUBJECT_MIN = 0.15        # footage_match score a returned-to earned clip needs against the sentence it is shown over
+BROLL_MIN_S, BROLL_MAX_S, BROLL_USES = 3.0, 5.0, 2   # 2026-11-09: no footage shot under 3 s (was 1.2)
 CONTEXT_REPEAT_S = 90.0     # the wide 'Russia and Ukraine' context map at most once in this many seconds (render 033 showed it four times)
 MAX_MAP_HOLD = 12.0 + 0.5     # map_build.MAX_MAP_S and a little: a sliver is never closed by holding a map past its limit
 
 
 def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[str, Any], meta_by_start: Dict[float, Dict[str, Any]],
-                   counts: Dict[str, int], probe=_clip_seconds) -> None:
+                   counts: Dict[str, int], probe=_clip_seconds, earned: Sequence[str] = ()) -> None:
     """Where nothing is on screen (no footage, no full-frame card or map), cut back to the video's own footage: the clip of the nearest scene
     that is not the one just shown, at a moment of it not used yet, at most BROLL_USES returns per clip. Documentaries return to their own
-    b-roll; an empty backdrop with a tag is what render 047 showed instead."""
+    b-roll; an empty backdrop with a tag is what render 047 showed instead.
+    When the film has EARNED clips (earned_footage) only those are returned to, only where they are about the same subject as the sentence there
+    (footage_match score), and never over seconds of the clip already shown: a repeat of the same seconds is worse than a graphic."""
     total = max((r["_end"] for r in rows), default=0.0)
+    pool = set(earned)
     shots = sorted(plan.shots, key=lambda x: x.start)
     if not shots:
         return
@@ -292,12 +354,27 @@ def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[st
             return None
         spans = sorted(used.get(path, []))
         cur_ = 0.0
-        best = (0.0, min(need, n))                       # nothing unused left: the clip's start again (a return, not a new moment)
+        best = None if pool else (0.0, min(need, n))     # nothing unused left: the clip's start again (a return, not a new moment) - never for earned clips
         for a, b in spans + [(n, n)]:
             if a - cur_ >= min(need, BROLL_MIN_S + 0.3):
                 return cur_, min(need, a - cur_)
             cur_ = max(cur_, b)
         return best
+
+    meta_of = {r.get("footage"): (r.get("footage_meta") or {}) for r in rows if r.get("footage")}
+
+    def same_subject(path: str, t_: float) -> bool:
+        if not pool:
+            return True
+        row = next((r for r in rows if r["_start"] - 0.01 <= t_ < r["_end"]), None)
+        if row is None or not str(row.get("text") or "").strip():
+            return True
+        try:
+            from . import footage_match as FM
+
+            return float(FM.score_clip(FM.narration_profile(str(row["text"])), meta_of.get(path) or {}, path).get("score") or 0.0) >= SUBJECT_MIN
+        except Exception:  # noqa: BLE001 - an unscorable clip is not a reason to leave a gap
+            return True
 
     # first every clip at most BROLL_USES times; when the video has too few clips for that, a clip may return more often (a repeat beats
     # an empty backdrop), still never the one just shown
@@ -308,7 +385,8 @@ def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[st
                 before = max((x for x in plan.shots if x.end <= t + 0.05), key=lambda x: x.end, default=None)
                 after = min((x for x in plan.shots if x.start >= t), key=lambda x: x.start, default=None)
                 avoid = {getattr(before, "path", None), getattr(after, "path", None)} if len(owners) > 2 else set()
-                cands = sorted((x for x in owners.values() if x.path not in avoid and returns.get(x.path, 0) < limit),
+                cands = sorted((x for x in owners.values() if x.path not in avoid and returns.get(x.path, 0) < limit
+                                and (not pool or (x.path in pool and same_subject(x.path, t)))),
                                key=lambda x: (min(abs(x.start - t), abs(x.end - t)), x.start))
                 pick = None
                 for c in cands:
@@ -1951,8 +2029,9 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
             if lay.kind in LAYOUT_KINDS and lay.start < ov.start < lay.end and ov.start - lay.start >= 3.0:
                 lay.end = fr(ov.start - 0.15)
     if cfg.get("broll", True):            # short clips end with their clip; the gaps they and the map breaks leave go back to the video's own footage
-        _fit_short_clips(plan, counts)
-        _broll_returns(plan, rows, log_by_no, meta_by_start, counts)
+        earned_paths = sorted({r["footage"] for r in earned_rows(rows)})
+        _fit_short_clips(plan, counts, earned=earned_paths)
+        _broll_returns(plan, rows, log_by_no, meta_by_start, counts, earned=earned_paths)
     _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes, motion=bool(cfg.get("motion_fill", True)))
     _csv_wins(plan, counts)
     if cfg.get("graphic_floor", True):
@@ -2006,6 +2085,9 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 counts["bc_" + k_] = v_
     full_spans = [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS]
 
+    if cfg.get("protect_earned", True):           # the director's clips are the film: graphics go over them (protect_earned)
+        protect_earned(plan, rows, counts, log_by_no)
+        full_spans = [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS]
     # ---- 9 badges (replace the equivalent old illustrative chip) ---------------------------------------------------------------------
     for r in rows:
         dec = log_by_no.get(str(r["_no"]))
@@ -2051,7 +2133,12 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 counts["engagement_fixed"] = n_fix
     _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)),
                  dissolves=bool(cfg.get("dissolves", False)))   # hard cuts like the reference: a cross-fade shows two clips at once
-    _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts)
+    _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts, float((st_stats.get("hook") or {}).get("window") or 0.0))
+    _cover_plate(plan, rows, cat, log_by_no, counts, max((r["_end"] for r in rows), default=0.0))
+    if cfg.get("harden", True):
+        _harden(plan, rows, cat, log_by_no, counts, max((r["_end"] for r in rows), default=0.0), float((st_stats.get("hook") or {}).get("window") or 0.0), cfg)
+    if cfg.get("protect_earned", True):
+        protect_earned(plan, rows, counts, log_by_no)
     counts["empty_stretches"] = len(gap_notes)
     return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats, "engagement": eng}
 
@@ -2062,7 +2149,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
 # finished timeline: every second shows footage or a full-frame graphic, footage marks only sit on footage, and a clip seen for less than
 # FLASH_S between two graphics is covered by the graphic before it.
 FLASH_S = 1.5
-MIN_SHOT_S = 2.0      # a footage shot shorter than this (a sliver left by trims) is folded into its neighbour
+MIN_SHOT_S = 3.0      # a footage shot shorter than this (a sliver left by trims) is folded into its neighbour
 HOLE_HOLD_S = 2.0          # a bare gap up to this long is closed by its neighbours (longer ones are filled with motion graphics earlier)
 
 
@@ -2082,7 +2169,7 @@ def _spans_union(spans: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     return [(a, b) for a, b in out]
 
 
-def _fold_slivers(plan: Any, counts: Dict[str, int]) -> None:
+def _fold_slivers(plan: Any, counts: Dict[str, int], hook_end: float = 0.0) -> None:
     """A footage shot under MIN_SHOT_S that butts onto another shot is a flicker, not a cut: the same clip just runs on; another clip before it
     holds longer when it has frames to spare, else the next shot starts earlier (seeking back by as much)."""
     shots = sorted(plan.shots, key=lambda x: x.start)
@@ -2090,7 +2177,7 @@ def _fold_slivers(plan: Any, counts: Dict[str, int]) -> None:
     while i < len(shots) and len(shots) > 1:
         s = shots[i]
         d = s.end - s.start
-        if d >= MIN_SHOT_S:
+        if d >= MIN_SHOT_S or s.end <= hook_end + 0.05:      # the montage hook's cuts are deliberate
             i += 1
             continue
         prev = shots[i - 1] if i > 0 and abs(shots[i - 1].end - s.start) < 0.05 else None
@@ -2118,7 +2205,7 @@ def _fold_glimpses(plan: Any, counts: Dict[str, int]) -> None:
     i = 0
     while i < len(shots) - 1:
         s, nxt = shots[i], shots[i + 1]
-        if abs(nxt.start - s.end) >= 0.05:
+        if abs(nxt.start - s.end) >= 0.05 :
             i += 1
             continue
         c = max((ly.end for ly in full if s.start - 0.05 <= ly.end < s.end and ly.start < s.start + 0.05 or s.start < ly.end < s.end),
@@ -2173,10 +2260,38 @@ def _has_frames(sh: Any, extra: float) -> bool:
     return n is not None and sh.seek + (sh.end - sh.start) + extra <= n - 0.1
 
 
-def _final_coverage(plan: Any, total: float, counts: Dict[str, int]) -> None:
+def _prune_marks(plan: Any, counts: Dict[str, int]) -> None:
+    """Footage marks (source chip, badge) only where footage is actually seen: split around opaque graphics, dropped when no footage is left."""
+    seen = [(sh.start, sh.end) for sh in plan.shots]
+    blocked = _spans_union([(ly.start, ly.end) for ly in plan.layers if _opaque(ly)])
+    keep: List[Layer] = []
+    for ly in plan.layers:
+        if ly.kind not in ("status_chip", "kit_badge", "bc_source", "bc_label") or (ly.params or {}).get("csv_graphic"):    # a footage mark never outlives its clip (a CSV-asked graphic keeps its seconds)
+            keep.append(ly)
+            continue
+        vis = []
+        for a, b in seen:
+            a, b = max(a, ly.start), min(b, ly.end)
+            for x, y in blocked:                       # minus the graphics drawn over the footage
+                if y <= a or x >= b:
+                    continue
+                if x - a >= 1.0:
+                    vis.append((a, x))
+                a = max(a, y)
+            if b - a >= 1.0:
+                vis.append((a, b))
+        if not vis:
+            counts["orphan_marks"] = counts.get("orphan_marks", 0) + 1
+            continue
+        for a, b in vis:
+            keep.append(Layer(ly.kind, fr(a), fr(b), dict(ly.params or {}), dim=ly.dim))
+    plan.layers[:] = keep
+
+
+def _final_coverage(plan: Any, total: float, counts: Dict[str, int], hook_end: float = 0.0) -> None:
     if total <= 0:
         return
-    _fold_slivers(plan, counts)
+    _fold_slivers(plan, counts, hook_end)
     _fold_glimpses(plan, counts)
     full = sorted((ly for ly in plan.layers if _opaque(ly)), key=lambda x: x.start)
     # 1 a clip glimpsed between two graphics: the graphic before it holds instead of a flash
@@ -2220,28 +2335,618 @@ def _final_coverage(plan: Any, total: float, counts: Dict[str, int]) -> None:
         else:
             continue
         counts["holes_closed"] = counts.get("holes_closed", 0) + 1
-    # 3 footage marks (source chip, badge) only where footage is actually seen
-    seen = [(sh.start, sh.end) for sh in plan.shots]
-    blocked = _spans_union([(ly.start, ly.end) for ly in plan.layers if _opaque(ly)])
-    keep: List[Layer] = []
+    _prune_marks(plan, counts)
+
+
+# ------------------------------------------------------------------------------------------------ plate coverage -------------------
+# Bakhmut render (2026-11-09, no footage at all): 11 s of the bare grey grid and 10 s of grid with one figure on it. Causes: a CSV stamp (a corner
+# card) was the only layer for 4.4 s; a 0.8 s gap sat between two cards; a big number and a stat-split panel are transparent by design (made to sit
+# over footage) so their first second and every second after drew on the plate; a card shorter than the sentence left a gap. The rule below runs last:
+# in the plan, every moment is a shot (a clip with a picture) or a self-backed full-frame graphic (own opaque background), or at most COVER_TOL s bare.
+COVER_TOL = 0.3
+BACKING_KIND = "kit_field"
+SELF_BACKED = MOTION_KINDS | {"tac_map", "tac_route", "map_card", BACKING_KIND}
+
+
+def _picture_ok(path: str) -> bool:
+    """A clip that exists and has a video stream. (A download that failed or holds no picture plays the plate at render time.)"""
+    import os
+    if not path or not os.path.isfile(path) or os.path.getsize(path) <= 0:
+        return False
+    try:
+        from . import segments as _seg
+        return bool(_seg.has_video(path))
+    except Exception:  # noqa: BLE001 - when it cannot be probed, a real file counts as footage
+        return True
+
+
+_PIC_CACHE: Dict[str, bool] = {}
+
+
+def _has_picture(path: str) -> bool:
+    if path not in _PIC_CACHE:
+        _PIC_CACHE[path] = _picture_ok(path)
+    return _PIC_CACHE[path]
+
+
+def uncovered_spans(plan: Any, total: float, tol: float = COVER_TOL, picture=None, thin: Optional[Sequence[Any]] = None) -> List[Tuple[float, float, str]]:
+    """[(start, end, reason)] of every stretch longer than `tol` seconds in [0, total] where the plan shows neither a clip with a picture nor a
+    full-frame graphic that paints its own opaque background (the plate would be what the viewer sees). A transparent layout, a big number or a
+    stamp does not cover: they sit on something. A layer with over=True (a card made to sit on footage) does not cover either. Test oracle for
+    render_qa's bare / sparse plate findings, from the plan alone."""
+    ok = picture or _has_picture
+    cov = [(sh.start, sh.end) for sh in plan.shots if ok(sh.path)]
+    skip = {id(x) for x in (thin or ())}                  # layers MEASURED thin (thin_layers): drawn, but the grid shows through them
+    cov += [(ly.start, ly.end) for ly in plan.layers if ly.kind in SELF_BACKED and not (ly.params or {}).get("over") and id(ly) not in skip]
+    out: List[Tuple[float, float, str]] = []
+    cur = 0.0
+    for a, b in _spans_union(cov) + [(total, total)]:
+        if min(a, total) - cur > tol:
+            out.append((round(cur, 3), round(min(a, total), 3), _why_bare(plan, cur, min(a, total), picture, skip)))
+        cur = max(cur, b)
+    return out
+
+
+def _why_bare(plan: Any, a: float, b: float, picture=None, skip: Sequence[int] = ()) -> str:
+    ok = picture or _has_picture
+    bad = [sh for sh in plan.shots if sh.start < b and sh.end > a and not ok(sh.path)]
+    weak = sorted({ly.kind for ly in plan.layers if id(ly) in skip and ly.start < b and ly.end > a})
+    over = [ly.kind for ly in plan.layers if ly.start < b and ly.end > a and ly.kind not in SOFT]
+    if bad:
+        return "clip without a picture"
+    if weak:
+        return "only " + "/".join(weak) + " drawn thin (the grid shows through)"
+    if over:
+        return "only " + "/".join(sorted(set(over))) + " (transparent, sits on the plate)"
+    return "nothing planned (timeline gap)"
+
+
+def _cover_plate(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], total: float) -> None:
+    """Close every uncovered span: a short gap between two backed pieces is held by its neighbour; a span with a transparent card on it gets an
+    opaque backing field under it (its own words stay on top); a bare span of 2 s or more gets a motion card made from the narration."""
+    if total <= 0:
+        return
+    for _ in range(12):                                           # a fill can expose a neighbour's gap, a long bare span is filled piece by piece
+        spans = uncovered_spans(plan, total)
+        if not spans:
+            return
+        for a, b, _why in spans:
+            a, b = max(0.0, a), min(total, b)
+            fg = [ly for ly in plan.layers if ly.start < b - 0.05 and ly.end > a + 0.05 and ly.kind not in SOFT and ly.kind not in SELF_BACKED and ly.kind not in CORNER_KINDS]
+            prev = max((ly for ly in plan.layers if ly.kind in SELF_BACKED and abs(ly.end - a) < 0.06 and not (ly.params or {}).get("over")),
+                       key=lambda x: x.end, default=None)
+            nxt = min((ly for ly in plan.layers if ly.kind in SELF_BACKED and abs(ly.start - b) < 0.06 and not (ly.params or {}).get("over")),
+                      key=lambda x: x.start, default=None)
+            if not fg and b - a <= HOLE_HOLD_S and (prev is not None or nxt is not None):
+                if prev is not None:
+                    prev.end = fr(b)
+                else:
+                    nxt.start = fr(a)
+                counts["plate_held"] = counts.get("plate_held", 0) + 1
+                continue
+            made = None
+            asked = any((ly.params or {}).get("csv_graphic") for ly in plan.layers if ly.start < b - 0.05 and ly.end > a + 0.05)
+            if not fg and not asked and b - a >= 2.0:          # a CSV-asked card keeps its own words on a quiet field, not under more words
+                made = _motion_over(rows, cat, log_by_no, a, b, plan.layers)
+            if made is None:
+                row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), rows[0] if rows else None)
+                seed = int(row["_no"]) if row is not None and str(row.get("_no", "")).isdigit() else int(a)
+                made = Layer(BACKING_KIND, fr(a), fr(b), {"seed": seed}, dim=False)
+                counts["plate_backed"] = counts.get("plate_backed", 0) + 1
+                plan.layers.insert(0, made)                       # first in the list = drawn first: the card's own words stay on top
+            else:
+                counts["plate_motion"] = counts.get("plate_motion", 0) + 1
+                plan.layers.insert(0, made)                       # under any corner mark that is on the span
+
+
+def _motion_over(rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], a: float, b: float, plan_layers: Sequence[Layer] = ()) -> Optional[Layer]:
+    """A full-frame motion card (kinetic / dossier / radar / keywords ...) from the sentence spoken at the start of [a, b]."""
+    row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), None) or next((r for r in reversed(rows) if r["_start"] <= a + 0.01), None)
+    if row is None:
+        return None
+    try:
+        A2 = S.analyze_scene(str(row.get("text") or ""), cat, row.get("words"), row["_start"], row["_end"])
+        sent = next((x for x in A2.sentences if A2.time_at(x.span[0]) - 0.2 <= a + 0.6 <= A2.end_time_of(x.span) + 0.6), A2.sentences[-1] if A2.sentences else None)
+        h = _phrase_or_lead(sent.text) if sent is not None else ""
+        if not h:
+            return None
+        near = {ly.kind for ly in plan_layers if ly.kind in MOTION_KINDS and (abs(ly.end - a) < 0.3 or abs(ly.start - b) < 0.3)}
+        opts = _motion_options(sent, h)
+        kind, params = next((o for o in opts if o[0] not in near), opts[0])        # never the same card twice in a row
+    except Exception:  # noqa: BLE001 - no words, no card: the backing field covers
+        return None
+    dec = log_by_no.get(str(row["_no"]))
+    if b - a > MOTION_MAX_S + 2.5:
+        b = a + MOTION_MAX_S                          # the rest is filled by the next pass with the sentence spoken then
+    ly = Layer(kind, fr(a), fr(b), dict(params, seed=int(row["_no"]) if str(row["_no"]).isdigit() else 0), dim=False)
+    if dec is not None:
+        dec.flags.append("dir:plate_motion")
+        dec.candidates.append({"kind": kind, "score": 0.0, "reason": "direction: the plate would show here; motion card from the narration",
+                               "accepted": True, "start": ly.start, "end": ly.end})
+    return ly
+
+
+# ------------------------------------------------------------------------------------------------ measured coverage + visible footage ----
+# Bakhmut v2 render (2026-11-09): the plan said "covered" for 2.8 s that showed the bare grid (a dark situation map, 0:13.8) and 12.9 s that showed
+# little more (dark maps over land the same grey as the plate, a US map that is mostly sea). The compositor lifts every card's blacks
+# (segments.lift_blacks), so a dark map ends up the colour of the plate: whether a layer covers is MEASURED on the frames the renderer composes,
+# against the plate, with render_qa's own test. A visible footage piece is what is left of a clip after opaque graphics, dimming cards and
+# the cuts INSIDE the source file (a captured clip that holds two shots is two pieces): under MIN_SHOT_S outside the hook it is absorbed.
+THIN_COVER = 0.30          # render_qa.COVER_MIN: a frame where less than this differs from the plate shows mostly grid
+THIN_RUN_S = 1.0           # a thin stretch longer than this is a finding (a camera flying over open sea for a moment is not)
+THIN_STEP_S = 0.5
+THIN_SAFE = 0.40           # three samples all above this: no dense look needed
+_PLATE_REF: Dict[str, Any] = {}
+_CARD_COVER: Dict[str, float] = {}
+_CARDS: Dict[str, Any] = {}
+_CUTS: Dict[Tuple[str, int, int], List[float]] = {}
+
+
+def plate_frames(path: Optional[str] = None) -> Any:
+    """The reference plate (war_backdrop_v3.mp4, deterministic) decoded at 2 fps for render_qa.plate_cover; None when it cannot be made."""
+    key = str(path or "")
+    if key not in _PLATE_REF:
+        out = None
+        try:
+            import tempfile
+            from . import backdrop as _bd, render_qa as _qa
+
+            p = path if path and Path(path).is_file() else _bd.ensure_backdrop(Path(tempfile.gettempdir()) / "war_plate_ref")
+            out = _qa.decode(p, fps=2.0) if p else None
+        except Exception:  # noqa: BLE001 - no plate, no measurement: the structural rules still hold
+            out = None
+        _PLATE_REF[key] = out
+    return _PLATE_REF[key]
+
+
+def _card_fns() -> Dict[str, Any]:
+    if not _CARDS:
+        from . import segments as _seg
+
+        _CARDS.update(_seg.all_cards())
+    return _CARDS
+
+
+def card_cover(ly: Layer, t: float, plate: Any) -> float:
+    """Share of the frame that differs from the plate when `ly` is drawn alone at local time t, exactly as the renderer composes it."""
+    import json as _json
+
+    import numpy as np
+    from PIL import Image
+
+    from . import render_qa as _qa, segments as _seg
+
+    d = round(ly.end - ly.start, 2)
+    key = _json.dumps([ly.kind, round(t, 2), d, ly.params, id(plate)], sort_keys=True, default=str)
+    if key in _CARD_COVER:
+        return _CARD_COVER[key]
+    shifted = Layer(ly.kind, ly.start, ly.end, ly.params, dim=False)
+    img = _seg._compose(ly.start + t, [shifted], _card_fns(), lambda *a: None).convert("RGB").resize((_qa.QW, _qa.QH), Image.BOX)
+    v = float(_qa.plate_cover(np.asarray(img)[None], plate)[0])
+    if len(_CARD_COVER) > 4000:
+        _CARD_COVER.clear()
+    _CARD_COVER[key] = v
+    return v
+
+
+def layer_cover(ly: Layer, plate: Any) -> Dict[str, Any]:
+    """{min, thin_run_s, samples, thin}: sampled at THIN_STEP_S from half a second in (the fade-in is not the layer), three looks first."""
+    d = ly.end - ly.start
+    if d <= 0:
+        return {"min": 1.0, "thin_run_s": 0.0, "samples": [], "thin": False}
+    pts = [d * f for f in (0.2, 0.5, 0.8)] if d >= 1.5 else [d / 2.0]
+    vals = [card_cover(ly, t, plate) for t in pts]
+    if min(vals) >= THIN_SAFE:
+        return {"min": round(min(vals), 3), "thin_run_s": 0.0, "samples": [round(v, 2) for v in vals], "thin": False}
+    if d >= 1.5:
+        pts = [THIN_STEP_S + i * THIN_STEP_S for i in range(int(max(0.0, d - 2 * THIN_STEP_S) / THIN_STEP_S) + 1)]
+        vals = [card_cover(ly, t, plate) for t in pts]
+    run = best = 0
+    for v in vals:
+        run = run + 1 if v < THIN_COVER else 0
+        best = max(best, run)
+    run_s = best * THIN_STEP_S if d >= 1.5 else (d if vals and vals[0] < THIN_COVER else 0.0)
+    return {"min": round(min(vals), 3), "thin_run_s": round(run_s, 2), "samples": [round(v, 2) for v in vals],
+            "thin": run_s > THIN_RUN_S or (d <= 1.5 and run_s > 0)}
+
+
+def thin_layers(plan: Any, plate: Any = None) -> List[Layer]:
+    """Self-backed layers that draw thin on the plate for more than THIN_RUN_S (measured). [] when no plate can be made."""
+    plate = plate if plate is not None else plate_frames()
+    if plate is None or not len(plate):
+        return []
+    out = []
     for ly in plan.layers:
-        if ly.kind not in ("status_chip", "kit_badge"):
-            keep.append(ly)
+        if ly.kind in SELF_BACKED and not (ly.params or {}).get("over"):
+            try:
+                if layer_cover(ly, plate)["thin"]:
+                    out.append(ly)
+            except Exception:  # noqa: BLE001 - a card that cannot be drawn is the renderer's fallback, not a finding here
+                continue
+    return out
+
+
+def uncovered_spans_measured(plan: Any, total: float, tol: float = COVER_TOL, picture=None, plate: Any = None) -> List[Tuple[float, float, str]]:
+    """uncovered_spans where a layer that is MEASURED thin does not count as covering (the 0:13.8 gap: a dark map the plan trusted)."""
+    return uncovered_spans(plan, total, tol, picture, thin=thin_layers(plan, plate))
+
+
+def _covers(ly: Layer) -> bool:
+    """Hides the footage under it: a self-backed full-frame graphic or a card that dims the footage (not a corner mark or a footage mark)."""
+    p = ly.params or {}
+    if p.get("over") or ly.kind in SOFT:
+        return False
+    if ly.kind in SELF_BACKED or ly.kind in FULL_KINDS:
+        return ly.kind in SELF_BACKED or ly.kind in MOTION_KINDS or ly.kind in {"tac_map", "tac_route", "map_card"}
+    return bool(ly.dim) and ly.kind not in CORNER_KINDS
+
+
+def _cover_span(ly: Layer) -> Tuple[float, float]:
+    from ..look import DIM_IN_S
+
+    return (ly.start - DIM_IN_S if (ly.dim and ly.kind not in SELF_BACKED) else ly.start, ly.end)
+
+
+def source_cuts(path: str) -> List[float]:
+    """Seconds into the file where it cuts to another shot (render_qa's own hard-cut test at 10 fps); [] for a long file or one that cannot be read."""
+    import os
+
+    try:
+        st = os.stat(path)
+    except OSError:
+        return []
+    key = (path, int(st.st_size), int(st.st_mtime))
+    if key not in _CUTS:
+        cuts: List[float] = []
+        try:
+            n = _clip_seconds(path)
+            if n is not None and n <= 40.0:
+                from . import render_qa as _qa
+
+                fr_ = _qa.decode(path, fps=10.0)
+                cuts = [round(i / 10.0, 2) for i in _qa.cuts(fr_)]
+        except Exception:  # noqa: BLE001
+            cuts = []
+        _CUTS[key] = cuts
+    return _CUTS[key]
+
+
+def visible_footage_pieces(plan: Any, total: float, picture=None, cuts=None, hook_end: float = 0.0, thin: Optional[Sequence[Any]] = None) -> List[Tuple[float, float, str]]:
+    """[(start, end, path)] of footage the viewer actually SEES: each shot runs to the next shot's start; the spans of opaque graphics and dimming
+    cards are cut out of it (a measured-thin map does not hide the clip... it is not counted as hiding it either: the clip is under it, the map over
+    it, so it hides), and it is split where the source file cuts to another shot. Pieces inside the montage hook (end <= hook_end) are left out."""
+    ok = picture or _has_picture
+    cut_fn = cuts if cuts is not None else source_cuts
+    shots = sorted(plan.shots, key=lambda x: x.start)
+    cov = _spans_union([_cover_span(ly) for ly in plan.layers if _covers(ly)])
+    out: List[Tuple[float, float, str]] = []
+    for i, sh in enumerate(shots):
+        if not ok(sh.path):
             continue
-        vis = []
-        for a, b in seen:
-            a, b = max(a, ly.start), min(b, ly.end)
-            for x, y in blocked:                       # minus the graphics drawn over the footage
-                if y <= a or x >= b:
+        end = min(sh.end, shots[i + 1].start) if i + 1 < len(shots) else sh.end
+        end = min(end, total) if total > 0 else end
+        if end - sh.start <= 0.04:
+            continue
+        marks = [sh.start, end]
+        for c in cut_fn(sh.path) or []:
+            t = sh.start + (c - sh.seek)
+            if sh.start + 0.04 < t < end - 0.04:
+                marks.append(t)
+        marks = sorted(marks)
+        for a, b in zip(marks[:-1], marks[1:]):
+            cur = a
+            for x, y in cov + [(b, b)]:
+                if y <= cur or x >= b:
                     continue
-                if x - a >= 1.0:
-                    vis.append((a, x))
-                a = max(a, y)
-            if b - a >= 1.0:
-                vis.append((a, b))
-        if not vis:
-            counts["orphan_marks"] = counts.get("orphan_marks", 0) + 1
+                if x - cur > 0.04:
+                    out.append((round(cur, 3), round(min(x, b), 3), sh.path))
+                cur = max(cur, y)
+            if b - cur > 0.04:
+                out.append((round(cur, 3), round(b, 3), sh.path))
+    return [p for p in out if p[1] > hook_end + 0.05]
+
+
+def short_footage_pieces(plan: Any, total: float, picture=None, cuts=None, hook_end: float = 0.0, minimum: float = MIN_SHOT_S) -> List[Tuple[float, float, str]]:
+    return [p for p in visible_footage_pieces(plan, total, picture, cuts, hook_end) if p[1] - p[0] < minimum - 1e-6]
+
+
+def plan_check(plan: Any, total: float, hook_end: float = 0.0, plate: Any = None, picture=None, cuts=None) -> Dict[str, Any]:
+    """The plan-level mirror of render_qa: uncovered spans (measured), thin layers (sparse-grid risk) and visible footage pieces under MIN_SHOT_S."""
+    thin = thin_layers(plan, plate)
+    return {"uncovered": uncovered_spans(plan, total, picture=picture, thin=thin),
+            "sparse_risk": [(round(ly.start, 2), round(ly.end, 2), ly.kind) for ly in thin],
+            "short_pieces": short_footage_pieces(plan, total, picture, cuts, hook_end)}
+
+
+def _trim_full_overlaps(plan: Any, counts: Dict[str, int]) -> None:
+    """Two full-frame graphics at once: the one drawn on top hides the other, so the hidden part is cut away (Bakhmut v2: a situation map started
+    1.3 s before the tactical map before it ended and hid its last chips)."""
+    for a in [ly for ly in plan.layers if ly.kind == "tac_map" and not (ly.params or {}).get("over")]:
+        for b in [ly for ly in plan.layers if ly.kind == "map_card" and not (ly.params or {}).get("over")]:
+            if a.start < b.start - 0.3 and a.end > b.start + 0.04 and b.end > a.end:        # a situation map starting on top of the tactical map: the tactical map runs on
+                a.end = fr(b.end)
+                if isinstance(a.params, dict) and float(a.params.get("total_dur") or 0.0) > 0:
+                    a.params["total_dur"] = max(float(a.params["total_dur"]), a.end - a.start + float(a.params.get("t_offset") or 0.0))
+                plan.layers.remove(b)
+                counts["overlaps_merged"] = counts.get("overlaps_merged", 0) + 1
+    full = [ly for ly in plan.layers if (ly.kind in SELF_BACKED or ly.kind in FULL_KINDS) and not (ly.params or {}).get("over") and _covers(ly)
+            and ly.kind != BACKING_KIND]
+    for a in sorted(full, key=lambda x: x.start):
+        for b in sorted(full, key=lambda x: x.start):
+            if a is b or not (a.start < b.start - 0.3 and a.end > b.start + 0.04 and b.end > a.start):
+                continue
+            if b.start - a.start >= 1.0:                             # the planner sorts layers by start: b is drawn over a, a loses its hidden tail
+                a.end = fr(b.start)
+                counts["overlaps_trimmed"] = counts.get("overlaps_trimmed", 0) + 1
+
+
+def _political(ly: Layer) -> Layer:
+    """A thin dark map as the coloured political look; a map_card becomes the equivalent tac_map (same places)."""
+    p = dict(ly.params or {})
+    if ly.kind == "map_card":
+        names = [str(x) for x in (p.get("places") or []) if isinstance(x, str)] or [str(x.get("label") or "") for x in (p.get("pins") or []) if isinstance(x, dict) and x.get("label")]
+        keep = {k: v for k, v in p.items() if k in ("seed", "csv_graphic", "start", "status")}
+        return Layer("tac_map", ly.start, ly.end, dict(keep, theme="political", places=[{"name": n, "kind": "pin"} for n in names if n]), dim=False)
+    p["theme"] = "political"
+    return Layer(ly.kind, ly.start, ly.end, p, dim=ly.dim)
+
+
+def _repair_thin(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], plate: Any) -> None:
+    """A measured-thin layer is made to cover: a dark map becomes the coloured political look, then draws its other land lighter than the sea, and
+    when that is still thin the layer is replaced by a full-frame motion card from the narration; any other card gets the backing field under it."""
+    for ly in thin_layers(plan, plate):
+        if ly not in plan.layers:
             continue
-        for a, b in vis:
-            keep.append(Layer(ly.kind, fr(a), fr(b), dict(ly.params or {}), dim=ly.dim))
-    plan.layers[:] = keep
+        idx = plan.layers.index(ly)
+        if ly.kind in ("map_card", "tac_map", "tac_route"):
+            cur = ly
+            for step in ("political", "context"):
+                new = _political(cur) if step == "political" else Layer(cur.kind, cur.start, cur.end, dict(cur.params, context_fill=True), dim=cur.dim)
+                if step == "political" and cur.params.get("theme") == "political" and cur.kind != "map_card":
+                    continue
+                cur = new
+                plan.layers[idx] = cur
+                if not layer_cover(cur, plate)["thin"]:
+                    counts["thin_maps_fixed"] = counts.get("thin_maps_fixed", 0) + 1
+                    break
+            else:
+                made = _motion_over(rows, cat, log_by_no, cur.start, cur.end, plan.layers) or Layer(BACKING_KIND, cur.start, cur.end, {"seed": int(cur.start)}, dim=False)
+                plan.layers[idx] = made
+                counts["thin_maps_replaced"] = counts.get("thin_maps_replaced", 0) + 1
+        else:
+            plan.layers.insert(0, Layer(BACKING_KIND, max(0.0, fr(ly.start - 0.04)), ly.end, {"seed": int(ly.start)}, dim=False))   # starts a frame early: sorted under the card
+            counts["thin_cards_backed"] = counts.get("thin_cards_backed", 0) + 1
+
+
+def _absorb_short_pieces(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], total: float,
+                         hook_end: float = 0.0, cuts=None, picture=None) -> None:
+    """A visible footage piece under MIN_SHOT_S outside the hook is never stretched or frozen: an abutting graphic or dimming card takes it
+    (under 2 s), or a full-frame motion card from the narration covers it (a run of adjacent short pieces is one stretch)."""
+    for _ in range(6):
+        pcs = sorted(short_footage_pieces(plan, total, picture, cuts, hook_end))
+        if not pcs:
+            return
+        runs: List[List[float]] = []
+        for a, b, _p in pcs:
+            if runs and a - runs[-1][1] < 0.06:
+                runs[-1][1] = b
+            else:
+                runs.append([a, b])
+        for a, b in runs:
+            covers = [ly for ly in plan.layers if _covers(ly) and ly.kind != BACKING_KIND]
+            nxt = min((ly for ly in covers if abs(_cover_span(ly)[0] - b) < 0.3), key=lambda x: x.start, default=None)
+            prv = max((ly for ly in covers if abs(ly.end - a) < 0.3), key=lambda x: x.end, default=None)
+            if b - a < 2.0 and (nxt is not None or prv is not None):
+                tgt = nxt if nxt is not None else prv
+                tgt.params = dict(tgt.params or {}, short_cover=True)       # protect_earned leaves a cover that closes a short piece
+                if nxt is not None:
+                    nxt.start = fr(a + (0.2 if nxt.dim and nxt.kind not in SELF_BACKED else 0.0))
+                else:
+                    prv.end = fr(b)
+                counts["short_pieces_absorbed"] = counts.get("short_pieces_absorbed", 0) + 1
+                continue
+            lid = next((ly for ly in plan.layers if (ly.params or {}).get("over") and ly.kind in MOTION_KINDS
+                        and min(ly.end, b) - max(ly.start, a) >= 0.7 * (b - a)), None)
+            if lid is not None:             # a CSV-asked card made to sit on the footage: it covers the clip itself instead of stacking another card on it
+                lid.params = dict({k: v for k, v in lid.params.items() if k != "over"}, short_cover=True)
+                lid.start, lid.end = fr(min(lid.start, a)), fr(max(lid.end, b))
+                lid.dim = False
+                counts["short_pieces_absorbed"] = counts.get("short_pieces_absorbed", 0) + 1
+                continue
+            cur = a
+            while b - cur > 0.04:
+                made = _motion_over(rows, cat, log_by_no, cur, b, plan.layers)
+                if made is None:
+                    row = next((r for r in rows if r["_start"] - 0.01 <= cur < r["_end"]), rows[0] if rows else None)
+                    seed = int(row["_no"]) if row is not None and str(row.get("_no", "")).isdigit() else int(cur)
+                    made = Layer(BACKING_KIND, fr(cur), fr(b), {"seed": seed}, dim=False)
+                if made.end <= cur + 0.04:
+                    break
+                made.params = dict(made.params or {}, short_cover=True)
+                plan.layers.insert(0, made)
+                cur = made.end
+            counts["short_pieces_covered"] = counts.get("short_pieces_covered", 0) + 1
+    _prune_marks(plan, counts)
+
+
+# ------------------------------------------------------------------------------------------------ earned footage ------------------
+# Bakhmut v2 (2026-11-09): the Footage Director found verified clips for nine scenes and only ~24 s of the film's 95 s showed footage: the rest sat
+# under opaque maps and full-frame cards that other rules (a map for every named place, the CSV graphic column, the graphic floor, recap cards)
+# had placed on those same scenes. A clip the director earned is the documentary; the graphics are support. This pass runs last (and again at
+# render time in harden_measured) on every scene whose footage is earned_footage(): its clip is full-frame for at least EARNED_SHARE of the scene.
+#   - dimming cards (stickers, recap, big number, layouts, planner cards) stop dimming: they sit on the clip;
+#   - motion cards (title, date card, keywords, kinetic, quote...) take their over-footage form (params over=True), also when the CSV asked for them;
+#   - an opaque map becomes the corner locator map (map_inset) when it names a place, and is cut out of the scene either way;
+#   - any other opaque full-frame card (chart, timeline, split compare, icons...) is cut to ONE insert of at most EARNED_INSERT_S s (never more than
+#     30 % of the scene, never leaving a clip piece under MIN_SHOT_S); a second one is dropped and logged.
+
+def _cut_out(plan: Any, ly: Layer, a: float, b: float) -> None:
+    """Remove [a, b] from a layer: what is left before and after stays (>= 0.8 s), a map piece after the cut continues the same map."""
+    before = a - ly.start >= 0.8
+    after = ly.end - b >= 0.8
+    old_start, old_end = ly.start, ly.end
+    if after:
+        if before:
+            tail = Layer(ly.kind, fr(b), old_end, dict(ly.params or {}), dim=ly.dim)
+            if ly.kind in ("tac_map", "tac_route") and isinstance(tail.params, dict):
+                tail.params["t_offset"] = round(float(tail.params.get("t_offset") or 0.0) + (b - old_start), 3)
+                tail.params.pop("enter_from", None)
+            plan.layers.append(tail)
+            ly.end = fr(a)
+        else:
+            ly.start = fr(b)
+            if ly.kind in ("tac_map", "tac_route") and isinstance(ly.params, dict):
+                ly.params["t_offset"] = round(float(ly.params.get("t_offset") or 0.0) + (b - old_start), 3)
+                ly.params.pop("enter_from", None)
+    elif before:
+        ly.end = fr(a)
+    else:
+        plan.layers[:] = [x for x in plan.layers if x is not ly]
+
+
+def _locator_of(ly: Layer, a: float, b: float) -> Optional[Layer]:
+    from . import maps_tactical as MT
+
+    p = ly.params if isinstance(ly.params, dict) else {}
+    names: List[str] = []
+    for pl in p.get("places") or []:
+        nm = pl.get("name") if isinstance(pl, dict) else None
+        if nm and nm not in names:
+            names.append(str(nm))
+    pts = [q for q in (MT.resolve_place(n)[0] for n in names[:4]) if q][:2]
+    if not pts:
+        return None
+    lat0, lon0 = sum(q["lat"] for q in pts) / len(pts), sum(q["lon"] for q in pts) / len(pts)
+    return Layer("map_inset", fr(a), fr(b), {"pins": [{"lat": q["lat"], "lon": q["lon"], "label": q["name"], "start": 0.4 + 0.3 * i} for i, q in enumerate(pts)],
+                                              "pos": "tr", "width": 320, "frame": [lon0 - 5.5, lat0 - 3.0, lon0 + 5.5, lat0 + 3.0]}, dim=False)
+
+
+def protect_earned(plan: Any, rows: Sequence[Dict[str, Any]], counts: Dict[str, int], log_by_no: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """See the block comment above. Returns {scene_no: [what was done]} (also counted in `counts` as earned_*)."""
+    done: Dict[str, List[str]] = {}
+    log_by_no = log_by_no or {}
+
+    def note(r: Dict[str, Any], what: str) -> None:
+        done.setdefault(str(r["_no"]), []).append(what)
+        key = "earned_" + what.split(":")[0]
+        counts[key] = counts.get(key, 0) + 1
+        dec = log_by_no.get(str(r["_no"]))
+        if dec is not None and ("earned:" + what) not in dec.flags:
+            dec.flags.append("earned:" + what)
+
+    for r in earned_rows(rows):
+        s0, e0 = r["_start"], r["_end"]
+        own = sorted([s for s in plan.shots if s.path == r["footage"] and s.start < e0 - 0.05 and s.end > s0 + 0.05], key=lambda s: s.start)
+        if not own:
+            continue
+        st, en = max(s0, own[0].start), min(e0, max(s.end for s in own))      # where the earned clip is actually on screen (its held tail is free for graphics)
+        length = en - st
+        if length < 1.0:
+            continue
+        covers = [ly for ly in plan.layers if ly.end > st + 0.3 and ly.start < en - 0.3 and _covers(ly)]
+        covers.sort(key=lambda ly: (0 if (ly.params or {}).get("csv_graphic") else 1, ly.start))
+        insert_used = False
+        has_inset = any(ly.kind == "map_inset" and ly.end > st and ly.start < en for ly in plan.layers)
+        for ly in covers:
+            if ly not in plan.layers:
+                continue
+            p = ly.params if isinstance(ly.params, dict) else {}
+            csv = bool(p.get("csv_graphic"))
+            tag = ":csv" if csv else ""
+            if p.get("short_cover"):
+                continue
+            inside = min(ly.end, en) - max(ly.start, st)
+            if ly.kind not in ("tac_map", "tac_route", "map_card") and (ly.end - ly.start) - inside >= 1.5:
+                # a card that mostly belongs to the scene next to this one (it starts on the clip's last seconds): it starts where the clip ends / ends where it starts
+                if ly.start >= st - 0.05 and ly.end > en:
+                    ly.start = fr(en)
+                else:
+                    ly.end = fr(st)
+                note(r, "trimmed:" + ly.kind + tag)
+                continue
+            if ly.kind == BACKING_KIND:
+                _cut_out(plan, ly, max(ly.start, st), min(ly.end, en))
+                note(r, "unbacked")
+            elif ly.kind in MOTION_KINDS or ly.kind in LAYOUT_KINDS:
+                ly.params = dict(p, over=True)
+                ly.dim = False
+                note(r, "over:" + ly.kind + tag)
+            elif ly.kind not in FULL_KINDS:
+                ly.dim = False                                  # a sticker, recap, big number or planner card: it sits on the clip, the clip stays bright
+                note(r, "bright:" + ly.kind)
+            elif ly.kind in ("tac_map", "tac_route", "map_card"):
+                a_in, b_in = max(ly.start, st), min(ly.end, en)
+                loc = None if has_inset else _locator_of(ly, max(a_in, st + 0.3), min(en, max(a_in, st + 0.3) + 4.5))
+                if loc is not None and loc.end - loc.start >= 1.5:
+                    plan.layers.append(loc)
+                    has_inset = True
+                    note(r, "locator" + tag)
+                else:
+                    note(r, "map_cut" + tag)
+                _cut_out(plan, ly, a_in, b_in)
+            else:                                               # chart, timeline, split compare, icons, satellite, document...: no over-footage form
+                dur = min(EARNED_INSERT_S, max(0.0, length * (1.0 - EARNED_SHARE)), length - MIN_SHOT_S, ly.end - ly.start)
+                if insert_used or dur < 1.5:
+                    _cut_out(plan, ly, max(ly.start, st), min(ly.end, en))
+                    note(r, "dropped:" + ly.kind + tag)
+                    continue
+                opts = [max(ly.start, st), st, en - dur]
+                a = next((x for x in opts if st - 0.01 <= x <= en - dur + 0.01 and ((x - st) < 0.05 or (x - st) >= MIN_SHOT_S)
+                          and ((en - x - dur) < 0.05 or (en - x - dur) >= MIN_SHOT_S)), st)
+                ins = Layer(ly.kind, fr(a), fr(a + dur), dict(p), dim=ly.dim)
+                _cut_out(plan, ly, max(ly.start, st), min(ly.end, en))
+                plan.layers.append(ins)
+                insert_used = True
+                note(r, "insert:" + ly.kind + tag)
+    if done:
+        plan.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))
+    return done
+
+
+def _harden(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], total: float, hook_end: float,
+            cfg: Dict[str, Any]) -> None:
+    """End of the direction pass (no rendering): two full-frame graphics at once, short visible footage pieces; then the bare-span rule again."""
+    if total <= 0:
+        return
+    _trim_full_overlaps(plan, counts)
+    before = counts.get("short_pieces_covered", 0) + counts.get("short_pieces_absorbed", 0)
+    _absorb_short_pieces(plan, rows, cat, log_by_no, counts, total, hook_end)
+    _cover_plate(plan, rows, cat, log_by_no, counts, total)
+    if counts.get("short_pieces_covered", 0) + counts.get("short_pieces_absorbed", 0) != before:
+        _prune_marks(plan, counts)                       # a clip now hidden by a card carries no footage mark
+
+
+def harden_measured(plan: Any, scenes: Sequence[Dict[str, Any]], plate_path: Optional[str] = None, hook_end: float = 0.0, cat: Any = None) -> Dict[str, int]:
+    """Render-time pass (integration.run_war_documentary, once the plate exists): every self-backed layer is MEASURED against the plate as the
+    compositor draws it; thin ones are repaired (dark map -> coloured political look -> lighter context land -> motion card), then the short visible
+    footage pieces and bare spans are closed again. Returns the counts. The plan keeps its own look until here: the planner tests stay about intent."""
+    counts: Dict[str, int] = {}
+    rows = []
+    for i, sc in enumerate(scenes or []):
+        try:
+            st, en = fr(float(sc.get("start", sc.get("_start", 0.0)))), fr(float(sc.get("end", sc.get("_end", 0.0))))
+        except (TypeError, ValueError):
+            continue
+        if en > st:
+            rows.append(dict(sc, _start=st, _end=en, _no=sc.get("scene_no", i + 1)))
+    rows.sort(key=lambda r: (r["_start"], str(r["_no"])))
+    if not rows:
+        return counts
+    total = max(r["_end"] for r in rows)
+    if cat is None:
+        from . import planner as _pl
+
+        cat = _pl._default_catalog()
+    plate = plate_frames(plate_path)
+    if plate is not None:
+        try:
+            _repair_thin(plan, rows, cat, {}, counts, plate)
+        except Exception:  # noqa: BLE001 - measuring never stops a render
+            pass
+    _trim_full_overlaps(plan, counts)
+    _absorb_short_pieces(plan, rows, cat, {}, counts, total, hook_end)
+    _cover_plate(plan, rows, cat, {}, counts, total)
+    protect_earned(plan, rows, counts)
+    _prune_marks(plan, counts)
+    plan.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))          # the planner's own order: the later start is drawn on top
+    return counts

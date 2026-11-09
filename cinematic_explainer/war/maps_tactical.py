@@ -28,6 +28,7 @@ tac_map params (all optional):
   regions  [{name, colour?, start?}]  an oblast / region tinted and outlined when the narration names it (no control claim)
   fills with start > 0 also colour a country on the tactical look, at the moment it is named, and its flag pops in on it
            (exact stripe flags only; flags: False turns them off)
+  context_fill  political look only: land that is not a named country is drawn lighter than the sea (the plan's thin-map repair sets it)
   t_offset, total_dur   one long map split around other cards: each piece renders at t + t_offset of a map total_dur long, so markers,
            cards and camera carry on instead of starting again
 tac_route params: from, to, label?, style?, theme?  (frames both places, draws one illustrative route and a straight-line distance panel)
@@ -420,6 +421,7 @@ def _camera(views: List[MP.View], t: float, dur: float, times: Optional[Sequence
 SEA_T, LAND_TAC, NEIGH_TAC = (13, 19, 27), (36, 41, 48), (31, 35, 42)
 BORDER_TAC, OBL_TAC, RIVER_TAC, LAKE_TAC = (118, 128, 142), (60, 68, 80), (84, 138, 196), (13, 19, 27)
 SEA_P, NEIGH_P = (10, 22, 52), (52, 58, 74)
+CTX_P = (66, 90, 118)         # params["context_fill"]: land that is not a named country, lighter than the sea so a map never reads as the grey grid plate
 LABEL_DIM = (150, 158, 170, 255)
 LABEL_CTX = (176, 184, 196, 255)
 HALO = (8, 10, 14, 255)
@@ -469,7 +471,7 @@ def _poly_line(d, view: MP.View, pts, ss: int, fill, width: int) -> None:
         d.line(q, fill=fill, width=width, joint="curve")
 
 
-def _build_mosaic(mv: MP.View, theme: str, fills: List[dict], grid: bool, look: str = "night") -> Image.Image:
+def _build_mosaic(mv: MP.View, theme: str, fills: List[dict], grid: bool, look: str = "night", ctx_fill: bool = False) -> Image.Image:
     ss = 2 if mv.w * 2 <= 5200 else 1
     vb = mv.bounds()
     vb = (vb[0] - 0.5, vb[1] - 0.5, vb[2] + 0.5, vb[3] + 0.5)
@@ -491,7 +493,7 @@ def _build_mosaic(mv: MP.View, theme: str, fills: List[dict], grid: bool, look: 
         if f.iso == "RUS" and "UKR" in roles:
             only = lambda bb: not MP._in_crimea(bb)                   # noqa: E731  Crimea is drawn with Ukraine (recognised borders)
         if pol:
-            fill = tuple(POL_FILL.get(role, NEIGH_P))[:3] if role else NEIGH_P
+            fill = tuple(POL_FILL.get(role, NEIGH_P))[:3] if role else (CTX_P if ctx_fill else NEIGH_P)
             edge = (236, 238, 242, 255) if role else (150, 156, 170, 255)
             MP._draw_feature(d, f, mv, vb, fill, edge, (SEA_P + (255,)), ss, 2 * lw if role else lw, only=only)
         else:
@@ -538,14 +540,14 @@ def _build_mosaic(mv: MP.View, theme: str, fills: List[dict], grid: bool, look: 
     return FX.shade_coast(img, SEA_P if pol else SEA_T, look)
 
 
-def _mosaic(views: List[MP.View], theme: str, fills: List[dict], grid: bool, look: str = "night") -> Tuple[Image.Image, MP.View]:
+def _mosaic(views: List[MP.View], theme: str, fills: List[dict], grid: bool, look: str = "night", ctx_fill: bool = False) -> Tuple[Image.Image, MP.View]:
     mv = _mosaic_view(views)
-    key = (mv.key(), theme, tuple((str(f.get("iso3") or f.get("name")), f.get("role")) for f in fills), grid, look)
+    key = (mv.key(), theme, tuple((str(f.get("iso3") or f.get("name")), f.get("role")) for f in fills), grid, look, bool(ctx_fill))
     hit = _BASE.get(key)
     if hit is not None:
         _BASE.move_to_end(key)
         return hit
-    img = _build_mosaic(mv, theme, fills, grid, look)
+    img = _build_mosaic(mv, theme, fills, grid, look, ctx_fill)
     _BASE[key] = (img, mv)
     while len(_BASE) > _BASE_MAX:
         _BASE.popitem(last=False)
@@ -877,7 +879,7 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
     fills = _fills(params, theme)
     late = [f for f in fills if float(f.get("start") or 0.0) > 0.0]       # these light up when named; the rest are in the base map
     mosaic, mv = _mosaic(views + [_scaled(v, WIDE) for v in views] + ([enter] if enter is not None else []), theme, [f for f in fills if f not in late],
-                         params.get("graticule", True) is not False, look)
+                         params.get("graticule", True) is not False, look, bool(params.get("context_fill")))
     img = _crop(mosaic, mv, view)
     basecrop = img.copy()                                                  # the bare map, to test whether a label anchor really is open water
     named_px = [view.pt(pl["lat"], pl["lon"]) for pl in g["places"]]
@@ -1355,7 +1357,7 @@ def tac_route(t: float, dur: float, params: dict) -> Optional[Image.Image]:
     p = dict(params if isinstance(params, dict) else {})
     a, _ = resolve_place(p.get("from"))
     b, _ = resolve_place(p.get("to"))
-    sub = {"theme": p.get("theme", "tactical"), "places": [p.get("from"), p.get("to")] if a and b else [], "badge": p.get("badge")}
+    sub = {"theme": p.get("theme", "tactical"), "places": [p.get("from"), p.get("to")] if a and b else [], "badge": p.get("badge"), "context_fill": p.get("context_fill")}
     if a and b:
         km = int(round(_km(a, b) / 10.0) * 10)
         sub["routes"] = [{"from": p["from"], "to": p["to"], "style": p.get("style", "dashed_red"), "label": p.get("label", ""), "start": 0.8,

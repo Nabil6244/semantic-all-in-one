@@ -50,7 +50,7 @@ class HookTests(unittest.TestCase):
         full = [ly for ly in plan.layers if D._opaque(ly)]
         for s in early:                                                       # calm: no clip on screen for a split second (owner, 2026-11-09)
             seen = s.end - s.start - sum(max(0.0, min(s.end, ly.end) - max(s.start, ly.start)) for ly in full)
-            self.assertTrue(seen < 0.05 or seen >= D.MIN_SHOT_S - 0.01, (s.start, s.end, seen))
+            self.assertTrue(seen < 0.05 or seen >= 1.99, (s.start, s.end, seen))
         self.assertAlmostEqual(min(s.start for s in plan.shots), 0.0)         # footage from the first frame
         for ly in plan.layers:
             if ly.kind in ("kit_title", "kit_datecard") and ly.start < 12:

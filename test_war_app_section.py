@@ -213,7 +213,7 @@ class TestCsvFootage(unittest.TestCase):
 
         d = Path(tempfile.mkdtemp())
         mgr = _FakeManager(d)
-        out, rows = fetch_csv_footage(self.scenes(), mgr, d)
+        out, rows = fetch_csv_footage(self.scenes(), mgr, d, director=False)
         self.assertEqual([r.scene_number for r in rows], ["1", "3", "4"])          # none is not a Visuals row; local is (attach it there)
         self.assertEqual([a[:2] for a in mgr.asked], [("1", "youtube_video"), ("3", "stock_video")])
         self.assertIn("military convoy road", mgr.asked[1][2])
@@ -221,7 +221,7 @@ class TestCsvFootage(unittest.TestCase):
         self.assertTrue(out[1].get("no_footage") and not out[1].get("footage"))
         self.assertFalse(out[3].get("footage"))
         mgr2 = _FakeManager(d)
-        fetch_csv_footage(self.scenes(), mgr2, d)
+        fetch_csv_footage(self.scenes(), mgr2, d, director=False)
         self.assertEqual(mgr2.asked, [])                                          # already in the table: nothing fetched twice
 
     def test_the_visuals_tab_lists_every_scene_before_the_fetch_and_fills_in_live(self):
@@ -231,7 +231,7 @@ class TestCsvFootage(unittest.TestCase):
         d = Path(tempfile.mkdtemp())
         mgr, events = _FakeManager(d), []
         listed = lambda rows: events.append(("listed", [r.scene_number for r in rows], len(mgr.asked)))
-        fetch_csv_footage(self.scenes(), mgr, d, listed=listed, on_start=lambda r, s: events.append(("start", r.scene_number)),
+        fetch_csv_footage(self.scenes(), mgr, d, director=False, listed=listed, on_start=lambda r, s: events.append(("start", r.scene_number)),
                           on_done=lambda r, res: events.append(("done", r.scene_number)))
         self.assertEqual(events[0], ("listed", ["1", "3", "4"], 0))              # listed before anything was fetched
         self.assertIn(("start", "1"), events)
@@ -242,13 +242,13 @@ class TestCsvFootage(unittest.TestCase):
         from cinematic_explainer.war.app_section import fetch_csv_footage
 
         d = Path(tempfile.mkdtemp())
-        out, _rows = fetch_csv_footage(self.scenes(), _FakeManager(d, fail={"3"}), d)
+        out, _rows = fetch_csv_footage(self.scenes(), _FakeManager(d, fail={"3"}), d, director=False)
         self.assertFalse(out[2].get("footage"))
         mine = d / "mine.mp4"
         mine.write_bytes(b"x")
         AssetManifest(d).set("4", {"scene_number": "4", "status": "complete", "source": "manual", "type": "video", "local_path": str(mine),
                                    "user_override": True})
-        out, _rows = fetch_csv_footage(self.scenes(), _FakeManager(d), d)
+        out, _rows = fetch_csv_footage(self.scenes(), _FakeManager(d), d, director=False)
         self.assertEqual(out[3]["footage"], str(mine))
         self.assertTrue(out[3]["footage_meta"].get("user_supplied"))
         self.assertTrue(out[2]["footage"].endswith("scene_3.mp4"))                 # the failed row is searched again on the next Render
@@ -299,10 +299,10 @@ class TestGenerateScenesFirst(unittest.TestCase):
         from cinematic_explainer.war.app_section import fetch_csv_footage
 
         d = Path(tempfile.mkdtemp())
-        fetch_csv_footage(TestCsvFootage().scenes(), _FakeManager(d), d)
+        fetch_csv_footage(TestCsvFootage().scenes(), _FakeManager(d), d, director=False)
         AssetManifest(d).set("3", {"scene_number": "3", "status": "skipped"})          # the user skipped it in the Visuals tab
         mgr = _FakeManager(d)
-        out, rows = fetch_csv_footage(TestCsvFootage().scenes(), mgr, d, fetch=False)
+        out, rows = fetch_csv_footage(TestCsvFootage().scenes(), mgr, d, director=False, fetch=False)
         self.assertEqual(mgr.asked, [])
         self.assertTrue(out[0]["footage"].endswith("scene_1.mp4"))
         self.assertFalse(out[2].get("footage"))
@@ -336,7 +336,7 @@ class TestAiFootage(unittest.TestCase):
 
         d = Path(tempfile.mkdtemp())
         mgr = _FakeManager(d)
-        out, _rows = fetch_csv_footage(self.scenes(), mgr, d, ai_cap=2)
+        out, _rows = fetch_csv_footage(self.scenes(), mgr, d, director=False, ai_cap=2)
         self.assertEqual(sorted(a[0] for a in mgr.asked), ["1", "2", "5"])          # scenes 3 and 4 are over the limit: no credits spent
         self.assertTrue(out[0]["footage_meta"].get("ai_generated"))
         self.assertFalse(out[2].get("footage"))
@@ -441,7 +441,7 @@ class TestStopReachesTheDownload(unittest.TestCase):
 
         d = Path(tempfile.mkdtemp())
         mgr, t0 = Slow(d), time.time()
-        fetch_csv_footage(TestCsvFootage().scenes(), mgr, d, cancel=lambda: True)
+        fetch_csv_footage(TestCsvFootage().scenes(), mgr, d, director=False, cancel=lambda: True)
         self.assertLess(time.time() - t0, 3)
         self.assertEqual(mgr.scene_stops, {"1", "3"})
 

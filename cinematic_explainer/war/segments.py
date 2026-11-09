@@ -54,7 +54,7 @@ MAX_INPUTS = 8                      # clip decodes per piece: 1 clear + one per 
 PACK_VERSION = "war-seg-1"
 REUSE_BYTES = False                 # an unchanged card frame re-sends the previous bytes object
 GOP = 50                            # closed GOP, a keyframe every 2 s and at every piece start
-CRF = 20
+CRF = 18                            # 2026-11-09 (owner: footage looked low quality): 20 -> 18, one less step of loss on every clip
 DIM_SHRINK = 32                     # ...and blurred so far that words burned into a clip (a news ticker, another channel's graphic) cannot be read
 DIM_BRIGHTNESS = 0.5                # the footage behind a card: dimmed, never near-black (0.34 + a strong vignette read as burnt)
 TAG = "setsar=1,setparams=colorspace=bt709:range=tv:color_primaries=bt709:color_trc=bt709"
@@ -190,6 +190,32 @@ def lift_blacks(img):
     return Image.composite(lifted, img, a)
 
 
+_FULL_FALLBACK_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "lay_satellite", "lay_document",
+                        "kit_chart", "lay_speaker_quote", "kit_dossier", "kit_radar", "kit_title", "kit_datecard", "kit_quote"}
+
+
+def _fallback_card(ly: Layer, t: float, active: Sequence[Layer], on_error, exc: Exception):
+    """A full-frame card that cannot be loaded or drawn (another machine, a missing module) must not leave the bare grid on screen: a full-frame
+    motion card (kinetic text, else keywords) from the layer's own words takes its place, and the swap is logged (docs/war/FOOTAGE_DIRECTOR_PLAN.md,
+    problem 11). Not for marks and corner cards, and not when another opaque layer already covers the frame."""
+    if ly.kind not in _FULL_FALLBACK_KINDS or (ly.params or {}).get("over"):
+        return None
+    try:
+        from . import cards_motion as CM
+
+        p = ly.params or {}
+        words = " ".join(str(p.get(k) or "") for k in ("text", "title", "headline", "label", "name", "value", "caption", "subtitle", "place"))
+        words = words.strip() or ly.kind.replace("_", " ").replace("kit ", "")
+        fb = dict(p, text=" ".join(words.split()[:10]))
+        out = CM.kit_kinetic(t - ly.start, ly.end - ly.start, fb)
+        if out is not None:
+            if on_error is not None:                      # logged once per distinct message by on_error
+                on_error(ly, RuntimeError(f"{exc}; replaced by a full-frame motion card"))
+        return out
+    except Exception:
+        return None
+
+
 def _compose(t: float, active: Sequence[Layer], cards: Dict[str, Callable], on_error: Callable[[Layer, Exception], None]):
     from PIL import Image
 
@@ -197,12 +223,17 @@ def _compose(t: float, active: Sequence[Layer], cards: Dict[str, Callable], on_e
     for ly in active:
         fn = cards.get(ly.kind)
         if fn is None:
+            out = _fallback_card(ly, t, active, on_error, KeyError(f"card kind '{ly.kind}' not loaded"))
+            if out is not None:
+                img = Image.alpha_composite(img, out)
             continue
         try:
             out = fn(t - ly.start, ly.end - ly.start, ly.params)
         except Exception as exc:       # one broken card never stops the render
             on_error(ly, exc)
-            continue
+            out = _fallback_card(ly, t, active, None, exc)
+            if out is None:
+                continue
         if out is not None:
             img = Image.alpha_composite(img, out)
     return lift_blacks(img)

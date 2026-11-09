@@ -1,0 +1,5 @@
+{"note": "War Footage Director: videos that must never be picked again, whatever their title says (docs/war/BAKHMUT_DISCOVERY_REPORT.md). scope 'all' = any scene of any film; a 'text' scope applies only to a scene whose narration contains that text. Add an entry when a render shows a clip that is not footage of its scene; the project's own state/war/director_blocklist.json is merged on top.",
+ "entries": [
+  {"video_id": "AdQ9vTiF3bA", "scope": "all", "reason": "CNN studio programme: anchors in a split screen beside unrelated stories (Bakhmut dry run + render 041, scene 006)"},
+  {"video_id": "9WUApAN6RDQ", "scope": "text", "text": "blamed Moscow", "reason": "a Moscow shopping mall, picked because the narration named Moscow as the side blamed (render 041, scene 011)"}
+ ]}

@@ -313,13 +313,14 @@ class MotionFill(unittest.TestCase):
         params = {"kit_kinetic": {"text": "The cost kept rising", "key": ["rising"]},
                   "kit_dossier": {"title": "A new plan", "body": "The government announced a new plan for the winter.", "mark": ["winter"]},
                   "kit_radar": {"label": "Drones filled the sky"}, "kit_keywords": {"items": ["Fuel", "Ammunition", "Food"], "title": "What they needed"},
-                  "kit_title": {"text": "The road to Kyiv"}, "kit_datecard": {"date": "February 2022"}, "kit_quote": {"quote": "Not a ride."}}
+                  "kit_title": {"text": "The road to Kyiv"}, "kit_datecard": {"date": "February 2022"}, "kit_quote": {"quote": "Not a ride."}, "kit_field": {"seed": 3}}
         for kind, fn in MOTION_CARDS.items():
             self.assertIs(cards[kind], fn)
             early, late = fn(0.3, 5.0, params[kind]), fn(2.5, 5.0, params[kind])
             self.assertEqual(late.size, (1280, 720))
             self.assertNotEqual(early.tobytes(), late.tobytes())          # it moves
-            self.assertIsNone(fn(1.0, 5.0, {}))                            # no words, no graphic
+            if kind != "kit_field":                                         # the text-free backing field needs no words
+                self.assertIsNone(fn(1.0, 5.0, {}))                        # no words, no graphic
 
     def test_a_stretch_without_footage_is_covered_by_motion_graphics_not_the_backdrop(self):
         from cinematic_explainer.war import planner
@@ -490,7 +491,7 @@ class CsvGraphicMoreKindsAndOverlay(unittest.TestCase):
             self.assertLessEqual(ly.end, i * 7.0 + 7.0 + 0.01)                     # never into the next scene
         soft = ("kicker", "status_chip", "kit_badge", "shot_headline", "kit_grain")
         for ly in p.layers:
-            if ly.kind in soft or (ly.params or {}).get("csv_graphic"):
+            if ly.kind in soft or ly.kind == "kit_field" or (ly.params or {}).get("csv_graphic"):     # kit_field is the opaque backing UNDER a transparent card
                 continue
             self.assertFalse(any(ly.start < c.end - 0.01 and ly.end > c.start + 0.01 for c in csv), f"{ly.kind} covers a CSV graphic")
 

@@ -31,7 +31,7 @@ MAX_STILL_S = 4.0        # the longest time nothing new lands on the map
 MAX_MAP_S = 12.0         # with the video's own clips to cut to, a map holds at most this long before a footage break
 BREAK_S = 4.0            # ... of this long (direction._broll_returns fills it), then the same map carries on where it was
 CONTEXT_MAP_S = 6.0      # a stretch that names no place of its own shows the story's last map only this long
-MAP_SHARE = 0.5          # with clips to cut to, building maps fill at most this share of the video (render 047: 43 %, mostly ONE map)
+MAP_SHARE = 0.35         # with clips to cut to, building maps fill at most this share of the video (render 047: 43 %, mostly ONE map; 2026-11-09: 0.5 -> 0.35)
 CHIPS_PER_GROUP = 2      # at most two cards on the map at once: read in the time they are up
 REPLACED = {"tac_map", "tac_route", "kit_tag", "kit_sticker", "map_card", "kit_scale"}
 
@@ -392,6 +392,10 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
             from . import maps_tactical as MT
 
             MT.country_roles(bt["countries"], roles)
+    from .direction import earned_rows
+
+    earned_spans = sorted((r["_start"], r["_end"]) for r in earned_rows(rows)
+                          if any(s.path == r["footage"] and s.start < r["_end"] - 0.05 and s.end > r["_start"] + 0.05 for s in plan.shots))
     budget = MAP_SHARE * max((r["_end"] for r in rows), default=0.0)
     used_s = sum(ly.end - ly.start for ly in plan.layers if ly.kind in ("tac_map", "tac_route", "map_card") and not
                  any(r["_start"] - 0.05 <= ly.start and ly.end <= r["_end"] + 0.6 for run in runs for r in run))
@@ -408,8 +412,8 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
         inside = lambda ly: ly.start >= t0 - 0.05 and ly.end <= t1 + 0.6   # noqa: E731
         merged = [ly for ly in plan.layers if inside(ly) and ly.kind in REPLACED and not (ly.params or {}).get("csv_graphic")]
         plan.layers[:] = [ly for ly in plan.layers if ly not in merged]
-        blocks = sorted((ly.start, ly.end) for ly in plan.layers if (ly.kind in full_kinds or (ly.params or {}).get("csv_graphic"))
-                        and ly.end > t0 and ly.start < t1)
+        blocks = sorted([(ly.start, ly.end) for ly in plan.layers if (ly.kind in full_kinds or (ly.params or {}).get("csv_graphic"))
+                         and ly.end > t0 and ly.start < t1] + [(a, b) for a, b in earned_spans if b > t0 and a < t1])     # a map never covers an earned clip
         cur, pieces = t0, []
         for a, b in blocks + [(t1, t1)]:
             if a - cur >= MIN_PIECE_S:

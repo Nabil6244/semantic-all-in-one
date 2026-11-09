@@ -193,7 +193,7 @@ def graphics_count(layers: Any) -> Dict[str, int]:
 
 
 GRAPHIC_NAMES = {"tac_map": "Tactical / political map", "tac_route": "Route map", "map_card": "Situation map", "map_inset": "Corner locator map",
-                 "kit_title": "Title card", "kit_datecard": "Date card", "kit_quote": "Quote card", "kit_kinetic": "Kinetic words",
+                 "kit_field": "Background field", "kit_title": "Title card", "kit_datecard": "Date card", "kit_quote": "Quote card", "kit_kinetic": "Kinetic words",
                  "kit_keywords": "Keywords", "kit_dossier": "Dossier file", "kit_radar": "Radar sweep", "kit_chapter": "Chapter label",
                  "kit_bignum": "Big number", "kit_versus": "Versus comparison", "kit_chart": "Animated chart", "kit_icons": "Icon explainer",
                  "kit_sticker": "Pictogram sticker", "kit_recap": "Numbered recap", "kit_chips": "Note chips", "kit_scale": "Scale row",
@@ -376,10 +376,19 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
     if progress_cb:
         progress_cb(0.0, "planning visuals from the narration")
     plan = plan_fn(sc, assets=assets, config=config)
-    shots, layers = list(plan.shots), list(plan.layers)
     out = Path(out_path) if out_path else pd / "War_Documentary.mp4"
     state = pd / "state"             # the project's own state folder: the same RenderCache location the other styles use, so a re-run reuses unchanged segments
     state.mkdir(parents=True, exist_ok=True)
+    try:        # measured cover (direction.harden_measured): a map or card that draws thin on the plate is repaired in the plan, before anything is rendered
+        from . import backdrop as _bd0, direction as _dir
+
+        hook0 = float((((getattr(plan, "stats", {}) or {}).get("direction") or {}).get("story") or {}).get("hook", {}).get("window") or 0.0)
+        hc = _dir.harden_measured(plan, sc, _bd0.ensure_backdrop(state), hook0)
+        if hc and isinstance(getattr(plan, "stats", None), dict):
+            plan.stats.setdefault("direction", {}).setdefault("counts", {}).update({k: v for k, v in hc.items() if v})
+    except Exception as exc:  # noqa: BLE001 - the plan stays as planned
+        log.warning("measured cover pass skipped: %s", exc)
+    shots, layers = list(plan.shots), list(plan.layers)
     # a scene with no footage must not leave a hole (or an empty timeline): its maps and cards sit on a plain labelled-neutral backdrop, never on an unrelated clip
     from . import backdrop as _bd
 
@@ -437,6 +446,20 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
             result["graphics_path"] = str(gp)
         except OSError as exc:
             log.warning("graphics index not written: %s", exc)
+        try:                                  # visual QA of the finished mp4 (render_qa.py): bare grid, blank frames, short footage shots; never fails the render
+            from . import render_qa as _qa
+
+            if result["ok"] and out.is_file():
+                hook_w = float((((getattr(plan, "stats", {}) or {}).get("direction") or {}).get("story") or {}).get("hook", {}).get("window") or 0.0)
+                qa = _qa.check(str(out), str(plate_path) if plate_path else None, montage=[(0.0, hook_w)] if hook_w > 0 else ())
+                out.with_suffix(".qa.json").write_text(json.dumps(qa, indent=1, default=str), encoding="utf-8")
+                out.with_suffix(".qa.txt").write_text(_qa.text(qa), encoding="utf-8")
+                result["qa"] = {k: qa.get(k) for k in ("bare_plate_s", "sparse_plate_s", "blank_s")}
+                result["qa"]["short_shots"] = len(qa.get("short_shots") or [])
+                log.warning("render QA: bare grid %.1f s, sparse grid %.1f s, blank %.1f s, short footage shots %d (see %s)", qa["bare_plate_s"],
+                            qa["sparse_plate_s"], qa["blank_s"], len(qa.get("short_shots") or []), out.with_suffix(".qa.txt").name)
+        except Exception as exc:  # noqa: BLE001 - the QA never fails a render
+            log.warning("render QA skipped: %s", exc)
         try:
             rp = out.with_suffix(".report.json")
             rp.write_text(json.dumps({"credits": credit_lines, "rights_not_established": unresolved, "scenes": rep["scenes"], "log": result["plan_log"],
