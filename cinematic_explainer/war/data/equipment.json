@@ -2224,6 +2224,64 @@
     "logistics",
     "supply trucks"
    ]
+  },
+  {
+   "id": "r-360-neptune",
+   "name": "R-360 Neptune",
+   "aliases": [
+    "Neptune",
+    "R-360 Neptune",
+    "Neptune missile",
+    "Neptune missiles",
+    "Neptune anti-ship missile"
+   ],
+   "class": "missile_cruise",
+   "origin_country": "Ukraine",
+   "role": "anti-ship cruise missile",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2022",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "R-360 Neptune missile",
+   "look_alikes": [
+    "kalibr"
+   ],
+   "topics": [
+    "black sea fleet",
+    "naval warfare"
+   ]
+  },
+  {
+   "id": "magura-v5",
+   "name": "Magura V5",
+   "aliases": [
+    "Magura V5",
+    "Magura",
+    "Magura sea drone",
+    "Magura naval drone"
+   ],
+   "class": "drone",
+   "origin_country": "Ukraine",
+   "role": "uncrewed surface vessel (sea drone)",
+   "operators": [
+    {
+     "country": "Ukraine",
+     "as_of": "2023",
+     "note": ""
+    }
+   ],
+   "specs": [],
+   "image_hint": "Magura V5 sea drone",
+   "look_alikes": [],
+   "topics": [
+    "black sea fleet",
+    "naval warfare",
+    "drones"
+   ]
   }
  ]
 }

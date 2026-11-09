@@ -16,7 +16,7 @@ import re
 import sys
 import threading
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 STYLE_NAME = "War Documentary"
 TAG = "[WAR DOCUMENTARY]"
@@ -267,6 +267,62 @@ def audit_held(images_dir: Path, rows: List[Any], log=lambda m: None) -> List[st
     return redo
 
 
+def repeated_clips(images_dir: Path, rows: List[Any]) -> List[str]:
+    """Scenes whose clip is the same moment of the same video as an earlier scene's (Black Sea film, 2026-11-09: one sea-drone shot cut
+    four times from the same seconds, so four scenes showed one picture). A different moment of the same video is fine; the user's own
+    picks are never counted."""
+    from asset_manager import AssetManifest
+
+    if not Path(images_dir).is_dir():
+        return []
+    man = AssetManifest(Path(images_dir))
+    seen: List[Tuple[str, float, float]] = []
+    out: List[str] = []
+    for r in sorted(rows, key=lambda x: int(x.scene_number) if str(x.scene_number).isdigit() else 0):
+        rec = man.get(str(r.scene_number)) or {}
+        vid = str(rec.get("video_id") or rec.get("provider_asset_id") or "")
+        if str(rec.get("status") or "").lower() != "complete" or not vid:
+            continue
+        try:
+            a = float(rec.get("clip_start") if rec.get("clip_start") is not None else rec.get("timestamp_start"))
+            b = float(rec.get("timestamp_end") if rec.get("timestamp_end") is not None else a + float(rec.get("clip_duration") or 8.0))
+        except (TypeError, ValueError):
+            continue
+        if any(v == vid and a < b0 - 1.0 and b > a0 + 1.0 for v, a0, b0 in seen) and not (rec.get("user_override") or rec.get("source") == "manual"):
+            out.append(str(r.scene_number))
+        else:
+            seen.append((vid, a, b))
+    return out
+
+
+def fix_repeats(images_dir: Path, rows: List[Any], manager: Any, log=lambda m: None, cancel=None) -> List[str]:
+    """Each repeated clip gets the asset manager's Alternative (a different video or query, as the Visuals tab's button does), up to two
+    rounds. The new clip is still the CSV's own search, so it is not marked as the user's pick."""
+    from asset_manager import AssetManifest
+
+    done: List[str] = []
+    by_no = {str(r.scene_number): r for r in rows}
+    for _round in range(2):
+        rep = repeated_clips(images_dir, rows)
+        if not rep:
+            break
+        log(f"Same clip in several scenes: finding another clip for scenes {', '.join(rep)}")
+        for no in rep:
+            if cancel is not None and cancel():
+                return done
+            try:
+                manager.alternative_scene(by_no[no])
+            except Exception as exc:  # noqa: BLE001 - a scene that cannot be replaced keeps its clip
+                log(f"scene {no}: no other clip ({exc})")
+                continue
+            man = AssetManifest(Path(images_dir))
+            rec = man.get(no) or {}
+            if rec.get("user_override"):
+                man.set(no, {**rec, "user_override": False})
+            done.append(no)
+    return done
+
+
 def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_AI_CAP) -> Dict[str, Any]:
     """{make: [scene nos to generate], over: [scene nos past the cap], have: n already made}. Clips already in the Visuals table cost nothing."""
     import visual_bridge
@@ -336,6 +392,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             threading.Thread(target=watch, daemon=True, name="war-asset-cancel").start()
         try:
             manager.resolve_all(todo, on_scene_start=on_start, on_scene_complete=on_done)
+            fix_repeats(images_dir, rows, manager, log, cancel=cancel)
         except Exception as exc:  # noqa: BLE001 - a failed fetch leaves those scenes on maps/cards; the render still runs
             log(f"footage fetch stopped early: {type(exc).__name__}: {exc}")
         finally:

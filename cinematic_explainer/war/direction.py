@@ -74,9 +74,20 @@ def _phrase(sentence: str) -> str:
     """3-6 words that end on a natural boundary (comma, 'and', 'because' ...), taken verbatim from the sentence; '' when there is none."""
     for piece in re.split(r"(?<!\d),|,(?!\d{3}\b)|;|:| because | while | and | but | which | that | so ", sentence.strip()):   # '2,000' is one word
         w = piece.strip(" .\"'").split()
-        if 3 <= len(w) <= 6 and w[-1].lower() not in _STOP_END:
+        if 3 <= len(w) <= 6 and w[-1].lower() not in _STOP_END and not _weak_piece(w):
             return " ".join(w)
     return ""
+
+
+_WEAK_OPEN = re.compile(r"^(these|those|this|that|it|they|there|he|she|we)\s+(are|is|was|were|'s|’s)$", re.IGNORECASE)
+_DANGLING_VERB = {"showed", "shows", "show", "said", "says", "claimed", "claims", "meant", "means", "found", "finds", "suggests", "suggested",
+                  "proved", "proves", "warned", "believed", "thought", "knew", "argued", "added", "noted", "reported", "explained"}
+
+
+def _weak_piece(w: Sequence[str]) -> bool:
+    """A fragment that says nothing on screen (Black Sea film, 2026-11-09): 'These are small' (pronoun + to be + one word), or a clause that
+    stops on its reporting verb ('the war at sea showed')."""
+    return bool(_WEAK_OPEN.match(" ".join(w[:2]))) and len(w) <= 4 or w[-1].strip(",;:").lower() in _DANGLING_VERB
 
 
 _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from", "and", "or", "but", "that", "which", "is", "are", "was",
@@ -85,13 +96,21 @@ _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by"
 
 
 def _phrase_or_lead(sentence: str) -> str:
-    """_phrase, else the sentence's first 3-6 words ending on a content word (verbatim): a long sentence with no comma still gives a tag."""
+    """_phrase, else the sentence's first 3-6 words ending on a content word (verbatim): a long sentence with no comma still gives a tag.
+    A short payoff after a colon ('Then Ukraine turned to a new weapon: sea drones') is the line itself; a lead never stops inside a
+    noun phrase ('... to a new')."""
+    if ":" in sentence:
+        tail = sentence.rsplit(":", 1)[1].strip(" .\"'")
+        if 1 <= len(tail.split()) <= 5 and not re.search(r"\d", tail):
+            return tail[:1].upper() + tail[1:]
     h = _phrase(sentence)
     if h:
         return h
     w = sentence.strip(" .\"'").split()
     for n in range(min(6, len(w)), 2, -1):
-        if w[n - 1].strip(",;:").lower() not in _STOP_END:
+        cut_np = (n >= 2 and w[n - 2].lower() in ("a", "an", "the") and n < len(w) and not w[n - 1].endswith((",", ";", ":"))
+                  and w[n].strip(",;:.").lower() not in _STOP_END)      # 'a new | weapon' cuts a noun phrase; 'the map | of' does not
+        if w[n - 1].strip(",;:").lower() not in _STOP_END and not cut_np and not _weak_piece(w[:n]):
             return " ".join(w[:n]).rstrip(",;:")
     return ""
 
@@ -512,6 +531,9 @@ def _narrate_map(p: Dict[str, Any], text: str, A: Any, t0: float, countries: Seq
     verb = _STRIKE_V.search(text) or _ADVANCE_V.search(text) or _RETREAT_V.search(text)
     if not p.get("routes") and _STRIKE_V.search(text) and len(places) >= 2:
         m = re.search(r"\bfrom\s+(?:the\s+)?([A-Z][\w'-]+(?:\s[A-Z][\w'-]+)?)", text)
+        sv = _STRIKE_V.search(text)
+        if m and sv and m.start() > sv.start() and re.search(r"\bto\s+(?:the\s+)?[A-Z]", text[m.end():]):
+            m = None     # 'struck four bases, from Olenya ... to Belaya': a range of targets, never a strike from one to the other
         if m:
             src = next((x["name"] for x in places if str(x.get("name", "")).lower() == m.group(1).lower()), None)
             dst = next((x["name"] for x in places if x.get("name") != src), None)
@@ -2161,7 +2183,7 @@ def _final_coverage(plan: Any, total: float, counts: Dict[str, int]) -> None:
     for i, a in enumerate(full[:-1]):
         b = min(full[i + 1:], key=lambda x: x.start)
         gap = b.start - a.end
-        if 0.04 < gap < FLASH_S and any(sh.start < b.start and sh.end > a.end for sh in plan.shots):
+        if 0.04 < gap < max(FLASH_S, MIN_SHOT_S) and any(sh.start < b.start and sh.end > a.end for sh in plan.shots):
             mid = fr((a.end + b.start) / 2.0)                         # both graphics share the glimpse: neither runs long or into another scene
             a.end, b.start = mid, mid
             counts["flashes_covered"] = counts.get("flashes_covered", 0) + 1

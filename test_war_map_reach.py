@@ -41,6 +41,15 @@ class Reach(unittest.TestCase):
                            "Fighting moved from Bakhmut to Soledar.", A, 0.0)
         self.assertIn(True, p.get("close_steps") or [])
 
+    def test_range_of_targets_is_not_a_strike_line(self):
+        A = SimpleNamespace(time_at=lambda i: i / 15.0)
+        text = "They struck at least four air bases at once, from Olenya in the Arctic north to Belaya in Siberia."
+        p = D._narrate_map({"theme": "tactical", "places": [{"name": "Olenya"}, {"name": "Belaya"}], "routes": []}, text, A, 0.0)
+        self.assertFalse(p.get("routes"))
+        p2 = D._narrate_map({"theme": "tactical", "places": [{"name": "Kursk"}, {"name": "Kyiv"}], "routes": []},
+                            "Drones launched from Kursk struck Kyiv overnight.", A, 0.0)
+        self.assertTrue(p2.get("routes"))                         # a real origin still draws its line
+
     def test_wide_view_allows_russia_wide_spans(self):
         self.assertGreaterEqual(MT.MAX_SPAN_DEG, 120)
 
