@@ -174,6 +174,66 @@ function knownEmail(a, st = null) {
   return accountIdentity(a.id)?.email || st?.email || a.email || null;
 }
 
+/** Serialize Refresh / Sign-in per account so they cannot navigate the same tab at once. */
+const accountOpTail = new Map();
+/** @type {Map<string, AbortController>} */
+const loginAbortByAccount = new Map();
+
+async function withAccountOp(accountId, fn) {
+  const prev = accountOpTail.get(accountId) || Promise.resolve();
+  let release;
+  const gate = new Promise((r) => {
+    release = r;
+  });
+  const tail = prev.catch(() => {}).then(() => gate);
+  accountOpTail.set(accountId, tail);
+  await prev.catch(() => {});
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (accountOpTail.get(accountId) === tail) accountOpTail.delete(accountId);
+  }
+}
+
+function cancelLogin(accountId, reason = "cancelled") {
+  const ac = loginAbortByAccount.get(accountId);
+  if (ac) {
+    try {
+      ac.abort(reason);
+    } catch {
+      /* ignore */
+    }
+    loginAbortByAccount.delete(accountId);
+  }
+}
+
+function markSignedIn(accountId, a, st) {
+  updateAccount(accountId, {
+    authenticated: true,
+    email: knownEmail(a, st),
+    lastChecked: Date.now(),
+  });
+  accountProgress.set(accountId, {
+    status: "idle",
+    message: "Signed in",
+  });
+  pushState();
+  return getAccount(accountId);
+}
+
+function logAuth(accountId, label, st) {
+  const sig = st?.signals || {};
+  console.error(
+    `[FLOW AUTH] account=${label || accountId} decision=${st?.decision || "?"} ` +
+      `authenticated=${!!st?.authenticated} uncertain=${!!st?.uncertain} ` +
+      `reason=${st?.reason || st?.error || ""} ` +
+      `signals[token=${sig.hasToken ? "y" : "n"} avatar=${sig.hasAvatar ? "y" : "n"} ` +
+      `cookies=${sig.hasGoogleCookies ? "y" : "n"} signInCta=${sig.hasSignInCta ? "y" : "n"} ` +
+      `ready=${sig.readyState || "?"}] url=${st?.url || ""}`,
+  );
+}
+
 function accountPublic(a) {
   const prog = accountProgress.get(a.id) || {
     status: "idle",
@@ -215,84 +275,170 @@ export async function addAccount(label) {
 
 /**
  * Open a real Chrome window for this account so the user can sign in once.
- * Polls until session token appears (or timeout / cancel).
+ * Navigates at most once (gotoFlow), then only observes the page until the
+ * session is confirmed, the attempt is cancelled, or the timeout hits.
  */
 export async function loginAccount(accountId, { timeoutMs = 10 * 60 * 1000 } = {}) {
   const a = getAccount(accountId);
   if (!a) throw new Error("Unknown account");
 
-  accountProgress.set(accountId, {
-    status: "login",
-    message: "Browser opened — sign in to Google Flow…",
-  });
-  pushState();
+  cancelLogin(accountId, "restart");
+  const ac = new AbortController();
+  loginAbortByAccount.set(accountId, ac);
 
-  const { page } = await openAccountBrowser(accountId, { headed: true });
-  await gotoFlow(page);
-
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (stopAll) break;
-    const st = await checkAuthStatus(page);
-    if (st.authenticated) {
-      updateAccount(accountId, {
-        authenticated: true,
-        email: knownEmail(a, st),
-        lastChecked: Date.now(),
-      });
-      accountProgress.set(accountId, {
-        status: "idle",
-        message: "Signed in",   // the address has its own place in the Accounts row
-      });
-      pushState();
-      return getAccount(accountId);
-    }
+  return withAccountOp(accountId, async () => {
     accountProgress.set(accountId, {
       status: "login",
-      message: "Waiting for Google sign-in…",
+      message: "Browser opened — sign in to Google Flow…",
     });
     pushState();
-    await new Promise((r) => setTimeout(r, 2500));
-  }
 
-  accountProgress.set(accountId, {
-    status: "error",
-    message: "Sign-in timed out — click Sign in again",
+    try {
+      const { page } = await openAccountBrowser(accountId, { headed: true });
+      // Single navigation for the whole attempt. After this, checks are passive.
+      await gotoFlow(page);
+      logFlowNav(page, "login.open", "opened Flow once; observing passively", {
+        accountId,
+      });
+
+      const deadline = Date.now() + timeoutMs;
+      let delay = 1200;
+      while (Date.now() < deadline) {
+        if (stopAll || ac.signal.aborted) break;
+
+        // Passive: no goto/reload, no overlay clicking that can re-trigger nav.
+        const st = await checkAuthStatus(page, {
+          waitForTokenMs: 4000,
+          dismissOverlays: false,
+          accountLabel: a.label || accountId,
+        });
+        logAuth(accountId, a.label, st);
+
+        if (st.authenticated) {
+          loginAbortByAccount.delete(accountId);
+          return markSignedIn(accountId, a, st);
+        }
+
+        accountProgress.set(accountId, {
+          status: "login",
+          message: st.uncertain
+            ? "Waiting for Google sign-in… (page still settling)"
+            : "Waiting for Google sign-in…",
+        });
+        pushState();
+
+        await new Promise((r) => {
+          const t = setTimeout(r, delay);
+          const onAbort = () => {
+            clearTimeout(t);
+            r();
+          };
+          if (ac.signal.aborted) {
+            onAbort();
+            return;
+          }
+          ac.signal.addEventListener("abort", onAbort, { once: true });
+        });
+        delay = Math.min(Math.round(delay * 1.35), 4000);
+      }
+
+      if (ac.signal.aborted && !stopAll) {
+        accountProgress.set(accountId, {
+          status: "idle",
+          message: "Sign-in cancelled",
+        });
+        pushState();
+        return getAccount(accountId);
+      }
+
+      accountProgress.set(accountId, {
+        status: "error",
+        message: "Sign-in timed out — click Sign in again",
+      });
+      pushState();
+      throw new Error("Sign-in timed out");
+    } finally {
+      if (loginAbortByAccount.get(accountId) === ac) {
+        loginAbortByAccount.delete(accountId);
+      }
+    }
   });
-  pushState();
-  throw new Error("Sign-in timed out");
 }
 
 export async function refreshAccount(accountId) {
   const a = getAccount(accountId);
   if (!a) throw new Error("Unknown account");
 
-  accountProgress.set(accountId, { status: "checking", message: "Checking…" });
-  pushState();
+  // A Refresh must not race Sign-in's observer on the same tab.
+  cancelLogin(accountId, "refresh");
 
-  try {
-    const { page } = await openAccountBrowser(accountId, { headed: true });
-    await gotoFlow(page);
-    const st = await checkAuthStatus(page);
-    updateAccount(accountId, {
-      authenticated: !!st.authenticated,
-      email: knownEmail(a, st),
-      lastChecked: Date.now(),
-    });
-    accountProgress.set(accountId, {
-      status: st.authenticated ? "idle" : "error",
-      message: st.authenticated
-        ? "OK"
-        : "Not signed in — click Sign in",
-    });
-  } catch (e) {
-    updateAccount(accountId, { authenticated: false, lastChecked: Date.now() });
-    accountProgress.set(accountId, {
-      status: "error",
-      message: e.message,
-    });
-  }
-  pushState();
+  return withAccountOp(accountId, async () => {
+    accountProgress.set(accountId, { status: "checking", message: "Checking…" });
+    pushState();
+
+    const prevAuthed = !!a.authenticated;
+    try {
+      const { page } = await openAccountBrowser(accountId, { headed: true });
+      await gotoFlow(page);
+
+      let st = null;
+      const attempts = 3;
+      for (let i = 0; i < attempts; i++) {
+        st = await checkAuthStatus(page, {
+          waitForTokenMs: i === 0 ? 10000 : 6000,
+          dismissOverlays: i === 0,
+          accountLabel: a.label || accountId,
+        });
+        logAuth(accountId, a.label, st);
+        if (st.authenticated || (!st.uncertain && !st.authenticated)) break;
+        accountProgress.set(accountId, {
+          status: "checking",
+          message: `Checking… (retry ${i + 1}/${attempts})`,
+        });
+        pushState();
+        await new Promise((r) => setTimeout(r, 1000 * (i + 1)));
+      }
+
+      if (st?.uncertain) {
+        // Keep the previous auth bit — a flaky load is not a sign-out.
+        updateAccount(accountId, {
+          email: knownEmail(a, st),
+          lastChecked: Date.now(),
+        });
+        accountProgress.set(accountId, {
+          status: prevAuthed ? "idle" : "error",
+          message: prevAuthed
+            ? "Check inconclusive — left as signed in"
+            : "Check inconclusive — try Sign in",
+        });
+      } else if (st?.authenticated) {
+        markSignedIn(accountId, a, st);
+        accountProgress.set(accountId, { status: "idle", message: "OK" });
+      } else {
+        updateAccount(accountId, {
+          authenticated: false,
+          email: knownEmail(a, st),
+          lastChecked: Date.now(),
+        });
+        accountProgress.set(accountId, {
+          status: "error",
+          message: "Not signed in — click Sign in",
+        });
+      }
+    } catch (e) {
+      // Failures are unknown, never a forced sign-out.
+      updateAccount(accountId, { lastChecked: Date.now() });
+      accountProgress.set(accountId, {
+        status: "error",
+        message: `Check failed — ${e.message}`,
+      });
+      console.error(
+        `[FLOW AUTH] account=${a.label || accountId} decision=refresh-error ` +
+          `authenticated=${prevAuthed} uncertain=true reason=${e.message}`,
+      );
+    }
+    pushState();
+  });
 }
 
 export async function refreshAll() {
@@ -336,24 +482,38 @@ async function prepareAccount(accountId, label) {
   const { page } = await openAccountBrowser(accountId, { headed: true });
   await gotoFlow(page);
   await dismissBlockingOverlays(page);
-  let st = await checkAuthStatus(page);
+  let st = await checkAuthStatus(page, {
+    waitForTokenMs: 12000,
+    dismissOverlays: false,
+    accountLabel: label,
+  });
+  logAuth(accountId, label, st);
   if (!st.authenticated) {
     await dismissBlockingOverlays(page);
     await new Promise((r) => setTimeout(r, 800));
-    st = await checkAuthStatus(page);
+    st = await checkAuthStatus(page, {
+      waitForTokenMs: 8000,
+      dismissOverlays: false,
+      accountLabel: label,
+    });
+    logAuth(accountId, label, st);
   }
-  if (!st.authenticated) {
-    // Keep the registry honest: a single-prompt batch only opens the first
-    // "authenticated" account, then rotates. Leaving a signed-out account marked
-    // signed-in made every Generate burn ~60s×3 retries on dead profiles before
-    // the Python idle timeout killed the batch (Accounts 2–4 on 2026-10-05).
-    updateAccount(accountId, { authenticated: false, lastChecked: Date.now() });
+  // Generation needs a real WIZ token — avatar-only is not enough here.
+  if (!st.authenticated || !st.signals?.hasToken) {
+    // Only flip the registry to signed-out when the check was conclusive.
+    if (!st.uncertain) {
+      updateAccount(accountId, { authenticated: false, lastChecked: Date.now() });
+    } else {
+      updateAccount(accountId, { lastChecked: Date.now() });
+    }
     try {
       await closeAccountBrowser(accountId);
     } catch {}
     accountProgress.set(accountId, {
       status: "error",
-      message: "Signed out — open Accounts and sign in again",
+      message: st.uncertain
+        ? "Could not confirm sign-in — open Accounts and try Sign in"
+        : "Signed out — open Accounts and sign in again",
     });
     pushState();
     throw new Error(`Account "${label}" is not signed in`);

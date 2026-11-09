@@ -31,6 +31,11 @@ function launchOpts(headed) {
   const opts = {
     headless: !headed,
     viewport: { width: 1280, height: 900 },
+    // Playwright defaults chromiumSandbox to off and injects --no-sandbox
+    // (the yellow banner in Flow windows). Real Chrome profiles on macOS/
+    // Windows do not need that; leaving sandbox on avoids the banner and
+    // reduces Google treating the session like an automation browser.
+    chromiumSandbox: true,
     args: [
       "--disable-blink-features=AutomationControlled",
       "--no-first-run",

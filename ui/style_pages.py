@@ -72,6 +72,19 @@ def layout(app: Any, width: int) -> bool:
     return True
 
 
+def _scroll_visual_director_to_top(app: Any) -> None:
+    """Picker cards are tall: after a deep scroll, hiding them leaves the viewport on empty space below the new page."""
+    view = getattr(app, "_view_visual_director", None)
+    scroll = getattr(view, "_scroll", None) if view is not None else None
+    canvas = getattr(scroll, "_parent_canvas", None) if scroll is not None else None
+    if canvas is None:
+        return
+    try:
+        canvas.yview_moveto(0.0)
+    except Exception:
+        pass
+
+
 def sync(app: Any, active: str) -> None:
     """Called at the end of app._sync_style_picker: the picker or the active style's page, and StarMap Cinema's options."""
     if not hasattr(app, "_style_page_head"):
@@ -82,6 +95,7 @@ def sync(app: Any, active: str) -> None:
         app._style_pages_project, app._style_browse_auto, app._style_back = project, True, False
     if app._style_browse_auto:
         app._style_browsing = active == "Normal video"
+    prev_browsing = getattr(app, "_style_sync_browsing", None)
     browsing = app._style_browsing
     for w in app._style_picker_titles:
         w.grid() if browsing else w.grid_remove()
@@ -115,6 +129,10 @@ def sync(app: Any, active: str) -> None:
     _tidy_style_blocks(app)
     from .style_kit import wrap_style
     wrap_style(app, active)
+    # Tall card grid ↔ short style page: keep the viewport on the new content, not the old scroll offset.
+    if prev_browsing is None or prev_browsing != browsing:
+        _scroll_visual_director_to_top(app)
+    app._style_sync_browsing = browsing
 
 
 _STYLE_BLOCKS = ("_overscaled_block", "_pakmap_block", "_hybrid_block", "_starmap_block", "_weather_block", "_whatif_block", "_war_block",

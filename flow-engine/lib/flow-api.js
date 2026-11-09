@@ -2518,36 +2518,291 @@ export async function downloadMedia(page, mediaId, destPath, directUrl = null, {
   );
 }
 
-export async function checkAuthStatus(page) {
-  try {
-    // Flow moved off labs.google onto flow.google.com — accept either so an
-    // already-loaded page (flow.google.com/project/<id>) isn't needlessly
-    // re-navigated to flowHome on every check. labs.google is kept in case
-    // it still resolves/redirects for some accounts.
-    const url = page.url();
-    if (!url.includes("labs.google") && !url.includes("flow.google.com")) {
-      await flowGoto(page, urls.flowHome, "checkAuthStatus:not-on-flow-domain", {
-        waitUntil: "domcontentloaded",
-        timeout: 45000,
-      });
-    }
-    await dismissBlockingOverlays(page);
-    // Same race as openOrCreateProject: one immediate read plus a 600ms retry
-    // was not enough to distinguish "still loading" from "signed out", so the
-    // Accounts panel reported healthy accounts as not signed in.
-    let token = await waitForSessionToken(page, 12000);
-    if (!token) {
-      await dismissBlockingOverlays(page);
-      token = await waitForSessionToken(page, 6000);
-    }
-    const email = token ? await tryGetAccountEmail(page) : null;
+/**
+ * Pure decision for Accounts auth state. Kept free of Playwright so unit
+ * tests can pin the Refresh-All / Sign-in false-negative cases.
+ *
+ * Prefer SNlM0e (required for generation). Fall back to avatar / Google
+ * cookies only when the page is stable and not clearly a signed-out /about
+ * marketing shell. Loading / evaluate failures are `uncertain` — callers
+ * must NOT flip the row to "Not signed in".
+ */
+export function decideAuthStatus(signals = {}) {
+  const {
+    token = null,
+    url = "",
+    readyState = "",
+    hasSignInCta = false,
+    hasAvatar = false,
+    hasGoogleCookies = false,
+    evaluateError = null,
+    pageUnreachable = false,
+  } = signals;
+
+  const onFlow =
+    /flow\.google\.com/i.test(url) || /labs\.google/i.test(url);
+  const onAbout = /flow\.google\.com\/about(?:[/?#]|$)/i.test(url);
+  const loading =
+    pageUnreachable ||
+    !!evaluateError ||
+    !onFlow ||
+    (readyState && readyState !== "complete" && readyState !== "interactive");
+
+  if (token) {
     return {
-      authenticated: !!token,
+      authenticated: true,
+      uncertain: false,
+      decision: "wiz-token",
+      reason: "SNlM0e present",
+    };
+  }
+  if (loading) {
+    return {
+      authenticated: false,
+      uncertain: true,
+      decision: "unknown-loading",
+      reason: evaluateError
+        ? `check failed: ${evaluateError}`
+        : !onFlow
+          ? `not on Flow yet (${url || "empty-url"})`
+          : `page not settled (readyState=${readyState || "unknown"})`,
+    };
+  }
+  // Stable /about with a Sign-in CTA and no avatar is Google's signed-out
+  // marketing shell (confirmed live against profiles that redirect there).
+  if ((onAbout || hasSignInCta) && !hasAvatar) {
+    return {
+      authenticated: false,
+      uncertain: false,
+      decision: "signed-out-shell",
+      reason: onAbout
+        ? "stable /about without session token"
+        : "stable Sign-in CTA without avatar",
+    };
+  }
+  // Avatar alone is too easy to false-positive on marketing chrome; require
+  // Google cookies too, and never trust leftover cookies on a Sign-in shell.
+  if (hasAvatar && hasGoogleCookies && !hasSignInCta) {
+    return {
+      authenticated: true,
+      uncertain: false,
+      decision: "dom-avatar",
+      reason: "logged-in avatar + Google cookies on a settled Flow page",
+    };
+  }
+  if (hasGoogleCookies && !hasSignInCta && !onAbout) {
+    // Cookies without a Sign-in CTA on the app shell usually means the WIZ
+    // token is still hydrating — do not mark signed-out yet.
+    return {
+      authenticated: false,
+      uncertain: true,
+      decision: "unknown-cookies-only",
+      reason: "Google cookies present but no WIZ token yet",
+    };
+  }
+  return {
+    authenticated: false,
+    uncertain: false,
+    decision: "no-signals",
+    reason: "no token or signed-in avatar on a settled Flow page",
+  };
+}
+
+/** Collect passive DOM / cookie signals — never navigates or clicks. */
+export async function collectAuthSignals(page) {
+  let url = "";
+  try {
+    url = page.url();
+  } catch {
+    return { pageUnreachable: true, url: "", evaluateError: "page.url() failed" };
+  }
+
+  let token = null;
+  let tokenError = null;
+  try {
+    token = await getSessionToken(page);
+  } catch (e) {
+    tokenError = e?.message || String(e);
+  }
+
+  let dom = {
+    readyState: "",
+    hasSignInCta: false,
+    hasAvatar: false,
+  };
+  let domError = null;
+  try {
+    dom = await safeEvaluate(page, () => {
+      const readyState = document.readyState || "";
+      const nodes = [
+        ...document.querySelectorAll("a, button, img, [role='button']"),
+      ];
+      let hasSignInCta = false;
+      let hasAvatar = false;
+      for (const el of nodes) {
+        const al = (el.getAttribute("aria-label") || "").toLowerCase();
+        const t = (el.textContent || "").trim().toLowerCase();
+        if (/sign[\s-]?in|log[\s-]?in/.test(al) || /sign[\s-]?in|log[\s-]?in/.test(t)) {
+          hasSignInCta = true;
+        }
+        // Flow's signed-in header uses a "Google Account" control or a
+        // single-letter circular avatar button (e.g. "Y").
+        if (
+          al.includes("google account") ||
+          (al.includes("account") && !/sign|add|create|switch account/.test(al))
+        ) {
+          hasAvatar = true;
+        }
+        const label = (el.textContent || "").trim();
+        if (
+          el.tagName === "BUTTON" &&
+          /^[A-Za-z]$/.test(label) &&
+          !/sign|log|menu|more|help|close|discord|instagram/.test(al + t)
+        ) {
+          hasAvatar = true;
+        }
+      }
+      const body = (document.body?.innerText || "").slice(0, 4000);
+      if (/sign out|sign-out|manage account|\bcredits\b/i.test(body) && !hasSignInCta) {
+        hasAvatar = true;
+      }
+      return { readyState, hasSignInCta, hasAvatar };
+    });
+  } catch (e) {
+    domError = e?.message || String(e);
+  }
+
+  let hasGoogleCookies = false;
+  try {
+    const ctx = page.context?.();
+    if (ctx && typeof ctx.cookies === "function") {
+      const cookies = await ctx.cookies([
+        "https://accounts.google.com",
+        "https://www.google.com",
+        "https://flow.google.com",
+      ]);
+      hasGoogleCookies = cookies.some((c) =>
+        /^(SID|__Secure-1PSID|__Secure-3PSID|SAPISID)$/.test(c.name),
+      );
+    }
+  } catch {
+    /* cookie read is best-effort */
+  }
+
+  return {
+    token: token || null,
+    url,
+    readyState: dom.readyState || "",
+    hasSignInCta: !!dom.hasSignInCta,
+    hasAvatar: !!dom.hasAvatar,
+    hasGoogleCookies,
+    evaluateError: tokenError || domError || null,
+    pageUnreachable: false,
+  };
+}
+
+/**
+ * Observe auth on the current page. Callers that need the Flow home URL must
+ * navigate themselves (gotoFlow) — this function never page.goto / reload, so
+ * Sign-in polling cannot fight the tab into a reload loop.
+ *
+ * @param {import('playwright').Page} page
+ * @param {{
+ *   waitForTokenMs?: number,
+ *   dismissOverlays?: boolean,
+ *   accountLabel?: string,
+ * }} [opts]
+ */
+export async function checkAuthStatus(page, opts = {}) {
+  const waitForTokenMs = opts.waitForTokenMs ?? 12000;
+  const dismissOverlays = opts.dismissOverlays === true;
+  const accountLabel = opts.accountLabel || page?.__flowAccountId || "";
+
+  try {
+    if (dismissOverlays) {
+      await dismissBlockingOverlays(page);
+    }
+
+    // Give a freshly opened home page time to publish SNlM0e, but do not
+    // navigate. Mid-reload evaluate failures stay "not ready" inside the wait.
+    let token = null;
+    if (waitForTokenMs > 0) {
+      token = await waitForSessionToken(page, waitForTokenMs);
+    } else {
+      try {
+        token = await getSessionToken(page);
+      } catch {
+        token = null;
+      }
+    }
+
+    const signals = await collectAuthSignals(page);
+    if (token) signals.token = token;
+
+    // One short settle retry when the first pass looks like "still loading".
+    let decision = decideAuthStatus(signals);
+    if (decision.uncertain && waitForTokenMs > 0) {
+      await sleep(1500);
+      const retryToken = await waitForSessionToken(page, Math.min(6000, waitForTokenMs));
+      const retrySignals = await collectAuthSignals(page);
+      if (retryToken) retrySignals.token = retryToken;
+      Object.assign(signals, retrySignals);
+      decision = decideAuthStatus(signals);
+    }
+
+    const email =
+      decision.authenticated && signals.token
+        ? await tryGetAccountEmail(page)
+        : null;
+    const url = signals.url || (() => {
+      try {
+        return page.url();
+      } catch {
+        return "";
+      }
+    })();
+
+    logFlowNav(page, "auth.decision", decision.reason, {
+      accountId: accountLabel,
+      targetUrl: [
+        `decision=${decision.decision}`,
+        `authenticated=${decision.authenticated}`,
+        `uncertain=${decision.uncertain}`,
+        `token=${signals.token ? "yes" : "no"}`,
+        `avatar=${signals.hasAvatar ? "yes" : "no"}`,
+        `cookies=${signals.hasGoogleCookies ? "yes" : "no"}`,
+        `signInCta=${signals.hasSignInCta ? "yes" : "no"}`,
+        `readyState=${signals.readyState || "?"}`,
+      ].join(" "),
+    });
+
+    return {
+      authenticated: !!decision.authenticated,
+      uncertain: !!decision.uncertain,
+      decision: decision.decision,
+      reason: decision.reason,
       email,
-      url: page.url(),
-      hasProject: !!page.url().match(/project\/([a-f0-9-]+)/),
+      url,
+      hasProject: !!url.match(/project\/([a-f0-9-]+)/),
+      signals: {
+        hasToken: !!signals.token,
+        hasAvatar: !!signals.hasAvatar,
+        hasGoogleCookies: !!signals.hasGoogleCookies,
+        hasSignInCta: !!signals.hasSignInCta,
+        readyState: signals.readyState || "",
+      },
     };
   } catch (e) {
-    return { authenticated: false, error: e.message };
+    logFlowNav(page, "auth.decision", `check failed: ${e.message}`, {
+      accountId: accountLabel,
+      targetUrl: "decision=unknown-error authenticated=false uncertain=true",
+    });
+    return {
+      authenticated: false,
+      uncertain: true,
+      decision: "unknown-error",
+      reason: e.message,
+      error: e.message,
+    };
   }
 }
