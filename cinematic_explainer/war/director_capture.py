@@ -117,6 +117,22 @@ def longest_uncut(frames: Sequence[np.ndarray], fps: float = 2.0) -> tuple:
     return best[0] / fps, best[1] / fps
 
 
+def _usable_run(path: Path) -> Optional[float]:
+    """Longest cut-free stretch of the file in seconds, by the planner's own detector; None when it cannot be measured."""
+    try:
+        from .direction import source_cuts
+        from .segments import clip_duration
+
+        n = float(clip_duration(str(path)) or 0.0)
+        if n <= 0:
+            return None
+        cuts = sorted(c for c in (source_cuts(str(path)) or []) if 0.15 < c < n - 0.15)
+        bounds = [0.0] + cuts + [n]
+        return max(b - a for a, b in zip(bounds[:-1], bounds[1:]))
+    except Exception:  # noqa: BLE001 - unmeasured: the planner decides later
+        return None
+
+
 def _trim(src: Path, dst: Path, a: float, b: float) -> bool:
     r = subprocess.run([_ffmpeg(), "-v", "error", "-y", "-ss", f"{a:.2f}", "-i", str(src), "-t", f"{b - a:.2f}", "-c:v", "libx264", "-crf", "16",
                         "-preset", "fast", "-c:a", "aac", "-movflags", "+faststart", str(dst)], capture_output=True)
@@ -177,6 +193,13 @@ def capture(video_id: str, start: float, seconds: float, dest: Path, tiles: Sequ
                 if _trim(tmp, cut, a, b):
                     cut.replace(tmp)
                     v["trimmed"] = [round(a, 2), round(b, 2)]
+    if v["ok"]:
+        # the planner keeps an earned clip only when it has MIN_SHOT_S without a cut, measured with ITS cut detector (direction.source_cuts).
+        # Judge the file the same way here, so a clip the render would drop is refused now and the next candidate is tried (Moskva 046:
+        # a 3.5 s Neptune clip with cuts at 1.5 / 3.3 s and a 2.9 s Sevastopol clip passed capture and were then dropped)
+        usable = _usable_run(tmp)
+        if usable is not None and usable < F.MIN_S:
+            v["ok"], v["reasons"] = False, [f"picture: longest stretch without a cut is {usable:.1f} s (under {F.MIN_S:g} s)"]
     if not v["ok"]:
         tmp.unlink(missing_ok=True)
         return {"ok": False, "path": "", "reasons": v["reasons"], "verify": v, "seconds": round(time.time() - t0, 1)}

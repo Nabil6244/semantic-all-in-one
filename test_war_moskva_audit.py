@@ -183,3 +183,28 @@ class CaptureChecks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ReferenceFireballs(unittest.TestCase):
+    """2026-11-10 reference 'GIANT FIREBALLS': missiles fly on the map; generic b-roll; earned clips stay visible."""
+
+    def test_strike_with_only_the_target_named_flies_from_the_attacker(self):
+        routes, extra = D._one_sided_strike("Ukraine said two Neptune missiles struck the ship south of Odesa.", [{"name": "Odesa"}])
+        self.assertEqual(len(routes), 2)                                     # two missiles, one after another
+        self.assertEqual(routes[0]["from"]["name"], "Odesa")
+        self.assertLess(routes[0]["to"]["lat"], 46.4)                         # south of Odesa, at sea
+        self.assertEqual(extra["label"], "SHIP")
+        routes, _ = D._one_sided_strike("Drones struck the Ryazan refinery overnight.", [{"name": "Ryazan"}])
+        self.assertEqual(len(routes), 1)                                     # the side opposite the target's country fires
+        self.assertNotEqual(routes[0]["from"]["name"], "Ryazan")
+        self.assertEqual(D._one_sided_strike("The strike hit something.", [{"name": "Nowhereville"}])[0], [])
+
+    def test_dimming_layout_card_counts_as_cover(self):
+        self.assertTrue(D._covers(Layer("lay_claim", 21.3, 30.3, {}, dim=True)))
+        self.assertFalse(D._covers(Layer("lay_claim", 21.3, 30.3, {"over": True}, dim=True)))
+
+    def test_generic_prompt_prefers_broll_over_talk(self):
+        r = AccurateFootageAndLivelierGraphics.reading(None, "Russian tanks moved through the snow.", "Russian tanks snow")
+        mk = lambda t: NS(video_id="x", title=t, channel="Some Channel", duration=60.0, description="", details={}, upload_date="20240101",  # noqa: E731
+                          blocked=False, content_warning="", queries=[], rank=1)
+        self.assertGreater(R.score(mk("Russian tanks in snow combat footage"), r), R.score(mk("Russian tanks in snow: news analysis live"), r))

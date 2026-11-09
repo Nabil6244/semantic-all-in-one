@@ -25,6 +25,8 @@ ALLOWED: dict = {          # {"variant:kind@start": "why it changed"}
                                     "label and the ISW card that now follows",
     "all_footage:bc_label@115.12": "2026-11-09 the label rate (about one per 15 s) is spent on AVDIIVKA at 81 s instead",
     "csv:kicker@93.92": "2026-11-10 a kicker ends with its card: 'Key figure' stops at 99.6 with the chart, not 0.3 s over the next map",
+    "csv:tac_map@30.0": "2026-11-10 a dimming layout card now counts as a cover: the map ends at 37.08 where the figure card starts (was 0.7 s under it)",
+    "all_footage:tac_map@99.6": "2026-11-10 same: the map ends at 106.28 where the timeline starts (was 0.1 s under it)",
 }
 SKIP_KINDS = {"kit_grain"}  # film grain spans the whole timeline and follows the length, not a decision
 

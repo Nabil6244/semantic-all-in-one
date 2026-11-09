@@ -631,6 +631,19 @@ def _rounded(d: ImageDraw.ImageDraw, box, fill, outline=None, width: int = 1, r:
     d.rounded_rectangle(box, radius=r, fill=fill, outline=outline, width=width)
 
 
+def _missile(d: ImageDraw.ImageDraw, cx: float, cy: float, ang: float, length: float) -> None:
+    """A small white missile (body, nose, fins, exhaust glow) centred on (cx, cy), pointing along ang."""
+    ca, sa = math.cos(ang), math.sin(ang)
+    w = length * 0.16
+    pt = lambda u, v: (cx + u * ca - v * sa, cy + u * sa + v * ca)   # noqa: E731 - u along the body, v across it
+    d.polygon([pt(-length * 0.85, 0), pt(-length * 0.5, -w * 0.9), pt(-length * 0.5, w * 0.9)], fill=(255, 170, 70, 200))   # exhaust
+    d.polygon([pt(-length * 0.5, -w), pt(length * 0.3, -w), pt(length * 0.5, 0), pt(length * 0.3, w), pt(-length * 0.5, w)],
+              fill=(246, 246, 246, 255), outline=(40, 44, 52, 255))
+    for sgn in (-1, 1):
+        d.polygon([pt(-length * 0.5, sgn * w), pt(-length * 0.3, sgn * w), pt(-length * 0.55, sgn * w * 2.4)], fill=(220, 224, 230, 255))
+    d.polygon([pt(length * 0.3, -w), pt(length * 0.5, 0), pt(length * 0.3, w)], fill=(220, 60, 50, 255))           # red nose
+
+
 def _star(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float, fill, rot: float = 0.0) -> None:
     pts = []
     for i in range(16):
@@ -818,7 +831,9 @@ def _movement(od: ImageDraw.ImageDraw, r: dict, xy: list, part: list, frac: floa
                 od.line(tail, fill=(255, 236, 200, 200), width=4 * SS, joint="curve")
             for gr, ga in ((18, 70), (10, 150)):
                 od.ellipse([hx - gr * SS, hy - gr * SS, hx + gr * SS, hy + gr * SS], fill=(255, 190, 90, ga))
-            od.ellipse([hx - 5 * SS, hy - 5 * SS, hx + 5 * SS, hy + 5 * SS], fill=(255, 255, 255, 255))
+            # the missile itself rides the arc (reference 2026-11-10: white missiles fly from launch to target), nose along the path
+            px, py = part[-2] if len(part) >= 2 else (hx - 1, hy)
+            _missile(od, hx, hy, math.atan2(hy - py, hx - px), 40 * SS)
         else:
             age = t - r["start"] - r["length"]
             if age < 1.2:                                           # impact: a flash, then a shock ring opening out
@@ -827,6 +842,9 @@ def _movement(od: ImageDraw.ImageDraw, r: dict, xy: list, part: list, frac: floa
                 rr = (10 + 60 * (1 - k)) * SS
                 od.ellipse([hx - rr, hy - rr, hx + rr, hy + rr], outline=(255, 210, 140, int(220 * k)), width=3 * SS)
             _star(od, hx, hy, (9 + 2 * math.sin(age * 6)) * SS, AMBER)
+            for k_, base in enumerate((16, 27)):                    # the hit target keeps a pulsing double ring (reference: struck sites)
+                rr = (base + 3 * math.sin(age * 4 - k_)) * SS
+                od.ellipse([hx - rr, hy - rr, hx + rr, hy + rr], outline=(255, 255, 255, 210 - 70 * k_), width=max(2, int(2.5 * SS)))
     else:  # retreat
         pale = (214, 220, 228)
         for seg in MP._dashes(part, 12 * SS, 10 * SS):

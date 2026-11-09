@@ -625,9 +625,13 @@ def _narrate_map(p: Dict[str, Any], text: str, A: Any, t0: float, countries: Seq
             dst = next((x["name"] for x in places if x.get("name") != src), None)
             if src and dst:
                 p["routes"] = [{"from": src, "to": dst}]
-    for r in p.get("routes") or []:
+    if not p.get("routes") and _STRIKE_V.search(text) and len(places) >= 1:
+        p["routes"], extra = _one_sided_strike(text, places)
+        if extra:
+            p["places"] = list(p["places"]) + [extra]
+    for i_, r in enumerate(p.get("routes") or []):
         if verb is not None:
-            r["start"] = round(max(0.4, A.time_at(verb.start()) - t0), 2)
+            r["start"] = round(max(0.4, A.time_at(verb.start()) - t0) + 0.45 * i_, 2)      # missiles leave one after another
             r["length"] = 1.4
         r["style"] = "strike" if _STRIKE_V.search(text) and not _ADVANCE_V.search(text) else "retreat" if _RETREAT_V.search(text) else "advance"
         side = "red" if re.search(r"\bruss\w*|\bmoscow\b|\bkremlin\b", low) else "blue" if re.search(r"\bukrain\w*|\bkyiv\b", low) else ""
@@ -660,6 +664,95 @@ def _narrate_map(p: Dict[str, Any], text: str, A: Any, t0: float, countries: Seq
 
 
 FAR_KM = 1500.0              # named places further apart than this are framed together, never as close-ups
+
+# one-sided strikes (reference 2026-11-10, "GIANT FIREBALLS": missiles fly from Ukraine to each target). A sentence often names only
+# the target ("two Neptune missiles struck the ship south of Odesa"): the missile then leaves the attacker's side.
+_UA_WEAPON = re.compile(r"\b(neptune|storm shadow|scalp|atacms|himars|flamingo|liutyi|lyutyi|bober|sea drones?|magura)\b", re.I)
+_RU_WEAPON = re.compile(r"\b(kalibr|iskander|kinzhal|shahed|geran|kh-\d+|oreshnik|zircon|glide bombs?)\b", re.I)
+_DIR_OF = re.compile(r"\b(north|south|east|west)(?:-?(east|west))?(?:ern)?\s+of\s+(?:the\s+)?([A-Z][\w'-]+(?:\s[A-Z][\w'-]+)?)")
+_SHIP_W = re.compile(r"\b(ship|cruiser|warship|flagship|frigate|corvette|vessel|landing ship|submarine|tanker)\b", re.I)
+_COUNT_W = re.compile(r"\b(two|three|four|five|six|\d)\s+(?:[A-Z][\w-]+\s+){0,2}(missiles|drones|rockets)\b", re.I)
+_NUM_W = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+
+
+def _attacker(text: str) -> str:
+    """'ua' / 'ru' / '' : who fires, from the weapon or the side named before the strike verb. Never guessed."""
+    if _UA_WEAPON.search(text):
+        return "ua"
+    if _RU_WEAPON.search(text):
+        return "ru"
+    sv = _STRIKE_V.search(text)
+    head = text[:sv.start()] if sv else text
+    sides = [("ua" if m.group(0).lower().startswith(("ukrain", "kyiv")) else "ru")
+             for m in re.finditer(r"\b(ukrain\w*|kyiv|russia\w*|moscow|kremlin)\b", head, re.I)]
+    return sides[0] if sides else ""
+
+
+def _side_cities(side: str) -> List[Dict[str, Any]]:
+    try:
+        from . import catalog as C
+
+        es = C._entries("places.json")
+    except Exception:  # noqa: BLE001
+        return []
+    want = "Ukraine" if side == "ua" else "Russia"
+    return [e for e in es if e.get("type") == "city" and e.get("region") == want and e.get("lat") is not None]
+
+
+def _one_sided_strike(text: str, places: Sequence[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """(routes, extra target marker) for a strike sentence that names only its target. The launch point is the named place itself when the
+    target lies off it ('south of Odesa', and Odesa is on the attacker's side), else the attacker's nearest catalogue city 120-1200 km away."""
+    tgt_name = str(places[-1].get("name") or "")
+    side = _attacker(text)
+    if not side:                     # 'Drones struck the Ryazan refinery': the attacker is the side opposite the target's country
+        nm = tgt_name.lower()
+        side = "ua" if any(str(e.get("name", "")).lower() == nm for e in _side_cities("ru")) else \
+            "ru" if any(str(e.get("name", "")).lower() == nm for e in _side_cities("ua")) else ""
+    if not side:
+        return [], None
+    tgt = _place_point(tgt_name)
+    if tgt is None:
+        return [], None
+    extra = None
+    off = _DIR_OF.search(text)
+    lat, lon = tgt
+    origin = None
+    if off and off.group(3).lower() == tgt_name.lower():
+        d = {"north": (0.6, 0.0), "south": (-0.6, 0.0), "east": (0.0, 0.9), "west": (0.0, -0.9)}
+        dy, dx = d[off.group(1).lower()]
+        if off.group(2):
+            dy2, dx2 = d[off.group(2).lower()]
+            dy, dx = dy + dy2 * 0.7, dx + dx2 * 0.7
+        lat, lon = tgt[0] + dy, tgt[1] + dx
+        label = (_SHIP_W.search(text).group(1).upper() if _SHIP_W.search(text) else "TARGET")
+        extra = {"name": label, "label": label, "lat": round(lat, 3), "lon": round(lon, 3), "kind": "ring", "colour": "red", "start": 0.6}
+        own = [e for e in _side_cities(side) if str(e.get("name", "")).lower() == tgt_name.lower()]
+        if own:
+            origin = (float(own[0]["lat"]), float(own[0]["lon"]), own[0]["name"])
+    if origin is None:
+        best = None
+        for e in _side_cities(side):
+            km = _km_pts((lat, lon), (float(e["lat"]), float(e["lon"])))
+            if 120.0 <= km <= 1200.0 and (best is None or km < best[0]):
+                best = (km, float(e["lat"]), float(e["lon"]), e["name"])
+        if best is None:
+            return [], extra
+        origin = best[1:]
+    m = _COUNT_W.search(text)
+    n = min(4, int(m.group(1)) if m and m.group(1).isdigit() else _NUM_W.get(m.group(1).lower(), 1) if m else 1)
+    to = {"name": extra["name"] if extra else tgt_name, "lat": round(lat, 3), "lon": round(lon, 3)}
+    routes = []
+    for i in range(n):              # parallel launch points a few km apart, so each missile is seen
+        routes.append({"from": {"name": origin[2], "lat": round(origin[0] + 0.12 * i, 3), "lon": round(origin[1] - 0.12 * i, 3)}, "to": dict(to)})
+    return routes, extra
+
+
+def _km_pts(a: Tuple[float, float], b: Tuple[float, float]) -> float:
+    import math as _m
+
+    la1, lo1, la2, lo2 = map(_m.radians, (a[0], a[1], b[0], b[1]))
+    h = _m.sin((la2 - la1) / 2) ** 2 + _m.cos(la1) * _m.cos(la2) * _m.sin((lo2 - lo1) / 2) ** 2
+    return 6371.0 * 2 * _m.asin(min(1.0, _m.sqrt(h)))
 
 
 def _place_point(spec: Any) -> Optional[Tuple[float, float]]:
@@ -2649,7 +2742,9 @@ def _covers(ly: Layer) -> bool:
     if p.get("over") or ly.kind in SOFT:
         return False
     if ly.kind in SELF_BACKED or ly.kind in FULL_KINDS:
-        return ly.kind in SELF_BACKED or ly.kind in MOTION_KINDS or ly.kind in {"tac_map", "tac_route", "map_card"}
+        # a full-frame layout that dims the footage (lay_claim, lay_document ...) hides it too (Moskva 046: a 9 s claim card dimmed the
+        # next scene's Moskva warships clip)
+        return ly.kind in SELF_BACKED or ly.kind in MOTION_KINDS or ly.kind in {"tac_map", "tac_route", "map_card"} or bool(ly.dim)
     return bool(ly.dim) and ly.kind not in CORNER_KINDS
 
 

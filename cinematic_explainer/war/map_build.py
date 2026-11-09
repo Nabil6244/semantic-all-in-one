@@ -292,8 +292,18 @@ def _plan_params(beats: List[Dict[str, Any]], t0: float, roles: Dict[str, str], 
             seen_p[nm.lower()] = len(places)
             places.append({"name": nm, "kind": "ring" if bt["strike"] else "pin", "colour": "red" if bt["strike"] else "white", "start": rel(bt["a"]) + 0.3})
         here = [nm for nm in bt["places"] if nm.lower() in seen_p]
-        if bt["strike"] and here:
-            glyphs.append({"place": here[0], "kind": "explosion", "start": rel(bt["a"]) + 0.8})
+        flown = []
+        if bt["strike"] and here and not bt["route"]:
+            # the missiles fly from the attacker's side to the target (reference 2026-11-10 "GIANT FIREBALLS"), one after another
+            from .direction import _one_sided_strike
+
+            flown, extra = _one_sided_strike(bt["text"], [{"name": here[0]}])
+            if extra and len(places) < 8:
+                places.append(dict(extra, start=rel(bt["a"]) + 0.3))
+            for i_, r_ in enumerate(flown):
+                routes.append(dict(r_, style="strike", colour="amber", start=rel(bt["a"]) + 0.9 + 0.45 * i_, length=1.4))
+        if bt["strike"] and here:          # the explosion lands with the (last) missile
+            glyphs.append({"place": here[0], "kind": "explosion", "start": (rel(bt["a"]) + 0.9 + 0.45 * (len(flown) - 1) + 1.4) if flown else rel(bt["a"]) + 0.8})
         if bt["drones"] and here:
             glyphs.append({"place": here[0], "kind": "swarm", "start": rel(bt["a"]) + 0.5})
         if bt["route"] and all(x.lower() in seen_p for x in bt["route"]):

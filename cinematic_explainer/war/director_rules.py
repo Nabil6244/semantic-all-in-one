@@ -317,12 +317,28 @@ def score(c: Any, r: Reading, film_date: Optional[_dt.date] = None) -> float:
         s += 1.0 if c.duration <= SHORT_RAW_S else (0.3 if c.duration <= 600 else -0.5)
     if getattr(c, "verified", False):
         s += 0.3
+    parts = [p_ for p_ in (getattr(r, "prompt_parts", None) or []) if p_.get("names") or p_.get("words")]
+    if parts:                       # the clip that shows more of what the CSV prompt asks for wins
+        terms = {x for p_ in parts for x in list(p_.get("names", [])) + list(p_.get("words", []))}
+        s += 0.8 * min(4, sum(1 for x in terms if _has(hay, x)))
+    generic = bool(parts) and not any(p_.get("names") for p_ in parts)
+    if generic:
+        # reference 2026-11-10 ("GIANT FIREBALLS"): generic pictures are clean b-roll, never a news programme or a talk
+        title = fold(c.title or "")
+        if _BROLL.search(title):
+            s += 1.0
+        if _TALK.search(title):
+            s -= 1.0
     up = _upload(c)
-    win = event_date(r, film_date) if film_date else None
+    win = event_date(r, film_date) if film_date and not generic else None
     if up and win:
         lag = (up - win[0]).days
         s += 1.0 if 0 <= lag <= 10 else (0.3 if 0 <= lag <= 45 else -0.3)
     return round(s, 3)
+
+
+_BROLL = re.compile(r"\b(footage|b-?roll|combat|drone video|drone footage|training|exercises?|drills?|in action|pov|helmet ?cam|4k)\b", re.I)
+_TALK = re.compile(r"\b(news|live|interview|explained|analysis|update|briefing|podcast|debate|reacts?|breaking|what we know)\b", re.I)
 
 
 def rank(cands: Sequence[Any], r: Reading, film_date: Optional[_dt.date] = None,
