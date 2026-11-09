@@ -465,7 +465,7 @@ def _narrate_map(p: Dict[str, Any], text: str, A: Any, t0: float, countries: Seq
 
     named: List[Tuple[float, str]] = []
     places = []
-    for pl in p.get("places") or []:
+    for pl in _distinct_places(p.get("places") or [], when):
         spec = dict(pl) if isinstance(pl, dict) else {"name": str(pl)}
         w = when(spec.get("name") or "")
         if w is not None:
@@ -541,7 +541,71 @@ def _narrate_map(p: Dict[str, Any], text: str, A: Any, t0: float, countries: Seq
         p["focus"] = [[n for _w, n in named]] + [[n] for _w, n in named[1:]]
         p["focus_times"] = [0.0] + [max(0.6, w - 0.2) for w, _n in named[1:]]
         p["close_steps"] = [False] + [True] * (len(named) - 1)      # each further place named: the camera moves in on it
+    if _far_apart([n for _w, n in named]):
+        # places thousands of km apart (Olenya to Belaya, 2026-11-09): one wide view that holds them all while each pin lands as it is named.
+        # A close-up there showed 25 km of one colour fill and never the distance the sentence is about
+        p.pop("close_steps", None)
+        if not p.get("routes"):
+            p["focus"] = [[n for _w, n in named]]
+            p["focus_times"] = [0.0]
     return p
+
+
+FAR_KM = 1500.0              # named places further apart than this are framed together, never as close-ups
+
+
+def _place_point(spec: Any) -> Optional[Tuple[float, float]]:
+    from .maps_tactical import resolve_place
+
+    try:
+        pt, _why = resolve_place(spec)
+    except Exception:  # noqa: BLE001 - a lookup never stops the plan
+        return None
+    return (float(pt["lat"]), float(pt["lon"])) if pt else None
+
+
+def _distinct_places(raw: Sequence[Any], when: Any) -> List[Any]:
+    """One pin per spot: a town and the base named after it ('Olenya', 'Olenya Air Base') resolve to the same point, so the one the narration
+    says is kept; areas that cannot be pinned (Siberia, the Arctic) are dropped when real points are named."""
+    items = [(pl, str((pl.get("name") if isinstance(pl, dict) else pl) or "")) for pl in raw]
+    items.sort(key=lambda x: when(x[1]) is None)                 # spoken names first
+    kept: List[Tuple[Any, Optional[Tuple[float, float]]]] = []
+    for pl, nm in items:
+        pt = _place_point(pl)
+        if pt is not None and any(q is not None and abs(q[0] - pt[0]) < 0.3 and abs(q[1] - pt[1]) < 0.3 for _p, q in kept):
+            continue
+        kept.append((pl, pt))
+    if any(q is not None for _p, q in kept):
+        kept = [(pl, q) for pl, q in kept if q is not None]
+    order = {id(pl): i for i, pl in enumerate(raw)}
+    return [pl for pl, _q in sorted(kept, key=lambda x: order[id(x[0])])]
+
+
+def _far_apart(names: Sequence[str]) -> bool:
+    import math
+
+    pts = [q for q in (_place_point({"name": n}) for n in names) if q is not None]
+    for i in range(len(pts)):
+        for j in range(i + 1, len(pts)):
+            (a1, o1), (a2, o2) = pts[i], pts[j]
+            a1, o1, a2, o2 = map(math.radians, (a1, o1, a2, o2))
+            d = 2 * 6371.0 * math.asin(math.sqrt(math.sin((a2 - a1) / 2) ** 2 + math.cos(a1) * math.cos(a2) * math.sin((o2 - o1) / 2) ** 2))
+            if d > FAR_KM:
+                return True
+    return False
+
+
+def _chip_title(n: Any) -> str:
+    """A figure as a graphic shows it: digits ('4,000', not 'four thousand'), the narration's own digits kept as written."""
+    raw = str(n.raw or "")
+    if any(ch.isdigit() for ch in raw):
+        return raw
+    v = float(n.value)
+    if v >= 1e9:
+        return f"{v / 1e9:g} billion"
+    if v >= 1e6:
+        return f"{v / 1e6:g} million"
+    return f"{v:,.0f}"
 
 
 def _tac_params(sent: Any, places: List[Any], countries: List[Any], political: bool) -> Dict[str, Any]:
@@ -563,7 +627,7 @@ def _tac_params(sent: Any, places: List[Any], countries: List[Any], political: b
             p["glyphs"].append({"place": places[0].name, "kind": "sticker", "name": nm, "start": 1.8})     # the named weapon beside the first place, symbolic
     for n in sent.numbers[:2]:
         if n.complete and not n.is_year:
-            p["chips"].append({"title": n.raw, "sub": n.unit or "as stated in the narration", "variant": "dark"})
+            p["chips"].append({"title": _chip_title(n), "sub": n.unit or "as stated in the narration", "variant": "dark"})
     if not places and not political:
         return {}
     p["places"] = [{"name": e.name, "kind": "pin"} for e in places[:5]] if not political else p["places"]

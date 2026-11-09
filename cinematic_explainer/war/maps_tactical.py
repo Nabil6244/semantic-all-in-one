@@ -293,7 +293,7 @@ PANEL_W = 316                    # note-chip column (px); the framing keeps the 
 PANEL_FRAC = 0.70                # share of the frame width left of the panel
 MIN_SPAN_DEG = {"tactical": 9.0, "political": 10.0}   # never frame tighter than this many degrees of longitude (about 640 km at 50 N)
 MIN_CONTEXT = 3                                       # at least this many quiet context cities in view; the frame widens until they are
-MAX_SPAN_DEG = 70.0
+MAX_SPAN_DEG = 150.0            # wide enough for places across Russia (Olenya to Belaya, about 70 degrees apart, 2026-11-09)
 CLOSE_SPAN_DEG = 3.2             # a close-up on one town (about 230 km across): the camera pushes in when the narration names it
 
 

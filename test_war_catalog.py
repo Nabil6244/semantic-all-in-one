@@ -95,7 +95,7 @@ class PlaceFigureTests(unittest.TestCase):
         places = C._entries("places.json")
         self.assertGreaterEqual(len(places), 40)
         for p in places:
-            self.assertTrue(20 <= p["lat"] <= 80 and -20 <= p["lon"] <= 80, p["id"])
+            self.assertTrue(-60 <= p["lat"] <= 85 and -180 <= p["lon"] <= 180, p["id"])     # any theatre (2026-11-09: Siberia, Middle East, Asia)
 
     def test_place_aliases(self):
         for s in ("fighting in Kiev", "Київ", "Kyiv"):

@@ -365,6 +365,9 @@ def _is_day_of_month(sentence: str, start: int, end: int, val: float) -> bool:
                 or re.match(r"(?:st|nd|rd|th)\b", after))
 
 
+_WORD_SCALE = re.compile(r"\s+(hundred|thousand|million|billion)\b", re.IGNORECASE)
+
+
 def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tuple[int, Tuple[int, int]]]]:
     numbers: List[Number] = []
     years: List[Tuple[int, Tuple[int, int]]] = []
@@ -388,9 +391,14 @@ def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tup
         n = Number(value=val, raw=raw.strip(), unit=unit, span=span, period=period, complete=bool(unit or period))
         numbers.append(n)
     for m in _WORDNUM.finditer(sentence):
-        ref, period = _referent(sentence, m.end())
+        val, end = float(NUMBER_WORDS[m.group(1).lower()]), m.end()
+        sc = _WORD_SCALE.match(sentence, end)       # 'four thousand kilometres' is 4,000 km, never 4 with the unit 'thousand kilometres'
+        if sc:
+            val *= {"hundred": 1e2, "thousand": 1e3, "million": 1e6, "billion": 1e9}[sc.group(1).lower()]
+            end = sc.end()
+        ref, period = _referent(sentence, end)
         if ref:
-            numbers.append(Number(value=float(NUMBER_WORDS[m.group(1).lower()]), raw=m.group(0), unit=ref, span=(offset + m.start(), offset + m.end()),
+            numbers.append(Number(value=val, raw=sentence[m.start():end], unit=ref, span=(offset + m.start(), offset + end),
                                   period=period, complete=True))
     numbers.sort(key=lambda n: n.span)
     return numbers, years

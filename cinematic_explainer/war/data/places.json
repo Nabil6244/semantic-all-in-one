@@ -1000,6 +1000,1387 @@
    "region": "Italy",
    "approximate": false,
    "note": "historical / world place, public coordinates rounded"
+  },
+  {
+   "id": "murmansk",
+   "name": "Murmansk",
+   "aliases": [
+    "Murmansk",
+    "Мурманск"
+   ],
+   "lat": 68.97,
+   "lon": 33.08,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "olenegorsk",
+   "name": "Olenegorsk",
+   "aliases": [
+    "Olenegorsk"
+   ],
+   "lat": 68.14,
+   "lon": 33.27,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "arkhangelsk",
+   "name": "Arkhangelsk",
+   "aliases": [
+    "Arkhangelsk",
+    "Archangel"
+   ],
+   "lat": 64.54,
+   "lon": 40.54,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "irkutsk",
+   "name": "Irkutsk",
+   "aliases": [
+    "Irkutsk",
+    "Иркутск"
+   ],
+   "lat": 52.29,
+   "lon": 104.3,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "novosibirsk",
+   "name": "Novosibirsk",
+   "aliases": [
+    "Novosibirsk"
+   ],
+   "lat": 55.03,
+   "lon": 82.92,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "yekaterinburg",
+   "name": "Yekaterinburg",
+   "aliases": [
+    "Yekaterinburg",
+    "Ekaterinburg"
+   ],
+   "lat": 56.84,
+   "lon": 60.61,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "omsk",
+   "name": "Omsk",
+   "aliases": [
+    "Omsk"
+   ],
+   "lat": 54.99,
+   "lon": 73.37,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "chelyabinsk",
+   "name": "Chelyabinsk",
+   "aliases": [
+    "Chelyabinsk"
+   ],
+   "lat": 55.16,
+   "lon": 61.4,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "krasnoyarsk",
+   "name": "Krasnoyarsk",
+   "aliases": [
+    "Krasnoyarsk"
+   ],
+   "lat": 56.01,
+   "lon": 92.85,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "vladivostok",
+   "name": "Vladivostok",
+   "aliases": [
+    "Vladivostok"
+   ],
+   "lat": 43.12,
+   "lon": 131.89,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "khabarovsk",
+   "name": "Khabarovsk",
+   "aliases": [
+    "Khabarovsk"
+   ],
+   "lat": 48.48,
+   "lon": 135.08,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "petropavlovsk-kamchatsky",
+   "name": "Petropavlovsk-Kamchatsky",
+   "aliases": [
+    "Petropavlovsk-Kamchatsky"
+   ],
+   "lat": 53.02,
+   "lon": 158.65,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kazan",
+   "name": "Kazan",
+   "aliases": [
+    "Kazan"
+   ],
+   "lat": 55.79,
+   "lon": 49.12,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "yelabuga",
+   "name": "Yelabuga",
+   "aliases": [
+    "Yelabuga",
+    "Elabuga"
+   ],
+   "lat": 55.76,
+   "lon": 52.05,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "samara",
+   "name": "Samara",
+   "aliases": [
+    "Samara"
+   ],
+   "lat": 53.2,
+   "lon": 50.15,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "nizhny-novgorod",
+   "name": "Nizhny Novgorod",
+   "aliases": [
+    "Nizhny Novgorod"
+   ],
+   "lat": 56.33,
+   "lon": 44.0,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "saratov",
+   "name": "Saratov",
+   "aliases": [
+    "Saratov"
+   ],
+   "lat": 51.53,
+   "lon": 46.03,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "engels",
+   "name": "Engels",
+   "aliases": [
+    "Engels"
+   ],
+   "lat": 51.5,
+   "lon": 46.12,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "ryazan",
+   "name": "Ryazan",
+   "aliases": [
+    "Ryazan"
+   ],
+   "lat": 54.63,
+   "lon": 39.74,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kaluga",
+   "name": "Kaluga",
+   "aliases": [
+    "Kaluga"
+   ],
+   "lat": 54.51,
+   "lon": 36.26,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tula",
+   "name": "Tula",
+   "aliases": [
+    "Tula"
+   ],
+   "lat": 54.19,
+   "lon": 37.62,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "lipetsk",
+   "name": "Lipetsk",
+   "aliases": [
+    "Lipetsk"
+   ],
+   "lat": 52.6,
+   "lon": 39.6,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "ivanovo",
+   "name": "Ivanovo",
+   "aliases": [
+    "Ivanovo"
+   ],
+   "lat": 57.0,
+   "lon": 40.97,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tver",
+   "name": "Tver",
+   "aliases": [
+    "Tver"
+   ],
+   "lat": 56.86,
+   "lon": 35.9,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "yaroslavl",
+   "name": "Yaroslavl",
+   "aliases": [
+    "Yaroslavl"
+   ],
+   "lat": 57.63,
+   "lon": 39.87,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "pskov",
+   "name": "Pskov",
+   "aliases": [
+    "Pskov"
+   ],
+   "lat": 57.82,
+   "lon": 28.33,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "krasnodar",
+   "name": "Krasnodar",
+   "aliases": [
+    "Krasnodar"
+   ],
+   "lat": 45.04,
+   "lon": 38.98,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "sochi",
+   "name": "Sochi",
+   "aliases": [
+    "Sochi"
+   ],
+   "lat": 43.6,
+   "lon": 39.73,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "taganrog",
+   "name": "Taganrog",
+   "aliases": [
+    "Taganrog"
+   ],
+   "lat": 47.21,
+   "lon": 38.94,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "yeysk",
+   "name": "Yeysk",
+   "aliases": [
+    "Yeysk"
+   ],
+   "lat": 46.71,
+   "lon": 38.27,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tuapse",
+   "name": "Tuapse",
+   "aliases": [
+    "Tuapse"
+   ],
+   "lat": 44.1,
+   "lon": 39.07,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "grozny",
+   "name": "Grozny",
+   "aliases": [
+    "Grozny"
+   ],
+   "lat": 43.32,
+   "lon": 45.69,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "makhachkala",
+   "name": "Makhachkala",
+   "aliases": [
+    "Makhachkala"
+   ],
+   "lat": 42.98,
+   "lon": 47.5,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "orenburg",
+   "name": "Orenburg",
+   "aliases": [
+    "Orenburg"
+   ],
+   "lat": 51.77,
+   "lon": 55.1,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "sudzha",
+   "name": "Sudzha",
+   "aliases": [
+    "Sudzha"
+   ],
+   "lat": 51.19,
+   "lon": 35.27,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "shebekino",
+   "name": "Shebekino",
+   "aliases": [
+    "Shebekino"
+   ],
+   "lat": 50.41,
+   "lon": 36.9,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "orsk",
+   "name": "Orsk",
+   "aliases": [
+    "Orsk"
+   ],
+   "lat": 51.2,
+   "lon": 58.57,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "ukhta",
+   "name": "Ukhta",
+   "aliases": [
+    "Ukhta"
+   ],
+   "lat": 63.57,
+   "lon": 53.68,
+   "type": "city",
+   "region": "Russia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "zhytomyr",
+   "name": "Zhytomyr",
+   "aliases": [
+    "Zhytomyr",
+    "Zhitomir"
+   ],
+   "lat": 50.25,
+   "lon": 28.66,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "vinnytsia",
+   "name": "Vinnytsia",
+   "aliases": [
+    "Vinnytsia",
+    "Vinnitsa"
+   ],
+   "lat": 49.23,
+   "lon": 28.47,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "poltava",
+   "name": "Poltava",
+   "aliases": [
+    "Poltava"
+   ],
+   "lat": 49.59,
+   "lon": 34.55,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kryvyi-rih",
+   "name": "Kryvyi Rih",
+   "aliases": [
+    "Kryvyi Rih",
+    "Krivoy Rog"
+   ],
+   "lat": 47.91,
+   "lon": 33.39,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kropyvnytskyi",
+   "name": "Kropyvnytskyi",
+   "aliases": [
+    "Kropyvnytskyi"
+   ],
+   "lat": 48.51,
+   "lon": 32.26,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "cherkasy",
+   "name": "Cherkasy",
+   "aliases": [
+    "Cherkasy"
+   ],
+   "lat": 49.44,
+   "lon": 32.06,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "rivne",
+   "name": "Rivne",
+   "aliases": [
+    "Rivne"
+   ],
+   "lat": 50.62,
+   "lon": 26.25,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "lutsk",
+   "name": "Lutsk",
+   "aliases": [
+    "Lutsk"
+   ],
+   "lat": 50.75,
+   "lon": 25.33,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "ternopil",
+   "name": "Ternopil",
+   "aliases": [
+    "Ternopil"
+   ],
+   "lat": 49.55,
+   "lon": 25.59,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "ivano-frankivsk",
+   "name": "Ivano-Frankivsk",
+   "aliases": [
+    "Ivano-Frankivsk"
+   ],
+   "lat": 48.92,
+   "lon": 24.71,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "uzhhorod",
+   "name": "Uzhhorod",
+   "aliases": [
+    "Uzhhorod"
+   ],
+   "lat": 48.62,
+   "lon": 22.3,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "chernivtsi",
+   "name": "Chernivtsi",
+   "aliases": [
+    "Chernivtsi"
+   ],
+   "lat": 48.29,
+   "lon": 25.94,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "khmelnytskyi",
+   "name": "Khmelnytskyi",
+   "aliases": [
+    "Khmelnytskyi"
+   ],
+   "lat": 49.42,
+   "lon": 26.99,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "izmail",
+   "name": "Izmail",
+   "aliases": [
+    "Izmail"
+   ],
+   "lat": 45.35,
+   "lon": 28.84,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kupiansk",
+   "name": "Kupiansk",
+   "aliases": [
+    "Kupiansk",
+    "Kupyansk"
+   ],
+   "lat": 49.71,
+   "lon": 37.62,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "lyman",
+   "name": "Lyman",
+   "aliases": [
+    "Lyman"
+   ],
+   "lat": 48.99,
+   "lon": 37.8,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "vuhledar",
+   "name": "Vuhledar",
+   "aliases": [
+    "Vuhledar",
+    "Ugledar"
+   ],
+   "lat": 47.78,
+   "lon": 37.25,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "chasiv-yar",
+   "name": "Chasiv Yar",
+   "aliases": [
+    "Chasiv Yar"
+   ],
+   "lat": 48.59,
+   "lon": 37.84,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "toretsk",
+   "name": "Toretsk",
+   "aliases": [
+    "Toretsk"
+   ],
+   "lat": 48.4,
+   "lon": 37.85,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kostiantynivka",
+   "name": "Kostiantynivka",
+   "aliases": [
+    "Kostiantynivka"
+   ],
+   "lat": 48.53,
+   "lon": 37.71,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "melitopol",
+   "name": "Melitopol",
+   "aliases": [
+    "Melitopol"
+   ],
+   "lat": 46.85,
+   "lon": 35.37,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "berdiansk",
+   "name": "Berdiansk",
+   "aliases": [
+    "Berdiansk",
+    "Berdyansk"
+   ],
+   "lat": 46.76,
+   "lon": 36.79,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "enerhodar",
+   "name": "Enerhodar",
+   "aliases": [
+    "Enerhodar"
+   ],
+   "lat": 47.5,
+   "lon": 34.66,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "nova-kakhovka",
+   "name": "Nova Kakhovka",
+   "aliases": [
+    "Nova Kakhovka"
+   ],
+   "lat": 46.75,
+   "lon": 33.37,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "robotyne",
+   "name": "Robotyne",
+   "aliases": [
+    "Robotyne"
+   ],
+   "lat": 47.44,
+   "lon": 35.84,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "orikhiv",
+   "name": "Orikhiv",
+   "aliases": [
+    "Orikhiv"
+   ],
+   "lat": 47.57,
+   "lon": 35.79,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "huliaipole",
+   "name": "Huliaipole",
+   "aliases": [
+    "Huliaipole"
+   ],
+   "lat": 47.66,
+   "lon": 36.26,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "vovchansk",
+   "name": "Vovchansk",
+   "aliases": [
+    "Vovchansk"
+   ],
+   "lat": 50.29,
+   "lon": 36.94,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "bucha",
+   "name": "Bucha",
+   "aliases": [
+    "Bucha"
+   ],
+   "lat": 50.54,
+   "lon": 30.22,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "irpin",
+   "name": "Irpin",
+   "aliases": [
+    "Irpin"
+   ],
+   "lat": 50.52,
+   "lon": 30.25,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "izium",
+   "name": "Izium",
+   "aliases": [
+    "Izium",
+    "Izyum"
+   ],
+   "lat": 49.21,
+   "lon": 37.26,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "sievierodonetsk",
+   "name": "Sievierodonetsk",
+   "aliases": [
+    "Sievierodonetsk",
+    "Severodonetsk"
+   ],
+   "lat": 48.95,
+   "lon": 38.49,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "lysychansk",
+   "name": "Lysychansk",
+   "aliases": [
+    "Lysychansk"
+   ],
+   "lat": 48.9,
+   "lon": 38.43,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "soledar",
+   "name": "Soledar",
+   "aliases": [
+    "Soledar"
+   ],
+   "lat": 48.69,
+   "lon": 38.07,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "myrhorod",
+   "name": "Myrhorod",
+   "aliases": [
+    "Myrhorod"
+   ],
+   "lat": 49.97,
+   "lon": 33.61,
+   "type": "city",
+   "region": "Ukraine",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "helsinki",
+   "name": "Helsinki",
+   "aliases": [
+    "Helsinki"
+   ],
+   "lat": 60.17,
+   "lon": 24.94,
+   "type": "city",
+   "region": "Finland",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "stockholm",
+   "name": "Stockholm",
+   "aliases": [
+    "Stockholm"
+   ],
+   "lat": 59.33,
+   "lon": 18.07,
+   "type": "city",
+   "region": "Sweden",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "oslo",
+   "name": "Oslo",
+   "aliases": [
+    "Oslo"
+   ],
+   "lat": 59.91,
+   "lon": 10.75,
+   "type": "city",
+   "region": "Norway",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "vilnius",
+   "name": "Vilnius",
+   "aliases": [
+    "Vilnius"
+   ],
+   "lat": 54.69,
+   "lon": 25.28,
+   "type": "city",
+   "region": "Lithuania",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "riga",
+   "name": "Riga",
+   "aliases": [
+    "Riga"
+   ],
+   "lat": 56.95,
+   "lon": 24.11,
+   "type": "city",
+   "region": "Latvia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tallinn",
+   "name": "Tallinn",
+   "aliases": [
+    "Tallinn"
+   ],
+   "lat": 59.44,
+   "lon": 24.75,
+   "type": "city",
+   "region": "Estonia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "chisinau",
+   "name": "Chisinau",
+   "aliases": [
+    "Chisinau"
+   ],
+   "lat": 47.01,
+   "lon": 28.86,
+   "type": "city",
+   "region": "Moldova",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tbilisi",
+   "name": "Tbilisi",
+   "aliases": [
+    "Tbilisi"
+   ],
+   "lat": 41.72,
+   "lon": 44.79,
+   "type": "city",
+   "region": "Georgia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "yerevan",
+   "name": "Yerevan",
+   "aliases": [
+    "Yerevan"
+   ],
+   "lat": 40.18,
+   "lon": 44.51,
+   "type": "city",
+   "region": "Armenia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "baku",
+   "name": "Baku",
+   "aliases": [
+    "Baku"
+   ],
+   "lat": 40.41,
+   "lon": 49.87,
+   "type": "city",
+   "region": "Azerbaijan",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tel-aviv",
+   "name": "Tel Aviv",
+   "aliases": [
+    "Tel Aviv"
+   ],
+   "lat": 32.08,
+   "lon": 34.78,
+   "type": "city",
+   "region": "Israel",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "jerusalem",
+   "name": "Jerusalem",
+   "aliases": [
+    "Jerusalem"
+   ],
+   "lat": 31.77,
+   "lon": 35.21,
+   "type": "city",
+   "region": "Israel",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "gaza",
+   "name": "Gaza",
+   "aliases": [
+    "Gaza",
+    "Gaza City"
+   ],
+   "lat": 31.5,
+   "lon": 34.47,
+   "type": "city",
+   "region": "Gaza",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "beirut",
+   "name": "Beirut",
+   "aliases": [
+    "Beirut"
+   ],
+   "lat": 33.89,
+   "lon": 35.5,
+   "type": "city",
+   "region": "Lebanon",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "damascus",
+   "name": "Damascus",
+   "aliases": [
+    "Damascus"
+   ],
+   "lat": 33.51,
+   "lon": 36.29,
+   "type": "city",
+   "region": "Syria",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "baghdad",
+   "name": "Baghdad",
+   "aliases": [
+    "Baghdad"
+   ],
+   "lat": 33.31,
+   "lon": 44.36,
+   "type": "city",
+   "region": "Iraq",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tehran",
+   "name": "Tehran",
+   "aliases": [
+    "Tehran"
+   ],
+   "lat": 35.69,
+   "lon": 51.39,
+   "type": "city",
+   "region": "Iran",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "riyadh",
+   "name": "Riyadh",
+   "aliases": [
+    "Riyadh"
+   ],
+   "lat": 24.71,
+   "lon": 46.68,
+   "type": "city",
+   "region": "Saudi Arabia",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "sanaa",
+   "name": "Sanaa",
+   "aliases": [
+    "Sanaa",
+    "Sana'a"
+   ],
+   "lat": 15.37,
+   "lon": 44.19,
+   "type": "city",
+   "region": "Yemen",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "kabul",
+   "name": "Kabul",
+   "aliases": [
+    "Kabul"
+   ],
+   "lat": 34.53,
+   "lon": 69.17,
+   "type": "city",
+   "region": "Afghanistan",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "islamabad",
+   "name": "Islamabad",
+   "aliases": [
+    "Islamabad"
+   ],
+   "lat": 33.69,
+   "lon": 73.05,
+   "type": "city",
+   "region": "Pakistan",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "new-delhi",
+   "name": "New Delhi",
+   "aliases": [
+    "New Delhi"
+   ],
+   "lat": 28.61,
+   "lon": 77.21,
+   "type": "city",
+   "region": "India",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "beijing",
+   "name": "Beijing",
+   "aliases": [
+    "Beijing"
+   ],
+   "lat": 39.9,
+   "lon": 116.4,
+   "type": "city",
+   "region": "China",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "taipei",
+   "name": "Taipei",
+   "aliases": [
+    "Taipei"
+   ],
+   "lat": 25.03,
+   "lon": 121.57,
+   "type": "city",
+   "region": "Taiwan",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "pyongyang",
+   "name": "Pyongyang",
+   "aliases": [
+    "Pyongyang"
+   ],
+   "lat": 39.02,
+   "lon": 125.75,
+   "type": "city",
+   "region": "North Korea",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "seoul",
+   "name": "Seoul",
+   "aliases": [
+    "Seoul"
+   ],
+   "lat": 37.57,
+   "lon": 126.98,
+   "type": "city",
+   "region": "South Korea",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "tokyo",
+   "name": "Tokyo",
+   "aliases": [
+    "Tokyo"
+   ],
+   "lat": 35.68,
+   "lon": 139.69,
+   "type": "city",
+   "region": "Japan",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "washington",
+   "name": "Washington",
+   "aliases": [
+    "Washington",
+    "Washington DC",
+    "Washington, D.C."
+   ],
+   "lat": 38.9,
+   "lon": -77.04,
+   "type": "city",
+   "region": "United States",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "madrid",
+   "name": "Madrid",
+   "aliases": [
+    "Madrid"
+   ],
+   "lat": 40.42,
+   "lon": -3.7,
+   "type": "city",
+   "region": "Spain",
+   "approximate": false,
+   "note": "public coordinates rounded to ~0.01 degree"
+  },
+  {
+   "id": "siberia",
+   "name": "Siberia",
+   "aliases": [
+    "Siberia",
+    "Сибирь"
+   ],
+   "lat": 60.0,
+   "lon": 100.0,
+   "type": "region",
+   "region": "Russia",
+   "approximate": true
+  },
+  {
+   "id": "arctic",
+   "name": "Arctic",
+   "aliases": [
+    "Arctic",
+    "the Arctic"
+   ],
+   "lat": 72.0,
+   "lon": 40.0,
+   "type": "region",
+   "region": "Russia",
+   "approximate": true
+  },
+  {
+   "id": "kamchatka",
+   "name": "Kamchatka",
+   "aliases": [
+    "Kamchatka"
+   ],
+   "lat": 56.0,
+   "lon": 159.0,
+   "type": "region",
+   "region": "Russia",
+   "approximate": true
   }
  ]
 }
