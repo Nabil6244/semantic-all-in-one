@@ -208,3 +208,42 @@ changes (flag > 5.5 s) and footage share (note < 30 %); one kind of picture held
 screen for > 7 s (an animated full-frame card may hold 10 s); no question or turn in the narration for > 150 s. Slow stretches of clips that
 fit their sentence are re-cut into ~3 s shots; everything else is reported. Report: `<video>.engagement.txt`, and after Generate scenes
 `state/war_engagement.txt` plus the first lines in the app log. Tests: test_war_engagement.py.
+
+## 10. Pacing and pictures against the narration (re-check 2026-11-09, 1080p copy)
+
+Method: scene detection on the 1080p copy (threshold 0.25, 394 cuts) lined up with the word-timed transcript; one frame per 5 s and one
+frame from every shot over 8 s, read against the sentence spoken over it. Our side measured the same way on two real War renders of the
+same 2:15 script (Video_038 here, `dsf` on Ahmed's Mac).
+
+| | Reference | Our War renders |
+|---|---|---|
+| Median shot (real cuts) | **2.3 s** | **4.4 s** (both renders) |
+| Shots under 2 s | 41 % (161 of 395) | 2-6 of ~28 |
+| Pace by 3-minute block | 3.0-3.9 s per cut, no slow block | one block, ~4.7-5.2 s mean |
+| Cuts on a word start (±0.25 s) | 83 % | scene joins are word-timed |
+| What the engagement check reports | - | "2.5 s per change": it counts card changes too, so it reads faster than the picture really cuts |
+
+Narration -> picture rules seen in the reference:
+1. **The picture is the sentence's concrete subject.** "Putin could not break Ukraine" shows Putin; "their heat" a power plant + HEAT;
+   "metro stations" the people underground; "Then Washington made its move" Trump signing; "Canada, Germany and Norway" flags + a
+   label; "unfriendly countries" the TASS page. A generic clip of the topic is almost never used.
+2. **Every cited source shows its own receipt**: "CNN sources said" a quote box; "Zelensky says" the article page with the sentence
+   highlighted; "Novak admitted" a speaker card with portrait. The attribution word is what triggers the picture.
+3. **Every figure is typed on screen when spoken** (1 PERCENT, 2.1 BILLION DOLLARS, FRIDAY 13 OCTOBER / 500 PAC-3 MSE).
+4. **A place plus an event goes to a map or satellite close-up of that place**: Kinzhal over Kyiv = map + round inset, Camden = the
+   plant footprint, "9,000 kilometers" = distance line.
+5. **Long holds (32 shots over 8 s) only when the picture keeps telling**: soundbites (Trump, Zelensky on CNN), a map animating the attack
+   night (35 s through the drone sentences), speaker quote cards typing the quote, article pages, satellite sites. A generic or
+   unrelated clip is never held.
+6. **Short sentences and turns cut fastest** ("But that shield is cracking", "Then ..."): ~1.3-1.6 s per picture; numbers and reports
+   hold ~2 s.
+
+Gaps this shows in our engine (not built):
+- **Cut rate**: rule 15 / engagement fix re-cut only clips that "fit" their sentence; most CSV clips are rated illustrative
+  (relevance 0.05-0.2 in the `dsf` report), so they keep 4-8 s shots. Needed: a sentence-level cut (one picture per sentence or clause,
+  2-3 s) for every clip, the engagement check counting real cuts only.
+- **Subject match**: footage is chosen per scene from the CSV search, not per sentence subject; people named in the narration
+  (Putin, Zelensky, an official) do not get their face; 5 of 27 `dsf` scenes used stock that "nothing in the clip's metadata relates to".
+- **Long holds on generic pictures**: our 6-7 s document / stat cards are fine (they animate), but generic stock held 4-8 s is the
+  reference's one forbidden case.
+- Still open from section 8: soundbites, satellite close-ups (F), real article capture.

@@ -23,11 +23,12 @@ from ..render import Shot
 
 STEP = 0.5
 BLOCK_S = 180.0
-CUT_SLOW_S = 5.5
+CUT_SLOW_S = 8.0          # 2026-11-09: 5.5 s re-cut calm stretches into a flicker the owner found irritating
 SAME_MAX = {"map": 25.0}
 SAME_DEFAULT = 15.0
 NOTHING_NEW_S = 7.0
 CARD_HOLD_S = 10.0
+FIX_PIECE_S = 4.0         # a re-cut piece is never shorter than this
 TURN_GAP_S = 150.0
 FPS = 25
 MAPS = {"tac_map", "tac_route", "map_card"}
@@ -60,14 +61,25 @@ def _kind_at(plan: Any, t: float) -> str:
     return "backdrop"
 
 
+def _seen_at(plan: Any, t: float) -> Tuple[Any, ...]:
+    """What fills the screen at t: the top full-frame graphic, else the clip and where in it we are (a clip that runs on across a shot split
+    is the same picture; a new clip or a jump to another moment of it is a cut). A clip changing under a graphic is not seen."""
+    full = [ly for ly in plan.layers if ly.start <= t < ly.end and ly.kind in _full() and not (ly.params or {}).get("over")]
+    if full:
+        return ("graphic", id(max(full, key=lambda l: l.start)))
+    sh = next((s for s in plan.shots if s.start <= t < s.end), None)
+    return ("clip", sh.path, round(sh.seek - sh.start, 1)) if sh is not None else ("backdrop",)
+
+
 def check(plan: Any, rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     total = max([r["_end"] for r in rows] + [s.end for s in plan.shots] + [0.0])
     times = [i * STEP for i in range(int(total / STEP))]
     kinds = [_kind_at(plan, t) for t in times]
     events = sorted({round(s.start, 2) for s in plan.shots} | {round(ly.start, 2) for ly in plan.layers if ly.kind not in SMALL}
                     | {round(ly.end, 2) for ly in plan.layers if ly.kind not in SMALL and ly.kind in _full()})
-    changes = sorted({round(s.start, 2) for s in plan.shots} | {round(x, 2) for ly in plan.layers if ly.kind in _full() and not (ly.params or {}).get("over")
-                                                                for x in (ly.start, ly.end)})
+    cand = sorted({round(s.start, 2) for s in plan.shots} | {round(x, 2) for ly in plan.layers if ly.kind in _full() and not (ly.params or {}).get("over")
+                                                             for x in (ly.start, ly.end)})
+    changes = [c for c in cand if c <= 0.0 or _seen_at(plan, c - 0.02) != _seen_at(plan, c + 0.02)]   # only what the viewer sees change
     issues: List[Dict[str, Any]] = []
     blocks = []
     b0 = 0.0
@@ -138,10 +150,10 @@ def fix(plan: Any, rows: Sequence[Dict[str, Any]], report: Dict[str, Any]) -> in
     n = 0
     for s in sorted(plan.shots, key=lambda s: s.start):
         dur = s.end - s.start
-        if dur <= 4.5 or s.path not in fit_paths or not any(a - 0.01 <= s.start < b for a, b in slow):
+        if dur <= 2 * FIX_PIECE_S or s.path not in fit_paths or not any(a - 0.01 <= s.start < b for a, b in slow):
             out.append(s)
             continue
-        k = max(2, int(round(dur / 3.0)))
+        k = max(2, int(dur // FIX_PIECE_S))
         piece = dur / k
         clen = _clip_len(s.path)
         for i in range(k):

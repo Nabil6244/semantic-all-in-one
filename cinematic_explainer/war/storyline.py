@@ -208,8 +208,12 @@ def flashes(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any) -> int:
     return n
 
 
+PACE_MIN_S = 3.5
+
+
 def pace(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any) -> int:
-    """Strike / escalation sentences over fitting footage: 1.4-2.4 s cuts (a different moment of the clip each time). Human-cost lines hold."""
+    """Strike / escalation sentences over fitting footage: cuts of at least PACE_MIN_S (a different moment of the clip each time). Human-cost
+    lines hold. 2026-11-09: 1.4-2.4 s cuts read as irritating flicker to the owner; a cut is now never shorter than PACE_MIN_S."""
     n = 0
     fast_spans = []
     for r in rows:
@@ -222,10 +226,10 @@ def pace(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any) -> int:
     for s in sorted(plan.shots, key=lambda s: s.start):
         inside = any(a - 0.05 <= s.start and s.end <= b + 0.6 for a, b in fast_spans)
         dur = s.end - s.start
-        if not inside or dur < 3.2:
+        if not inside or dur < 2 * PACE_MIN_S:
             out.append(s)
             continue
-        k = max(2, int(round(dur / 1.9)))
+        k = max(2, int(dur // PACE_MIN_S))
         piece = dur / k
         from .story import _clip_len
 

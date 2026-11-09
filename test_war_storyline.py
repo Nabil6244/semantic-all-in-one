@@ -70,10 +70,13 @@ class StoryDevices(Clip):
     def test_pace_cuts_strike_lines_on_fitting_footage_only(self):
         fit = {"csv_pick": True}
         rows = rows_of(["Russia fired missiles at the grid overnight.", "The loan scheme was explained to parliament."], clip=self.clips[0], meta=fit)
-        plan = P([Shot(self.clips[0], 0.0, 6.0, 0.0), Shot(self.clips[0], 6.0, 12.0, 0.0)])
+        rows = rows_of(["Russia fired missiles at the grid overnight.", "The loan scheme was explained to parliament."], clip=self.clips[0], meta=fit, d=12.0)
+        plan = P([Shot(self.clips[0], 0.0, 12.0, 0.0), Shot(self.clips[0], 12.0, 24.0, 0.0)])
         SL.pace(plan, rows, C)
-        self.assertGreaterEqual(len([s for s in plan.shots if s.end <= 6.01]), 3)
-        self.assertEqual(len([s for s in plan.shots if s.start >= 5.99]), 1)
+        strike = [s for s in plan.shots if s.end <= 12.01]
+        self.assertGreaterEqual(len(strike), 3)
+        self.assertTrue(all(s.end - s.start >= SL.PACE_MIN_S - 0.01 for s in strike))   # never a flicker (owner, 2026-11-09)
+        self.assertEqual(len([s for s in plan.shots if s.start >= 11.99]), 1)
         plan2 = P([Shot(self.clips[0], 0.0, 6.0, 0.0)])
         SL.pace(plan2, rows_of(["Russia fired missiles at the grid overnight."], clip=self.clips[0]), C)
         self.assertEqual(len(plan2.shots), 1)                         # no match data: cuts unchanged

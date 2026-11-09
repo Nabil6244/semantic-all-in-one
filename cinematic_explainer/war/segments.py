@@ -47,13 +47,16 @@ from .. import cards as _phase1_cards
 
 log = logging.getLogger("cinematic_explainer.war.segments")
 
-W, H, FPS = L.W, L.H, L.FPS
+W, H, FPS = L.W, L.H, L.FPS          # the card canvas: every card is drawn at this size
+OW, OH = 1920, 1080                  # the video: clips, grade and dims at full HD; the card layer is scaled up once, at the overlay
 PIECE_S = 10.0                      # longest piece of a long shot
 MAX_INPUTS = 8                      # clip decodes per piece: 1 clear + one per dim span
 PACK_VERSION = "war-seg-1"
 REUSE_BYTES = False                 # an unchanged card frame re-sends the previous bytes object
 GOP = 50                            # closed GOP, a keyframe every 2 s and at every piece start
 CRF = 20
+DIM_SHRINK = 32                     # ...and blurred so far that words burned into a clip (a news ticker, another channel's graphic) cannot be read
+DIM_BRIGHTNESS = 0.5                # the footage behind a card: dimmed, never near-black (0.34 + a strong vignette read as burnt)
 TAG = "setsar=1,setparams=colorspace=bt709:range=tv:color_primaries=bt709:color_trc=bt709"
 
 
@@ -162,6 +165,31 @@ def all_cards() -> Dict[str, Callable]:
         return dict(_phase1_cards.CARDS)
 
 
+CARD_BLACK_LIFT = 24       # 2026-11-09 "no colour burn": the darkest pixel a card or map can have (0 crushed maps and title plates to black)
+CARD_GAMMA = 0.9           # ... and a slight mid-tone lift; white text and bright colours barely move
+
+
+@lru_cache(maxsize=4)
+def _lift_lut(floor: int, gamma: float) -> List[int]:
+    one = [int(round(255 * ((floor / 255.0) + (1 - floor / 255.0) * (v / 255.0)) ** gamma)) for v in range(256)]
+    return one * 3
+
+
+def lift_blacks(img):
+    """Lift a card frame's blacks, blended by its own opacity: solid dark plates and maps get the floor, soft edges and scrims fade into it,
+    transparent pixels are untouched (one table lookup and one composite, a few ms a frame)."""
+    from PIL import Image
+
+    if not CARD_BLACK_LIFT and CARD_GAMMA == 1.0:
+        return img
+    a = img.getchannel("A")
+    if a.getbbox() is None:
+        return img
+    lifted = img.convert("RGB").point(_lift_lut(CARD_BLACK_LIFT, CARD_GAMMA))
+    lifted.putalpha(a)
+    return Image.composite(lifted, img, a)
+
+
 def _compose(t: float, active: Sequence[Layer], cards: Dict[str, Callable], on_error: Callable[[Layer, Exception], None]):
     from PIL import Image
 
@@ -177,7 +205,7 @@ def _compose(t: float, active: Sequence[Layer], cards: Dict[str, Callable], on_e
             continue
         if out is not None:
             img = Image.alpha_composite(img, out)
-    return img
+    return lift_blacks(img)
 
 
 # --------------------------------------------------------------------------- probing
@@ -217,7 +245,7 @@ def _scale_args(path: str) -> str:
 
 
 def _base_chain(path: str, duration: float) -> str:
-    return (f"scale={W}:{H}:force_original_aspect_ratio=increase{_scale_args(path)},crop={W}:{H},fps={FPS},tpad=stop_mode=clone:stop_duration=60,{TAG},"
+    return (f"scale={OW}:{OH}:force_original_aspect_ratio=increase{_scale_args(path)},crop={OW}:{OH},fps={FPS},tpad=stop_mode=clone:stop_duration=60,{TAG},"
             f"trim=duration={duration:.3f},setpts=PTS-STARTPTS")
 
 
@@ -275,12 +303,14 @@ def _shot_treat(shot: Shot, f0: int, f1: int) -> Optional[str]:
 
 
 def _grade_filters(g: str) -> str:
+    # 2026-11-09: no "colour burn". The old grades (contrast up, gamma down) crushed 14-31 % of the frame to black against the reference's
+    # 15 %; these keep the source's brightness, lift only the deepest shadows and keep a light documentary tint.
     if g == "cold":
-        return "eq=contrast=1.05:gamma=0.97,lutyuv=u='(val-128)*0.72+128+4':v='(val-128)*0.72+128-3',"
-    if g == "film":       # one documentary look for every source: muted colour, teal shadows, a little more contrast (REFERENCE_PATTERNS item 17)
-        return "eq=contrast=1.08:gamma=0.96:saturation=0.78,lutyuv=u='(val-128)*0.8+128+5':v='(val-128)*0.8+128-3',"
+        return "eq=contrast=1.02:gamma=1.03,lutyuv=u='(val-128)*0.8+128+3':v='(val-128)*0.8+128-2',"
+    if g == "film":       # one documentary look for every source: slightly muted colour, a hint of teal in the shadows (REFERENCE_PATTERNS item 17)
+        return "eq=contrast=1.02:brightness=0.005:gamma=1.03:saturation=0.9,lutyuv=u='(val-128)*0.9+128+3':v='(val-128)*0.9+128-2',"
     if g == "warm_archive":
-        return "eq=contrast=1.03,lutyuv=u='(val-128)*0.6+128-4':v='(val-128)*0.6+128+5',"
+        return "eq=contrast=1.02:gamma=1.02,lutyuv=u='(val-128)*0.65+128-3':v='(val-128)*0.65+128+4',"
     return ""
 
 
@@ -293,8 +323,8 @@ def _zoompan(tr: Dict[str, Any], off: int) -> str:
     z0, z1 = tr["z0"], tr["z1"]
     if tr["m"] in ("pan_left", "pan_right"):
         g = e if tr["m"] == "pan_right" else f"(1-{e})"
-        return f"zoompan=z='{z1}':x='(iw-iw/zoom)*{g}':y='(ih-ih/zoom)/2':d=1:s={W}x{H}:fps={FPS},"
-    return f"zoompan=z='{z0}+({z1}-{z0})*{e}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={W}x{H}:fps={FPS},"
+        return f"zoompan=z='{z1}':x='(iw-iw/zoom)*{g}':y='(ih-ih/zoom)/2':d=1:s={OW}x{OH}:fps={FPS},"
+    return f"zoompan=z='{z0}+({z1}-{z0})*{e}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s={OW}x{OH}:fps={FPS},"
 
 
 def _stage(path: str, src: str, out: str, duration: float, treat: Optional[str], off: int, uid: str, plate: bool = False) -> str:
@@ -303,10 +333,10 @@ def _stage(path: str, src: str, out: str, duration: float, treat: Optional[str],
         return f"[{src}]{_base_chain(path, duration)}[{out}]"
     tr = json.loads(treat)
     moving = tr["m"] != "none"
-    cw, ch = (W * 2, H * 2) if moving else (W, H)
+    cw, ch = (OW * 3 // 2, OH * 3 // 2) if moving else (OW, OH)
     sa = _scale_args(path)
     if tr["fill"]:
-        q = (W // 4, H // 4)
+        q = (OW // 4, OH // 4)
         head = (f"[{src}]split[bs{uid}][fs{uid}];[bs{uid}]scale={q[0]}:{q[1]}:force_original_aspect_ratio=increase{sa},crop={q[0]}:{q[1]},"
                 f"boxblur=5:2,scale={cw}:{ch}:flags=bicubic,lutyuv=y='val*0.6':u='(val-128)*0.8+128':v='(val-128)*0.8+128'[bb{uid}];"
                 f"[fs{uid}]scale={cw}:{ch}:force_original_aspect_ratio=decrease{sa}[ff{uid}];[bb{uid}][ff{uid}]overlay=(W-w)/2:(H-h)/2,")
@@ -322,6 +352,11 @@ def _stage(path: str, src: str, out: str, duration: float, treat: Optional[str],
         chain += f"noise=alls={max(1, int(round(12 * tr['n'])))}:allf=t:all_seed=11,"
     chain += f"{TAG},trim=duration={duration:.3f},setpts=PTS-STARTPTS"
     return f"{chain}[{out}]"
+
+
+def _card_scale() -> str:
+    """The card layer (W x H RGBA) to the video size; lanczos keeps the type crisp."""
+    return "null" if (OW, OH) == (W, H) else f"scale={OW}:{OH}:flags=lanczos"
 
 
 def _sf0(treat: Optional[str], default: int) -> int:
@@ -355,17 +390,23 @@ def piece_graph(piece: Piece, spans_local: Sequence[Tuple[float, float]]) -> str
         last = "c0a"
     for j, (a, b) in enumerate(spans_local):
         a0, b0 = max(0.0, a - L.DIM_IN_S), min(d, b + L.DIM_IN_S)
+        # the ramps sit at the span's real start/end (which may lie outside this piece): timestamps are shifted by SH while fading so a
+        # ramp that began in the previous piece continues at the right level, and a span already fully in at frame 0 never fades in
+        SH = 2.0 * L.DIM_IN_S + 1.0
         tail = (f"setpts=PTS+{a0:.3f}/TB,trim=start={a0:.3f}:end={b0:.3f},"
-                f"scale=iw/{L.BACKDROP_SHRINK}:ih/{L.BACKDROP_SHRINK},scale={W}:{H}:flags=bicubic,"
-                f"lutyuv=y='val*{L.BACKDROP_BRIGHTNESS}':u='(val-128)*0.8+128':v='(val-128)*0.8+128',vignette=PI/5,"
-                f"format=yuva420p,fade=t=in:st={a0:.3f}:d={L.DIM_IN_S}:alpha=1,fade=t=out:st={b:.3f}:d={L.DIM_IN_S}:alpha=1[dm{j}]")
+                f"scale=iw/{DIM_SHRINK}:ih/{DIM_SHRINK},scale={OW}:{OH}:flags=bicubic,"
+                f"lutyuv=y='val*{DIM_BRIGHTNESS}':u='(val-128)*0.8+128':v='(val-128)*0.8+128',vignette=PI/7,"
+                f"format=yuva420p,setpts=PTS+{SH:.3f}/TB,"
+                f"fade=t=in:st={max(0.0, a - L.DIM_IN_S + SH):.3f}:d={L.DIM_IN_S}:alpha=1,"
+                f"fade=t=out:st={max(0.0, b + SH):.3f}:d={L.DIM_IN_S}:alpha=1,setpts=PTS-{SH:.3f}/TB[dm{j}]")
         if plain:
             parts.append(f"[{j + 1}:v]{base},{tail}")
         else:
             parts.append(_stage(piece.path, f"{j + 1}:v", f"pb{j}", d, piece.treat, off, f"d{j}", plate=True) + f";[pb{j}]{tail}")
         parts.append(f"[{last}][dm{j}]overlay=enable='between(t,{a0:.3f},{b0:.3f})':eof_action=pass[o{j}]")
         last = f"o{j}"
-    parts.append(f"[{last}][{m + 1 + (1 if dis else 0)}:v]overlay=format=auto,format=yuv420p[out]")
+    parts.append(f"[{m + 1 + (1 if dis else 0)}:v]{_card_scale()}[cards]")
+    parts.append(f"[{last}][cards]overlay=format=auto,format=yuv420p[out]")
     return ";\n".join(parts)
 
 
@@ -373,10 +414,13 @@ def _spans_local(piece: Piece, layers: Sequence[Layer]) -> List[Tuple[float, flo
     t0, t1 = piece.start, piece.end
     if os.path.basename(str(piece.path)).startswith("war_backdrop"):
         return []                       # the atmosphere plate is already a quiet backdrop: dimming it again only turns it black
-    sel = [ly for ly in layers if ly.dim and ly.end > t0 and ly.start < t1]
+    # Spans are merged over the WHOLE film and kept in piece-local time without clipping (a < 0: the dim began in an earlier piece,
+    # b > duration: it carries on into the next). piece_graph ramps only where a span really starts or ends, so a card that crosses a
+    # piece join stays dimmed straight through it instead of re-fading from clear footage (a 2-5 frame flash of the bare clip).
     out = []
-    for a, b in dim_spans(sel):
-        out.append((max(a, t0) - t0, min(b, t1) - t0))
+    for a, b in dim_spans([ly for ly in layers if ly.dim]):
+        if b + L.DIM_IN_S > t0 and a - L.DIM_IN_S < t1:
+            out.append((a - t0, b - t0))
     return out[:MAX_INPUTS - 1 - (1 if _dissolving(piece) else 0)]
 
 
@@ -440,7 +484,7 @@ def segment_key(piece: Piece, layers: Sequence[Layer], spans_local: Sequence[Tup
     t0, t1 = piece.start, piece.end
     sel = [{"kind": ly.kind, "f0": _frame(ly.start), "f1": _frame(ly.end), "dim": bool(ly.dim), "params": _canon(ly.params)}
            for ly in layers if ly.end > t0 and ly.start < t1]
-    payload = {"pack": PACK_VERSION, "consts": consts, "canvas": [W, H, FPS], "enc": [codec, CRF, GOP],
+    payload = {"pack": PACK_VERSION, "consts": consts, "canvas": [W, H, FPS, OW, OH], "enc": [codec, CRF, GOP],
                "clip": _file_identity(piece.path), "seek": round(piece.seek, 4), "frames": piece.frames, "f0": piece.f0,
                "spans": [[round(a, 4), round(b, 4)] for a, b in spans_local], "layers": sel}
     if piece.treat:
@@ -553,6 +597,131 @@ def _render_piece(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: 
     got = _probe_duration(out_path)
     if got and abs(got - piece.frames / FPS) > 1.5 / FPS:
         raise RenderError(f"piece {piece.index} has {got:.3f}s, expected {piece.frames / FPS:.3f}s (source clip too short or unreadable?)")
+
+
+@lru_cache(maxsize=1)
+def ffmpeg_version() -> str:
+    try:
+        out = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=20).stdout
+        return (out.splitlines() or ["ffmpeg (unknown)"])[0][:120]
+    except (OSError, subprocess.SubprocessError):
+        return "ffmpeg (unknown)"
+
+
+CHECK_W, CHECK_H = 160, 90  # the frame is compared at this size
+CHECK_ALPHA = 230          # only the card's solid pixels are checked: soft edges and glass panels depend on what is under them
+CHECK_CONTRAST = 40.0      # ... and of those only the ones that stand out from the card's own body (its words, figures and rules), so a dark
+                           # card over a dimmed clip is still told apart from the dimmed clip alone
+CHECK_MIN_PX = 12          # a card needs this many such pixels to be checked at all (a badge or a thin rule is not)
+CHECK_MAX_DIFF = 45.0      # mean RGB difference over those pixels above which the card is called missing (encode noise is about 3-10)
+
+
+def _check_times(piece: Piece, layers: Sequence[Layer]) -> List[float]:
+    """At most two global times inside the piece where a card is fully in (the middle of each of the two longest card stretches)."""
+    spans = []
+    for ly in layers:
+        a, b = max(ly.start, piece.start), min(ly.end, piece.end)
+        if b - a >= 0.6:
+            spans.append((b - a, a, b))
+    spans.sort(reverse=True)
+    out = []
+    for _, a, b in spans[:2]:
+        t = round(((a + b) / 2) * FPS) / FPS
+        if piece.f0 <= int(round(t * FPS)) < piece.f1 and t not in out:
+            out.append(t)
+    return out
+
+
+def _frame_small(path: Path, index: int) -> Optional[Any]:
+    import numpy as np
+
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"select=eq(n\\,{index}),scale={CHECK_W}:{CHECK_H}:flags=area", "-frames:v", "1",
+                        "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, timeout=120)
+    if len(r.stdout) != CHECK_W * CHECK_H * 3:
+        return None
+    return np.frombuffer(r.stdout, np.uint8).reshape(CHECK_H, CHECK_W, 3).astype(np.float32)
+
+
+def verify_cards(piece: Piece, layers: Sequence[Layer], out_path: Path, cards: Dict[str, Callable]) -> List[str]:
+    """Card kinds missing from the encoded piece: one frame per long card stretch is compared with the card that was sent, on the card's
+    solid pixels only. Empty when everything is there or nothing can be checked."""
+    import numpy as np
+    from PIL import Image
+
+    missing: List[str] = []
+    for t in _check_times(piece, layers):
+        active = [ly for ly in layers if ly.start <= t < ly.end]
+        if not active:
+            continue
+        img = _compose(t, active, cards, lambda ly, exc: None)
+        small = np.asarray(img.resize((CHECK_W, CHECK_H), Image.BOX), dtype=np.float32)
+        solid = small[..., 3] >= CHECK_ALPHA
+        if int(solid.sum()) < CHECK_MIN_PX:
+            continue
+        lum = small[..., :3].mean(axis=2)
+        mask = solid & (np.abs(lum - float(np.median(lum[solid]))) > CHECK_CONTRAST)
+        if int(mask.sum()) < CHECK_MIN_PX:
+            continue
+        got = _frame_small(out_path, int(round(t * FPS)) - piece.f0)
+        if got is None:
+            continue
+        diff = float(np.abs(got[mask] - small[..., :3][mask]).mean())
+        if diff > CHECK_MAX_DIFF:
+            missing += [ly.kind for ly in active if ly.kind not in missing]
+    return missing
+
+
+def bake_cards(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: str, cards: Dict[str, Callable],
+               cancel: Callable[[], bool], errors: List[str], procs: "set[subprocess.Popen]", procs_lock: threading.Lock,
+               stats: Dict[str, float]) -> None:
+    """The piece again without ffmpeg's card overlay: its picture alone (clip, grade, dims), decoded, the cards painted on in Python and
+    encoded. Slower, so only used when verify_cards finds a card missing."""
+    from PIL import Image
+
+    bg = out_path.with_name(out_path.stem + ".bg" + out_path.suffix)
+    bg_layers = [dataclasses.replace(ly, kind="__no_card__") for ly in layers]      # same dim plates, no card frames
+    _render_piece(piece, bg_layers, bg, codec, {}, cancel, errors, procs, procs_lock, stats)
+    dec = subprocess.Popen(["ffmpeg", "-v", "error", "-i", str(bg), "-vf", "scale=in_color_matrix=bt709:in_range=tv", "-f", "rawvideo",
+                            "-pix_fmt", "rgba", "-"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    enc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{OW}x{OH}", "-r", str(FPS), "-i", "-",
+                            "-vf", f"scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,{TAG}", "-an"] + _encoder_args(codec)
+                           + ["-frames:v", str(piece.frames), str(out_path)], stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+    with procs_lock:
+        procs.update((dec, enc))
+    try:
+        assert dec.stdout is not None and enc.stdin is not None
+        n = OW * OH * 4
+        last = None
+        for f in range(piece.f0, piece.f1):
+            if cancel():
+                raise RenderCancelled()
+            raw = dec.stdout.read(n)
+            if len(raw) == n:
+                last = raw
+            elif last is None:
+                raise RenderError(f"piece {piece.index}: its picture could not be decoded to paint the cards on")
+            frame = Image.frombytes("RGBA", (OW, OH), last)
+            t = f / FPS
+            active = [ly for ly in layers if ly.start <= t < ly.end]
+            if active:
+                over = _compose(t, active, cards, lambda ly, exc: None)
+                if over.size != frame.size:
+                    over = over.resize(frame.size, Image.LANCZOS)
+                frame = Image.alpha_composite(frame, over)
+            enc.stdin.write(frame.tobytes())
+        enc.stdin.close()
+        err = enc.stderr.read().decode("utf-8", "replace") if enc.stderr else ""
+        if enc.wait(timeout=900) != 0:
+            raise RenderError(f"painting the cards on piece {piece.index} failed: {err[-400:]}")
+    except BaseException:
+        _kill(enc)
+        raise
+    finally:
+        _kill(dec)
+        with procs_lock:
+            procs.discard(dec)
+            procs.discard(enc)
+        bg.unlink(missing_ok=True)
 
 
 def _kill(proc: subprocess.Popen) -> None:
@@ -677,7 +846,8 @@ def validate_inputs(shots: Sequence[Shot]) -> None:
 def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: str, *, audio_path: Optional[str] = None,
                      state_dir: Optional[str] = None, cancel_check: Optional[Callable[[], bool]] = None,
                      progress_cb: Optional[Callable[[float, str], None]] = None, workers: Optional[int] = None, codec: str = "x264",
-                     temp_dir: Optional[str] = None, audio_fallback: Optional[str] = None, backdrop_path: Optional[str] = None) -> Dict[str, Any]:
+                     temp_dir: Optional[str] = None, audio_fallback: Optional[str] = None, backdrop_path: Optional[str] = None,
+                     check_cards: bool = True) -> Dict[str, Any]:
     """Render shots + layers to out_path. Raises RenderCancelled / MissingInput / RenderError. Never leaves a temp folder behind.
     audio_fallback: the plain voiceover, used when the mixed sound (audio_path) fails a check. backdrop_path: the plate a piece falls back to."""
     t_start = time.time()
@@ -706,6 +876,7 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
     procs_lock = threading.Lock()
     hits = misses = 0
     retried: List[int] = []
+    baked: List[Dict[str, Any]] = []
     done = [0]
     lock = threading.Lock()
     ext = "mkv" if codec == "ffv1" else "mp4"
@@ -745,6 +916,13 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
                               procs, procs_lock, stats)
             with lock:
                 retried.append(p.index)
+        lost = verify_cards(p, layers, out, cards) if check_cards else []
+        if lost:                                    # ffmpeg dropped the card layer without an error: paint the cards on in Python instead
+            log.warning("piece %d came out without its card(s) %s (%s); painting them on directly", p.index, ", ".join(lost), ffmpeg_version())
+            bake_cards(p, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
+            still = verify_cards(p, layers, out, cards)
+            with lock:
+                baked.append({"piece": p.index, "start": round(p.start, 2), "cards": lost, "fixed": not still})
         if cache:
             cache.put(skey, key, out)
         with lock:
@@ -800,7 +978,10 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
         os.replace(part, final)
         result = {"ok": True, "out": str(final), "frames": total_frames, "duration_s": duration, "segments": len(pieces),
                   "cache_hits": hits, "cache_misses": misses, "workers": n_workers, "reused_frames": int(stats.get("reused_frames", 0)),
-                  "card_errors": list(errors), "fallback": False, "seconds": time.time() - t_start, "retried_pieces": sorted(retried)}
+                  "card_errors": list(errors), "fallback": False, "seconds": time.time() - t_start, "retried_pieces": sorted(retried),
+                  "cards_repainted": sorted(baked, key=lambda b: b["piece"])}
+        if baked:
+            result["ffmpeg"] = ffmpeg_version()
     finally:
         shutil.rmtree(work, ignore_errors=True)
         try:

@@ -19,6 +19,11 @@ SCENES = ROOT / "test_fixtures" / "war_guard_scenes.csv"
 ALLOWED: dict = {          # {"variant:kind@start": "why it changed"}
     "csv:kit_title@0.0": "2026-11-08 owner: too much text on the dark plate; CSV title / date / kinetic cards hold at most 4.5 s",
     "csv:tac_map@6.8": "2026-11-08 the map now starts when the shorter title card ends (same end time)",
+    "all_footage:kit_tag@83.2": "2026-11-09 owner: pictures follow the narration; 'A report by the Institute for the Study of War found' is now "
+                                "read as a citation, so the institute's own card replaces the small tag",
+    "all_footage:kit_kinetic@78.8": "2026-11-09 the generic kinetic filler under 'Russian forces captured Avdiivka' gives way to the place's "
+                                    "label and the ISW card that now follows",
+    "all_footage:bc_label@115.12": "2026-11-09 the label rate (about one per 15 s) is spent on AVDIIVKA at 81 s instead",
 }
 SKIP_KINDS = {"kit_grain"}  # film grain spans the whole timeline and follows the length, not a decision
 

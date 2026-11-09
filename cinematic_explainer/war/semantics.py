@@ -429,10 +429,15 @@ def find_quote(sentence: str, offset: int = 0) -> Optional[Quote]:
     return Quote(text=m.group(1).strip(), speaker=speaker, verb=verb, span=(offset + m.start(), offset + m.end()))
 
 
-_NAME = r"[A-Z][\w&.'’-]*(?:\s+(?:(?:of|for|the|and|de)\s+)?[A-Z][\w&.'’-]*){0,4}"
+_NAME = r"[A-Z][\w&.'’-]*(?:\s+(?:(?:of|for|the|and|de)\s+){0,2}[A-Z][\w&.'’-]*){0,4}"     # "Institute for the Study of War"
 _CITE_ACC = re.compile(r"\b(?i:according to) (?:the )?(" + _NAME + r")")
-_CITE_SAYS = re.compile(r"\b(?:the )?(" + _NAME + r")\s+(?:" + "|".join(CLAIM_VERBS) + r")\b")
-_CITE_NOUN = re.compile(r"\b(?:a|the)\s+(?:" + "|".join(SOURCE_NOUNS) + r")\s+(?:by|from|of)\s+(?:the )?(" + _NAME + r")")
+# reporting verbs a cited outlet is introduced with ("AP noted", "Euromaidan Press counted", "Reuters also said"): CLAIM_VERBS plus these, with
+# one optional adverb between the name and the verb
+CITE_VERBS = CLAIM_VERBS + ("noted", "notes", "counted", "counts", "found", "finds", "estimated", "estimates", "confirmed", "confirms",
+                            "admitted", "admits", "wrote", "writes", "warned", "warns", "concluded", "assessed", "assesses", "calculated")
+_CITE_ADV = r"(?:(?:also|later|separately|earlier|now|previously|again|first)\s+)?"
+_CITE_SAYS = re.compile(r"\b(?:the )?(" + _NAME + r")\s+" + _CITE_ADV + r"(?:" + "|".join(CITE_VERBS) + r")\b")
+_CITE_NOUN = re.compile(r"\b(?:[Aa]|[Tt]he)\s+(?:" + "|".join(SOURCE_NOUNS) + r")\s+(?:by|from|of)\s+(?:the )?(" + _NAME + r")")
 _CITE_POSS = re.compile(r"\b(?:the )?([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})['’]s\s+(?:" + "|".join(SOURCE_NOUNS) + r")\b")
 _NOT_OUTLET = {"He", "She", "It", "They", "We", "The", "This", "That", "There", "But", "And", "Analysts", "Experts", "Critics", "Officials", "Sources"}
 

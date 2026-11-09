@@ -44,8 +44,13 @@ class HookTests(unittest.TestCase):
                [(f"Fighting continued for a long time in scene {i}.", "", self.clips[i]) for i in range(6)]
         plan = planner.plan(scenes(rows, self.clips), config={})
         early = [s for s in plan.shots if s.start < 12.0]
-        self.assertGreaterEqual(len(early), 6)                                # fast cuts, not one held clip
-        self.assertGreaterEqual(len({s.path for s in early}), 4)              # different clips: a teaser
+        self.assertGreaterEqual(len(early), 4)                                # a teaser of cuts, not one held clip
+        self.assertGreaterEqual(len({s.path for s in early}), 3)              # different clips: a teaser
+        from cinematic_explainer.war import direction as D
+        full = [ly for ly in plan.layers if D._opaque(ly)]
+        for s in early:                                                       # calm: no clip on screen for a split second (owner, 2026-11-09)
+            seen = s.end - s.start - sum(max(0.0, min(s.end, ly.end) - max(s.start, ly.start)) for ly in full)
+            self.assertTrue(seen < 0.05 or seen >= D.MIN_SHOT_S - 0.01, (s.start, s.end, seen))
         self.assertAlmostEqual(min(s.start for s in plan.shots), 0.0)         # footage from the first frame
         for ly in plan.layers:
             if ly.kind in ("kit_title", "kit_datecard") and ly.start < 12:

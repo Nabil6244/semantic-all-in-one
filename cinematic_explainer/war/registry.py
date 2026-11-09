@@ -7,6 +7,8 @@ No database and no migration; a missing or corrupt file is treated as empty.
 
 from __future__ import annotations
 
+import logging
+
 import hashlib
 import json
 import os
@@ -111,6 +113,13 @@ def all_cards() -> Dict[str, Any]:
         try:
             m = __import__(f"{__package__}.{mod}", fromlist=[attr])
             out.update(getattr(m, attr))
-        except Exception:
+        except Exception as exc:       # its cards are skipped: said once in the log, so a machine that loses cards says which and why
+            if mod not in _REPORTED:
+                _REPORTED.add(mod)
+                logging.getLogger("cinematic_explainer.war.registry").warning("War cards from %s not loaded (%s: %s); those cards are skipped",
+                                                                             mod, type(exc).__name__, exc)
             continue
     return out
+
+
+_REPORTED: set = set()

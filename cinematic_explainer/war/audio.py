@@ -13,6 +13,7 @@ Nothing is downloaded; with ffmpeg missing or any input unreadable the voice alo
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import logging
 import subprocess
@@ -54,9 +55,67 @@ def pick_track(seed: str, cfg: Dict[str, Any]) -> Optional[Path]:
     return beds[h % len(beds)]
 
 
+SFX_MAX_S = 3.0           # a "whoosh" that runs 5-12 s is a drone or a riser: cut at 2.5 s it ends in a click
+SFX_TARGET_DB = {"whoosh": -24.0, "impact": -24.0, "text": -30.0}      # every sound is levelled to its kind's loudness before its gain
+SFX_TAIL_S = 0.25
+
+
+@functools.lru_cache(maxsize=1)
+def _catalog() -> Dict[str, Dict[str, Any]]:
+    """file (relative to SFX_DIR) -> catalog entry (duration, intensity, loudness_db, spectral/transient character)."""
+    import json
+
+    out: Dict[str, Dict[str, Any]] = {}
+
+    def walk(o: Any) -> None:
+        if isinstance(o, dict):
+            if isinstance(o.get("file"), str) and "category" in o:
+                out[o["file"]] = o
+            for v in o.values():
+                walk(v)
+        elif isinstance(o, list):
+            for v in o:
+                walk(v)
+
+    try:
+        walk(json.loads((SFX_DIR / "catalog.json").read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        pass
+    return out
+
+
+def sfx_ok(entry: Optional[Dict[str, Any]]) -> bool:
+    """A sound fit to sit under narration: short, not a harsh high-intensity noise burst, with a known loudness to level it to."""
+    if not entry:
+        return False
+    try:
+        dur, loud = float(entry.get("duration") or 0), entry.get("loudness_db")
+    except (TypeError, ValueError):
+        return False
+    if loud is None or dur <= 0 or dur > SFX_MAX_S:
+        return False
+    if str(entry.get("intensity") or "") == "high":
+        return False
+    harsh = str(entry.get("spectral_character") or "") == "bright/noisy" and str(entry.get("transient_character") or "") == "articulated"
+    return not harsh
+
+
 def _sfx_files(kind: str) -> List[Path]:
     d = SFX_DIR / kind
-    return sorted(p for p in d.glob("*.opus")) if d.is_dir() else []
+    if not d.is_dir():
+        return []
+    cat = _catalog()
+    return sorted(p for p in d.glob("*.opus") if sfx_ok(cat.get(f"{kind}/{p.name}")))
+
+
+def level_gain(kind: str, path: Path) -> float:
+    """Linear gain that brings this file to its kind's target loudness (a -16.7 dB burst and a -30 dB tick land at the same level)."""
+    e = _catalog().get(f"{kind}/{path.name}") or {}
+    try:
+        db = SFX_TARGET_DB.get(kind, -24.0) - float(e["loudness_db"])
+    except (KeyError, TypeError, ValueError):
+        return 1.0
+    return float(10 ** (max(-24.0, min(6.0, db)) / 20))
 
 
 def sfx_events(layers: Sequence[Any]) -> List[Tuple[float, str, float]]:
@@ -86,7 +145,14 @@ def _sfx_track(total: float, events: List[Tuple[float, str, float]]) -> np.ndarr
             continue
         f = files[i % len(files)]
         if f not in cache:
-            cache[f] = _decode(f, 2.5)
+            a = _decode(f, 2.5)
+            if a is not None:
+                a = a * level_gain(kind, f)
+                n = min(len(a), int(SFX_TAIL_S * SR))
+                if n > 1:                      # never end on a cut-off sample: the last quarter second fades to silence
+                    a = a.copy()
+                    a[-n:] *= np.linspace(1.0, 0.0, n, dtype=np.float32)
+            cache[f] = a
         a = cache[f]
         if a is None:
             continue

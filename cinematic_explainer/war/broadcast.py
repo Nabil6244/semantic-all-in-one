@@ -257,6 +257,11 @@ _DATE_RX = re.compile(r"\b(?:(?:monday|tuesday|wednesday|thursday|friday|saturda
                       r"june|july|august|september|october|november|december)(?:\s+\d{1,2})?,?\s+(?:19|20)\d{2}\b", re.IGNORECASE)
 
 
+def _bare(raw: str) -> str:
+    """'51 percent' / '51 per cent' / '51%' -> '51': the unit is added once by the caller ('51 PERCENT PERCENT' was on screen)."""
+    return re.sub(r"\s*(?:%|per\s?cent)\s*$", "", str(raw), flags=re.IGNORECASE)
+
+
 def _label_of(sent: Any, text: str) -> Optional[Tuple[str, int, str]]:
     """(label, char offset, second line) for the sentence's key noun, in the narration's own words:
     a figure with what it counts ('44 MISSILES') > a named system ('ISKANDER-M') > the places named ('IZIUM · KUPIANSK') > the things named
@@ -269,7 +274,7 @@ def _label_of(sent: Any, text: str) -> Optional[Tuple[str, int, str]]:
             continue
         after = re.findall(r"[\w'’-]+", text[n.span[1]:n.span[1] + 30])[:2]
         unit = (n.unit.split()[-1] if n.unit and n.unit != "%" else "") or (after[0] if after and _KEY_UNITS.match(after[0]) else "")
-        figs.append((n.raw.rstrip("%") + ("%" if n.unit == "%" else ""), unit, n.span[0]))
+        figs.append((_bare(n.raw) + ("%" if n.unit == "%" else ""), unit, n.span[0]))
     if len(figs) >= 2 and re.search(r"\b(vs|versus|while|whereas|compared|than|but only|against|instead)\b", sent.text, re.IGNORECASE):
         a_, b_ = figs[0], figs[1]
         return f"{a_[0]} {a_[1]}".strip().upper() + "  VS  " + f"{b_[0]} {b_[1]}".strip().upper(), a_[2], date
@@ -282,7 +287,7 @@ def _label_of(sent: Any, text: str) -> Optional[Tuple[str, int, str]]:
         if n.unit == "%":
             unit = "PERCENT"
         if unit:
-            return f"{n.raw.rstrip('%')} {unit}".upper(), n.span[0], date
+            return f"{_bare(n.raw)} {unit}".upper(), n.span[0], date
     for e in sent.entities:
         if e.kind == "equipment" and e.specific and not e.ambiguous:
             return (text[e.span[0]:e.span[1]] or e.name).upper(), e.span[0], date
@@ -314,7 +319,7 @@ def _caption_of(sent: Any, text: str) -> Optional[str]:
     q = getattr(sent, "quote", None)
     if q is not None and 3 <= len(q.text.split()) <= 18:
         return q.text.strip(" \"“”")
-    m = re.search(r"\b(?:said|says|warned|admitted|told \w+|claimed|insisted|announced)\b,?\s+(?:that\s+)?(.+)$", sent.text)
+    m = re.search(r"\b(?:said|says|warned|admitted|told \w+|claimed|insisted|announced|noted|counted|found|estimated|confirmed|reported)\b,?\s+(?:that\s+)?(.+)$", sent.text)
     if m:
         c = m.group(1).strip().rstrip(".")
         if 4 <= len(c.split()) <= 16:

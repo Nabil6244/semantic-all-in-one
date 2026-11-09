@@ -23,7 +23,7 @@ def _clip(name, size, secs=3.0, fps=25):
 
 
 def _old_chain(path, duration):      # the chain exactly as it was before treatments existed
-    return (f"scale={S.W}:{S.H}:force_original_aspect_ratio=increase{S._scale_args(path)},crop={S.W}:{S.H},fps={S.FPS},tpad=stop_mode=clone:stop_duration=60,{S.TAG},"
+    return (f"scale={S.OW}:{S.OH}:force_original_aspect_ratio=increase{S._scale_args(path)},crop={S.OW}:{S.OH},fps={S.FPS},tpad=stop_mode=clone:stop_duration=60,{S.TAG},"
             f"trim=duration={duration:.3f},setpts=PTS-STARTPTS")
 
 
@@ -93,7 +93,7 @@ class Dissolve(unittest.TestCase):
         self.assertEqual(ps[0].dissolve, 0.0)
         g = S.piece_graph(ps[1], [])
         self.assertIn("fade=t=in:st=0:d=0.600:alpha=1", g)
-        self.assertIn("[2:v]overlay", g)                 # the overlay pipe moved to input 2
+        self.assertIn("[2:v]scale=", g)                  # the overlay pipe moved to input 2 (scaled to the video size)
         out = str(TMP / "dis.mp4")
         r = S.render_segmented([Shot(a, 0, 3), Shot(b, 3, 6, dissolve_in=0.6)], [], out, state_dir=str(TMP / "sd"))
         self.assertTrue(r.get("ok"))
@@ -124,7 +124,7 @@ class BlurFill(unittest.TestCase):
         r = S.render_segmented([Shot(p, 0, 2)], [], out, state_dir=str(TMP / "sf"))
         self.assertTrue(r.get("ok"))
         d = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=width,height", "-of", "csv=p=0:s=x", out], capture_output=True, text=True).stdout.strip()
-        self.assertEqual(d, f"{S.W}x{S.H}")
+        self.assertEqual(d, f"{S.OW}x{S.OH}")
         self.assertEqual(_frames(out), 50)
 
 

@@ -27,6 +27,7 @@ Rules (each fires only when the narration gives a reason; nothing decorates ever
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
@@ -39,7 +40,7 @@ SOFT = {"kicker", "status_chip", "kit_badge", "kit_grain", "bc_source"}         
 DIM = {"kit_sticker", "kit_scale", "kit_recap", "kit_bignum"}
 MOTIONS = ["push_in", "pan_right", "push_out", "pan_left"]
 
-_CLAIM = re.compile(r"\b(claimed|claims|reportedly|allegedly|according to|unverified|cannot be verified|can't be verified|could not be verified|"
+_CLAIM = re.compile(r"\b(claimed|claims|(?:its|their|his|her|own) claim|reportedly|allegedly|according to|unverified|cannot be verified|can't be verified|could not be verified|"
                     r"denied|denies|disputed|unconfirmed)\b", re.IGNORECASE)
 _UNVERIFIED = re.compile(r"unverified|cannot be verified|can't be verified|could not be verified|reportedly|allegedly|unconfirmed", re.IGNORECASE)
 _DISPUTED = re.compile(r"denied|denies|disputed", re.IGNORECASE)
@@ -149,7 +150,7 @@ def _grade(cls: str, film: bool = False) -> str:
     return "neutral" if cls == "" else "cold"
 
 
-CUT_MIN, CUT_MAX, SPLIT_OVER = 3.0, 6.0, 7.0      # a footage scene longer than SPLIT_OVER s is cut into shots of CUT_MIN..CUT_MAX s
+CUT_MIN, CUT_MAX, SPLIT_OVER = 4.5, 7.5, 10.0     # a footage scene longer than SPLIT_OVER s is cut into shots of CUT_MIN..CUT_MAX s (calmer: 2026-11-09)
 
 
 def _clip_seconds(path: str) -> Optional[float]:
@@ -190,7 +191,7 @@ def _split_long_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], cou
 
 
 def _treat_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], hard_cuts: Sequence[float], full_spans: Sequence[Tuple[float, float]],
-                 counts: Dict[str, int], film: bool = False) -> None:
+                 counts: Dict[str, int], film: bool = False, dissolves: bool = False) -> None:
     prev: Optional[Shot] = None
     last_motion = ""
     n = 0
@@ -204,9 +205,9 @@ def _treat_shots(plan: Any, meta_by_start: Dict[float, Dict[str, Any]], hard_cut
         last_motion = motion
         dur = sh.end - sh.start
         z1 = 1.04 if dur < 4 else 1.06
-        sh.treat = {"motion": motion, "z0": 1.0, "z1": z1, "grade": _grade(cls, film), "vignette": 0.25, "grain": 0.3, "blur_fill": "auto"}
+        sh.treat = {"motion": motion, "z0": 1.0, "z1": z1, "grade": _grade(cls, film), "vignette": 0.12, "grain": 0.3, "blur_fill": "auto"}
         counts["treated_shots"] = counts.get("treated_shots", 0) + 1
-        if prev is not None and abs(prev.end - sh.start) < 1.0 / FPS and prev.path != sh.path and dur >= 1.6 and (prev.end - prev.start) >= 1.6:
+        if dissolves and prev is not None and abs(prev.end - sh.start) < 1.0 / FPS and prev.path != sh.path and dur >= 1.6 and (prev.end - prev.start) >= 1.6:
             cut = any(abs(sh.start - c) < 0.2 for c in hard_cuts)
             boundary_card = any(a - 0.05 <= sh.start <= b + 0.05 for a, b in full_spans)
             if not cut and not boundary_card:
@@ -1374,7 +1375,16 @@ def _choose_layouts(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_
             logged(ly, "lay_logistics", "supply language naming " + ", ".join(n["label"] for n in nodes))
             break
     # a stat or claim layout leaves half the frame open: the named thing (drones, tanks ...) stands there as a sticker, in the empty half
+    # ... but only the part of that half the layout leaves empty (2026-11-09 "no overlapping": the claim panel's stamp sits top-right and
+    # the sticker was centred on it): a claim panel keeps its stamp and gets a smaller sticker below it, unless its confirmed / claimed
+    # lists fill that column; a stat split with its own side panel has no free half at all
     for ly in [x for x in plan.layers if x.kind in ("lay_stat_split", "lay_claim")]:
+        lp = ly.params or {}
+        if ly.kind == "lay_claim" and (lp.get("confirmed") or lp.get("claimed")):
+            continue
+        if ly.kind == "lay_stat_split" and (str(lp.get("text") or "").strip() or lp.get("rows")):
+            continue
+        spot = {"x": 0.76, "y": 0.66, "size": 220} if ly.kind == "lay_claim" else {"x": 0.72, "y": 0.5, "size": 300}
         row = next((r for r in rows if r["_start"] - 0.01 <= ly.start < r["_end"] + 0.01), None)
         text = str((row or {}).get("text") or "")
         for rx, name, lab in _STICKERS:
@@ -1383,8 +1393,7 @@ def _choose_layouts(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_
                 if name == "drone" and re.search(r"\benemy\s+drones?\b", text, re.IGNORECASE):
                     lab = "ENEMY DRONES"
                 a = fr(ly.start + 1.0)
-                plan.layers.append(Layer("kit_sticker", a, fr(max(a + 2.4, ly.end - 0.3)), {"name": name, "x": 0.72, "y": 0.5, "size": 300, "label": lab,
-                                                                                         "label_style": "tape"}, dim=False))
+                plan.layers.append(Layer("kit_sticker", a, fr(max(a + 2.4, ly.end - 0.3)), dict(spot, name=name, label=lab, label_style="tape"), dim=False))
                 counts["layout_sticker"] = counts.get("layout_sticker", 0) + 1
                 break
     return sorted((ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS)
@@ -1843,6 +1852,11 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         _mb.build(plan, rows, cat, log_by_no, counts, gap_notes, tuple(FULL_KINDS - {"tac_map", "tac_route", "map_card"}),
                   broll=bool(cfg.get("broll", True) and plan.shots))
     _speakers(plan, rows, cat, log_by_no, counts)
+    if cfg.get("subject_pictures", True):        # a sentence about a catalogue person shows that person (subjects.py)
+        from . import subjects as _subj
+        from .broadcast import _fits as _bc_fits
+
+        _subj.apply(plan, rows, cat, log_by_no, counts, set(FULL_KINDS), _bc_fits)
     _ratios_and_versus(plan, rows, cat, log_by_no, counts)
     if cfg.get("layouts", True):
         _extend_into_plate(plan, rows)
@@ -1949,7 +1963,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 eng = _eng.check(plan, rows)
                 eng["fixed"] = n_fix
                 counts["engagement_fixed"] = n_fix
-    _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)))
+    _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)),
+                 dissolves=bool(cfg.get("dissolves", False)))   # hard cuts like the reference: a cross-fade shows two clips at once
     _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts)
     counts["empty_stretches"] = len(gap_notes)
     return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats, "engagement": eng}
@@ -1961,6 +1976,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
 # finished timeline: every second shows footage or a full-frame graphic, footage marks only sit on footage, and a clip seen for less than
 # FLASH_S between two graphics is covered by the graphic before it.
 FLASH_S = 1.5
+MIN_SHOT_S = 2.0      # a footage shot shorter than this (a sliver left by trims) is folded into its neighbour
 HOLE_HOLD_S = 2.0          # a bare gap up to this long is closed by its neighbours (longer ones are filled with motion graphics earlier)
 
 
@@ -1980,9 +1996,102 @@ def _spans_union(spans: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     return [(a, b) for a, b in out]
 
 
+def _fold_slivers(plan: Any, counts: Dict[str, int]) -> None:
+    """A footage shot under MIN_SHOT_S that butts onto another shot is a flicker, not a cut: the same clip just runs on; another clip before it
+    holds longer when it has frames to spare, else the next shot starts earlier (seeking back by as much)."""
+    shots = sorted(plan.shots, key=lambda x: x.start)
+    i = 0
+    while i < len(shots) and len(shots) > 1:
+        s = shots[i]
+        d = s.end - s.start
+        if d >= MIN_SHOT_S:
+            i += 1
+            continue
+        prev = shots[i - 1] if i > 0 and abs(shots[i - 1].end - s.start) < 0.05 else None
+        nxt = shots[i + 1] if i + 1 < len(shots) and abs(shots[i + 1].start - s.end) < 0.05 else None
+        if prev is not None and (prev.path == s.path or _has_frames(prev, d)):
+            shots[i - 1] = dataclasses.replace(prev, end=s.end)
+        elif nxt is not None and nxt.seek >= d:
+            shots[i + 1] = dataclasses.replace(nxt, start=s.start, seek=round(nxt.seek - d, 3), dissolve_in=s.dissolve_in)
+        elif prev is not None:
+            shots[i - 1] = dataclasses.replace(prev, end=s.end)        # the clip's last frame holds for under 2 s: still better than a flicker
+        else:
+            i += 1
+            continue
+        del shots[i]
+        counts["slivers_folded"] = counts.get("slivers_folded", 0) + 1
+    plan.shots[:] = shots
+
+
+def _fold_glimpses(plan: Any, counts: Dict[str, int]) -> None:
+    """A clip seen for under MIN_SHOT_S after a full-frame graphic ends, right before the next clip, is a flash (Spiderweb render 2026-11-09:
+    0.24 s of the previous clip after a map, 1.36 s of a clip after the kinetic card). The next clip starts as the graphic ends instead; the
+    hidden clip keeps only its covered part, or goes when nothing of it is left."""
+    full = [ly for ly in plan.layers if _opaque(ly)]
+    shots = sorted(plan.shots, key=lambda x: x.start)
+    i = 0
+    while i < len(shots) - 1:
+        s, nxt = shots[i], shots[i + 1]
+        if abs(nxt.start - s.end) >= 0.05:
+            i += 1
+            continue
+        c = max((ly.end for ly in full if s.start - 0.05 <= ly.end < s.end and ly.start < s.start + 0.05 or s.start < ly.end < s.end),
+                default=None)                       # the last graphic ending inside this shot, or just as it begins
+        if c is not None:
+            c = max(c, s.start)
+        if c is None or s.end - c >= MIN_SHOT_S or any(c - 0.01 < ly.start < s.end for ly in full):
+            i += 1
+            continue
+        gap = s.end - c
+        seek = round(nxt.seek - gap, 3) if nxt.seek >= gap else nxt.seek
+        if seek == nxt.seek and not _has_frames(nxt, gap):
+            i += 1
+            continue
+        shots[i + 1] = dataclasses.replace(nxt, start=fr(c), seek=seek, dissolve_in=0.0)
+        if c - s.start > 0.05:
+            shots[i] = dataclasses.replace(s, end=fr(c))
+            i += 1
+        else:
+            del shots[i]
+        counts["glimpses_folded"] = counts.get("glimpses_folded", 0) + 1
+    # the mirror: a clip seen for under MIN_SHOT_S before a graphic covers the rest of it. The clip before it holds on to the graphic when it
+    # has the frames; else the graphic comes in that moment earlier (under FLASH_S only, so it never leaves its sentence)
+    i = 0
+    while i < len(shots):
+        s = shots[i]
+        cov = [ly for ly in full if s.start < ly.start < s.end and ly.end >= s.end - 0.05]
+        if not cov:
+            i += 1
+            continue
+        card = min(cov, key=lambda ly: ly.start)
+        gap = card.start - s.start
+        if gap >= MIN_SHOT_S or any(ly.start < card.start and ly.end > s.start for ly in full if ly is not card):
+            i += 1
+            continue
+        prev = shots[i - 1] if i > 0 and abs(shots[i - 1].end - s.start) < 0.05 else None
+        if prev is not None and (prev.path == s.path or _has_frames(prev, gap)):
+            shots[i - 1] = dataclasses.replace(prev, end=fr(card.start))
+            shots[i] = dataclasses.replace(s, start=fr(card.start), seek=round(s.seek + gap, 3), dissolve_in=0.0)
+        elif gap < FLASH_S:
+            card.start = fr(s.start)
+        else:
+            i += 1
+            continue
+        counts["glimpses_folded"] = counts.get("glimpses_folded", 0) + 1
+        i += 1
+    plan.shots[:] = shots
+
+
+def _has_frames(sh: Any, extra: float) -> bool:
+    n = _clip_seconds(sh.path)
+    return n is not None and sh.seek + (sh.end - sh.start) + extra <= n - 0.1
+
+
 def _final_coverage(plan: Any, total: float, counts: Dict[str, int]) -> None:
     if total <= 0:
         return
+    _fold_slivers(plan, counts)
+    _fold_glimpses(plan, counts)
     full = sorted((ly for ly in plan.layers if _opaque(ly)), key=lambda x: x.start)
     # 1 a clip glimpsed between two graphics: the graphic before it holds instead of a flash
     for i, a in enumerate(full[:-1]):

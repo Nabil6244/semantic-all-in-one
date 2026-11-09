@@ -47,7 +47,7 @@ class Treatment(unittest.TestCase):
         self.assertLessEqual(max(s.end for s in p.shots), 8.0)
         self.assertIn("no_footage", p.log[1].flags)
 
-    def test_a_long_shot_is_cut_into_three_to_six_second_shots(self):
+    def test_a_long_shot_is_cut_into_calm_shots(self):
         from cinematic_explainer.render import Shot
         from cinematic_explainer.war import direction as D
 
@@ -59,7 +59,7 @@ class Treatment(unittest.TestCase):
         self.assertEqual(cuts[-1], ("short.mp4", 14.0, 19.0))                          # 7 s or less: one shot
         long_ = [s for s in Pl.shots if s.path == "long.mp4"]
         self.assertEqual((long_[0].start, long_[-1].end), (0.0, 14.0))
-        self.assertTrue(all(3.0 <= s.end - s.start <= 6.0 for s in long_))
+        self.assertTrue(all(D.CUT_MIN <= s.end - s.start <= D.CUT_MAX for s in long_))   # calmer pace (2026-11-09): 4.5-7.5 s
         self.assertEqual(len({s.seek for s in long_}), len(long_))                      # a different moment of the clip in each cut
         self.assertTrue(all(s.seek + (s.end - s.start) <= 60.0 for s in long_))
         self.assertTrue(all(meta.get(s.start) == {"generic": True} for s in long_))      # every cut keeps the clip's provenance

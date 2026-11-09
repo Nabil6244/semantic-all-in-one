@@ -26,7 +26,7 @@ from . import semantics as S
 
 FPS = 25
 HOOK_MAX_S = 14.0
-HOOK_CUT_S = 1.25
+HOOK_CUT_S = 2.5                    # 2026-11-09: 1.25 s teaser cuts read as split-second flicker to the owner; never under direction.MIN_SHOT_S
 HOOK_MIN_REL = 0.3                  # a teaser clip must have matched its own sentence (never an off-topic cut)
 OPENER_MAX_S = 3.6
 RUN_MAX_S = 12.0

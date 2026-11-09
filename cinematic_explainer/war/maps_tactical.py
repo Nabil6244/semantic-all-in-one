@@ -40,7 +40,7 @@ from __future__ import annotations
 import logging
 import math
 from collections import OrderedDict
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw
 
@@ -1073,7 +1073,10 @@ def _render(params: dict, t: float, dur: float, extra_panel: Optional[dict] = No
         if pl.get("site"):
             sx, sy = view.pt(pl["lat"], pl["lon"])
             ME.draw_site(img, sx, sy, pl["site"], t - pl["start"])
-    _banner_and_inset(img, params, g, view, t)                          # map_events: count banner, round picture of the scene's own clip
+    def view_at_time(tt: float) -> MP.View:
+        return _cine(_camera(views, tt, max(dur, 0.1), ft)[0], g, tt, dur, enter)
+
+    _banner_and_inset(img, params, g, view, t, view_at_time, dur)       # map_events: count banner, round picture of the scene's own clip
     for iso, (fx, fy), fs in flag_marks:
         _map_flag(img, iso, fx, fy - 30, t - fs)
 
@@ -1283,9 +1286,21 @@ def _number_panel(img: Image.Image, spec: dict, t: float) -> Tuple[int, int, int
     return box
 
 
-def _banner_and_inset(img: Image.Image, params: dict, g: Dict[str, Any], view: Any, t: float) -> None:
+def inset_side(pl: Dict[str, Any], start: float, dur: float, view_at_time: Optional[Callable[[float], Any]]) -> int:
+    """+1 = the round picture sits right of its pin, -1 = left. Decided once for the whole map from where the pin sits on average while
+    the picture is up, so a camera that drifts the pin across the middle of the screen never flips the picture from side to side each frame."""
+    if view_at_time is None or dur <= start:
+        return 1
+    n = 6
+    xs = [view_at_time(start + (dur - start) * i / (n - 1)).pt(pl["lat"], pl["lon"])[0] for i in range(n)]
+    return -1 if sum(xs) / n > W / 2 else 1
+
+
+def _banner_and_inset(img: Image.Image, params: dict, g: Dict[str, Any], view: Any, t: float,
+                      view_at_time: Optional[Callable[[float], Any]] = None, dur: float = 0.0) -> None:
     """banner {text, sub, start}: the narration's count big at the top ('1,214 DRONES' / '29 OCTOBER').
-    inset {place, video, at, start}: a round picture of the scene's own clip in a white ring, pinned to the named place by a short line."""
+    inset {place, video, at, start}: a round picture of the scene's own clip in a white ring, pinned to the named place by a short line;
+    its side of the pin is fixed for the whole map (inset_side)."""
     bn = params.get("banner") if isinstance(params.get("banner"), dict) else None
     if bn and t >= float(bn.get("start", 0.6)):
         k = M.ease_out(M.ramp(t, float(bn.get("start", 0.6)), 0.35))
@@ -1315,7 +1330,8 @@ def _banner_and_inset(img: Image.Image, params: dict, g: Dict[str, Any], view: A
     k = M.ease_out(M.ramp(t, float(ins.get("start", 1.0)), 0.4))
     R = int(110 * (0.6 + 0.4 * k))
     px, py = view.pt(pl["lat"], pl["lon"])
-    cx = int(min(W - R - 30, max(R + 30, px - 190 if px > W / 2 else px + 190)))
+    side = inset_side(pl, float(ins.get("start", 1.0)), dur, view_at_time) if view_at_time is not None else (-1 if px > W / 2 else 1)
+    cx = int(min(W - R - 30, max(R + 30, px + 190 * side)))
     cy = int(min(H - R - 40, max(R + 90, py - 120)))
     lay = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(lay)
