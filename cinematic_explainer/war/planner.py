@@ -1266,7 +1266,9 @@ def plan(scenes: Sequence[Dict[str, Any]], *, catalog: Any = "default", assets: 
             direction_stats = {"error": f"{type(exc).__name__}: {exc}"}
             import logging
             logging.getLogger(__name__).warning("War direction pass failed, the video gets only the planner's own cards: %s", direction_stats["error"], exc_info=True)
-    out.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))
+    from .direction import draw_order
+
+    out.layers.sort(key=draw_order)             # backing fields under everything (direction.draw_order)
     card_time = state.card_time()
     out.stats = {"scenes": len(rows), "cards": len(state.acc), "card_share": round(card_time / state.total, 4), "clean_share": round(1 - card_time / state.total, 4),
                  "headlines": headlines, "footage_shots": shots_n, "headline_share": round(headlines / shots_n, 3) if shots_n else 0.0,

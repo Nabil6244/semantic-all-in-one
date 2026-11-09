@@ -68,6 +68,10 @@ _DATE = re.compile(r"\b((?:on |in |since |by |to |until |from )?(?:early |late |
                    r"(?: \d{1,2}\b(?:\s*(?:and|-|–)\s*\d{1,2})?)?(?:,? (?:19|20)\d\d)?|(?:the )?(?:summer|winter|spring|autumn|fall) of (?:19|20)\d\d|"
                    r"overnight|last night|this week|this year|\b(?:19|20)\d\d\b)", re.I)
 MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
+# 'the largest warship lost in combat since 1982' compares with a past year: it is not when the story happens (Moskva 2026-11-09: it stretched
+# the story period back to 1982, so a 2024 Odesa clip passed the date check)
+_COMPARISON_YEAR = re.compile(r"\b(?:largest|biggest|first|worst|most|deadliest|heaviest|longest|highest|lowest|greatest|only|last)\b[^.]*?"
+                              r"\bsince\s+(?:the\s+)?(?:\w+\s+)?(?:19|20)\d\d\s*$", re.I)
 _REL_DATE = {"the next day": 1, "a day later": 1, "the following day": 1, "two days later": 2, "days later": 3, "a week later": 7,
              "the next week": 7, "weeks later": 21, "a month later": 30, "the following month": 30, "months later": 90, "a year later": 365,
              "the following year": 365}
@@ -242,6 +246,17 @@ _ROLE_AFTER = re.compile(r"^(?:['’]s)?\s+(?:says?|said|claim(?:s|ed)?|denied|d
                          r"military command|commanders?|generals|regime|response|position|claim)\b", re.I)
 
 
+_REF_BEFORE = re.compile(r"\b(?:(?:north|south|east|west)(?:-?(?:east|west))?(?:ern)?\s+of|near|off|outside|close to|not far from|"
+                         r"miles from|kilometres from|kilometers from|km from)\s+(?:the\s+)?(?:(?:coast|shore|port|city)\s+(?:of|near)\s+)?$", re.I)
+
+
+def reference_only(text: str, name: str) -> bool:
+    """The place is named only as a reference point for somewhere else ('struck the ship south of Odesa', 'the coast near Odesa'): the
+    sentence is not about it, so footage that only names it is not footage of the sentence (Moskva 2026-11-09: Odesa strike clips)."""
+    ms = list(re.finditer(rf"\b{re.escape(name)}\b", text or ""))
+    return bool(ms) and all(_REF_BEFORE.search(text[:m.start()]) for m in ms)
+
+
 def place_roles(text: str, name: str) -> List[str]:
     """How each mention of a place name is used: 'location' (where something is / happens) or 'actor' (a government speaking, deciding,
     being blamed: 'blamed Moscow', 'Moscow said', 'Kyiv's claim'). A place used only as an actor is not where the footage should be."""
@@ -405,7 +420,7 @@ def read(text: str, prev: Optional["Reading"] = None) -> Reading:
             add("SUBJECT", equipment[0])
         if _ANALYSIS.search(s) or ("TRANSITION" in types and not any(t in types for t in FOOTAGE_TYPES + ("CLAIM", "STATISTIC"))):
             add("ANALYSIS", "evaluation / conclusion")
-        dm = _DATE.search(s)
+        dm = next((m for m in _DATE.finditer(s) if not _COMPARISON_YEAR.search(s[:m.end()])), None)
         if dm and not date:
             date = dm.group(1).strip()
         nouns += [n.lower() for n in _EVENT_NOUN.findall(s) if n.lower() not in nouns]

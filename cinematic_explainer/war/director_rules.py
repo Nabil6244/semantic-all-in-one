@@ -223,10 +223,38 @@ def reject(c: Any, r: Reading, film_date: Optional[_dt.date] = None, story: Opti
         why.append(f"format: commentary channel ({c.channel})")
     elif tier in ("aggregator", "unknown") and dur and dur > 360 and ({"EVENT", "MOVEMENT"} & set(r.types)):
         why.append(f"format: {dur / 60:.0f}-minute programme from a re-upload channel")
-    # entity
-    if specific:
+    # the CSV prompt: what the writer asked to see. The clip must name its subject AND show one more thing it asks for ('Moskva' +
+    # 'sinking'; 'Snake Island' + 'stamp'), for at least one '||' alternative (Moskva 043/044: Odesa building strikes passed on 'Snake
+    # Island' or 'Odesa' alone)
+    parts = [p_ for p_ in (getattr(r, "prompt_parts", None) or []) if p_.get("names") or p_.get("words")]
+    if any(p_.get("words") for p_ in parts):
+        parts = [p_ for p_ in parts if p_.get("words")]     # a name-only alternative ('Snake Island February 2022') says nothing about the picture
+    if parts:
+        def has_form(w: str) -> bool:                       # 'launch' ~ 'launches', 'confirm' ~ 'confirmed', 'sink' ~ 'sinking'
+            stem = re.sub(r"(?:ing|ed|es|s)$", "", w) if len(w) > 5 else w
+            return _has(hay, w) or bool(re.search(r"\b" + re.escape(stem) + r"(?:s|es|ed|d|ing)?\b", hay))
+
+        def fits(p_: Dict[str, List[str]]) -> bool:
+            nm = [n for n in p_.get("names", []) if _has(hay, n)]
+            wd = [w for w in p_.get("words", []) if has_form(w)]
+            if p_.get("names") and not nm:
+                return False
+            return bool(wd) or len(nm) >= 2 or not p_.get("words")
+        if not any(fits(p_) for p_ in parts):
+            why.append("prompt: the clip does not show what the CSV prompt asks for")
+    # entity (a generic CSV prompt, no names, was matched above: troops / jets / winter need no sentence noun spelled the same way)
+    generic_prompt = bool(parts) and not any(p_.get("names") for p_ in parts)
+    if generic_prompt:
+        pass
+    elif specific:
         if not any(_has(hay, k) for k in specific):
             why.append(f"entity: none of {', '.join(specific[:4])} named")
+        else:
+            from .narration_read import reference_only
+
+            refs = [k for k in specific if reference_only(r.text, k)]
+            if refs and not any(_has(hay, k) for k in specific if k not in refs):
+                why.append(f"entity: names only {', '.join(refs[:2])}, which the sentence uses as a reference point, not its subject")
     elif r.key_terms:
         if not any(_has(hay, k) for k in r.key_terms):
             why.append(f"entity: none of {', '.join(r.key_terms[:3])} named")
@@ -261,7 +289,9 @@ def reject(c: Any, r: Reading, film_date: Optional[_dt.date] = None, story: Opti
         why.append("subject: an attack, the narration is about repairs")
     # time (event date = what the sentence says; upload date = when the clip appeared; film date = when this documentary is made)
     up = _upload(c)
-    if up and film_date:
+    parts_ = [p_ for p_ in (getattr(r, "prompt_parts", None) or []) if p_.get("names") or p_.get("words")]
+    generic = bool(parts_) and not any(p_.get("names") for p_ in parts_)
+    if up and film_date and not generic:      # a generic picture (troops, jets, a refinery fire, winter) has no date to keep
         stated = getattr(r, "date_source", "stated") in ("stated", "")
         win = event_date(r, film_date) if stated else None
         if win and up < win[0]:
@@ -312,7 +342,7 @@ def rank(cands: Sequence[Any], r: Reading, film_date: Optional[_dt.date] = None,
 # ------------------------------------------------------------------------------------------------------------------ no repeats -----
 HASH_NEAR = 10
 HASH_MIN_TILES = 2
-MAX_MOMENTS_PER_VIDEO = 2
+MAX_MOMENTS_PER_VIDEO = 1          # Moskva 044: two moments of one Reuters video in scenes 3 and 10 read as the same clip twice
 
 
 def hamming(a: str, b: str) -> int:

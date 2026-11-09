@@ -225,7 +225,7 @@ def _place_names(sent: Any) -> List[str]:
 def _country_names(sent: Any) -> List[str]:
     from .direction import _countries
 
-    return [e.name for e in _countries(sent)]
+    return [e.name for e in _countries(sent, as_place=True)]
 
 
 def _runs(rows: Sequence[Dict[str, Any]], log_by_no: Dict[str, Any]) -> List[List[Dict[str, Any]]]:

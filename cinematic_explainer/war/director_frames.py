@@ -174,7 +174,10 @@ def classify(img: np.ndarray, prev: Optional[np.ndarray] = None) -> Tuple[str, f
         r_, gg, b = a[..., 0], a[..., 1], a[..., 2]
         skin = (r_ > 95) & (gg > 40) & (b > 20) & (r_ > gg + 12) & (r_ > b + 12)
         centre = skin[h // 6: h * 5 // 6, w // 3: w * 2 // 3].mean()
-        if centre > 0.18 and change < 9.0:
+        outside = (skin.sum() - skin[h // 6: h * 5 // 6, w // 3: w * 2 // 3].sum()) / max(skin.size - skin[h // 6: h * 5 // 6, w // 3: w * 2 // 3].size, 1)
+        # a presenter is skin in the MIDDLE; warm colour across the whole frame is a landscape (Moskva 045: a slow drone shot over orange
+        # rocks, the exact moment, was 'studio 11 of 12')
+        if centre > 0.18 and change < 9.0 and outside < 0.5 * centre:
             return "studio", detail, flags
         if change < STATIC_DIFF:
             flags.append("static")

@@ -484,10 +484,18 @@ def _places(sent: Any) -> List[Any]:
     return out
 
 
-def _countries(sent: Any) -> List[Any]:
+def _countries(sent: Any, as_place: bool = False) -> List[Any]:
+    """Countries the sentence names; as_place=True (maps) keeps only those named AS PLACES. A country that only speaks or decides ('United States officials confirmed', 'Russia said a
+    fire...') is an actor, not somewhere to show (Moskva render 2026-11-09: a USA map held for 10 s over the Black Sea story)."""
+    from .narration_read import place_roles
+
+    text = str(getattr(sent, "text", "") or "")
     seen, out = set(), []
     for e in sent.entities:
         if e.kind == "place" and e.country and e.name.lower() not in seen:
+            roles = place_roles(text, e.name) if (text and as_place) else []
+            if roles and "location" not in roles:
+                continue
             seen.add(e.name.lower())
             out.append(e)
     return out
@@ -540,7 +548,7 @@ def _named_regions(text: str) -> List[Tuple[str, str]]:
 def _countries_in(A: Any) -> List[str]:
     out: List[str] = []
     for s_ in getattr(A, "sentences", []) or []:
-        for c in _countries(s_):
+        for c in _countries(s_, as_place=True):
             if c.name not in out:
                 out.append(c.name)
     return out
@@ -747,7 +755,11 @@ _DATE = re.compile(r"\b(?:(?:early|mid|late)[- ])?" + _MONTHS + r"(?:\s+\d{1,2})
 
 def _date_of(text: str) -> str:
     """'February 2022', 'late March 2023', or a year after in/by/since ('2014'), exactly as the narration says it; else ''."""
-    m = _DATE.search(text or "")
+    from .narration_read import _COMPARISON_YEAR
+
+    text = text or ""
+    # 'the largest warship lost since 1982' compares with a year: no date card (Moskva 044 showed a '1982' card)
+    m = next((x for x in _DATE.finditer(text) if not _COMPARISON_YEAR.search(text[:x.end()])), None)
     if not m:
         return ""
     return m.group(2) if m.group(2) else m.group(0).strip(" ,")
@@ -939,6 +951,9 @@ def _still_of(r: Dict[str, Any]) -> str:
     return lp if lp.lower().endswith(_STILL_EXT) else ""
 
 
+TITLE_WHOLE_W = 10
+
+
 def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> Tuple[Optional[Layer], str]:
     text = str(r.get("text") or "")
     A = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
@@ -1028,7 +1043,7 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
         return None, "no place named"
     if kind == "map":
         for sent in sents:
-            pl, co = _places(sent), _countries(sent)
+            pl, co = _places(sent), _countries(sent, as_place=True)
             p = _tac_params(sent, pl, co, False) if pl else (_tac_params(sent, [], co, True) if co else {})
             if p:
                 return Layer("tac_map", r["_start"], r["_end"], _narrate_map(p, text, A, r["_start"], _countries_in(A)), dim=False), ""
@@ -1166,7 +1181,17 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
         from .map_build import chapter_of
 
         ch = chapter_of(sents[0].text) if sents else None
-        return (full("kit_title", {"text": ch[1] or ch[0], "sub": ch[0] if ch[1] else ""} if ch else {"text": h}), "") if (ch or h) else (None, "no words")
+        th = h
+        if sents and not ch:
+            # a title the CSV asked for is never cut mid-thought (Moskva 2026-11-09: 'Do you think one ship changed' lost 'the war at sea?'):
+            # a short sentence is shown whole, a longer one by its first whole clause
+            whole = sents[0].text.strip().strip("\"'").rstrip(".")
+            first = re.split(r"[,;:]\s+", whole, maxsplit=1)[0]
+            if len(whole.split()) <= TITLE_WHOLE_W:
+                th = whole
+            elif len(first.split()) <= TITLE_WHOLE_W and len(first.split()) >= 3:
+                th = first
+        return (full("kit_title", {"text": ch[1] or ch[0], "sub": ch[0] if ch[1] else ""} if ch else {"text": th}), "") if (ch or th) else (None, "no words")
     if kind == "list":
         its = _items(text)
         if its:
@@ -1294,7 +1319,7 @@ def _floor_options(sent: Any, has_footage: bool, layouts: bool) -> List[Tuple[st
     art = GL.article_of(sent)                                # a cited report: the document page with the reported words highlighted
     if art:
         out.append(("lay_document", art, 5.0))
-    pl, co = _places(sent), _countries(sent)
+    pl, co = _places(sent), _countries(sent, as_place=True)
     if pl:
         p = _tac_params(sent, pl, co, False)
         if p:
@@ -1869,7 +1894,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 ka = max(a, A.time_at(sent.span[0] + m.start()) - 0.2)
                 proposals.append((1, "kit_stamp", ka, min(en, ka + 4.5), {"status": status, "pos": "upper-right"}, "stamp", f"'{m.group(0)}' marks a {status} statement", None))
             # 2 tactical map
-            pl, co = _places(sent), _countries(sent)
+            pl, co = _places(sent), _countries(sent, as_place=True)
             moving = bool(sent.motion) or bool(_STRIKE.search(sent.text))
             if len(pl) >= 2 or (pl and moving):
                 p = _tac_params(sent, pl, co, False)
@@ -2004,10 +2029,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         first_scene = False
 
     plan.layers.extend(new_layers)
-    looks = ("night", "blueprint", "table")                                   # maps differ from one to the next unless the caller pins a look
+    looks = ("table", "blueprint")       # maps differ from one to the next unless the caller pins a look; 2026-11-10 owner: no dark "night" look
     for i, ly in enumerate(sorted((x for x in plan.layers if x.kind in ("tac_map", "tac_route")), key=lambda x: x.start)):
         if isinstance(ly.params, dict) and not ly.params.get("look") and ly.params.get("theme") != "political":
-            ly.params["look"] = cfg.get("map_look") or looks[i % 3]
+            ly.params["look"] = cfg.get("map_look") or looks[i % len(looks)]
     if cfg.get("icons", True):
         _icon_scenes(plan, rows, cat, log_by_no, counts, maps_rebuilt=bool(cfg.get("map_build", True)))
     if cfg.get("map_build", True):     # one map that builds across each stretch without footage (map_build.py)
@@ -2260,8 +2285,40 @@ def _has_frames(sh: Any, extra: float) -> bool:
     return n is not None and sh.seek + (sh.end - sh.start) + extra <= n - 0.1
 
 
+_KICKER_OF = {"key figure": ("stat", "bignum", "number", "figure_pair"), "source": ("document", "claim", "quote", "evidence", "stamp"),
+              "statement": ("quote", "figure", "portrait", "speaker", "claim"), "comparison": ("compare", "versus"),
+              "equipment": ("equipment",), "institution": ("institution",)}
+
+
+def _fit_kickers(plan: Any, counts: Dict[str, int]) -> None:
+    """A kicker ('Key figure', 'Source') labels one card: it lives only while that card is on screen. Later passes move and trim cards but
+    not their kickers (Moskva 044: 'KEY FIGURE' on an empty field after '1 dead' ended, and over a radar card)."""
+    keep: List[Layer] = []
+    for ly in plan.layers:
+        if ly.kind != "kicker":
+            keep.append(ly)
+            continue
+        marks = _KICKER_OF.get(str((ly.params or {}).get("text") or "").strip().lower())
+        if marks is None:
+            keep.append(ly)
+            continue
+        over = [c for c in plan.layers if c.kind not in SOFT and c.start < ly.end and c.end > ly.start]
+        cards = [c for c in over if any(m in c.kind for m in marks)] or \
+                [c for c in over if c.kind.startswith(("lay_", "stat_")) or c.kind in ("kit_chart", "kit_bignum")]   # the card was converted
+        best = max(cards, key=lambda c: min(c.end, ly.end) - max(c.start, ly.start), default=None)
+        if best is None or min(best.end, ly.end) - max(best.start, ly.start) < 1.0:
+            counts["kickers_dropped"] = counts.get("kickers_dropped", 0) + 1
+            continue
+        if best.start > ly.start or best.end < ly.end:
+            ly.start, ly.end = fr(max(ly.start, best.start)), fr(min(ly.end, best.end))
+            counts["kickers_fitted"] = counts.get("kickers_fitted", 0) + 1
+        keep.append(ly)
+    plan.layers[:] = keep
+
+
 def _prune_marks(plan: Any, counts: Dict[str, int]) -> None:
     """Footage marks (source chip, badge) only where footage is actually seen: split around opaque graphics, dropped when no footage is left."""
+    _fit_kickers(plan, counts)
     seen = [(sh.start, sh.end) for sh in plan.shots]
     blocked = _spans_union([(ly.start, ly.end) for ly in plan.layers if _opaque(ly)])
     keep: List[Layer] = []
@@ -2345,7 +2402,15 @@ def _final_coverage(plan: Any, total: float, counts: Dict[str, int], hook_end: f
 # in the plan, every moment is a shot (a clip with a picture) or a self-backed full-frame graphic (own opaque background), or at most COVER_TOL s bare.
 COVER_TOL = 0.3
 BACKING_KIND = "kit_field"
+LIGHT_OVER = {"kit_flyover"}       # word-free overlay: alone on the plate it reads as an empty screen; cards with words keep their quiet field
 SELF_BACKED = MOTION_KINDS | {"tac_map", "tac_route", "map_card", BACKING_KIND}
+
+
+def draw_order(ly: Any) -> Tuple[int, float, float, str]:
+    """Sort key for plan.layers (first = drawn first). A backing field is a plain opaque plate with no words: it is always drawn under every
+    card, map and mark. Sorting it by (start, end) put a longer field that started on the same frame ON TOP of the cards it was made to back
+    (Moskva render 2026-11-09: 'two Neptune missiles' and the 'Russia said a fire...' document hidden for 10 s)."""
+    return (0 if ly.kind == BACKING_KIND else 1, ly.start, ly.end, ly.kind)
 
 
 def _picture_ok(path: str) -> bool:
@@ -2424,8 +2489,15 @@ def _cover_plate(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
                     nxt.start = fr(a)
                 counts["plate_held"] = counts.get("plate_held", 0) + 1
                 continue
+            # a word-free overlay (the missile / drone fly-over) is no reason for a bare field: alone on the plate it reads as an
+            # empty screen (Moskva 044: 4 s of a tiny missile on the field). The motion card goes under it, the overlay stays on top.
+            heavy = [ly for ly in fg if ly.kind not in LIGHT_OVER]
+            if heavy and min(ly.start for ly in heavy) <= a + 0.05 and max(ly.end for ly in heavy) <= b - 2.0:
+                b = fr(max(ly.end for ly in heavy))         # the field backs the card only; the rest is filled on the next round
+            fg = heavy
             made = None
-            asked = any((ly.params or {}).get("csv_graphic") for ly in plan.layers if ly.start < b - 0.05 and ly.end > a + 0.05)
+            asked = any((ly.params or {}).get("csv_graphic") for ly in plan.layers
+                        if ly.start < b - 0.05 and ly.end > a + 0.05 and ly.kind not in LIGHT_OVER)
             if not fg and not asked and b - a >= 2.0:          # a CSV-asked card keeps its own words on a quiet field, not under more words
                 made = _motion_over(rows, cat, log_by_no, a, b, plan.layers)
             if made is None:
@@ -2899,7 +2971,7 @@ def protect_earned(plan: Any, rows: Sequence[Dict[str, Any]], counts: Dict[str, 
                 insert_used = True
                 note(r, "insert:" + ly.kind + tag)
     if done:
-        plan.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))
+        plan.layers.sort(key=draw_order)
     return done
 
 
@@ -2948,5 +3020,5 @@ def harden_measured(plan: Any, scenes: Sequence[Dict[str, Any]], plate_path: Opt
     _cover_plate(plan, rows, cat, {}, counts, total)
     protect_earned(plan, rows, counts)
     _prune_marks(plan, counts)
-    plan.layers.sort(key=lambda ly: (ly.start, ly.end, ly.kind))          # the planner's own order: the later start is drawn on top
+    plan.layers.sort(key=draw_order)          # the planner's own order: the later start is drawn on top
     return counts

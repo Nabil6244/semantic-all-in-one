@@ -24,6 +24,7 @@ ALLOWED: dict = {          # {"variant:kind@start": "why it changed"}
     "all_footage:kit_kinetic@78.8": "2026-11-09 the generic kinetic filler under 'Russian forces captured Avdiivka' gives way to the place's "
                                     "label and the ISW card that now follows",
     "all_footage:bc_label@115.12": "2026-11-09 the label rate (about one per 15 s) is spent on AVDIIVKA at 81 s instead",
+    "csv:kicker@93.92": "2026-11-10 a kicker ends with its card: 'Key figure' stops at 99.6 with the chart, not 0.3 s over the next map",
 }
 SKIP_KINDS = {"kit_grain"}  # film grain spans the whole timeline and follows the length, not a decision
 

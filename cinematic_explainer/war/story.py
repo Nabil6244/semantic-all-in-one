@@ -88,13 +88,15 @@ def hook(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any]) -> Dict
     if len(pool) > 8:                                  # the best-matched clips, still in story order
         best = set(id(x) for x in sorted(pool, key=lambda x: -rel.get(x.path, 0.3))[:8])
         pool = [x for x in pool if id(x) in best]
-    later = [s for s in pool if s.start >= end + 8.0]           # a teaser of what is coming, not the very next scenes
-    if len(later) >= 4:
-        pool = later
-    if not pool:
-        return out
     n = max(2, int(math.ceil(end / HOOK_CUT_S)))
-    picks = [pool[int(i * len(pool) / n) % len(pool)] for i in range(n)] if len(pool) >= n else [pool[i % len(pool)] for i in range(n)]
+    later = [s for s in pool if s.start >= end + 8.0]           # a teaser of what is coming, not the very next scenes
+    if len(later) >= n:
+        pool = later
+    if len(pool) < n:
+        # Moskva render 2026-11-09: 3 clips in the whole film were looped into an 11 s montage (each shown 2-3 times, then again in its
+        # own scene). A teaser needs one distinct, later clip per cut; with fewer the film opens on its own first scene (cards / map).
+        return out
+    picks = [pool[int(i * len(pool) / n)] for i in range(n)]
     t, k = 0.0, 0
     new: List[Shot] = []
     while t < end - 0.05 and k < len(picks):
@@ -181,7 +183,9 @@ def map_rhythm(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, cfg: Dict[st
             low = text.lower()
             name_at = [A.time_at(low.find(nm.lower())) for nm in names if nm and low.find(nm.lower()) >= 0]
             place_t = min(name_at) if name_at else None
-            m = _DATE.search(text)
+            from .narration_read import _COMPARISON_YEAR
+
+            m = next((x for x in _DATE.finditer(text) if not _COMPARISON_YEAR.search(text[:x.end()])), None)
             if m and place_t is not None:
                 date_t = A.time_at(m.start())
                 a, b = fr(max(ly.start, date_t - 0.2)), fr(place_t - 0.3)

@@ -137,6 +137,81 @@ def _clip_dict(rec: Dict[str, Any]) -> Dict[str, Any]:
     return d
 
 
+_PROMPT_NOT_SUBJECT = {"reuters", "ap", "afp", "bbc", "cnn", "footage", "video", "news", "official", "officials"}
+_AREA_TAILS = {"sea", "ocean", "river", "gulf", "strait", "fleet", "region", "coast"}
+_GENERIC_NAME_WORDS = {"island", "sea", "fleet", "river", "city", "port", "navy", "army", "black", "pentagon", "us", "uk", "eu", "nato"}
+
+
+_PROMPT_STOP = {"the", "a", "an", "of", "in", "on", "at", "to", "for", "and", "or", "with", "from", "by", "after", "before", "during", "over",
+                "near", "into", "footage", "video", "clip", "news", "report", "live", "official", "officials", "photo", "photos", "images"}
+
+
+def _prompt_part(part: str, skip: set) -> Dict[str, List[str]]:
+    """One '||' alternative of a CSV prompt: its names (capitalised runs, 'Snake Island' as one; not countries / months / outlets) and its
+    other content words ('sinking', 'stamp', 'queue')."""
+    import re as _re
+
+    names, words = [], []
+    for tok in _re.findall(r"[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*)*|[a-z][\w'-]+", part):
+        if tok[:1].isupper():
+            kept = [w.lower() for w in tok.split() if w.lower() not in skip and w.lower() not in _PROMPT_STOP
+                    and not _re.match(r"(?:russian|ukrainian)s?$", w.lower())]
+            i = 0
+            while i < len(kept):                      # 'Snake Island' is one name, 'Snake Island Moskva' two; a whole sea is none
+                if i + 1 < len(kept) and kept[i + 1] in _GENERIC_NAME_WORDS:
+                    nm, i = f"{kept[i]} {kept[i + 1]}", i + 2
+                else:
+                    nm, i = kept[i], i + 1
+                if nm.split()[-1] in _AREA_TAILS or nm in _GENERIC_NAME_WORDS or len(nm) < 3:
+                    continue
+                if nm not in names:
+                    names.append(nm)
+        elif tok not in _PROMPT_STOP and len(tok) >= 3:
+            words.append(tok)
+    return {"names": names, "words": words}
+
+
+def _prompt_subjects(readings: Dict[str, Any], scenes: Sequence[Dict[str, Any]], rows: Sequence[Any]) -> None:
+    """The names in a row's CSV prompt (its first search) are what the writer wants shown: they lead the reading's key terms. Moskva
+    2026-11-09: 'On April 14, 2022, the flagship of Russia's Black Sea Fleet sank' named no ship, so Al Jazeera's 'sinking of Russia's
+    flagship Moskva' was rejected as 'none of Black Sea, Fleet named' while grain-crisis clips passed. Countries and months are not
+    subjects (every Ukraine clip names Ukraine)."""
+    import re as _re
+
+    skip = {c.lower() for c in getattr(N, "COUNTRIES", ())} | {m.lower() for m in N.MONTHS} | _PROMPT_NOT_SUBJECT
+    by_no = {str(sc.get("scene_no")): sc for sc in scenes}
+    for r in rows:
+        full = str(getattr(r, "prompt", "") or "")
+        prompt = full.split("||")[0]
+        no_ = str(getattr(r, "scene_number", ""))
+        sc_ = by_no.get(no_) or (by_no.get(str(int(no_))) if no_.isdigit() else None) or {}
+        rd = readings.get(str(sc_.get("scene_no", no_)))
+        if rd is None or not prompt.strip():
+            continue
+        rd.prompt_parts = [_prompt_part(x, skip) for x in full.split("||") if x.strip()]
+        names: List[str] = []
+        for run_ in _re.findall(r"\b[A-Z][\w-]+(?:\s+[A-Z][\w-]+)*", prompt):     # 'Snake Island' stays one name; a lone 'Island' is no subject
+            words = [w for w in run_.split() if w.lower() not in skip and not _re.match(r"(?:Russian|Ukrainian)s?$", w)]
+            if not words:
+                continue
+            parts = []
+            i = 0
+            while i < len(words):                     # 'Snake Island', 'Black Sea' are one name; 'Pentagon Moskva Neptune' is three
+                if i + 1 < len(words) and words[i + 1].lower() in _GENERIC_NAME_WORDS:
+                    parts.append(f"{words[i]} {words[i + 1]}")
+                    i += 2
+                    continue
+                parts.append(words[i])
+                i += 1
+            for p_ in parts:
+                if p_.split()[-1].lower() in _AREA_TAILS:
+                    continue      # 'Black Sea' names a whole region: Odesa news mentions it too (Moskva 044: a 2024 Odesa strike clip passed)
+                if p_.lower() not in _GENERIC_NAME_WORDS and len(p_) >= 3 and p_ not in names:
+                    names.append(p_)
+        if names:
+            rd.key_terms = names + [k for k in rd.key_terms if k not in names]
+
+
 def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path, state_dir: Path, log: Callable[[str], None] = lambda m: None,
         cancel: Callable[[], bool] = lambda: False, film_date: Optional[_dt.date] = None, searcher: Optional[S.Searcher] = None,
         acquire: Optional[Callable[..., Dict[str, Any]]] = None, validate: Optional[Callable[..., Optional[str]]] = None,
@@ -151,6 +226,7 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
     searcher = searcher or S.Searcher(state_dir / "director_cache", log=log)
     fetch_sheet = fetch_sheet or F._fetch
     readings = N.read_scenes(scenes)
+    _prompt_subjects(readings, scenes, rows)
     topic = S.topic_of(list(readings.values()))
     story = R.story_period(list(readings.values()))
     man = AssetManifest(images_dir)
@@ -302,8 +378,8 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
             others.append((c.video_id, c.channel, win["hashes"]))
             cls, why_cls = A.classify(c, reading, film_date, win["hashes"], others, story=story, level=level)
             cand.update(window=win, authenticity=cls, authenticity_reasons=why_cls)
-            if not A.allowed(cls, reading, level, cand["tier"], c.blocked):
-                cand["why"] = [f"authenticity: {cls} ({'; '.join(why_cls)}): an event scene takes only verified or corroborated footage"]
+            if not A.allowed(cls, reading, level, cand["tier"], c.blocked, why_cls):
+                cand["why"] = [f"authenticity: {cls} ({'; '.join(why_cls)}): this scene takes only verified or corroborated footage"]
                 entry["candidates"].append(cand)
                 continue
             tries += 1

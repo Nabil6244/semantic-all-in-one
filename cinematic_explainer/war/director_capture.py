@@ -62,13 +62,45 @@ def verify(frames: Sequence[np.ndarray], tiles: Sequence[F.Tile], start: float, 
         kinds[k] = kinds.get(k, 0) + 1
         prev = f
     bad = {k: v for k, v in kinds.items() if k in F.BAD}
+    colour = None
+    if near and share < MATCH_SHARE and _fast(frames):
+        # a moving camera / timelapse changes every frame, so no fingerprint ever matches a tile 1-2 s away (Moskva 045: the stamp-queue
+        # timelapse, the right picture, matched 0%). Colour decides there: the chosen stretch's palette, not another video's (an ad)
+        colour = _colour_match(frames, near, [t for t in tiles if t not in near])
+        if colour["near"] >= COLOUR_MIN and colour["near"] >= colour["far"] - 0.02:
+            share = max(share, MATCH_SHARE)
     if near and share < MATCH_SHARE:
         reasons.append(f"moment: only {share:.0%} of the captured frames show the chosen stretch (an ad or a wrong seek)")
     if sum(bad.values()) > len(frames) * 0.3:
         reasons.append(f"picture: {', '.join(f'{k} {v}' for k, v in bad.items())} of {len(frames)} frames")
     offset = round(float(np.median(offs)), 2) if offs else None
     return {"ok": not reasons, "matched": round(share, 3), "offset": offset, "kinds": kinds, "reasons": reasons,
-            "checked_against_storyboard": bool(near)}
+            "checked_against_storyboard": bool(near), **({"colour": colour} if colour else {})}
+
+
+FAST_CHANGE = 25.0          # median mean-abs change (0-255) between frames 0.5 s apart above which the picture is a moving camera
+COLOUR_MIN = 0.7            # palette overlap with the chosen stretch: the right moment ~0.82, another video ~0.33-0.52 (measured, Moskva 045)
+
+
+def _fast(frames: Sequence[np.ndarray]) -> bool:
+    ch = [float(np.abs(frames[i].astype(np.float32) - frames[i - 1].astype(np.float32)).mean()) for i in range(1, len(frames))
+          if frames[i].shape == frames[i - 1].shape]
+    return bool(ch) and float(np.median(ch)) > FAST_CHANGE
+
+
+def _palette(img: np.ndarray) -> np.ndarray:
+    q = (np.asarray(img)[::2, ::2] >> 5).astype(np.int32)
+    h = np.bincount(((q[..., 0] << 6) | (q[..., 1] << 3) | q[..., 2]).ravel(), minlength=512).astype(np.float32)
+    return h / max(h.sum(), 1.0)
+
+
+def _colour_match(frames: Sequence[np.ndarray], near: Sequence[F.Tile], far: Sequence[F.Tile]) -> Dict[str, float]:
+    """Median best palette overlap of the captured frames with the chosen stretch's tiles and with the rest of the video."""
+    pn = [_palette(t.img) for t in near]
+    pf = [_palette(t.img) for t in far[::max(1, len(far) // 40)]]
+    fs = [_palette(f) for f in frames]
+    best = lambda ps: float(np.median([max(float(np.minimum(f, p).sum()) for p in ps) for f in fs])) if ps else 0.0  # noqa: E731
+    return {"near": round(best(pn), 3), "far": round(best(pf), 3)}
 
 
 def longest_uncut(frames: Sequence[np.ndarray], fps: float = 2.0) -> tuple:

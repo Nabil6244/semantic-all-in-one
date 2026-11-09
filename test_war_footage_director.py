@@ -192,9 +192,7 @@ class UsedTest(unittest.TestCase):
         u = R.Used()
         u.add("003", "vid", 10, 18)
         self.assertIn("same seconds", u.conflict("vid", 12, 20))
-        self.assertEqual(u.conflict("vid", 30, 38), "")
-        u.add("004", "vid", 30, 38)
-        self.assertIn("moments of this video", u.conflict("vid", 60, 68))
+        self.assertIn("moments of this video", u.conflict("vid", 30, 38))     # 2026-11-10 owner: one moment per video (two read as a repeat)
         self.assertEqual(u.conflict("other", 12, 20), "")
 
     def test_same_picture_under_another_id(self):
@@ -287,12 +285,15 @@ class AuthenticityTest(unittest.TestCase):
         cls2, _ = A.classify(c, self.R_EVENT, FILM, hs, [("theirs", "Zxq Local", hs)])           # same channel is not independent
         self.assertEqual(cls2, "unverified")
 
-    def test_allowed_strict_for_event_and_movement_only(self):
+    def test_allowed(self):
         ev, mv, subj = (SimpleNamespace(types=[t]) for t in ("EVENT", "MOVEMENT", "SUBJECT"))
         for r in (ev, mv):
-            self.assertFalse(A.allowed("unverified", r))
+            self.assertFalse(A.allowed("unverified", r))                     # no CSV prompt: events stay strict
             self.assertTrue(A.allowed("corroborated", r))
         self.assertTrue(A.allowed("unverified", subj))
+        prompted = SimpleNamespace(types=["EVENT"], prompt_parts=[{"names": [], "words": ["jets"]}])
+        self.assertTrue(A.allowed("unverified", prompted))                   # the prompt match decides (2026-11-10)
+        self.assertFalse(A.allowed("unverified", prompted, reasons=["red flag: 'game'"]))
         self.assertEqual(A.label("unverified"), "ILLUSTRATIVE FOOTAGE")
         self.assertEqual(A.label("verified_event"), "")
 
@@ -465,15 +466,15 @@ class DirectorRunTest(unittest.TestCase):
             self.assertEqual(acquired, [])
             self.assertEqual(FD.load_decisions(state)["2"]["decision"], "graphics")
 
-    def test_unverified_footage_not_used_for_event(self):
+    def test_unverified_footage_that_matches_the_prompt_is_used_as_illustrative(self):
+        # 2026-11-10 owner + both reference channels: the picture shows the sentence's kind of thing; a clip that shows what the CSV prompt
+        # asks for may be unverified, labelled ILLUSTRATIVE FOOTAGE (it was rejected for event scenes before)
         res = [SimpleNamespace(video_id="zzz00000002", title="Ryazan refinery on fire drone attack", channel="Zxq Local", duration=40,
                                description="", channel_is_verified=False, view_count=1, url="")]
         with tempfile.TemporaryDirectory() as td:
             rep, *_rest, acquired = self.run_director(td, res)
-            self.assertEqual(acquired, [])
             s2 = next(s for s in rep["scenes"] if s["scene"] == "002")
-            self.assertEqual(s2["decision"], "graphics")
-            self.assertTrue(any("authenticity" in " ".join(c.get("why", [])) for c in s2["candidates"]))
+            self.assertFalse(any("authenticity" in " ".join(c.get("why", [])) for c in s2["candidates"]), s2["candidates"])
 
     def test_apply_decisions(self):
         scenes = [{"scene_no": 1, "graphic": ""}, {"scene_no": 2, "graphic": "date"}, {"scene_no": 3, "graphic": "",
@@ -675,8 +676,9 @@ class SamePictureSameVideoTest(unittest.TestCase):
         u = Used()
         h = ["0f0f0f0f0f0f0f0f", "00ff00ff00ff00ff", "123456789abcdef0"]
         u.add("001", "Y5Vq0_8kjJA", 44.3, 52.3, h)
-        self.assertIn("another moment", u.conflict("Y5Vq0_8kjJA", 35.4, 43.4, h))        # render 041: scenes 001 and 011
-        self.assertEqual(u.conflict("Y5Vq0_8kjJA", 100.0, 108.0, ["aaaaaaaaaaaaaaaa", "5555555555555555"]), "")
+        self.assertTrue(u.conflict("Y5Vq0_8kjJA", 35.4, 43.4, h))                         # render 041: scenes 001 and 011
+        # 2026-11-10 owner: one moment per video, even with another picture (Moskva 044: scenes 3 and 10)
+        self.assertIn("moments of this video", u.conflict("Y5Vq0_8kjJA", 100.0, 108.0, ["aaaaaaaaaaaaaaaa", "5555555555555555"]))
 
 
 class BlockedWithoutWarningTitleTest(unittest.TestCase):

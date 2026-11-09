@@ -618,7 +618,26 @@ def article_of(sentence: Any) -> Optional[Dict[str, Any]]:
     text = str(sentence.text)
     m = re.search(r"\b(?:said|says|reported|reports|wrote|found|concluded|stated|warned)\s+(?:that\s+)?(.+)$", text)
     hl = (m.group(1) if m else text).strip().rstrip(".")
-    return {"outlet": str(cites[0].outlet), "text": text, "highlight": hl, "quote": " ".join(hl.split()[:12])}
+    return {"outlet": str(cites[0].outlet), "text": text, "highlight": hl, "quote": whole_quote(hl)}
+
+
+_QUOTE_STOP = {"a", "an", "the", "in", "on", "at", "of", "to", "for", "by", "with", "and", "or", "but", "that", "which", "who", "while", "as",
+               "from", "into", "near", "she", "he", "it", "they", "had", "has", "have", "was", "were", "is", "are", "be", "been"}
+
+
+def whole_quote(text: str, max_w: int = 12) -> str:
+    """A quote panel's words, never cut mid-phrase (Moskva 044: '... and that she sank in a'): the whole line when it is short, else up to
+    the last comma / semicolon within max_w words, else up to the last content word, with an ellipsis."""
+    w = text.split()
+    if len(w) <= max_w + 2:
+        return text.strip()
+    head = w[:max_w]
+    cut = max((i for i, x in enumerate(head) if x.endswith((",", ";", ":"))), default=-1)
+    if cut >= 3:
+        return " ".join(head[:cut + 1]).rstrip(",;:")
+    while head and head[-1].lower().strip(",;:.") in _QUOTE_STOP:
+        head.pop()
+    return " ".join(head).rstrip(",;:") + "…"
 
 
 _FLY = re.compile(r"\b(launched|fired|flew|flying|struck|shot down|intercepted|swarm\w*|waves? of)\b", re.IGNORECASE)

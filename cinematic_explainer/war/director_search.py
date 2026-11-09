@@ -162,6 +162,10 @@ def build_queries(r: Reading, csv_prompt: str = "", max_queries: int = 5, topic:
         if q and len(q.split()) >= 2 and q.lower() not in [x.lower() for x in out]:
             out.append(q)
 
+    # the CSV prompt is the writer's own search for this line: it goes first (Moskva 2026-11-09: 'Moskva cruiser sinking' ran 4th, after
+    # 'Black Sea' / 'Reuters Black Sea' / 'AP Black Sea', and the slots filled with grain-crisis and Odesa clips)
+    for part in [x for x in re.split(r"\|\|", csv_prompt or "") if x.strip()][:2]:
+        add(part)
     if anchor:
         add(_join(anchor, ev))
         for ag in AGENCY_PREFIXES:
@@ -172,8 +176,6 @@ def build_queries(r: Reading, csv_prompt: str = "", max_queries: int = 5, topic:
         add(_join(actor, ev, target))
         add(_join("Reuters", actor, ev, target))
         add(_join("AP", actor, ev, target))
-    for part in [x for x in re.split(r"\|\|", csv_prompt or "") if x.strip()][:2]:
-        add(part)
     return out[:max_queries]
 
 

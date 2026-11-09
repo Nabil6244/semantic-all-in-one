@@ -323,7 +323,6 @@ def _subject_ok(text: str, span: Tuple[int, int], sent_start: int) -> bool:
 # ----------------------------------------------------------------------------------------------------------------------------
 
 _NUM = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(\s?(?:%|percent|per cent))?(?:\s+(million|billion|thousand|hundred))?", re.IGNORECASE)
-_WORDNUM = re.compile(r"\b(" + "|".join(NUMBER_WORDS) + r")\b", re.IGNORECASE)
 _STOP_REF = {"of", "the", "a", "an", "and", "in", "on", "at", "to", "from", "by", "with", "for", "were", "was", "is", "are", "has", "had",
              "that", "which", "who", "as", "per", "than", "more", "less", "over", "under", "about", "around", "nearly", "almost"}
 
@@ -366,6 +365,31 @@ def _is_day_of_month(sentence: str, start: int, end: int, val: float) -> bool:
 
 
 _WORD_SCALE = re.compile(r"\s+(hundred|thousand|million|billion)\b", re.IGNORECASE)
+_UNITS = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+          "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18,
+          "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+_SCALES = {"hundred": 100, "thousand": 1000, "million": 10 ** 6, "billion": 10 ** 9}
+_NW = r"(?:" + "|".join(sorted(list(_UNITS) + list(_SCALES), key=len, reverse=True)) + r")"
+_WORDRUN = re.compile(r"\b" + _NW + r"(?:(?:\s+and\s+|\s+|-)" + _NW + r")*\b", re.IGNORECASE)
+
+
+def words_value(text: str) -> Optional[int]:
+    """'one hundred eighty' -> 180, 'five hundred' -> 500, 'twenty-seven' -> 27, 'two thousand three hundred' -> 2300, 'hundred' -> 100."""
+    total, cur, seen = 0, 0, False
+    for w in re.split(r"[\s-]+", text.lower()):
+        if w == "and" or not w:
+            continue
+        if w in _UNITS:
+            cur += _UNITS[w]
+        elif w == "hundred":
+            cur = (cur or 1) * 100
+        elif w in _SCALES:
+            total += (cur or 1) * _SCALES[w]
+            cur = 0
+        else:
+            return None
+        seen = True
+    return total + cur if seen else None
 
 
 def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tuple[int, Tuple[int, int]]]]:
@@ -390,15 +414,14 @@ def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tup
             unit = ref
         n = Number(value=val, raw=raw.strip(), unit=unit, span=span, period=period, complete=bool(unit or period))
         numbers.append(n)
-    for m in _WORDNUM.finditer(sentence):
-        val, end = float(NUMBER_WORDS[m.group(1).lower()]), m.end()
-        sc = _WORD_SCALE.match(sentence, end)       # 'four thousand kilometres' is 4,000 km, never 4 with the unit 'thousand kilometres'
-        if sc:
-            val *= {"hundred": 1e2, "thousand": 1e3, "million": 1e6, "billion": 1e9}[sc.group(1).lower()]
-            end = sc.end()
+    for m in _WORDRUN.finditer(sentence):   # a whole spoken number: 'one hundred eighty' is 180, 'five hundred' 500, 'twenty seven' 27
+        val = words_value(m.group(0))
+        if val is None:
+            continue
+        end = m.end()
         ref, period = _referent(sentence, end)
         if ref:
-            numbers.append(Number(value=val, raw=sentence[m.start():end], unit=ref, span=(offset + m.start(), offset + end),
+            numbers.append(Number(value=float(val), raw=sentence[m.start():end], unit=ref, span=(offset + m.start(), offset + end),
                                   period=period, complete=True))
     numbers.sort(key=lambda n: n.span)
     return numbers, years
