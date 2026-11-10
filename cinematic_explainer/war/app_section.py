@@ -12,6 +12,7 @@ A CSV run makes no Gemini call: the CSV's prompt column is the search.
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import threading
@@ -352,25 +353,66 @@ def ai_plan(scenes: List[dict], images_dir: Optional[Path], cap: int = DEFAULT_A
     return {"make": make, "over": over, "have": have, "credits": len(make) * AI_CREDITS_PER_CLIP}
 
 
+def _library_dir(library: Any, manager: Any) -> Optional[Path]:
+    """The War library folder this fetch asks first, or None (off)."""
+    from . import library as LIB
+
+    if library is False:
+        return None
+    if library not in (None, True):
+        return Path(library)
+    settings = getattr(manager, "settings", None) if manager is not None else None
+    return LIB.root(settings) if LIB.enabled(settings) else None
+
+
+def _library_report(state_dir: Path) -> Dict[str, Dict[str, Any]]:
+    """{scene: {source}} from the last Generate's war_library_report.json ({} when there is none)."""
+    from . import library as LIB
+
+    try:
+        data = json.loads((Path(state_dir) / LIB.REPORT).read_text(encoding="utf-8"))
+        return {str(r["scene"]): {"source": r.get("source")} for r in data.get("rows") or [] if r.get("scene")}
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
+
+
 def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
                       ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True, listed=None, on_start=None, on_done=None,
-                      director: Optional[bool] = None) -> "tuple[List[dict], List[Any]]":
+                      director: Optional[bool] = None, library: Any = None) -> "tuple[List[dict], List[Any]]":
     """(scenes with `footage` set from the Visuals table, the table's rows). The CSV's own searches are fetched for the rows the table does not
     hold yet (a clip already there, or one the user picked, is kept); `none` rows are marked no_footage so no clip is put under their graphic.
     fetch=False (Render after Generate scenes) fetches nothing: the video uses exactly what the Visuals tab holds.
 
     director (default: the War setting `war_footage_director`, on): YouTube rows go to the War Footage Director (footage_director.py), which
     reads the sentence, searches specifically, rejects off-topic / commentary / repeated / unverifiable clips, checks the frames and captures
-    a verified moment; a scene it cannot fill is handed to the War graphics (no_footage + a fitting graphic). Other rows are unchanged."""
+    a verified moment; a scene it cannot fill is handed to the War graphics (no_footage + a fitting graphic). Other rows are unchanged.
+
+    library (default: the War setting `war_footage_library`, on, folder from WAR_LIBRARY_DIR / `war_library_dir`; False = off, a path = that
+    folder): every footage row asks the reviewed War library first (library.py). Its clips are filed as the rows' finished assets; a row whose
+    library subject is used up goes to the War graphics with no search; only rows the library has nothing for are searched live."""
     import visual_bridge
     from asset_manager import AssetManifest
     from . import footage_director as FD
     from . import integration
+    from . import library as LIB
+    from . import narration_read as N
 
     if director is None:
         director = FD.enabled(getattr(manager, "settings", None) if manager is not None else None)
     state_dir = Path(images_dir).parent
     rows = csv_rows(scenes)
+    lib_plan: Dict[str, Dict[str, Any]] = {}
+    lib_dir = _library_dir(library, manager) if fetch else None
+    if fetch and lib_dir is not None:
+        try:
+            lib_plan = LIB.apply(scenes, [r for r in rows if r.asset_type in FETCH_TYPES], Path(images_dir), state_dir, lib=lib_dir, log=log)
+        except Exception as exc:  # noqa: BLE001 - a library problem leaves every row to the live search
+            log(f"War library skipped: {type(exc).__name__}: {exc}")
+            lib_plan = {}
+    elif not fetch:
+        lib_plan = _library_report(state_dir)       # Render after Generate scenes: the rows the library handed to the graphics stay there
+    lib_nos = {no for no, d in lib_plan.items() if d.get("source") == "library"}
+    gfx_nos = {no for no, d in lib_plan.items() if d.get("source") == "graphics"}
     if fetch:
         try:                    # clips already in the table that are not footage of the scene are fetched again (the user's own picks stay)
             redo = audit_held(images_dir, rows, log)
@@ -382,9 +424,10 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     if over:
         log(f"AI clip limit {ai_cap} reached: scenes {', '.join(sorted(over, key=lambda x: int(x) if x.isdigit() else 0))} use the map or cards instead")
     todo = []
-    directed = [r for r in rows if director and fetch and r.asset_type == "youtube_video" and str(r.scene_number) not in over]
+    directed = [r for r in rows if director and fetch and r.asset_type == "youtube_video" and str(r.scene_number) not in over
+                and str(r.scene_number) not in lib_nos | gfx_nos]
     for r in (rows if fetch else []):
-        if r in directed:
+        if r in directed or str(r.scene_number) in lib_nos | gfx_nos:
             continue
         if r.asset_type in LOCAL_TYPES or str(r.scene_number) in over or visual_bridge.records(images_dir, [r]):
             continue
@@ -414,7 +457,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             threading.Thread(target=watch, daemon=True, name="war-asset-cancel").start()
         try:
             manager.resolve_all(todo, on_scene_start=on_start, on_scene_complete=on_done)
-            fix_repeats(images_dir, [r for r in rows if r not in directed], manager, log, cancel=cancel)
+            fix_repeats(images_dir, [r for r in rows if r not in directed and str(r.scene_number) not in lib_nos], manager, log, cancel=cancel)
         except Exception as exc:  # noqa: BLE001 - a failed fetch leaves those scenes on maps/cards; the render still runs
             log(f"footage fetch stopped early: {type(exc).__name__}: {exc}")
         finally:
@@ -452,14 +495,23 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             meta = integration.footage_meta_for(rec, sc.get("footage_meta"), scene_file=Path(foot).name)
             if rec.get("user_override") or rec.get("source") == "manual":
                 meta["user_supplied"] = True       # picked in the Visuals tab: never swapped for another clip
-            elif at in AI_TYPES:
+            elif at in AI_TYPES or (rec.get("selection_method") == LIB.METHOD and rec.get("ai_generated")):
                 meta["ai_generated"] = True        # labelled "AI-generated illustration", never presented as footage of the event
             meta["csv_pick"] = True                # the CSV's own search, shown in the Visuals tab before Render: only a clear contradiction drops it
             sc["footage_meta"] = meta
             got += 1
+        elif str(sc.get("scene_no")) in gfx_nos:
+            sc["no_footage"] = True                # the library knows this subject but every clip of it is used: War graphics, no search
+            sc.pop("footage", None)
+            if not str(sc.get("graphic") or "").strip():
+                try:
+                    sc["graphic"] = FD.graphic_for(N.read(str(sc.get("text") or "")))
+                    sc["graphic_by"] = "war_library"
+                except Exception:  # noqa: BLE001 - the War graphics pick their own default
+                    pass
         out.append(sc)
     if director:
-        decisions = FD.load_decisions(state_dir)
+        decisions = {k: v for k, v in FD.load_decisions(state_dir).items() if str(k).lstrip("0") not in {n.lstrip("0") for n in lib_nos}}
         if decisions:
             out = FD.apply_decisions(out, decisions)
             got = sum(1 for sc in out if sc.get("footage"))

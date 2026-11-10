@@ -196,6 +196,13 @@ class _FakeManager:
                 on_scene_complete(r, "done")
 
 
+def setUpModule():
+    """The real War library on this Mac (~/Downloads/VideoGenerator/war_library) is never asked here: an empty one stands in."""
+    import os
+
+    os.environ["WAR_LIBRARY_DIR"] = tempfile.mkdtemp()
+
+
 class TestCsvFootage(unittest.TestCase):
     """A scenes CSV run fetches its footage with the CSV's own searches (the render with no footage at all was the bug), lists it in the
     Visuals tab, keeps what the user picked there, and leaves `none` scenes clear for their map or card."""
