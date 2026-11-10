@@ -290,6 +290,37 @@ class SettingsWindowStress(unittest.TestCase):
         for _ in range(n):
             self._close(self._open(), via_wm=False)
 
+    def test_4_reopen_raises_same_window_not_a_second(self):
+        """⚙ again must restore the existing Settings window (incl. after minimize), never spawn another."""
+        self._in_mainloop(self._body_reopen_same)
+
+    def _body_reopen_same(self):
+        win = self._open()
+        self.assertIs(getattr(self.inst, "_settings_window", None), win)
+
+        before_ids = {id(w) for w in self.inst.winfo_children() if w.winfo_class() == "Toplevel"}
+        self.inst._open_settings()
+        self._settle()
+        after = [w for w in self.inst.winfo_children() if w.winfo_class() == "Toplevel" and w.winfo_exists()]
+        self.assertEqual(len(after), 1, "second Settings click created another window")
+        self.assertIs(after[0], win)
+        self.assertEqual({id(w) for w in after}, before_ids)
+
+        try:
+            win.iconify()
+        except tkinter.TclError:
+            self.skipTest("window manager cannot iconify in this environment")
+        self._settle()
+        self.inst._open_settings()
+        self._settle()
+        self.assertTrue(win.winfo_exists())
+        self.assertIs(self.inst._settings_window, win)
+        tops = [w for w in self.inst.winfo_children() if w.winfo_class() == "Toplevel" and w.winfo_exists()]
+        self.assertEqual(len(tops), 1)
+        self.assertNotEqual(str(win.state()), "iconic", "Settings stayed minimized after ⚙")
+        self._close(win, via_wm=False)
+        self.assertIsNone(getattr(self.inst, "_settings_window", None))
+
     def _py_vars(self) -> int:
         return len(self.inst.tk.splitlist(self.inst.tk.call("info", "globals", "PY_VAR*")))
 

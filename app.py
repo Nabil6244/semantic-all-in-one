@@ -13919,13 +13919,53 @@ class VideoGeneratorApp(ctk.CTk):
         if shell is not None:
             shell.notify(message, tone="success")
 
+    def _raise_settings_window(self, win) -> None:
+        """Bring an existing Settings window back (un-minimize + front), never spawn another."""
+        try:
+            win.deiconify()
+        except Exception:
+            pass
+        try:
+            # macOS sometimes leaves an iconified toplevel in "withdrawn" after
+            # deiconify alone — force a normal state before stacking.
+            if str(win.state()) != "normal":
+                win.state("normal")
+        except Exception:
+            pass
+        try:
+            win.lift()
+            win.attributes("-topmost", True)
+            win.after(50, lambda: win.attributes("-topmost", False))
+            win.focus_force()
+        except Exception:
+            pass
+        try:
+            # Re-assert stacking after the WM finishes restoring an iconified window.
+            win.after(10, win.lift)
+            win.after(10, win.focus_force)
+        except Exception:
+            pass
+
     def _open_settings(self) -> None:
+        existing = getattr(self, "_settings_window", None)
+        if existing is not None:
+            try:
+                if existing.winfo_exists():
+                    self._raise_settings_window(existing)
+                    return
+            except Exception:
+                pass
+            self._settings_window = None
+
         win = ctk.CTkToplevel(self)
+        self._settings_window = win
         win.title("Settings")
         win.geometry("640x720")  # 540 px cut off the longest setting rows (found by scripts/ui_audit.py)
         win.minsize(420, 320)
         win.configure(fg_color=_BG)
-        win.grab_set()
+        # No grab_set: a modal grab greys out / blocks the main window, and on
+        # macOS that grab survives minimize — ⚙ looked disabled and could not
+        # restore Settings. Singleton raise (above) is enough.
 
         # Everything lives inside one scrollable body so content can never get
         # squeezed invisible by a fixed window height (confirmed bug: with a plain
@@ -13970,7 +14010,15 @@ class VideoGeneratorApp(ctk.CTk):
             except Exception:
                 pass
 
-        win.bind("<Destroy>", lambda e: _remember_tab() if e.widget is win else None, add="+")
+        def _on_settings_destroy(e) -> None:
+            if e.widget is not win:
+                return
+            if getattr(self, "_settings_window", None) is win:
+                self._settings_window = None
+            _remember_tab()
+
+        win.bind("<Destroy>", _on_settings_destroy, add="+")
+        self._raise_settings_window(win)
         body = tab_bodies["General"]
 
         ctk.CTkLabel(
@@ -14642,13 +14690,22 @@ class VideoGeneratorApp(ctk.CTk):
                     side="left", padx=(4, 4)
                 )
                 # Buttons are packed before the text so a long address is cut short instead of pushing them off the row.
+                # Same row actions as the Flow desktop HUD: signed-in → Refresh + Remove;
+                # signed-out → Sign in + Remove (Refresh re-checks that Chrome profile's session).
                 ctk.CTkButton(
                     row, text="Remove", width=64, height=22, font=ctk.CTkFont(size=10),
                     fg_color="transparent", border_width=1, border_color=_BORDER,
                     text_color=_DANGER, hover_color=_DANGER_BG,
                     command=lambda aid=a["id"]: connect_and(lambda c: c.delete_account(aid)),
                 ).pack(side="right", padx=(4, 4))
-                if not signed_in:
+                if signed_in:
+                    ctk.CTkButton(
+                        row, text="Refresh", width=70, height=22, font=ctk.CTkFont(size=10),
+                        fg_color="transparent", border_width=1, border_color=_BORDER,
+                        text_color=_TEXT, hover_color=_CARD_HOVER,
+                        command=lambda aid=a["id"]: connect_and(lambda c: c.refresh(aid)),
+                    ).pack(side="right", padx=4)
+                else:
                     ctk.CTkButton(
                         row, text="Sign in", width=70, height=22, font=ctk.CTkFont(size=10),
                         fg_color=_ACCENT, hover_color=_ACCENT_HOV, text_color=_ACCENT_DARK,
