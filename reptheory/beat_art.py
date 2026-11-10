@@ -58,8 +58,20 @@ JUNG_FLOW_REFS = 3      # references sent per Jung picture (Flow's limit). If Fl
 JUNG_RX = re.compile(r"\b(?:jung|carl|he|his|him|himself)\b", re.I)      # a Carl Jung Theory line about the man himself: drawn with his reference images
 
 def wants_refs(prompt: str) -> bool:
-    """A Carl Jung Theory picture that shows Jung (its prompt carries his character sentence): sent to Flow with his reference images."""
+    """A Carl Jung Theory picture that shows Jung (its prompt carries his character sentence), or an Elder Health Theory picture of the video's host (elder_art.py):
+    sent to Flow with that person's reference images."""
+    if _elder():
+        from . import elder_art as EA
+        return EA.wants_refs(prompt) is not None
     return _jung() and A.JUNG_SHEET in prompt
+
+def _refs_for(prompts: list, make_one, log) -> list:
+    """The reference images for this batch's pictures of the person: Jung's (assets/jung/refs), or the Elder host's (made once through Flow when missing)."""
+    if _elder():
+        from . import elder_art as EA
+        host = next((EA.wants_refs(p) for p in prompts if EA.wants_refs(p)), None)
+        return EA.ensure_refs(host, make_one, log) if host else []
+    return A.jung_refs()[:JUNG_FLOW_REFS]
 
 def _jung_prompt(desc: str, about_him: bool) -> str:
     return (f"{A.JUNG_SHEET}. {desc}. {A.JUNG_STYLE}." if about_him else f"{desc}. No real or famous person, no Carl Jung. {A.JUNG_STYLE}.")
@@ -114,7 +126,10 @@ def safe_prompt(prompt: str) -> str:
 def art_id(prompt: str) -> str:
     """The picture's library id: a hash of its prompt, and for a Carl Jung Theory picture of Jung also of the references it is drawn from (other references, another picture)."""
     key = prompt
-    if wants_refs(prompt):
+    if wants_refs(prompt) and _elder():      # the host's reference, known before it is made: the same id before and after (Generate scenes lists it, Render finds it)
+        from . import elder_art as EA
+        key += "|ref:" + EA.ref_key(EA.wants_refs(prompt))
+    elif wants_refs(prompt):
         refs = A.jung_refs()[:JUNG_FLOW_REFS]; key += "|refs:" + ",".join(hashlib.sha1(Path(r).read_bytes()).hexdigest()[:8] for r in refs)
     return "beat_" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
 
@@ -135,7 +150,10 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
     collect (Generate scenes): nothing is generated; each scene that wants a picture is appended as {no, text, prompt, cached} for the Visuals tab.
     chosen (Render): {scene no: the Visuals tab's finished file record}; that file is the scene's picture, whatever made it."""
     todo: Dict[str, str] = {}; stat = {"reused": 0, "generated": 0, "failed": 0, "skipped": 0, "chosen": 0}; prev_fp, prev_text = "", None
-    prev = None
+    prev = None; ehost = None
+    if _elder():      # Elder Health Theory: one main person for the whole video and a shot for every scene, before any prompt is made (elder_art.py; rules only, no Gemini)
+        from . import elder_art as EA
+        ehost = EA.plan(scenes); log(f"[ELDER ART] main person: {ehost.title()} ({'their own reference picture' if EA.user_ref(ehost) else 'reference made once by the app' if EA.host_refs(ehost) else 'reference to be made once by the app'})")
     for sc in scenes:
         asked = bool(sc.get("directed_look"))      # the scenes CSV chose this scene's look: a picture only where it asked for one
         board = board_wants_picture(sc)      # Elder Health Theory: the whiteboard carries its own picture (the organ or the older person the list is about); the scene stays a board
@@ -154,9 +172,11 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
             elif fp and WORKER_RX.search(sc.get("text", "")) and not WORKER_RX.search(fp) and not re.search(r"\btradesm[ae]n\b|\bworker\b", fp, re.I):      # the line is about mechanics / farmers, the CSV drew our cast
                 sc["decisions"].append("the line is about the workers it names; the CSV picture shows the trainee or the rival: drawn from the narration"); fp = ""
             prev_fp, prev_text = sc.get("flow_prompt") or "", sc.get("text")
-            p = own_prompt(fp) if fp else prompt_for(sc["text"], hook=bool(sc.get("hook"))); i = art_id(p)
+            if ehost: p = EA.own_prompt(fp, ehost) if fp else EA.prompt(sc)      # Elder: the directed scene with the host, or the organ / disease leaflet
+            else: p = own_prompt(fp) if fp else prompt_for(sc["text"], hook=bool(sc.get("hook")))
+            i = art_id(p)
         sc["_illus"] = (i, p)
-        if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path")}); continue
+        if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path"), "refs": bool(wants_refs(p)), "qc": bool(ehost)}); continue
         pick = (chosen or {}).get(sc["no"])
         if pick and pick.get("ok") and _same(pick.get("narration"), sc["text"]):
             same = str(pick.get("source")) in ("flow_image", "image") and _same(pick.get("query"), p)      # the picture made for this prompt: kept under its own id, reused by other scripts
@@ -171,13 +191,16 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         from providers.flow.provider import FlowProvider
         mgr = FlowEngineManager(log=log); fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE", "generationMode": mode}; fs.update(settings or {})
         prov = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=fs); ids = list(todo)
-        ref_ids = [i for i in ids if wants_refs(todo[i])]; refs = A.flow_ref_copies(A.jung_refs()[:JUNG_FLOW_REFS]) if ref_ids else []
-        if ref_ids and not refs: log(f"[JUNG THEORY ART] no reference images in assets/jung/refs: {len(ref_ids)} picture(s) of Jung are drawn from the description alone")
+        def make_one(pr):      # one picture now (the Elder host's reference, before the pictures that use it)
+            r1 = prov.resolve_batch([SceneRow(scene_number="1", script_segment="reference", asset_type="image", prompt=pr)], Path(tempfile.mkdtemp(prefix="rt_ref_")), log=log).get("1")
+            return getattr(r1, "path", None) if r1 is not None else None
+        ref_ids = [i for i in ids if wants_refs(todo[i])]; refs = A.flow_ref_copies(_refs_for([todo[i] for i in ref_ids], make_one, log)) if ref_ids else []
+        if ref_ids and not refs: log(f"[REP THEORY ART] no reference images: {len(ref_ids)} picture(s) of the main person are drawn from the description alone")
         if ref_ids and refs:      # Jung's pictures go in their own batch with his reference images (Flow attaches them through the UI agent: flow-engine/lib/flow-references.js)
             ids = [i for i in ids if i not in ref_ids] + ref_ids
             prov_refs = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=dict(fs, referenceImages=refs))
         rows = [SceneRow(scene_number=str(n + 1), script_segment=todo[i], asset_type="image", prompt=todo[i]) for n, i in enumerate(ids)]
-        log(f"[REP THEORY ART] requesting {len(rows)} Flow image(s) for this script (mode {mode})" + (f"; {len(ref_ids)} of Jung with {len(refs)} reference image(s)" if ref_ids and refs else ""))
+        log(f"[REP THEORY ART] requesting {len(rows)} Flow image(s) for this script (mode {mode})" + (f"; {len(ref_ids)} of the main person with {len(refs)} reference image(s)" if ref_ids and refs else ""))
         if ref_ids and refs:
             plain = [r for r, i in zip(rows, ids) if i not in ref_ids]; withr = [r for r, i in zip(rows, ids) if i in ref_ids]
             res = prov.resolve_batch(plain, Path(tempfile.mkdtemp(prefix="rt_beat_")), log=log) if plain else {}
@@ -202,6 +225,21 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
                 r = res2.get(str(n + 1)); path = getattr(r, "path", None) if r is not None else None
                 if path and Path(path).is_file(): L.register(path, id=i, kind="scene", subject=todo[i][:120], prompt=row.prompt, source="flow", notes=f"flow {mode} safer retry {time.strftime('%Y-%m-%d')}"); stat["generated"] += 1; stat["retried"] = stat.get("retried", 0) + 1
                 else: stat["failed"] += 1; log(f"[REP THEORY ART] {i}: refused again ({getattr(r, 'error', None)}); that scene keeps its card or text. Prompt: {row.prompt[:160]}")
+        if _elder():      # the quality check (elder_art.check, pixels only): a picture without a white background or an empty side is redrawn once in stronger wording
+            redo = []
+            for n, i in enumerate(ids):
+                got = L.find(i); probs = EA.check(got["path"]) if got else []
+                if probs: redo.append((n, i, probs))
+            if redo:
+                log(f"[ELDER ART] quality check: {len(redo)} picture(s) redrawn once ({'; '.join(sorted({p for _, _, ps in redo for p in ps}))})")
+                rows3 = [SceneRow(scene_number=str(n + 1), script_segment=todo[i], asset_type="image", prompt=EA.stronger(todo[i], probs)) for n, i, probs in redo]
+                plain3 = [r for r, (n, i, _) in zip(rows3, redo) if i not in ref_ids]; ref3 = [r for r, (n, i, _) in zip(rows3, redo) if i in ref_ids]
+                res3 = dict(prov.resolve_batch(plain3, Path(tempfile.mkdtemp(prefix="rt_beat_qc_")), log=log) or {}) if plain3 else {}
+                if ref3: res3.update((prov_refs if refs else prov).resolve_batch(ref3, Path(tempfile.mkdtemp(prefix="rt_beat_qc_ref_")), log=log) or {})
+                for (n, i, probs), row in zip(redo, rows3):
+                    r = res3.get(str(n + 1)); path = getattr(r, "path", None) if r is not None else None
+                    if path and Path(path).is_file() and len(EA.check(path)) < len(probs):      # kept only when it is better; else the first picture stays
+                        L.register(path, id=i, kind="scene", subject=todo[i][:120], prompt=todo[i], source="flow", notes=f"flow {mode} quality redraw {time.strftime('%Y-%m-%d')}"); stat["redrawn"] = stat.get("redrawn", 0) + 1
     for sc in scenes:
         got = sc.pop("_illus", None)
         if sc.pop("_board", False):

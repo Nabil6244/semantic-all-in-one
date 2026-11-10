@@ -1,7 +1,9 @@
 """Elder Health Theory: the Rep Theory engine with the calm clinic theme (reptheory/theme.py "elder"): soft-colour Flow pictures of older people and organs, a handwriting board. Rep Theory stays as it was."""
-import unittest
+import tempfile, unittest
+from pathlib import Path
+from unittest import mock
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from reptheory import app_section as A, beat_art as BA, cards as K, direction as DR, draw as D, theme as T
 from ui import style_registry as R
@@ -46,7 +48,7 @@ class ElderTheoryTheme(unittest.TestCase):
         sc = {"kind": "checklist", "text": "Walk after meals, drink water and sleep early.", "decisions": [], "no": 3, "look": "board", "directed_look": True}
         self.assertTrue(BA.board_wants_picture(sc))
         got = []; BA.prepare([sc], collect=got, directed=True)
-        self.assertEqual(len(got), 1); self.assertIn("older person", got[0]["prompt"]); self.assertEqual(sc["kind"], "checklist")   # the scene stays a board
+        self.assertEqual(len(got), 1); self.assertIn("The person is", got[0]["prompt"]); self.assertTrue(got[0]["refs"]); self.assertEqual(sc["kind"], "checklist")   # the scene stays a board
         ctx = D.Ctx(640, 360); pic = Image.new("RGB", (400, 300), (240, 120, 120))
         a, b = ctx.backdrop(), ctx.backdrop()
         K.board(a, ctx, [{"text": "Walk after meals", "at": 0.0}], 3.0); K.board(b, ctx, [{"text": "Walk after meals", "at": 0.0}], 3.0, pic=pic)
@@ -116,6 +118,36 @@ class ElderTheoryTheme(unittest.TestCase):
         self.assertEqual(DR.norm_look("fish"), "foods")
         T.set_theme("")
         self.assertEqual(DR.norm_look("cholesterol"), ""); self.assertEqual(HE.evidence(sc, "Statins lower your LDL cholesterol.", V._at), {})   # Rep Theory never gets them
+
+    def test_picture_director(self):
+        from reptheory import elder_art as EA, beat_art as BA
+        T.set_theme("elder")
+        S = ["Do your knees feel stiff in the morning?", "Walk for twenty minutes after dinner.", "Take your vitamin D with breakfast.", "Osteoarthritis wears down the cartilage in your knees.",
+             "Plaque builds up in your arteries silently.", "Your kidneys filter your blood every minute.", "Call your grandchildren once a week.", "Call your grandchildren again tonight."]
+        scenes = [{"no": i + 1, "text": t, "hook": i == 0} for i, t in enumerate(S)]
+        host = EA.plan(scenes); self.assertIn(host, EA.CAST)
+        shots = [sc["elder_shot"] for sc in scenes]
+        self.assertTrue(all(a != b or a == "organ" for a, b in zip(shots, shots[1:])), shots)   # never the same shot twice running
+        ps = [EA.prompt(sc) for sc in scenes]
+        for sc, p in zip(scenes, ps):
+            if sc["elder_shot"] != "organ": self.assertIn(EA.CAST[host]["sheet"], p); self.assertEqual(EA.wants_refs(p), host); self.assertTrue(BA.wants_refs(p))
+        self.assertIn("osteoarthritis", ps[3]); self.assertIn("plaque narrowing", ps[4]); self.assertIn("kidneys", ps[5]); self.assertFalse(BA.wants_refs(ps[5]))
+        self.assertIn("pill organiser", ps[2]); self.assertIn("park path", ps[1])
+        self.assertEqual(BA.art_id(ps[1]), BA.art_id(ps[1]))   # the id is known before the reference exists
+        self.assertEqual(EA.pick_host(["Menopause changes her bones."]) in ("rose", "amara"), True)
+        self.assertIn(EA.CAST["rose"]["sheet"], EA.own_prompt("the older woman reading a food label", "rose"))
+        made = []
+        with tempfile.TemporaryDirectory() as td, mock.patch.object(EA, "host_refs", side_effect=lambda h: made[:]):
+            def make_one(pr):
+                made.append(str(Path(td) / "ref.png")); Image.new("RGB", (64, 64), "white").save(made[-1]); return made[-1]
+            with mock.patch("reptheory.library.register"): self.assertEqual(EA.ensure_refs("rose", make_one, log=lambda *a: None), made)
+            self.assertIn("reference picture of Rose", EA.ref_prompt("rose"))
+            good = Path(td) / "good.png"; im = Image.new("RGB", (300, 200), "white"); ImageDraw.Draw(im).ellipse((180, 40, 280, 160), fill=(40, 120, 120)); im.save(good)
+            room = Path(td) / "room.png"; Image.new("RGB", (300, 200), (150, 120, 90)).save(room)
+            self.assertEqual(EA.check(good), []); self.assertEqual(set(EA.check(room)), {"background not plain white", "no empty side for the words"})
+            self.assertTrue(EA.stronger("X.", EA.check(room)).startswith("The background must be plain"))
+        T.set_theme("")
+        self.assertFalse(BA.wants_refs(ps[1]))   # outside the elder theme the host means nothing
 
     def test_picker_prompt_and_look(self):
         self.assertEqual(R.BUILT_ON[R.ELDER_THEORY], "Rep Theory")

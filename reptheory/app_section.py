@@ -337,13 +337,60 @@ def fetch_pictures(manager, folder: Path, requests: list, cancelled, log, on_lis
     todo = [row for row in rows if (man.get(row.scene_number) or {}).get("status") != "complete"]
     log(f"{len(rows) - len(todo)} picture(s) already in the library; {len(todo)} to make through Flow")
     if on_listed: on_listed(rows)      # the scenes are in the Visuals tab now, before Flow makes the pictures (54 pictures took minutes with an empty tab)
-    if todo and not cancelled(): manager.resolve_all(rows, on_scene_complete=on_done) if on_done else manager.resolve_all(rows)
+    fp = getattr(manager, "flow_image_provider", None); ref_nos = {str(r["no"]) for r in requests if r.get("refs")}; refs = []
+    if todo and ref_nos & {row.scene_number for row in todo} and fp is not None and not cancelled():      # Elder Health Theory: the host's reference picture first (made once), then their pictures with it attached
+        from . import beat_art as BA, art as A
+        from providers.flow.provider import FlowProvider
+        def make_one(pr):
+            one = FlowProvider(fp.engine_manager, media_kind="image", account_ids=fp.account_ids, flow_settings=dict(fp.flow_settings))
+            import tempfile; r1 = (one.resolve_batch([SceneRow(scene_number="1", script_segment="reference", asset_type="image", prompt=pr)], Path(tempfile.mkdtemp(prefix="rt_ref_")), log=log) or {}).get("1")
+            return getattr(r1, "path", None) if r1 is not None else None
+        refs = A.flow_ref_copies(BA._refs_for([r["prompt"] for r in requests if r.get("refs")], make_one, log))
+        if not refs: log("no reference picture for the main person: their pictures are drawn from the description alone")
+    def run(batch, with_refs=False):
+        if not batch or cancelled(): return
+        old = dict(fp.flow_settings) if (with_refs and fp is not None) else None
+        if old is not None: fp.flow_settings = dict(old, referenceImages=refs)
+        try: manager.resolve_all(batch, on_scene_complete=on_done) if on_done else manager.resolve_all(batch)
+        finally:
+            if old is not None: fp.flow_settings = old
+    if todo and not cancelled():
+        if refs: run([row for row in rows if row.scene_number not in ref_nos]); run([row for row in rows if row.scene_number in ref_nos], with_refs=True)
+        else: run(rows)
     failed = [row for row in rows if (man.get(row.scene_number) or {}).get("status") != "complete" and "cancel" not in str((man.get(row.scene_number) or {}).get("error", "")).lower()]
     if failed and not cancelled():      # refused by Flow (or failed): once more in a safer wording; pictures already made are never redone
         from .beat_art import safe_prompt
         log(f"{len(failed)} picture(s) refused or failed; trying each once more in a safer wording (scenes {', '.join(r.scene_number for r in failed)})")
         for row in failed: row.prompt = safe_prompt(row.prompt)
-        manager.resolve_all(failed, on_scene_complete=on_done) if on_done else manager.resolve_all(failed)
+        if refs: run([r for r in failed if r.scene_number not in ref_nos]); run([r for r in failed if r.scene_number in ref_nos], with_refs=True)
+        else: run(failed)
         still = [r.scene_number for r in failed if (man.get(r.scene_number) or {}).get("status") != "complete"]
         if still: log(f"refused again: scenes {', '.join(still)} keep their card or text (or use Change source / Use local clip in the Visuals tab)")
+    qc_nos = {str(r["no"]) for r in requests if r.get("qc")}
+    if qc_nos and not cancelled():      # Elder Health Theory's quality check (elder_art.check, pixels only): redrawn once in stronger wording; the first picture is kept unless the new one is better
+        from . import elder_art as EA
+        redo = []
+        for row in rows:
+            rec = man.get(row.scene_number) or {}
+            if row.scene_number in qc_nos and rec.get("status") == "complete" and not rec.get("user_override") and rec.get("local_path") and Path(rec["local_path"]).is_file():
+                probs = EA.check(rec["local_path"])
+                if probs:
+                    keep = Path(rec["local_path"]).with_name(Path(rec["local_path"]).stem + ".qc_first" + Path(rec["local_path"]).suffix); shutil.copyfile(rec["local_path"], keep)
+                    redo.append((row, dict(rec), probs, keep)); row.prompt = EA.stronger(row.prompt, probs)
+        if redo:
+            log(f"quality check: {len(redo)} picture(s) redrawn once ({'; '.join(sorted({p for _, _, ps, _ in redo for p in ps}))})")
+            batch = [x[0] for x in redo]
+            ctx = fp.confirming_resubmit() if fp is not None else None
+            if ctx: ctx.__enter__()
+            try:
+                if refs: run([r for r in batch if r.scene_number not in ref_nos]); run([r for r in batch if r.scene_number in ref_nos], with_refs=True)
+                else: run(batch)
+            finally:
+                if ctx: ctx.__exit__(None, None, None)
+            for row, old, probs, keep in redo:
+                rec = man.get(row.scene_number) or {}; new = rec.get("local_path")
+                if not (rec.get("status") == "complete" and new and Path(new).is_file() and len(EA.check(new)) < len(probs)):      # no better: the first picture back
+                    shutil.copyfile(keep, old["local_path"]); man.set(row.scene_number, old); row.prompt = old.get("prompt", row.prompt)
+                try: keep.unlink()
+                except OSError: pass
     return rows

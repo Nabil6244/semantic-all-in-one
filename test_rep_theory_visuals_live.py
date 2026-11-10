@@ -101,3 +101,36 @@ class SettingsOnProjectOpen(unittest.TestCase):      # 2026-11-02: saved choices
 
     def test_a_project_without_choices_gets_the_defaults_not_the_last_projects(self):
         app = self._app({}); A.on_workspace(app); self.assertEqual(app._rt_scenes_var.get(), "")
+
+
+class ElderHostAndQualityCheck(unittest.TestCase):      # Elder Health Theory (elder_art.py): host pictures carry the reference; a failed picture is redrawn once, the better kept
+    def test_refs_and_redraw(self):
+        import contextlib
+        from unittest import mock
+        from PIL import Image, ImageDraw
+        from asset_manager import AssetManifest
+        from reptheory import beat_art as BA
+        sent = []
+        class FP:
+            def __init__(self): self.flow_settings = {"model": "x"}; self.engine_manager = None; self.account_ids = None
+            @contextlib.contextmanager
+            def confirming_resubmit(self): yield
+        class M:
+            def __init__(self, folder): self.folder = folder; self.man = AssetManifest(folder); self.flow_image_provider = FP(); self.round = 0
+            def resolve_all(self, rows, on_scene_complete=None):
+                self.round += 1; sent.append(([r.scene_number for r in rows], "referenceImages" in self.flow_image_provider.flow_settings, [r.prompt for r in rows]))
+                for r in rows:
+                    p = self.folder / f"{int(r.scene_number):03d}_{self.round}.png"; good = "plain solid pure white (#FFFFFF) from edge to edge" in r.prompt or r.scene_number == "1"
+                    im = Image.new("RGB", (300, 200), "white" if good else (150, 120, 90))
+                    if good: ImageDraw.Draw(im).ellipse((180, 40, 280, 160), fill=(40, 120, 120))
+                    im.save(p); self.man.set(r.scene_number, {"scene_number": r.scene_number, "status": "complete", "local_path": str(p), "prompt": r.prompt})
+        with tempfile.TemporaryDirectory() as d:
+            ref = Path(d) / "ref.png"; Image.new("RGB", (300, 300), "white").save(ref)
+            reqs = [{"no": 1, "text": "a", "prompt": "organ", "cached": None, "refs": False, "qc": True}, {"no": 2, "text": "b", "prompt": "host", "cached": None, "refs": True, "qc": True}]
+            m = M(Path(d))
+            with mock.patch.object(BA, "_refs_for", return_value=[str(ref)]):
+                A.fetch_pictures(m, Path(d), reqs, lambda: False, lambda msg: None)
+            self.assertEqual(sent[0][:2], (["1"], False)); self.assertEqual(sent[1][:2], (["2"], True))   # the host's picture went with the reference
+            self.assertEqual(sent[2][:2], (["2"], True)); self.assertTrue(sent[2][2][0].startswith("The background must be plain"))   # redrawn once, in stronger wording
+            self.assertEqual(len(sent), 3); self.assertNotIn("referenceImages", m.flow_image_provider.flow_settings)   # settings restored
+            self.assertTrue(m.man.get("2")["local_path"].endswith("_3.png"))   # the better picture is kept

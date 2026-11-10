@@ -74,7 +74,7 @@ LOOKS (use a card look ONLY when the sentence has its shape; never force one)
 
 WRITING A PICTURE PROMPT (the prompt column)
 The app adds the soft-colour art style, the white background, the colours and the composition (subject on one side, empty space for words). You describe only WHAT is in the picture:
-1. Who: give the main person a look once and keep it through the video ("a white-haired woman in her seventies with glasses and a teal cardigan"). Others are fine when the sentence is about other people (a spouse, grandchildren, a doctor).
+1. Who: the app gives every video one main older person and keeps their face the same in every picture (it attaches their reference picture). Write "the older woman" or "the older man" (or "an older couple") for them and do NOT describe their face, hair or clothes. Others are fine when the sentence is about other people (a doctor, grandchildren, a friend).
 2. Doing what, exactly: the action and the moment ("walking slowly in a park after lunch, smiling, holding a water bottle").
 3. With what and where: every food, object or place the sentence names (a bowl of oatmeal, a pill organiser, stairs, a bed, a kitchen).
 4. Seen from where: side view, front view, three-quarter view, close-up on the hands / feet / face.
