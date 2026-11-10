@@ -25,14 +25,17 @@ TIER_TALK_RX = re.compile(r"\b(?:rank|ranks|ranking|tier list|tiers?)\b", re.I)
 NUMBER_WORDS = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty".split())}
 NUMBER_WORDS.update({"thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100})
 _TENS = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety"; _ONES = "one|two|three|four|five|six|seven|eight|nine"
-_SPOKEN = (rf"(?:{_ONES}|zero)\s+point\s+(?:{_ONES}|zero)|(?:{_ONES}|ten)\s+(?:hundred|thousand)|(?:{_ONES}|{_TENS})\s+and\s+a\s+half|")      # "one point six", "three hundred", "one and a half"
-NUM = r"(\d+(?:\.\d+)?|" + _SPOKEN + r"(?:" + _TENS + r")[\s-](?:" + _ONES + r")|" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r")"      # "sixty eight" / "sixty-eight" read as one number
+_SPOKEN = (rf"(?:{_ONES}|zero)\s+point\s+(?:{_ONES}|zero)|(?:{_ONES}|ten)\s+hundred\s+thousand|(?:{_ONES}|ten|twelve|fifteen|{_TENS})\s+(?:hundred|thousand|million)|(?:{_ONES}|{_TENS})\s+and\s+a\s+half|")      # "one point six", "three hundred", "one and a half"
+NUM = r"(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?|" + _SPOKEN + r"(?:" + _TENS + r")[\s-](?:" + _ONES + r")|" + "|".join(sorted(NUMBER_WORDS, key=len, reverse=True)) + r")"      # "sixty eight" / "sixty-eight" read as one number
 PCT_RX = re.compile(rf"\b{NUM}\s*(?:%|percent\b|per cent\b)", re.I)
 EQ_RX = re.compile(rf"\b{NUM}\s*(?:l|litres?|liters?)\b.{{0,40}}?\b{NUM}\s*(?:kg|kilograms?|kilos?)\b", re.I)
 
 def _clip(text: str, n: int) -> str: return " ".join(text.upper().split()[:n])
 def num(tok: str) -> str:
     t = tok.lower(); parts = t.replace("-", " ").split()
+    if re.fullmatch(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?", t): return t.replace(",", "")      # "100,000" is one number (it read as "000")
+    if len(parts) == 3 and parts[1:] == ["hundred", "thousand"] and parts[0] in NUMBER_WORDS: return str(NUMBER_WORDS[parts[0]] * 100000)      # "one hundred thousand"
+    if len(parts) == 2 and parts[1] == "million" and parts[0] in NUMBER_WORDS: return str(NUMBER_WORDS[parts[0]] * 1000000)
     if len(parts) == 3 and parts[1] == "point" and parts[0] in NUMBER_WORDS and parts[2] in NUMBER_WORDS: return f"{NUMBER_WORDS[parts[0]]}.{NUMBER_WORDS[parts[2]]}"
     if len(parts) == 2 and parts[1] in ("hundred", "thousand") and parts[0] in NUMBER_WORDS: return str(NUMBER_WORDS[parts[0]] * (100 if parts[1] == "hundred" else 1000))
     if len(parts) == 4 and parts[1:] == ["and", "a", "half"] and parts[0] in NUMBER_WORDS: return f"{NUMBER_WORDS[parts[0]]}.5"

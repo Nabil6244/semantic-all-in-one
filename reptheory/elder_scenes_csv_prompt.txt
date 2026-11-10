@@ -1,0 +1,103 @@
+You are the director of an Elder Health Theory video: health advice for older viewers (60+) told like a calm science story, on a light clinic-white canvas with large, easy-to-read words. The pictures are soft-colour illustrations of older people in daily life and soft medical illustrations of the organs, and the tips are handwritten on a whiteboard. Turn the SCRIPT at the end into a scenes CSV that tells the app exactly what to show on every sentence. Output the CSV only, in one code block, nothing before or after it.
+
+THE LOOK WE ARE MAKING (read this first)
+- A new shot every sentence or two (about every 3-4 seconds). Never a screen of words alone: every sentence sits on a picture, an organ, a card or the whiteboard.
+- About half the video is drawn pictures: older people (60s to 80s) living the advice (walking, cooking, sleeping, at the doctor, with family), and the organ or body part the sentence is about (heart, brain, knees, kidneys, bones, gut).
+- The other half is cards that act out what is said: the whiteboard with the tips written by hand, study cards, numbers, warning signs, myth vs fact, a try-it check, a comment box.
+- The first shot is the strongest picture of the video's promise. The last shot calls back to it.
+- Words on screen are short (1-6 words) and always the narrator's own words. The tone is calm, warm and respectful: never scary, never talking down.
+- There is no 3D. The older people are healthy, dignified and active, never frail caricatures.
+
+HOW IT WORKS
+One row per sentence of the script, in order. The app lines the rows up with the voiceover by their words, so do NOT write start or end times.
+The text column must be the script's own words, unchanged: never reword, add, drop, split differently or merge anything.
+Never invent a number, a study, a year, a dose or a name: the video shows only what the narration says.
+The other columns are your direction. A blank cell leaves that choice to the app.
+
+HEADER (exactly this, in this order)
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+
+Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep the commas). Every row has exactly 9 cells. The muscle column is always empty for Elder Health Theory.
+
+COLUMNS
+- text: one script sentence, word for word, punctuation included.
+- chapter: a short section name (2 to 4 words: "Tip 1 · Walk after meals", "Your heart", "Warning signs") on the FIRST row of each section only, empty on the other rows. It becomes the label at the top of the screen.
+- look: what this sentence is shown as (list below), or empty to let the app choose.
+- prompt: for a picture (look flow), one sentence describing exactly what to draw (rules below). Write "same" to show the previous row's picture again with a new framing (use the camera column).
+- muscle: always empty.
+- camera: for a picture only: wide, medium or close, optionally with where to look: left, right, top, bottom. Empty = wide for a new picture, medium for a "same" picture. Use close only for a small detail (hands, eyes, a pill box, part of an organ); never on two rows in a row.
+- on_screen: 1 to 6 words to show big on this sentence, taken from the sentence itself (you may join them with = ≠ + →). Examples: "WALK 10 MINUTES", "SLEEP ≠ WEAKNESS", "CHECK YOUR FEET". Every word must be in the sentence or the app ignores the cell.
+- section: on the first row of each part: hook, why (science, proof), unit (one tip / habit / food), warning (when to see a doctor), plan (routine, how often), result (the payoff, the close).
+- graphic: leave empty unless the script walks through numbered tips or signs; then, on the row that announces them: "chain: walk after meals | drink water | sleep early" with the script's own names.
+
+LOOKS (use a card look ONLY when the sentence has its shape; never force one)
+  flow = a drawn picture made for this sentence (describe it in prompt): an older person and what they do, or an organ. The default for any sentence about a person, an action, a food, a place, a moment or a part of the body.
+  board = the whiteboard: the tips the sentence lists are handwritten on it in marker, one line each, as they are said. Use it for any spoken list of tips, foods, habits or signs (two or more short items), and for a "first ... then ... finally" routine. A picture is taped on the board beside the list, with arrows, circles and highlighter drawn to it: write its prompt in the prompt column (the organ the tips protect, or the older person doing the tip). Empty = drawn from the sentence.
+  takeaway = the sentence itself handwritten on the whiteboard: only for the single most important line, at most once or twice in a video, with its own taped picture (prompt column, as for board).
+  HEALTH CARDS (animated, drawn by the app; use them whenever the sentence has their subject):
+  vitals = a heart monitor with a live ECG line and a beating heart, plus the number the sentence says ("your heart beats about 100,000 times a day", "a resting pulse of 60 to 80").
+  pressure = a blood-pressure gauge whose needle moves the way the sentence says ("walking lowers your blood pressure", "120 over 80").
+  sugar = a glucose meter and a blood-sugar curve that spikes after a meal and drops when the sentence says it lowers ("a short walk after eating lowers blood sugar").
+  body = a body map where the organ the sentence names lights up and pulses ("your kidneys filter your blood", "your knees carry your weight").
+  water = glasses filling to the spoken count ("drink six glasses of water a day").
+  sleep = a night dial filling the spoken hours ("sleep seven hours").
+  warning = a see-your-doctor card: the sign in an alert box, then the phone and what to do ("if your chest feels tight when you walk, sit down and call your doctor").
+  slots = a spoken count fills slots one by one: "There are three habits that protect your knees."
+  formula = "X is not Y", "X means Y", "X is like Y": "Stiff mornings are not old age."
+  promise = a payoff promised for later: "Stay to the end for the one food doctors wish you ate."
+  stat = a stated number in a ring ("after 60", "30 minutes", "40%").
+  bars = two or more stated numbers of one unit, or a stated share ("1 in 3 adults over 65").
+  graph = something rises, drops or levels off over time (blood pressure, bone density, muscle with age).
+  study = a study with its count or year ("a 2019 study of 16,000 older women").
+  versus = two things compared ("white rice versus brown rice").
+  myth = "Myth: ... Fact: ...".
+  mistake = "the most common mistake is ..." (a WRONG panel, and a RIGHT panel when the next sentence fixes it).
+  warning = a sign to see a doctor and what to do ("if your chest feels tight when you walk, call your doctor").
+  question = a question to the viewer ("Do you wake up at night to use the bathroom?").
+  engage = the call to action as its screen (comment, like, subscribe).
+  timeline = what happens at two or more time marks ("in the first week ... after a month ...").
+
+WRITING A PICTURE PROMPT (the prompt column)
+The app adds the soft-colour art style, the white background, the colours and the composition (subject on one side, empty space for words). You describe only WHAT is in the picture:
+1. Who: give the main person a look once and keep it through the video ("a white-haired woman in her seventies with glasses and a teal cardigan"). Others are fine when the sentence is about other people (a spouse, grandchildren, a doctor).
+2. Doing what, exactly: the action and the moment ("walking slowly in a park after lunch, smiling, holding a water bottle").
+3. With what and where: every food, object or place the sentence names (a bowl of oatmeal, a pill organiser, stairs, a bed, a kitchen).
+4. Seen from where: side view, front view, three-quarter view, close-up on the hands / feet / face.
+5. An organ: when the sentence is about what happens inside the body, draw the organ itself and say so: "an anatomical illustration of a healthy heart with its arteries", "a cross-section of a knee joint showing the cartilage", "the inside of the gut lining". Keep it clean and friendly, like a patient leaflet: no blood, no surgery, no disease close-ups.
+6. One moment per picture, no comic panels, no split screens, no text, letters, numbers, labels, logos or arrows in the picture (the app draws them).
+7. Keep it gentle: no falls caught mid-air, no hospital emergencies, no distressed or sick-looking faces; for a warning show the calm action (sitting down, calling the doctor, a doctor checking blood pressure).
+8. Never draw what the sentence denies: "this is not a heart attack" is NOT a heart attack.
+9. Two contrasting sentences get two DIFFERENT prompts that show the difference. Never copy a prompt to the next row; write "same" only for the very same picture again.
+10. Keep each row to one clause of at most ~6 seconds of speech.
+
+RHYTHM RULES
+1. Row 1 is always the hook picture: look flow, one image of the video's promise. Never a card on row 1.
+2. Direct about half the rows (the hook, each new tip, every organ, number, study, list, comparison, warning, call to action and the last line); leave the others blank.
+3. Never more than 3 card rows in a row; never more than 3 flow rows in a row; never the same card look on two rows in a row.
+4. Every sentence about the heart, blood pressure, blood sugar, water or sleep hours gets its health card unless it is the hook; mix health cards with drawn organ pictures (flow) so the video alternates. Every spoken list of tips is a board row; every study the script cites is a study row; every spoken count is a slots row; every "see a doctor" sign is a warning row.
+5. When a tip says what happens inside the body, show that organ on that row or the next.
+6. Every call to action is an engage row.
+7. The last row calls back to row 1: look flow, row 1's prompt written out again, camera close, plus an on_screen phrase from the last sentence.
+
+CHECK BEFORE YOU ANSWER
+- Joined together, the text column is the script, word for word.
+- Row 1 is a flow hook picture; the last row is the callback picture.
+- No card look on a sentence that lacks its shape.
+- Every on_screen word appears in its own sentence.
+- Every flow row has a prompt (or "same").
+- 9 cells per row, commas inside cells are quoted.
+
+EXAMPLE
+Script:
+Your knees are not wearing out because of age. A 2018 study of 1,200 adults over 65 found that walking protects the cartilage. Walk after breakfast, after lunch and after dinner. Do your knees feel stiff in the morning? Tell me in the comments.
+
+CSV:
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+Your knees are not wearing out because of age.,Your knees,flow,"a white-haired woman in her seventies with glasses and a teal cardigan, walking confidently up a few garden steps, smiling",,wide,NOT AGE,hook,
+"A 2018 study of 1,200 adults over 65 found that walking protects the cartilage.",,study,,,,WALKING PROTECTS CARTILAGE,why,
+"Walk after breakfast, after lunch and after dinner.",Three walks,board,"the same white-haired woman walking with her husband on a sunny path after a meal",,,,plan,
+Do your knees feel stiff in the morning?,,flow,"a cross-section illustration of a healthy knee joint showing smooth cartilage",,medium,STIFF IN THE MORNING,result,
+Tell me in the comments.,,engage,,,,,,
+
+SCRIPT
+<<<PASTE THE SCRIPT HERE>>>

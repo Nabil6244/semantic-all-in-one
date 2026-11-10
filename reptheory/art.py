@@ -29,6 +29,13 @@ CAT_STYLE = ("Soft hand-drawn storybook illustration of a domestic cat, clean in
              "no text, no letters, no numbers, no logos, no watermark, no border, no people unless the sentence names them (then only hands or a friendly owner), "
              "the subject in one side of the frame (about 60%) with the other side empty white for on-screen text")      # the cat niche (theme.THEME == "cat")
 
+ELDER_STYLE = ("Soft-colour illustration with gentle watercolour shading and clean soft outlines, calm pastel palette of teal, sage, warm peach and navy, plain solid pure white "
+               "background (#FFFFFF), warm and respectful, no text, no letters, no numbers, no logos, no watermark, no border, the subject in one side of the frame (about 60%) with "
+               "the other side empty white for on-screen text")      # Elder Health Theory (theme.THEME == "elder"): older people in daily life
+ELDER_ORGAN_STYLE = ("Soft-colour medical illustration in the style of a friendly patient leaflet: the organ drawn clearly and accurately with gentle watercolour shading, soft pink, "
+                     "red and peach tones with teal highlights on the part that matters, plain solid pure white background (#FFFFFF), not gory, no blood, no text, no letters, "
+                     "no numbers, no labels, no logos, no watermark, the organ on one side of the frame (about 60%) with the other side empty white for on-screen text")
+
 JUNG_STYLE = ("Oil painting in the manner of an early 20th-century old-master portrait: rich umber, sepia and ochre palette, visible brushstrokes on canvas, dramatic chiaroscuro "
               "lighting, a dark warm background, no text, no letters, no numbers, no logos, no watermark, no border, the subject in one side of the frame (about 60%) with the other "
               "side dark and calm for on-screen text")      # Carl Jung Theory (theme.THEME == "jung"): every picture one painted film

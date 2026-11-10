@@ -12,9 +12,10 @@ from typing import Dict, List, Optional
 
 from . import clip3d as C3, diagrams as DG, qa as QA, lexicon as LX, meters as M, narrative as N, planner as P
 from .beat_art import SYNTH_RX
+from . import health as HE
 
 FULL_CARDS = ("steps", "versus", "takeaway", "timeline", "mistake", "slider", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise") + DG.KINDS      # cards that fill the frame (DG: the Phase 3 diagrams, diagrams.py); the narration's next phrase follows in a caption strip
-SIDE_CARDS = ("stat", "dial", "study", "graph", "bars", "tokens", "share")      # cards on the left, the beat's words as callouts on the right
+SIDE_CARDS = ("stat", "dial", "study", "graph", "bars", "tokens", "share") + HE.KINDS      # HE: Elder Health Theory's health cards (health.py), offered only in that theme      # cards on the left, the beat's words as callouts on the right
 CARD_LOOKS = SIDE_CARDS + FULL_CARDS
 UPGRADABLE = {"callout", "trainee"}      # text-only or generic-figure scenes: the ones that look the same from minute to minute
 TIME_UNITS = {"S", "SEC", "MIN", "H", "HR"}; COUNT_UNITS = {"SET", "REP", "WEEK", "DAY", "TIME", "ROUND", "X"}
@@ -47,7 +48,7 @@ def _versus(sc: dict, text: str) -> Optional[dict]:
         m = rx.search(text); k = 4 if rx is VS_BEATS else 5 if rx is VS_NOT else -1
         if m and k == 4:      # "consistency beats intensity": the phrase each side starts with; "No workout beats a bad diet" says the opposite, "your heart beats faster" is not a comparison
             b0 = m.group(2).split()[0].lower()
-            if re.match(r"\s*(?:no|nothing|never|not)\b", m.group(1), re.I) or b0.endswith(("er", "ly")) or b0 in ("per", "at", "every", "in", "up", "down", "more", "less", "faster"): continue
+            if re.match(r"\s*(?:no|nothing|never|not)\b", m.group(1), re.I) or b0.endswith(("er", "ly")) or b0 in ("per", "at", "every", "in", "up", "down", "more", "less", "faster", "about", "around", "nearly", "roughly", "almost", "over", "some", "only", "just") or b0[:1].isdigit() or b0 in LX.NUMBER_WORDS or re.search(r"\b(?:heart|hearts|pulse)\s*$", m.group(1), re.I): continue      # "your heart beats about 100,000 times" is a heartbeat, not A beats B
             a, b = _words_after(re.split(r"\b(?:is|are|that)\b", m.group(1))[-1], 0, 3), _words_after(m.group(2), 0, 3)      # "rule five is that consistency" -> CONSISTENCY
             if a and b and a != b: return {"a": {"text": a, "at": _at(sc, text, m.start(1))}, "b": {"text": b, "at": _at(sc, text, m.start(2))}}
             continue
@@ -160,8 +161,9 @@ DAY_NAMES = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
 DAYS_RX = re.compile(r"\b(" + "|".join(DAY_NAMES) + r")s?\b", re.I); PER_WEEK_RX = re.compile(rf"\b{LX.NUM}\s+(days?|times|sessions?|workouts?|runs?)\s+(?:a|per|each|every)\s+week\b", re.I)
 SPREAD = {2: (0, 3), 3: (0, 2, 4), 4: (0, 1, 3, 4), 5: (0, 1, 2, 3, 4), 6: (0, 1, 2, 3, 4, 5), 7: (0, 1, 2, 3, 4, 5, 6)}      # n sessions in a week, rest days between them
 TIER_RX = re.compile(rf"\b(?:(?P<lo>under|less than|below|fewer than)\s+{LX.NUM}|{LX.NUM}\s*(?:to|-)\s*{LX.NUM}|(?P<hi>over|more than|above|beyond)\s+{LX.NUM}|{LX.NUM}\s*(?:or more|\+|and up|and over))\s*(seconds?|secs?|minutes?|mins?|reps?|kg|%|percent)?\s*[,:]", re.I)      # "under 25 seconds:" as well as "under 25 seconds,"
+ELDER_HURT_RX = re.compile(r"\b(?:tight\w*|chest|breath\w*|blurr\w*|confus\w*|fall\w*|bleed\w*|irregular|racing|pounding|weak\w*|vision)\b", re.I)      # Elder Health Theory: signs to see a doctor about
 HURT_RX = re.compile(r"\b(?:hurts?|pain\w*|sharp|dizzy|dizziness|injur\w*|numb\w*|tingl\w*|doctor|physio\w*|swell\w*|swollen|unsafe|safely|faint)\b", re.I)
-RULE_RX = re.compile(r"(?:^|[,;]\s*)((?:stop|never|don'?t|do not|avoid|rest|take|see|check|talk to|ask|ease off|back off|skip)\b[^,.;!?]*)", re.I)
+RULE_RX = re.compile(r"(?:^|[,;]\s*)((?:stop|never|don'?t|do not|avoid|rest|take|see|check|talk to|ask|ease off|back off|skip|sit down|lie down|call|seek|get help)\b[^,.;!?]*)", re.I)
 CTA_RX = (("link", re.compile(r"\b(?:link(?:ed)? (?:is )?(?:below|in the description)|in the description|link below)\b", re.I)), ("comment", re.compile(r"\b(comment|let me know|tell me)\b", re.I)), ("like", re.compile(r"\b(?:tap|hit|smash|press|leave|give (?:it|this|the video))\s+(?:the\s+|a\s+)?like\b", re.I)), ("subscribe", re.compile(r"\bsubscribe\b", re.I)))
 
 def _graph(sc: dict, text: str) -> Optional[dict]:
@@ -259,7 +261,7 @@ def _warning(sc: dict, text: str) -> Optional[dict]:
     """Safety rules stacked as warning cards: each sentence that names a sign of harm (pain, dizziness, an injury) and says what to do about it."""
     rules, pos = [], 0
     for s in re.split(r"(?<=[.!?])\s+", text):
-        if HURT_RX.search(s):
+        if HURT_RX.search(s) or (_elder() and ELDER_HURT_RX.search(s)):
             m = RULE_RX.search(s)
             if m:
                 r = _words_after(m.group(1), 0, 6, lead=False)
@@ -383,8 +385,27 @@ def _promise(sc: dict, text: str) -> Optional[dict]:
 
 SHORT_LIST_RX = re.compile(r"(?:^|(?<=[.!?])\s+)((?:[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,2},\s+){2,4}[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){0,2})[.!?]", re.I)      # "Every hold, how heavy, how long."
 
+TIP_STOP = {"if", "when", "because", "but", "so", "that", "which", "who", "while", "although", "since", "unless", "then", "it", "this", "these", "those"}
+
+def _elder() -> bool:
+    from . import theme as T
+    return T.THEME == "elder"
+
+def _long_list(sc: dict, text: str) -> Optional[dict]:
+    """Elder Health Theory: a spoken list of 3-5 tips of up to 8 words each ("walk after every meal, drink a glass of water each morning, and sleep before eleven"):
+    the sentence cut at its commas / final "and", every part 2-8 words and none opening a clause (if, when, because...)."""
+    body = re.sub(r"^[^,]*?:\s*", "", text.strip().rstrip(".!?"))
+    parts = [p.strip() for p in re.split(r",\s*(?:and\s+|or\s+)?|\s+and\s+(?=[a-z]+\s)", body) if p.strip()]
+    if not 3 <= len(parts) <= 5 or any(not 2 <= len(p.split()) <= 8 or p.split()[0].lower() in TIP_STOP for p in parts): return None
+    items, pos = [], 0
+    for p in parts: i = text.find(p, pos); pos = i + len(p); items.append({"text": p[0].upper() + p[1:], "at": _at(sc, text, max(0, i))})
+    return {"items": items, "ticks": True}
+
 def _checklist(sc: dict, text: str) -> Optional[dict]:
     """A spoken list of three or more short items ("eat, sleep and recover", "every hold, how heavy, how long") ticked off one by one as each is said."""
+    if _elder():
+        got = _long_list(sc, text)
+        if got: return got
     m = LIST_RX.search(text)
     if not m:
         m3 = SHORT_LIST_RX.search(text)
@@ -482,6 +503,7 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if sk and (not sc.get("pose_pick") or sk.get("variant") in SKETCH_VARIANTS): ev["sketch"] = (SKETCH_BASE, sk)      # the exercise drawn as a moving line figure: when no pose shows it, or the sentence names a variant only the line figure has (wall / incline / knee push-up)
     eq = _equation(sc, text)
     if eq: ev["equation"] = (0.88, eq)
+    ev.update(HE.evidence(sc, text, _at))      # Elder Health Theory: heart monitor, blood-pressure gauge, sugar meter, body map, water glasses, sleep dial (empty in other themes)
     if "engage" in ev: ev.pop("takeaway", None)      # a call to action is shown as the screen it asks for, not as a key line
     if N.key_phrase(text, 3)[0] or len(text.split()) >= 4: ev["flow"] = (FLOW_BASE + (LIB_BOOST if lib else 0.0), None)      # any sentence can be drawn; one naming a library asset (nervous system, shoulder blades, x-ray) is drawn as it (render 054 showed the plain figure)
     if "takeaway" not in ev and not any(pg.get("headline") or pg.get("value") or pg.get("chips") for pg in sc.get("pages", [])):      # a scene with nothing written on it would be a bare figure: its own words, lit as they are spoken, are the fallback
@@ -820,8 +842,8 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         elif look == "equation": sc["was_kind"] = k; sc["kind"] = "equation"; sc["art"] = "rep_stand_v1"; sc["equations"] = payload; sc["decisions"].append(f"variety: equation lockup {payload[0]['lhs']} = {payload[0]['rhs']}")
         elif look in CARD_LOOKS:
             sc[look] = payload; sc["was_kind"] = k; sc["kind"] = look; sc["decisions"].append(f"variety: {look} card ({k} -> {look})")
-            if look in ("stat", "bars"):
-                for pg in sc["pages"]: pg["value"] = ""      # the ring shows the number: the callout column does not repeat it
+            if look in ("stat", "bars", "vitals", "water", "sleep"):
+                for pg in sc["pages"]: pg["value"] = ""      # the ring / health card shows the number: the callout column does not repeat it
             if look in FULL_CARDS: sc["pages"] = []      # the card fills the frame (a caption strip follows the narration: states.develop)
             if look == "takeaway": keyline_parts.add(sc.get("section"))
         else: sc["decisions"].append("variety: stock look kept")

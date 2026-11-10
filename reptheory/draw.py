@@ -25,7 +25,7 @@ class Ctx:
         if self._back is None:      # vertical gradient + soft vignette + a faint warm glow behind the subject: restrained depth, no texture that could crawl
             import numpy as np
             W, H = self.W, self.H; y = np.linspace(0, 1, H)[:, None, None]; top, bot = np.array(T.BG_TOP), np.array(T.BG_BOT); base = top + (bot - top) * y; base = np.repeat(base, W, axis=1)
-            xx, yy = np.meshgrid(np.linspace(-1, 1, W), np.linspace(-1, 1, H)); r = np.sqrt((xx * 0.9) ** 2 + yy ** 2); vig = np.clip(1.0 - (0.06 if T.THEME == "cat" else 0.38) * r ** 2, 0.55, 1.0)[..., None]      # the light cat canvas only softly darkens at the edges
+            xx, yy = np.meshgrid(np.linspace(-1, 1, W), np.linspace(-1, 1, H)); r = np.sqrt((xx * 0.9) ** 2 + yy ** 2); vig = np.clip(1.0 - (0.06 if T.THEME in T.LIGHT else 0.38) * r ** 2, 0.55, 1.0)[..., None]      # the light cat canvas only softly darkens at the edges
             gx, gy = (xx + 0.42) / 0.7, (yy + 0.05) / 0.8; glow = np.exp(-(gx ** 2 + gy ** 2) * 2.2)[..., None] * np.array([26, 11, 3])[None, None, :]
             rng = np.random.default_rng(7); grain = rng.normal(0, 1.1, (H, W, 1))     # fixed grain: identical every frame, so it never shimmers
             self._back = Image.fromarray(np.clip(base * vig + glow + grain, 0, 255).astype("uint8"), "RGB")
@@ -80,6 +80,12 @@ def paw(d, cx: float, cy: float, r: float, fill) -> None:
     d.ellipse((cx - r, cy - r * 0.78, cx + r, cy + r * 0.92), fill=fill)
     for dx, dy, k in ((-1.02, -1.05, 0.42), (-0.38, -1.55, 0.44), (0.38, -1.55, 0.44), (1.02, -1.05, 0.42)):
         tr = r * k; tx, ty = cx + dx * r, cy + dy * r; d.ellipse((tx - tr, ty - tr * 1.15, tx + tr, ty + tr * 1.15), fill=fill)
+
+def plus(d, cx: float, cy: float, r: float, fill) -> None:
+    """A rounded medical plus (Elder Health Theory), r = half its width."""
+    if r <= 0: return
+    a = r * 0.36; rr = max(1, int(a * 0.6))
+    d.rounded_rectangle((cx - a, cy - r, cx + a, cy + r), radius=rr, fill=fill); d.rounded_rectangle((cx - r, cy - a, cx + r, cy + a), radius=rr, fill=fill)
 
 def _cat_decor(im: Image.Image, W: int, H: int) -> None:
     """Cat Theory backdrop: a faint trail of paw prints across the lower corner and a few soft dots, drawn once (fixed: nothing shimmers)."""
@@ -183,6 +189,12 @@ def _tag_draw(d, ctx: Ctx, text: str, bg_a: float, bar_p: float, text_a: float, 
         if bar_p > 0: paw(d, x + ctx.px(30), y + bh * 0.58, ctx.px(8) * min(1.0, bar_p), T.ORANGE + (int(255 * min(1.0, bar_p)),))
         if text_a > 0: text_spaced(d, (x + ctx.px(54), y + ctx.px(9) + int(text_dy * ctx.S)), text, f, T.WHITE + (int(255 * text_a),), ctx.px(2))
         return
+    if T.THEME == "elder":      # a clinic label: a white pill with a teal plus where the red bar was
+        bh = ctx.px(52); w += ctx.px(30)
+        if bg_a > 0: d.rounded_rectangle((x, y, x + w, y + bh), radius=bh // 2, fill=(255, 255, 255, int(240 * bg_a)), outline=T.DIM + (int(255 * bg_a),), width=ctx.px(2))
+        if bar_p > 0: plus(d, x + ctx.px(30), y + bh * 0.5, ctx.px(11) * min(1.0, bar_p), T.ORANGE + (int(255 * min(1.0, bar_p)),))
+        if text_a > 0: text_spaced(d, (x + ctx.px(54), y + ctx.px(9) + int(text_dy * ctx.S)), text, f, T.WHITE + (int(255 * text_a),), ctx.px(2))
+        return
     if bg_a > 0: d.rectangle((x, y, x + w, y + bh), fill=T.PLATE + (int(210 * bg_a),))
     if bar_p > 0: d.rectangle((x, y + int(bh * (1 - bar_p)), x + ctx.px(7), y + bh), fill=T.RED + (int(255 * (text_a if bar_p >= 1 else 1.0)),))
     if text_a > 0: text_spaced(d, (x + ctx.px(26), y + ctx.px(6) + int(text_dy * ctx.S)), text, f, T.WHITE + (int(255 * text_a),), ctx.px(2.5))
@@ -220,6 +232,9 @@ def pill(cv: Image.Image, ctx: Ctx, x: float, y: float, text: str, p: float, acc
         aa = int(255 * min(1, ta * 2)); box = (box[0], box[1], box[0] + ww + ctx.px(34), box[3])
         d.rounded_rectangle(box, radius=h // 2, fill=(255, 232, 218, aa), outline=accent + (aa,), width=ctx.px(3)); paw(d, int(x) + pad + ctx.px(6), box[1] + h * 0.56, ctx.px(8), accent + (aa,))
         text_spaced(d, (int(x) + pad + ctx.px(34), int(y) + yo + (h - ctx.px(size)) // 2 - ctx.px(3)), text, f, T.WHITE + (int(255 * ta),), ctx.px(1.5)); return w + ctx.px(34)
+    if T.THEME == "elder":      # a soft filled white chip, easy to read
+        aa = int(255 * min(1, ta * 2)); d.rounded_rectangle(box, radius=h // 2, fill=(255, 255, 255, aa), outline=accent + (aa,), width=ctx.px(3))
+        text_spaced(d, (int(x) + pad, int(y) + yo + (h - ctx.px(size)) // 2 - ctx.px(3)), text, f, T.WHITE + (int(255 * ta),), ctx.px(1.5)); return w
     d.rounded_rectangle(box, radius=h // 2, fill=(255, 255, 255, int(14 * p)), outline=accent + (int(255 * min(1, ta * 2)),), width=ctx.px(3))
     text_spaced(d, (int(x) + pad, int(y) + yo + (h - ctx.px(size)) // 2 - ctx.px(3)), text, f, T.WHITE + (int(255 * ta),), ctx.px(1.5))
     return w

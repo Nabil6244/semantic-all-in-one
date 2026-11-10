@@ -8,20 +8,23 @@ from typing import Callable, Dict, List
 
 from .diagrams import KINDS as DIAGRAMS
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "quote") + DIAGRAMS
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "quote", "vitals", "pressure", "sugar", "body", "water", "sleep") + DIAGRAMS
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
-           "list": "steps", "sequence": "steps", "key line": "takeaway", "quotation": "quote", "citation": "quote",
+           "list": "steps", "sequence": "steps", "key line": "takeaway", "board": "checklist", "whiteboard": "checklist", "handwriting": "checklist", "heart monitor": "vitals", "ecg": "vitals", "heart rate": "vitals", "monitor": "vitals",
+           "blood pressure": "pressure", "bp": "pressure", "gauge": "pressure", "glucose": "sugar", "blood sugar": "sugar", "body map": "body", "organ": "body", "glasses": "water", "night": "sleep", "doctor": "warning",      # Elder Health Theory writes lists on its whiteboard
+            "quotation": "quote", "citation": "quote",
            "stopwatch": "timeline", "sensation": "timeline", "wrong right": "mistake", "wrong/right": "mistake", "difficulty": "slider", "easier harder": "slider",
            "effort": "dial", "gauge": "dial", "research": "study", "review": "study", "evidence": "study",
            "line graph": "graph", "curve": "graph", "chart": "bars", "bar chart": "bars", "dots": "bars", "dot grid": "bars", "week": "calendar", "schedule": "calendar", "plan": "calendar",
            "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist",
            "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise", "sets": "tokens", "reps": "tokens", "holds": "tokens", "weight share": "share", "share of weight": "share",
            "balance": "seesaw", "gap graph": "gap", "area graph": "gap", "split circle": "split", "two panels": "panels", "before after": "panels", "tear-off": "tearoff", "tear off": "tearoff", "pages": "tearoff", "rest battery": "battery", "plan": "clipboard", "journey": "road", "path": "road", "silhouettes": "silrow", "silhouette row": "silrow", "progression": "silrow"}
-CARDS = ("quote", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share") + DIAGRAMS
+CARDS = ("quote", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "vitals", "pressure", "sugar", "body", "water", "sleep") + DIAGRAMS
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
-NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)", "steps": "two or more steps (first, then, finally)", "takeaway": "words",
+NEEDS = {"vitals": "the heart, a heartbeat or a pulse (Elder Health Theory)", "pressure": "blood pressure (Elder Health Theory)", "sugar": "blood sugar, glucose or diabetes (Elder Health Theory)",
+         "body": "an organ or body part (Elder Health Theory)", "water": "a number of glasses or cups of water (Elder Health Theory)", "sleep": "a number of hours of sleep (Elder Health Theory)","stat": "a number", "versus": "a comparison (A versus B, not A but B)", "steps": "two or more steps (first, then, finally)", "takeaway": "words",
          "timeline": "two time marks (10 seconds in ... 20 seconds ...)", "mistake": "a mistake (the most common mistake is ...)", "slider": "too hard? ... too easy?", "dial": "N out of 10 or N% effort",
          "study": "a study with its count or year (a study of 16 men, researchers watched 74 ...)", "graph": "a change over time (rises, drops, levels off)", "bars": "two numbers of one unit or a share",
          "calendar": "three named days or N days a week", "result": "two or more bands (under 20 ... 20 to 40 ...)", "warning": "a sign of harm and what to do", "engage": "a comment / like / subscribe / link below",
@@ -35,7 +38,9 @@ NEEDS = {"stat": "a number", "versus": "a comparison (A versus B, not A but B)",
          "battery": "rest / recover with training or days", "clipboard": "the plan as a list of three or more items (your plan: ..., ..., ...)", "road": "the road / path / way to a goal", "silrow": "three or more poses named in order (plank, frog stand, tuck planche)"}      # what each card look needs, for the log
 
 def norm_look(v: str) -> str:
-    v = re.sub(r"\s+", " ", str(v or "").strip().lower()); v = ALIASES.get(v, v)
+    v = re.sub(r"\s+", " ", str(v or "").strip().lower())
+    from . import theme as T
+    v = v if (T.THEME == "elder" and v == "body") else ALIASES.get(v, v)      # Elder Health Theory: "body" is its body map (in Rep Theory it means the 3D body)
     return v if v in LOOKS else ""
 
 def has_direction(sentences: List[dict]) -> bool:
@@ -198,6 +203,6 @@ def build_card(sc: dict) -> None:
     if look not in CARDS or payload is None: return
     sc[look] = payload; sc["was_kind"] = sc["kind"]; sc["kind"] = look
     from .variety import FULL_CARDS
-    if look in ("stat", "bars"):
+    if look in ("stat", "bars", "vitals", "water", "sleep"):      # the card shows the number: the callouts do not repeat it
         for pg in sc["pages"]: pg["value"] = ""
     if look in FULL_CARDS or look == "quote": sc["pages"] = []

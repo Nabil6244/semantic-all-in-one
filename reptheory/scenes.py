@@ -16,6 +16,8 @@ def _camera(sc: dict, t: float) -> tuple:
 
 ENTRANCE_S, LATE_MAX_S = 0.45, 0.9
 from .states import STAMP_HOLD_S
+from .beat_art import ORGAN_RX as BA_ORGAN
+from . import health as HE
 from . import states as ST
 
 def _page_layer(ctx: D.Ctx, sc: dict, pg: dict, t: float, x: float, anchor_y: float, width: float = 0.0) -> Image.Image:
@@ -127,9 +129,9 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     elif kind == "stat":      # the stated number in a ring (cards.py); the beat's words stay on the right as headline and chips
         st = sc["stat"]; K2.stat(cv, ctx, dict(st, at=_rel(sc, st["at"])), t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "steps":
-        K2.steps(cv, ctx, [dict(i, at=_rel(sc, i["at"])) for i in sc["steps"]], t); _caption_strip(cv, ctx, sc, t)
+        (_board(sc, ctx) or K2.steps)(cv, ctx, [dict(i, at=_rel(sc, i["at"])) for i in sc["steps"]], t); _caption_strip(cv, ctx, sc, t)      # Elder Health Theory: written on the whiteboard
     elif kind == "checklist":
-        K2.steps(cv, ctx, [dict(i, at=_rel(sc, i["at"])) for i in sc["checklist"]["items"]], t, ticks=True); _caption_strip(cv, ctx, sc, t)
+        (_board(sc, ctx) or K2.steps)(cv, ctx, [dict(i, at=_rel(sc, i["at"])) for i in sc["checklist"]["items"]], t, ticks=True); _caption_strip(cv, ctx, sc, t)
     elif kind == "myth":
         c = sc["myth"]; K2.mistake(cv, ctx, dict({k: dict(c[k], at=_rel(sc, c[k]["at"])) if c.get(k) else None for k in ("wrong", "right")}, labels=c["labels"]), t); _caption_strip(cv, ctx, sc, t)
     elif kind == "question":
@@ -147,6 +149,10 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         if kind == "tokens": M.draw_tokens(cv, ctx, dict(c, at=_rel(sc, c["at"])), t)
         else: M.draw_share(cv, ctx, dict(c, steps=[dict(x, at=_rel(sc, x["at"])) for x in c["steps"]]), t)
         callouts(cv, ctx, sc, t, 1130)
+    elif kind in HE.KINDS:      # Elder Health Theory's health cards (health.py) on the left, the beat's words as callouts on the right
+        HE.draw(cv, ctx, kind, sc[kind], t, sc["start"]); callouts(cv, ctx, sc, t, 1130)
+    elif kind == "warning" and T.THEME == "elder":      # the warning as a see-your-doctor card: the sign, an arrow, the phone and what to do
+        HE.draw(cv, ctx, "doctor", HE.doctor_payload(sc.get("script_text") or sc["text"], sc["warning"]["rules"]), t, sc["start"]); _caption_strip(cv, ctx, sc, t)
     elif kind in ("dial", "study"):      # a number card on the left, the beat's words as callouts on the right
         c = sc[kind]; (K2.dial if kind == "dial" else K2.study)(cv, ctx, dict(c, at=_rel(sc, c["at"])), t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "graph":
@@ -168,7 +174,7 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     elif kind in ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow"):      # the diagrams that explain why (diagrams.py), the narration's next phrase in a strip under them
         from . import diagrams as DG; DG.draw(cv, ctx, kind, sc[kind], sc["start"] + t); _caption_strip(cv, ctx, sc, t)
     elif kind == "takeaway":
-        K2.takeaway(cv, ctx, {"words": [dict(w, t0=_rel(sc, w["t0"])) for w in sc["takeaway"]["words"]]}, t)
+        (_board(sc, ctx, True) or K2.takeaway)(cv, ctx, {"words": [dict(w, t0=_rel(sc, w["t0"])) for w in sc["takeaway"]["words"]]}, t)
     elif kind == "sketch":      # a scene drawn in code from the beat's own words (see sketch.py), callouts on the right
         from . import sketch as K; K.draw(cv, ctx, sc["sketch"], t); callouts(cv, ctx, sc, t, 1130)
     elif kind == "tier":
@@ -197,6 +203,15 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
         if sc.get("qlist"): QA.draw_list(cv, ctx, sc["qlist"], sc["start"] + t)
     if tag: D.section_tag(cv, ctx, sc["section"], t, prev_section, 0.0)
     return cv
+
+def _board(sc: dict, ctx: D.Ctx, takeaway: bool = False):
+    """Elder Health Theory: the whiteboard drawer for this scene, with its own picture (beat_art: board_art) pinned on the board; None in every other theme."""
+    if T.THEME != "elder": return None
+    pic = PIC._path(sc.get("board_art")) if sc.get("board_art") else None; im = ctx.file_art(pic) if pic else None
+    m = BA_ORGAN.search(sc.get("text", "")) if im is not None else None; caption = m.group(1).capitalize() if m else ""      # the photo's handwritten caption: the organ it shows
+    if takeaway: return lambda cv, ctx_, items, t, **kw: K2.board_takeaway(cv, ctx_, items, t, pic=im, caption=caption, **kw)
+    notes = sc["kind"] == "checklist" and int(sc.get("no") or 0) % 2 == 1      # every other list is sticky notes slapped on the board, so no two boards look alike
+    return lambda cv, ctx_, items, t, **kw: K2.board(cv, ctx_, items, t, pic=im, caption=caption, notes=notes, **kw)
 
 def _caption_strip(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float) -> None:
     """A card that has said everything keeps up with the narration: the phrase being said (states.develop) in a pill under it, centred."""

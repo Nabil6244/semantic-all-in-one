@@ -22,8 +22,14 @@ _CAT = dict(BG_TOP=(255, 249, 241), BG_BOT=(252, 238, 226), WHITE=(58, 42, 38), 
 _JUNG = dict(BG_TOP=(34, 26, 20), BG_BOT=(12, 9, 7), WHITE=(242, 232, 212), SOFT_WHITE=(204, 190, 166), GREY=(150, 134, 112), DIM=(66, 54, 44),
              ORANGE=(214, 170, 88), ORANGE_DEEP=(178, 134, 60), RED=(184, 48, 42), PLATE=(26, 20, 16), GREEN=(132, 176, 120),
              HEAD_FONT="sys:Georgia Bold", BODY_FONT="sys:Georgia Bold")
-THEMES = {"": _BASE, "cat": _CAT, "jung": _JUNG}
-NO_GYM = ("cat", "jung")      # niches with no 3D body and no gym trainee art: every picture is the niche's own (Flow)
+# the elder look is a calm clinic's: soft off-white canvas, deep navy type, teal accent, coral for warnings, sage for "do this"; large plain type an older viewer reads at a glance
+_ELDER = dict(BG_TOP=(250, 251, 249), BG_BOT=(236, 242, 241), WHITE=(28, 44, 70), SOFT_WHITE=(78, 96, 120), GREY=(130, 144, 158), DIM=(214, 226, 228),
+              ORANGE=(22, 150, 150), ORANGE_DEEP=(12, 112, 116), RED=(226, 98, 82), PLATE=(255, 255, 255), GREEN=(92, 158, 104),
+              HEAD_FONT="PlusJakartaSans-ExtraBold.ttf", BODY_FONT="PlusJakartaSans-Bold.ttf")
+THEMES = {"": _BASE, "cat": _CAT, "jung": _JUNG, "elder": _ELDER}
+NO_GYM = ("cat", "jung", "elder")
+LIGHT = ("cat", "elder")      # light canvases: pictures drawn on white paper, multiplied onto the canvas; dark ink type
+HAND_FONT = "sys:Marker Felt"      # Elder Health Theory's handwriting board (a marker on a whiteboard)      # niches with no 3D body and no gym trainee art: every picture is the niche's own (Flow)
 THEME = ""
 
 def set_theme(name: str = "") -> str:
@@ -40,7 +46,7 @@ def kicker(k: str) -> str:
 
 def P(r: int, g: int, b: int, a=None) -> tuple:
     """A card's dark panel colour: as given on the black canvas, a light paper tone on the cat canvas, a warm umber on the Jung canvas (the WHITE type on it always reads)."""
-    c = tuple(int(255 - v * 0.12) for v in (r, g, b)) if THEME == "cat" else tuple(min(255, int(v * 1.15) + d) for v, d in zip((r, g, b), (16, 10, 4))) if THEME == "jung" else (r, g, b)
+    c = tuple(int(255 - v * 0.12) for v in (r, g, b)) if THEME in LIGHT else tuple(min(255, int(v * 1.15) + d) for v, d in zip((r, g, b), (16, 10, 4))) if THEME == "jung" else (r, g, b)
     return c if a is None else c + (a,)
 
 set_theme(_os.environ.get("REPTHEORY_THEME", ""))
@@ -58,7 +64,9 @@ def font(name: str, px: int):
     except OSError: return ImageFont.truetype("/System/Library/Fonts/Supplemental/Arial Bold.ttf", int(px))
 
 SYSTEM_FONTS = {"Georgia Bold": ("/System/Library/Fonts/Supplemental/Georgia Bold.ttf", "C:/Windows/Fonts/georgiab.ttf", "/Library/Fonts/Georgia Bold.ttf"),
-                "Georgia Italic": ("/System/Library/Fonts/Supplemental/Georgia Italic.ttf", "C:/Windows/Fonts/georgiai.ttf", "/Library/Fonts/Georgia Italic.ttf")}
+                "Georgia Italic": ("/System/Library/Fonts/Supplemental/Georgia Italic.ttf", "C:/Windows/Fonts/georgiai.ttf", "/Library/Fonts/Georgia Italic.ttf"),
+                "Marker Felt": ("/System/Library/Fonts/MarkerFelt.ttc", "/System/Library/Fonts/Noteworthy.ttc", "C:/Windows/Fonts/segoeprb.ttf", "C:/Windows/Fonts/Inkfree.ttf",
+                                "/System/Library/Fonts/Supplemental/ChalkboardSE.ttc")}
 
 def ease_out(t: float) -> float:
     t = min(1.0, max(0.0, t)); return 1 - (1 - t) ** 3

@@ -105,6 +105,14 @@ def chapter(cv: Image.Image, ctx: D.Ctx, ch: dict, t: float) -> None:
         D.text_spaced(d, (cx - tw / 2, cy + ctx.px(36)), title, ft, T.WHITE + (int(255 * a * min(1.0, max(0.0, (t - 0.25) / 0.5))),), ctx.px(4))
         D.overlay_paste(cv, lay, 1.0); return
     a = min(1.0, t / T_IN, (T_IN + T_HOLD + T_OUT - t) / T_OUT); a = max(0.0, a); lay = Image.new("RGBA", (ctx.W, ctx.H), (0, 0, 0, 0)); d = ImageDraw.Draw(lay); x, y = ctx.px(100), int(ctx.H * 0.80)
+    if T.THEME in T.LIGHT:      # the light canvases: a white card with a soft shadow, navy title, teal part number and progress (the dark plate made the navy title unreadable)
+        e = T.ease_out(min(1.0, t / 0.5)); xx = x + int((1 - e) * -60 * ctx.S); box = (xx - ctx.px(34), y - ctx.px(36), xx + ctx.px(960), y + ctx.px(190))
+        d.rounded_rectangle((box[0] + ctx.px(8), box[1] + ctx.px(12), box[2] + ctx.px(8), box[3] + ctx.px(12)), radius=ctx.px(22), fill=(20, 40, 60, 40))
+        d.rounded_rectangle(box, radius=ctx.px(22), fill=(255, 255, 255, 245), outline=T.DIM + (255,), width=ctx.px(2)); d.rounded_rectangle((box[0], box[1], box[0] + ctx.px(12), box[3]), radius=ctx.px(6), fill=T.ORANGE + (255,))
+        D.text_spaced(d, (xx, y - ctx.px(10)), f"PART {ch['n']:02d} / {ch['of']:02d}", ctx.font(T.BODY_FONT, 30), T.ORANGE + (255,), ctx.px(5))
+        title = ch["title"][:34]; typed = title[:max(0, min(len(title), int((t - 0.2) / 0.035)))]; D.text_spaced(d, (xx, y + ctx.px(32)), typed, ctx.font(T.HEAD_FONT, 72), T.WHITE + (255,), ctx.px(1))
+        bw = ctx.px(880); d.rounded_rectangle((xx, y + ctx.px(150), xx + bw, y + ctx.px(158)), radius=ctx.px(4), fill=T.DIM + (255,)); d.rounded_rectangle((xx, y + ctx.px(150), xx + int(bw * ch["n"] / ch["of"] * e), y + ctx.px(158)), radius=ctx.px(4), fill=T.ORANGE + (255,))
+        D.overlay_paste(cv, lay, a); return
     d.rounded_rectangle((x - ctx.px(34), y - ctx.px(36), x + ctx.px(960), y + ctx.px(190)), radius=ctx.px(22), fill=(8, 8, 10, 200))
     D.text_spaced(d, (x, y - ctx.px(10)), f"PART {ch['n']:02d} / {ch['of']:02d}", ctx.font(T.BODY_FONT, 30), T.ORANGE + (255,), ctx.px(5))
     title = ch["title"][:34]; typed = title[:max(0, min(len(title), int((t - 0.2) / 0.035)))]      # the title types itself on, a letter every 35 ms
@@ -198,15 +206,15 @@ def study(cv: Image.Image, ctx: D.Ctx, st: dict, t: float) -> None:
     d = ImageDraw.Draw(cv, "RGBA"); cx, cy = int(ctx.W * 0.28), int(ctx.H * 0.52); w, h = int(ctx.H * 0.40), int(ctx.H * 0.52); p = t / 0.8; rp, _land = _roll(t, st["at"])      # papers fan in from the first frame, the count lands on its word
     for i in range(3, -1, -1):      # the papers fan in, back to front
         q = T.ease_out(min(1.0, max(0.0, p - 0.12 * i))); ang = (i - 1.5) * 4 * q; off = (i - 1.5) * ctx.px(26) * q
-        card = Image.new("RGBA", (w, h), (0, 0, 0, 0)); dc = ImageDraw.Draw(card); cat = T.THEME == "cat"; qa = int(255 * min(1, q * 2))      # cat: cream notes with peach lines, the front one taped on
+        card = Image.new("RGBA", (w, h), (0, 0, 0, 0)); dc = ImageDraw.Draw(card); cat = T.THEME in T.LIGHT; qa = int(255 * min(1, q * 2))      # cat: cream notes with peach lines, the front one taped on
         dc.rounded_rectangle((0, 0, w - 1, h - 1), radius=ctx.px(22 if cat else 16), fill=((255, 251, 244) if cat else (236, 232, 224)) + (qa,), outline=(T.DIM + (qa,)) if cat else None, width=ctx.px(3) if cat else 0)
-        for k in range(3): dc.rounded_rectangle((ctx.px(30), ctx.px(90) + k * ctx.px(30), w - ctx.px(30 + (k % 3) * 40), ctx.px(100) + k * ctx.px(30)), radius=ctx.px(5), fill=((250, 200, 176) if cat else (170, 165, 158)) + (qa,))
-        if cat and i == 0: dc.rectangle((w // 2 - ctx.px(60), 0, w // 2 + ctx.px(60), ctx.px(30)), fill=(247, 118, 72, int(qa * 0.55)))      # a strip of tape on the front note
+        for k in range(3): dc.rounded_rectangle((ctx.px(30), ctx.px(90) + k * ctx.px(30), w - ctx.px(30 + (k % 3) * 40), ctx.px(100) + k * ctx.px(30)), radius=ctx.px(5), fill=(((180, 222, 220) if T.THEME == "elder" else (250, 200, 176)) if cat else (170, 165, 158)) + (qa,))
+        if cat and i == 0: dc.rectangle((w // 2 - ctx.px(60), 0, w // 2 + ctx.px(60), ctx.px(30)), fill=T.ORANGE + (int(qa * 0.55),))      # a strip of tape on the front note
         card = card.rotate(ang, resample=Image.BICUBIC, expand=True); cv.paste(card, (int(cx - card.width / 2 + off), int(cy - card.height / 2)), card)
     d = ImageDraw.Draw(cv, "RGBA"); e = T.ease_in_out(rp); v = st["value"] * e
     if st.get("year"): import datetime; y0 = datetime.date.today().year; v = y0 + (st["value"] - y0) * e      # a year rolls back from today to the one stated
     _txt(d, ctx, (cx, cy - h / 2 + ctx.px(24)), st["kind"], 32, T.ORANGE_DEEP, min(1, p * 2), head=False, centre=True)
-    _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:.0f}" if st.get("year") else f"{v:,.0f}", 130, T.WHITE if T.THEME == "cat" else (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, T.SOFT_WHITE if T.THEME == "cat" else (60, 60, 62), min(1, p * 2), head=False, centre=True)
+    _txt(d, ctx, (cx, cy - ctx.px(10)), f"{v:.0f}" if st.get("year") else f"{v:,.0f}", 130, T.WHITE if T.THEME in T.LIGHT else (24, 24, 26), min(1, p * 2), centre=True); _txt(d, ctx, (cx, cy + ctx.px(140)), st["noun"], 40, T.SOFT_WHITE if T.THEME in T.LIGHT else (60, 60, 62), min(1, p * 2), head=False, centre=True)
     if T.THEME == "cat" and rp >= 1: sp = T.ease_back(min(1.0, (t - _land - 0.2) / 0.35)); D.paw(d, cx + w * 0.30, cy + h * 0.36, ctx.px(26) * max(0.0, sp), T.ORANGE + (int(200 * min(1.0, max(0.0, sp))),)) if sp > 0 else None      # the paw stamp lands once the number has rolled in
 
 def graph(cv: Image.Image, ctx: D.Ctx, gr: dict, t: float) -> None:
@@ -567,3 +575,351 @@ def _quote_portrait(ctx: D.Ctx):
         except Exception: ctx._art[k] = None
     return ctx._art[k]
 
+
+
+BOARD_CPS = 16      # handwriting letters a second: a marker writing, not typing
+HILITE = (255, 224, 102)      # the highlighter that sweeps behind the line just written
+MARKER_RED = (222, 86, 72)
+NOTE_COLS = ((255, 234, 128), (186, 234, 210), (255, 202, 208), (194, 222, 250), (255, 214, 168))      # sticky notes: yellow, mint, pink, blue, peach
+BOARD_BOX = (0.05, 0.10, 0.95, 0.80)      # the board's place in the frame (fractions of W, H)
+
+# ---- the board itself: drawn once per frame size and cached (nothing in it moves, so nothing shimmers) ----
+
+def _board_static(ctx: D.Ctx) -> Image.Image:
+    """The whiteboard as one picture: brushed-aluminium frame with dark corner caps, a glossy white surface with a soft light sheen and faint ghosts of earlier
+    erased writing, and the tray under it holding three capped markers and a felt eraser."""
+    key = ("elder_board", ctx.W, ctx.H)
+    if key in ctx._art: return ctx._art[key]
+    import numpy as np
+    from PIL import ImageFilter
+    x0, y0, x1, y1 = (int(v * (ctx.W if k % 2 == 0 else ctx.H)) for k, v in enumerate(BOARD_BOX)); w, h = x1 - x0, y1 - y0; tray = ctx.px(46); fr = ctx.px(18); rad = ctx.px(16)
+    im = Image.new("RGBA", (w + ctx.px(24), h + tray + ctx.px(24)), (0, 0, 0, 0))
+    sh = Image.new("L", im.size, 0); ImageDraw.Draw(sh).rounded_rectangle((ctx.px(10), ctx.px(16), w + ctx.px(10), h + ctx.px(16)), radius=rad, fill=70)
+    im.paste((24, 40, 58, 255), (0, 0), sh.filter(ImageFilter.GaussianBlur(ctx.px(12))))      # soft shadow on the wall
+    yy = np.linspace(0, 1, h)[:, None]; xx = np.linspace(0, 1, w)[None, :]
+    metal = 214 - 46 * yy + 10 * np.sin(xx * 90 + yy * 3) * 0.2 + np.random.default_rng(3).normal(0, 2.0, (h, w))      # brushed aluminium, lighter at the top
+    frame = Image.fromarray(np.clip(np.dstack([metal - 6, metal, metal + 6]), 0, 255).astype("uint8"), "RGB")
+    m = Image.new("L", (w, h), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, w - 1, h - 1), radius=rad, fill=255); im.paste(frame, (0, 0), m)
+    iw, ih = w - 2 * fr, h - 2 * fr; diag = (np.linspace(0, 1, iw)[None, :] * 0.6 + np.linspace(0, 1, ih)[:, None] * 0.4)
+    sheen = 251 - 7 * diag + 5 * np.exp(-((diag - 0.28) / 0.07) ** 2) + 3 * np.exp(-((diag - 0.36) / 0.03) ** 2)      # a soft band of window light across the gloss
+    surf = Image.fromarray(np.clip(np.dstack([sheen - 1, sheen, sheen + 1]), 0, 255).astype("uint8"), "RGB").convert("RGBA")
+    ghost = Image.new("RGBA", (iw, ih), (0, 0, 0, 0)); g = ImageDraw.Draw(ghost); rng = np.random.default_rng(11)
+    for _ in range(9):      # faint smudges of earlier, erased writing
+        gx, gy = rng.uniform(0.05, 0.9) * iw, rng.uniform(0.08, 0.9) * ih; L = rng.uniform(0.08, 0.22) * iw
+        pts = [(gx + L * k / 12, gy + ctx.px(8) * math.sin(k * 1.3 + gx)) for k in range(13)]; g.line(pts, fill=(120, 130, 140, 13), width=ctx.px(rng.uniform(10, 26)))
+    surf.alpha_composite(ghost.filter(ImageFilter.GaussianBlur(ctx.px(7))))
+    sm = Image.new("L", (iw, ih), 0); ImageDraw.Draw(sm).rounded_rectangle((0, 0, iw - 1, ih - 1), radius=ctx.px(6), fill=255); im.paste(surf, (fr, fr), sm)
+    d = ImageDraw.Draw(im, "RGBA"); d.rounded_rectangle((fr, fr, fr + iw, fr + ih), radius=ctx.px(6), outline=(150, 160, 168, 255), width=ctx.px(2))
+    d.line((ctx.px(14), ctx.px(4), w - ctx.px(14), ctx.px(4)), fill=(255, 255, 255, 150), width=ctx.px(2))      # the frame's top edge catches the light
+    c = ctx.px(34)
+    for cx, cy in ((0, 0), (w - c, 0), (0, h - c), (w - c, h - c)): d.rounded_rectangle((cx, cy, cx + c, cy + c), radius=ctx.px(9), fill=(58, 64, 72, 255))      # corner caps
+    ty = h - ctx.px(6)      # the tray
+    d.rounded_rectangle((ctx.px(110), ty, w - ctx.px(110), ty + ctx.px(26)), radius=ctx.px(8), fill=(176, 184, 192, 255)); d.line((ctx.px(116), ty + ctx.px(3), w - ctx.px(116), ty + ctx.px(3)), fill=(230, 234, 238, 255), width=ctx.px(3))
+    for k, col in enumerate((T.ORANGE, MARKER_RED, T.WHITE)):
+        mx = w - ctx.px(480) + k * ctx.px(118); my = ty - ctx.px(14)
+        d.rounded_rectangle((mx, my, mx + ctx.px(104), my + ctx.px(20)), radius=ctx.px(9), fill=(244, 244, 242, 255), outline=(170, 170, 170, 255), width=ctx.px(1))
+        d.rounded_rectangle((mx + ctx.px(70), my - ctx.px(1), mx + ctx.px(108), my + ctx.px(21)), radius=ctx.px(9), fill=col + (255,))
+        d.rectangle((mx + ctx.px(14), my + ctx.px(6), mx + ctx.px(54), my + ctx.px(13)), fill=col + (200,))      # its label band
+    ex = ctx.px(170); d.rounded_rectangle((ex, ty - ctx.px(30), ex + ctx.px(150), ty + ctx.px(2)), radius=ctx.px(7), fill=(44, 58, 86, 255))      # the eraser: felt under a wooden top
+    d.rounded_rectangle((ex, ty - ctx.px(34), ex + ctx.px(150), ty - ctx.px(18)), radius=ctx.px(7), fill=(196, 152, 104, 255))
+    ctx._art[key] = (im, (x0, y0, x1, y1), fr); return ctx._art[key]
+
+def _board_frame(cv: Image.Image, ctx: D.Ctx, t: float):
+    """Pastes the board, sliding up into place. Returns the writing surface (x0, y0, x1, y1) and its alpha."""
+    im, (x0, y0, x1, y1), fr = _board_static(ctx); e = T.ease_out(t / 0.5); a = min(1.0, t / 0.35); dy = int((1 - e) * 50 * ctx.S)
+    layer = im
+    if a < 1: layer = im.copy(); layer.putalpha(im.getchannel("A").point(lambda v: int(v * a)))
+    cv.paste(layer, (x0, y0 + dy), layer)
+    return x0 + fr, y0 + fr + dy, x1 - fr, y1 - fr + dy, a
+
+# ---- the pen, the ink and the doodles ----
+
+def _marker_img(ctx: D.Ctx, col) -> Image.Image:
+    """A real-looking whiteboard marker (white barrel, coloured cap end and tip, a shine), pointing down-left, tip at the image's bottom-left corner."""
+    key = ("elder_marker", ctx.W, col)
+    if key in ctx._art: return ctx._art[key]
+    L, R = ctx.px(150), ctx.px(15); im = Image.new("RGBA", (L + ctx.px(10), 2 * R + ctx.px(10)), (0, 0, 0, 0)); d = ImageDraw.Draw(im, "RGBA"); cy = R + ctx.px(5)
+    d.polygon([(0, cy), (ctx.px(16), cy - ctx.px(6)), (ctx.px(16), cy + ctx.px(6))], fill=col + (255,))      # the felt tip
+    d.polygon([(ctx.px(16), cy - ctx.px(7)), (ctx.px(34), cy - R), (ctx.px(34), cy + R), (ctx.px(16), cy + ctx.px(7))], fill=(60, 64, 70, 255))      # the cone
+    d.rounded_rectangle((ctx.px(34), cy - R, L - ctx.px(30), cy + R), radius=ctx.px(5), fill=(246, 246, 244, 255), outline=(150, 150, 150, 255), width=ctx.px(1))
+    d.rectangle((ctx.px(56), cy - R + ctx.px(4), ctx.px(96), cy + R - ctx.px(4)), fill=col + (220,))      # the label band
+    d.rounded_rectangle((L - ctx.px(34), cy - R - ctx.px(1), L + ctx.px(6), cy + R + ctx.px(1)), radius=ctx.px(10), fill=col + (255,))      # the cap on the back
+    d.line((ctx.px(38), cy - R * 0.5, L - ctx.px(36), cy - R * 0.5), fill=(255, 255, 255, 220), width=ctx.px(3))      # shine
+    im = im.rotate(-32, resample=Image.BICUBIC, expand=True)      # leaning up-right from the tip, as a right hand holds it
+    tip = None
+    a = __import__("numpy").asarray(im.getchannel("A"))
+    ys, xs = __import__("numpy").nonzero(a > 40); k = int(xs.argmin()); tip = (int(xs[k]), int(ys[k]))
+    ctx._art[key] = (im, tip); return ctx._art[key]
+
+def _pen(cv: Image.Image, ctx: D.Ctx, xy, col) -> None:
+    im, (tx, ty) = _marker_img(ctx, col); x, y = int(xy[0] - tx), int(xy[1] - ty)
+    sh = im.copy(); sh.putalpha(im.getchannel("A").point(lambda v: int(v * 0.18))); sh = Image.composite(Image.new("RGBA", im.size, (0, 0, 0, 255)), Image.new("RGBA", im.size, (0, 0, 0, 0)), sh.getchannel("A"))
+    cv.paste(sh, (x + ctx.px(10), y + ctx.px(12)), sh); cv.paste(im, (x, y), im)
+
+def _hand_w(ctx: D.Ctx, text: str, size: int) -> float: return D._text_w(ImageDraw.Draw(Image.new("RGB", (4, 4))), text, ctx.font(T.HAND_FONT, size), 0)
+
+def _hand_line(cv: Image.Image, ctx: D.Ctx, xy, text: str, size: int, col, frac: float, pen: bool) -> float:
+    """One handwritten line, revealed left to right up to frac (0..1) as a marker writes it (the marker rides the writing edge while pen). Returns the line's width."""
+    if frac <= 0 or not text: return 0.0
+    f = ctx.font(T.HAND_FONT, size); w = int(_hand_w(ctx, text, size)) + ctx.px(8); h = ctx.px(size * 1.4)
+    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0)); ImageDraw.Draw(layer).text((0, 0), text, font=f, fill=col + (255,))
+    cut = int(w * min(1.0, frac)); part = layer.crop((0, 0, max(1, cut), h)); cv.paste(part, (int(xy[0]), int(xy[1])), part)
+    if pen and frac < 1: _pen(cv, ctx, (xy[0] + cut, xy[1] + h * (0.55 + 0.12 * math.sin(frac * 46))), col)
+    return w
+
+def _hand_frac(text: str, t: float, at: float) -> float:
+    return max(0.0, min(1.0, (t - at) * BOARD_CPS / max(4, len(text)))) if t > at else 0.0
+
+def _write_end(text: str, at: float) -> float: return at + max(4, len(text)) / BOARD_CPS
+
+def _hilite(d, x, y, w, h, p) -> None:
+    """A highlighter stroke sweeping behind a written line (drawn before the ink), slightly tilted like a real swipe."""
+    if p <= 0: return
+    ww = w * min(1.0, p); d.polygon([(x - 8, y + h * 0.30), (x + ww, y + h * 0.26), (x + ww + 6, y + h * 0.98), (x - 4, y + h * 1.02)], fill=HILITE + (120,))
+
+def _circle(d, cx, cy, r, p, col, width) -> None:
+    """A marker circle drawn around something, slightly wobbly and overshooting its start like a hand."""
+    if p <= 0: return
+    n = max(3, int(40 * min(1.0, p))); pts = []
+    for k in range(n + 1):
+        a = -2.2 + (2 * math.pi + 0.5) * min(1.0, p) * k / n; rr = r * (1 + 0.06 * math.sin(a * 3))
+        pts.append((cx + rr * 1.15 * math.cos(a), cy + rr * math.sin(a)))
+    d.line(pts, fill=col + (235,), width=width, joint="curve")
+
+def _arrow(d, a, b, p, col, width) -> None:
+    """A curved marker arrow from a to b, drawn in over p (0..1), the head once it arrives."""
+    if p <= 0: return
+    c = ((a[0] + b[0]) / 2, min(a[1], b[1]) - abs(b[0] - a[0]) * 0.10); n = 24; m = max(2, int(n * min(1.0, p)))
+    pts = [((1 - u) ** 2 * a[0] + 2 * (1 - u) * u * c[0] + u * u * b[0], (1 - u) ** 2 * a[1] + 2 * (1 - u) * u * c[1] + u * u * b[1]) for u in (k / n for k in range(m + 1))]
+    d.line(pts, fill=col + (235,), width=width, joint="curve")
+    if p >= 1:
+        ang = math.atan2(b[1] - pts[-2][1], b[0] - pts[-2][0]); L = width * 4.5
+        for s_ in (-0.5, 0.5): d.line((b, (b[0] - L * math.cos(ang + s_), b[1] - L * math.sin(ang + s_))), fill=col + (235,), width=width)
+
+def _star(d, cx, cy, r, col) -> None:
+    if r <= 1: return
+    pts = [(cx + (r if k % 2 == 0 else r * 0.42) * math.cos(-math.pi / 2 + k * math.pi / 5), cy + (r if k % 2 == 0 else r * 0.42) * math.sin(-math.pi / 2 + k * math.pi / 5)) for k in range(10)]
+    d.polygon(pts, fill=col + (230,))
+
+DOODLES = (      # (words in the tip, doodle, colour): the first match is drawn beside the tip
+    (r"\b(walk\w*|steps?|stroll\w*|exercis\w*|move|moving|movement|active|activity)\b", "feet", (22, 150, 150)),
+    (r"\b(water|drink\w*|hydrat\w*|fluids?|tea)\b", "glass", (60, 140, 220)),
+    (r"\b(sleep\w*|bed|rest\w*|nap\w*|night|tired)\b", "moon", (96, 92, 190)),
+    (r"\b(heart|blood pressure|cholesterol|pulse|circulation)\b", "heart", (222, 86, 72)),
+    (r"\b(pills?|medic\w*|vitamins?|supplements?|tablets?|dose)\b", "pill", (230, 120, 60)),
+    (r"\b(bones?|knees?|joints?|hips?|calcium|spine|back)\b", "bone", (150, 120, 90)),
+    (r"\b(sun\w*|outside|outdoors?|morning light|daylight)\b", "sun", (240, 176, 30)),
+    (r"\b(brain|memory|mind|think\w*|remember\w*|learn\w*|read\w*|puzzles?)\b", "bulb", (240, 176, 30)),
+    (r"\b(eat\w*|food|meals?|fruit|vegetables?|veg|diet|fiber|fibre|protein|breakfast|lunch|dinner|apple)\b", "apple", (92, 158, 104)),
+    (r"\b(doctor|check\w*|test\w*|screening|blood sugar|visit)\b", "cross", (22, 150, 150)),
+    (r"\b(minutes?|hours?|daily|every day|times? a|o'?clock|pm|am)\b", "clock", (28, 44, 70)),
+)
+
+def doodle_for(text: str) -> tuple:
+    import re as _re
+    for rx, kind, col in DOODLES:
+        if _re.search(rx, text, _re.I): return kind, col
+    return "star", (240, 180, 40)
+
+def _doodle_img(ctx: D.Ctx, kind: str, col, r: int) -> Image.Image:
+    """A small marker doodle (outline + a light fill), drawn in code: feet, glass, moon, heart, pill, bone, sun, bulb, apple, cross, clock, star."""
+    key = ("elder_doodle", kind, col, r)
+    if key in ctx._art: return ctx._art[key]
+    S = 2 * r + ctx.px(12); im = Image.new("RGBA", (S, S), (0, 0, 0, 0)); d = ImageDraw.Draw(im, "RGBA"); c = S / 2; w = max(3, ctx.px(6)); lt = col + (70,); ink = col + (255,)
+    if kind == "feet":      # a walking shoe, side view: sole, upper, laces
+        sole = [(c - r * 0.95, c + r * 0.45), (c + r * 0.95, c + r * 0.45), (c + r * 0.98, c + r * 0.62), (c - r * 0.92, c + r * 0.62)]
+        upper = [(c - r * 0.9, c + r * 0.45), (c - r * 0.9, c - r * 0.35), (c - r * 0.35, c - r * 0.45), (c - r * 0.05, c - r * 0.05), (c + r * 0.55, c + r * 0.1), (c + r * 0.92, c + r * 0.3), (c + r * 0.95, c + r * 0.45)]
+        d.polygon(upper, fill=lt); d.line(upper + [upper[0]], fill=ink, width=w, joint="curve"); d.polygon(sole, fill=ink)
+        for k in range(3): x_ = c - r * 0.25 + k * r * 0.22; d.line([(x_, c - r * 0.05 + k * r * 0.06), (x_ + r * 0.16, c - r * 0.2 + k * r * 0.06)], fill=ink, width=max(2, w // 2))
+    elif kind == "glass":
+        d.polygon([(c - r * 0.55, c - r * 0.8), (c + r * 0.55, c - r * 0.8), (c + r * 0.42, c + r * 0.85), (c - r * 0.42, c + r * 0.85)], fill=(255, 255, 255, 0), outline=ink)
+        d.polygon([(c - r * 0.5, c - r * 0.2), (c + r * 0.5, c - r * 0.2), (c + r * 0.42, c + r * 0.85), (c - r * 0.42, c + r * 0.85)], fill=lt)
+        d.line([(c - r * 0.55, c - r * 0.8), (c - r * 0.42, c + r * 0.85), (c + r * 0.42, c + r * 0.85), (c + r * 0.55, c - r * 0.8)], fill=ink, width=w, joint="curve")
+        d.line([(c - r * 0.5, c - r * 0.2), (c + r * 0.5, c - r * 0.2)], fill=ink, width=max(2, w // 2))
+    elif kind == "moon":
+        d.ellipse((c - r * 0.8, c - r * 0.8, c + r * 0.8, c + r * 0.8), fill=lt, outline=ink, width=w); d.ellipse((c - r * 0.35, c - r * 1.0, c + r * 1.05, c + r * 0.45), fill=(0, 0, 0, 0))
+        m = Image.new("L", (S, S), 255); ImageDraw.Draw(m).ellipse((c - r * 0.35, c - r * 1.0, c + r * 1.05, c + r * 0.45), fill=0); im.putalpha(Image.fromarray(__import__("numpy").minimum(__import__("numpy").asarray(im.getchannel("A")), __import__("numpy").asarray(m))))
+        d = ImageDraw.Draw(im, "RGBA"); f = ctx.font(T.HAND_FONT, int(r * 0.7 / ctx.S)); d.text((c + r * 0.3, c - r * 0.95), "z", font=f, fill=ink)
+    elif kind == "heart":
+        pts = [(c + r * 0.9 * (16 * math.sin(a) ** 3) / 16, c - r * 0.9 * (13 * math.cos(a) - 5 * math.cos(2 * a) - 2 * math.cos(3 * a) - math.cos(4 * a)) / 16) for a in (k * math.pi / 30 for k in range(61))]
+        d.polygon(pts, fill=lt); d.line(pts, fill=ink, width=w, joint="curve")
+        d.line([(c - r * 0.6, c), (c - r * 0.25, c), (c - r * 0.1, c - r * 0.35), (c + r * 0.1, c + r * 0.3), (c + r * 0.25, c), (c + r * 0.6, c)], fill=ink, width=max(2, w // 2), joint="curve")      # a pulse line
+    elif kind == "pill":
+        pill = Image.new("RGBA", (S, S), (0, 0, 0, 0)); p_ = ImageDraw.Draw(pill, "RGBA")
+        p_.rounded_rectangle((c - r * 0.9, c - r * 0.36, c + r * 0.9, c + r * 0.36), radius=int(r * 0.36), fill=(255, 255, 255, 255), outline=ink, width=w)
+        p_.rounded_rectangle((c, c - r * 0.36, c + r * 0.9, c + r * 0.36), radius=int(r * 0.36), fill=col + (150,), outline=ink, width=w); p_.line([(c, c - r * 0.36), (c, c + r * 0.36)], fill=ink, width=w)
+        im = pill.rotate(30, resample=Image.BICUBIC); d = ImageDraw.Draw(im, "RGBA")
+    elif kind == "bone":
+        d.rounded_rectangle((c - r * 0.65, c - r * 0.18, c + r * 0.65, c + r * 0.18), radius=int(r * 0.1), fill=(255, 255, 255, 255), outline=ink, width=w)
+        for sx in (-1, 1):
+            for sy in (-1, 1): d.ellipse((c + sx * r * 0.72 - r * 0.24, c + sy * r * 0.2 - r * 0.24, c + sx * r * 0.72 + r * 0.24, c + sy * r * 0.2 + r * 0.24), fill=(255, 255, 255, 255), outline=ink, width=w)
+        d.rectangle((c - r * 0.65, c - r * 0.18 + w, c + r * 0.65, c + r * 0.18 - w), fill=(255, 255, 255, 255))
+    elif kind == "sun":
+        d.ellipse((c - r * 0.45, c - r * 0.45, c + r * 0.45, c + r * 0.45), fill=lt, outline=ink, width=w)
+        for k in range(8): a = k * math.pi / 4; d.line([(c + r * 0.62 * math.cos(a), c + r * 0.62 * math.sin(a)), (c + r * 0.92 * math.cos(a), c + r * 0.92 * math.sin(a))], fill=ink, width=w)
+    elif kind == "bulb":
+        d.ellipse((c - r * 0.58, c - r * 0.9, c + r * 0.58, c + r * 0.3), fill=lt, outline=ink, width=w); d.rectangle((c - r * 0.28, c + r * 0.3, c + r * 0.28, c + r * 0.62), fill=(200, 200, 200, 255), outline=ink, width=w)
+        for k in (-1, 0, 1): d.line([(c + k * r * 0.75, c - r * 1.0 + abs(k) * r * 0.2), (c + k * r * 0.95, c - r * 1.15 + abs(k) * r * 0.25)], fill=ink, width=max(2, w // 2))
+    elif kind == "apple":
+        d.ellipse((c - r * 0.75, c - r * 0.5, c + r * 0.05, c + r * 0.8), fill=lt, outline=ink, width=w); d.ellipse((c - r * 0.05, c - r * 0.5, c + r * 0.75, c + r * 0.8), fill=lt, outline=ink, width=w)
+        d.line([(c, c - r * 0.45), (c + r * 0.1, c - r * 0.85)], fill=(110, 80, 50, 255), width=w); d.ellipse((c + r * 0.12, c - r * 0.95, c + r * 0.55, c - r * 0.7), fill=(92, 158, 104, 255))
+    elif kind == "cross":
+        d.ellipse((c - r * 0.85, c - r * 0.85, c + r * 0.85, c + r * 0.85), fill=lt, outline=ink, width=w); D.plus(d, c, c, r * 0.5, ink)
+    elif kind == "clock":
+        d.ellipse((c - r * 0.85, c - r * 0.85, c + r * 0.85, c + r * 0.85), fill=lt, outline=ink, width=w); d.line([(c, c), (c, c - r * 0.55)], fill=ink, width=w); d.line([(c, c), (c + r * 0.4, c + r * 0.15)], fill=ink, width=w)
+    else: _star(d, c, c, r * 0.9, col)
+    ctx._art[key] = im; return im
+
+def _doodle(cv: Image.Image, ctx: D.Ctx, kind: str, col, cx: float, cy: float, r: int, p: float, wob: float = 0.0) -> None:
+    """Draws the doodle in as a pen would: a sweep that uncovers it around its centre, with a small pop; it then rocks gently."""
+    if p <= 0: return
+    im = _doodle_img(ctx, kind, col, r)
+    if p < 1:
+        m = Image.new("L", im.size, 0); ImageDraw.Draw(m).pieslice((-im.width, -im.height, 2 * im.width, 2 * im.height), -90, -90 + 360 * p, fill=255)
+        a = im.getchannel("A"); im = im.copy(); im.putalpha(Image.fromarray(__import__("numpy").minimum(__import__("numpy").asarray(a), __import__("numpy").asarray(m))))
+    sc_ = 0.7 + 0.3 * T.ease_back(min(1.0, p * 1.3))
+    if abs(sc_ - 1) > 0.01 or wob: im = im.resize((max(1, int(im.width * sc_)), max(1, int(im.height * sc_))), Image.BICUBIC).rotate(wob, resample=Image.BICUBIC)
+    cv.paste(im, (int(cx - im.width / 2), int(cy - im.height / 2)), im)
+
+# ---- the picture on the board ----
+
+def _pinned(cv: Image.Image, ctx: D.Ctx, pic: Image.Image, box, t: float, caption: str = "") -> tuple:
+    """The scene's picture as a photo held on the board by two magnets: it drops in and settles with a small tilt, the picture inside slowly pushes in, a handwritten
+    caption under it, marker stars pop around it. Returns the photo's left-middle point (for the arrows)."""
+    bx0, by0, bx1, by1 = box; p = T.ease_back(min(1.0, max(0.0, (t - 0.15) / 0.6)))
+    if p <= 0: return (bx0, (by0 + by1) / 2)
+    W, H = int(bx1 - bx0), int(by1 - by0); pad = ctx.px(18); cap = ctx.px(70) if caption else pad; iw, ih = W - 2 * pad, H - pad - cap
+    z = 1.0 + min(0.10, max(0.0, t) * 0.012); src = pic.convert("RGB"); sw, sh = src.size; k = max(iw / sw, ih / sh) * z; cw, ch = iw / k, ih / k
+    crop = (max(0, min(sw - cw, sw * 0.5 - cw / 2)), max(0, min(sh - ch, sh * 0.45 - ch / 2)))
+    img = src.crop((int(crop[0]), int(crop[1]), int(crop[0] + cw), int(crop[1] + ch))).resize((iw, ih), Image.BICUBIC)
+    card = Image.new("RGBA", (W, H), (253, 252, 248, 255)); card.paste(img, (pad, pad)); dc = ImageDraw.Draw(card, "RGBA")
+    dc.rectangle((pad, pad, pad + iw, pad + ih), outline=(220, 222, 220, 255), width=ctx.px(2)); dc.rectangle((0, 0, W - 1, H - 1), outline=(214, 220, 222, 255), width=ctx.px(2))
+    if caption:
+        cs = 46; f = ctx.font(T.HAND_FONT, cs)
+        while cs > 26 and _hand_w(ctx, caption, cs) > iw: cs -= 4; f = ctx.font(T.HAND_FONT, cs)
+        cw_ = _hand_w(ctx, caption, cs); dc.text(((W - cw_) / 2, pad + ih + (cap - ctx.px(cs * 1.25)) / 2), caption, font=f, fill=T.WHITE + (255,))
+    ang = -2.5 + (1 - min(1.0, p)) * -8.0 + 0.4 * math.sin(t * 0.9); card = card.rotate(ang, resample=Image.BICUBIC, expand=True)
+    yy = int(by0 - (1 - min(1.0, p)) * ctx.px(140)); xx = int(bx0)
+    shd = Image.composite(Image.new("RGBA", card.size, (20, 30, 40, 255)), Image.new("RGBA", card.size, (0, 0, 0, 0)), card.getchannel("A").point(lambda v: int(v * 0.22)))
+    cv.paste(shd, (xx + ctx.px(14), yy + ctx.px(18)), shd); cv.paste(card, (xx, yy), card)
+    d = ImageDraw.Draw(cv, "RGBA")
+    for n, (fx, col) in enumerate(((0.22, MARKER_RED), (0.78, T.ORANGE))):      # two round magnets
+        mx, my, r = xx + card.width * fx, yy + ctx.px(26), ctx.px(22)
+        d.ellipse((mx - r + ctx.px(4), my - r + ctx.px(6), mx + r + ctx.px(4), my + r + ctx.px(6)), fill=(0, 0, 0, 50)); d.ellipse((mx - r, my - r, mx + r, my + r), fill=col + (255,))
+        d.ellipse((mx - r * 0.55, my - r * 0.6, mx - r * 0.05, my - r * 0.15), fill=(255, 255, 255, 120))
+    for n, (sx, sy) in enumerate(((-0.07, 0.12), (1.05, 0.9), (1.03, 0.1))):      # marker stars pop in one after another, then twinkle
+        q = T.ease_back(min(1.0, max(0.0, (t - 0.8 - 0.18 * n) / 0.35)))
+        if q > 0: _star(d, xx + card.width * sx, yy + card.height * sy, ctx.px(22) * q * (1 + 0.12 * math.sin(t * 4 + n * 2)), (MARKER_RED, T.ORANGE, (240, 180, 40))[n])
+    return (xx - ctx.px(10), yy + card.height * 0.45)
+
+def _photo_box(ctx: D.Ctx, x0, y0, x1, y1) -> tuple:
+    pw = (x1 - x0) * 0.37; ph = min((y1 - y0) * 0.86, pw * 0.98); px0 = x1 - pw - ctx.px(46); py0 = (y0 + y1) / 2 - ph / 2
+    return (px0, py0, px0 + pw, py0 + ph)
+
+# ---- the two board layouts ----
+
+def board(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float, ticks: bool = False, title: str = "", pic: Optional[Image.Image] = None, caption: str = "", notes: bool = False) -> None:
+    """Elder Health Theory's handwriting board. Each step / list item is written by a marker as the narration reaches it, with a doodle of what it is about (a glass for
+    water, feet for walking, a moon for sleep...) drawn beside it, the number circled while it is said (or a tick), a highlighter swipe behind it, and an arrow to the scene's
+    picture held on the board by magnets. notes: the items are sticky notes slapped onto the board instead of lines (same timing). Items are steps()'s ({text, at})."""
+    x0, y0, x1, y1, a = _board_frame(cv, ctx, t)
+    if a < 1 and t < 0.2: return
+    photo = _pinned(cv, ctx, pic, _photo_box(ctx, x0, y0, x1, y1), t, caption) if pic is not None else None
+    tx1 = (_photo_box(ctx, x0, y0, x1, y1)[0] - ctx.px(60)) if pic is not None else x1 - ctx.px(60)
+    if notes: return _notes(cv, ctx, items, t, x0 + ctx.px(50), y0, tx1, y1, photo)
+    d = ImageDraw.Draw(cv, "RGBA"); n = max(1, len(items)); size = 66 if n <= 3 else 56 if n <= 5 else 46; dr = ctx.px(size * 0.5)
+    bx = x0 + ctx.px(80); text_x = bx + ctx.px(size * 0.9); room = lambda sz: tx1 - (bx + ctx.px(sz * 0.9)) - ctx.px(sz * 1.3)      # the doodle sits after the words
+    longest = max((_hand_w(ctx, it["text"], size) for it in items), default=0)
+    while size > 36 and longest > room(size): size -= 4; longest = max(_hand_w(ctx, it["text"], size) for it in items)
+    text_x = bx + ctx.px(size * 0.9); dr = ctx.px(size * 0.66); lh = ctx.px(size * 1.7); top = max(y0 + ctx.px(40), int((y0 + y1) / 2 - n * lh / 2))
+    if title: _hand_line(cv, ctx, (x0 + ctx.px(70), y0 + ctx.px(30)), title, 56, T.ORANGE_DEEP, _hand_frac(title, t, 0.2), True)
+    pens = []
+    for i, it in enumerate(items):
+        if t < it["at"]: continue
+        at = it["at"] + 0.25; fr = _hand_frac(it["text"], t, at); y = top + i * lh; q = T.ease_out((t - it["at"]) / 0.3); cx, cy = bx, y + ctx.px(size * 0.72)
+        soft = i + 1 < n and t >= items[i + 1]["at"]; done = _write_end(it["text"], at); w = _hand_w(ctx, it["text"], size)
+        if not soft: _hilite(d, text_x, y, w, ctx.px(size * 1.15), T.ease_out((t - done) / 0.35))      # the highlighter swipe, behind the ink
+        if ticks:      # a green tick drawn in two strokes
+            k = ctx.px(size * 0.32); d.line((cx - k, cy, cx - k * 0.2, cy + k * 0.8 * min(1, q * 2)), fill=T.GREEN + (255,), width=ctx.px(8))
+            if q > 0.5: d.line((cx - k * 0.2, cy + k * 0.8, cx - k * 0.2 + k * 1.6 * (q * 2 - 1), cy + k * 0.8 - k * 2.0 * (q * 2 - 1)), fill=T.GREEN + (255,), width=ctx.px(8))
+        else:
+            _hand_line(cv, ctx, (cx - ctx.px(size * 0.3), y), f"{i + 1}", size, T.ORANGE, min(1.0, q * 1.4), False)
+            if not soft: _circle(d, cx - ctx.px(size * 0.05), cy - ctx.px(size * 0.05), ctx.px(size * 0.55), T.ease_out((t - it["at"]) / 0.45), MARKER_RED, ctx.px(5))      # the number being said is circled
+        _hand_line(cv, ctx, (text_x, y), it["text"], size, T.SOFT_WHITE if soft else T.WHITE, fr, False)
+        if not soft and 0 < fr < 1: pens.append((text_x + (w + ctx.px(8)) * fr, y + ctx.px(size * 1.4) * (0.55 + 0.12 * math.sin(fr * 46))))
+        kind, col = doodle_for(it["text"]); dx = text_x + w + ctx.px(size * 0.95)
+        _doodle(cv, ctx, kind, col, dx, cy, dr, (t - done) / 0.45, 4 * math.sin(t * 2.2 + i) if not soft else 0.0)
+        d = ImageDraw.Draw(cv, "RGBA")
+        if photo and not soft and dx + dr + ctx.px(40) < photo[0] - ctx.px(40):      # an arrow from the line just written to the picture
+            _arrow(d, (dx + dr + ctx.px(16), cy), photo, T.ease_in_out((t - done - 0.35) / 0.5), MARKER_RED, ctx.px(6))
+    for xy in pens: _pen(cv, ctx, xy, T.WHITE)      # the marker on top of everything
+
+def _wrap_hand(ctx: D.Ctx, text: str, size: int, width: float) -> list:
+    out, cur = [], ""
+    for w in text.split():
+        nxt = (cur + " " + w).strip()
+        if cur and _hand_w(ctx, nxt, size) > width: out.append(cur); cur = w
+        else: cur = nxt
+    return out + ([cur] if cur else [])
+
+def _notes(cv: Image.Image, ctx: D.Ctx, items: List[dict], t: float, ax0, ay0, ax1, ay1, photo) -> None:
+    """The sticky-note layout: each item slapped onto the board on its own coloured note as it is said (a quick drop with a tilt, a curled corner, a soft shadow),
+    its doodle on top and its words handwritten under it; the note being said is lifted slightly and an arrow runs from it to the picture."""
+    n = max(1, len(items)); cols = n if n <= 3 else (2 if n == 4 else 3); rows = math.ceil(n / cols); gap = ctx.px(34)
+    nw = min((ax1 - ax0 - gap * (cols - 1)) / cols, (ay1 - ay0 - ctx.px(60) - gap * (rows - 1)) / rows * 1.05, ctx.px(380)); nh = nw * 0.95
+    gx0 = ax0 + (ax1 - ax0 - (cols * nw + (cols - 1) * gap)) / 2; gy0 = (ay0 + ay1) / 2 - (rows * nh + (rows - 1) * gap) / 2
+    for i, it in enumerate(items):
+        if t < it["at"]: continue
+        p = (t - it["at"]) / 0.45; e = T.ease_back(min(1.0, p)); now = not (i + 1 < n and t >= items[i + 1]["at"])
+        r_, c_ = divmod(i, cols); x, y = gx0 + c_ * (nw + gap), gy0 + r_ * (nh + gap); col = NOTE_COLS[i % len(NOTE_COLS)]
+        W_, H_ = int(nw), int(nh); note = Image.new("RGBA", (W_, H_), (0, 0, 0, 0)); dn = ImageDraw.Draw(note, "RGBA"); fold = ctx.px(46)
+        dn.polygon([(0, 0), (W_, 0), (W_, H_ - fold), (W_ - fold, H_), (0, H_)], fill=col + (255,))
+        dn.polygon([(W_, H_ - fold), (W_ - fold, H_), (W_ - fold * 0.86, H_ - fold * 0.86)], fill=tuple(max(0, v - 40) for v in col) + (255,))      # the curled corner
+        dn.rectangle((0, 0, W_, ctx.px(30)), fill=tuple(max(0, v - 14) for v in col) + (255,))      # the sticky strip
+        kind, dcol = doodle_for(it["text"]); dr = int(nh * 0.17)
+        size = 50
+        while size > 28 and len(_wrap_hand(ctx, it["text"], size, W_ - ctx.px(50))) * ctx.px(size * 1.2) > H_ * 0.52: size -= 3
+        lines = _wrap_hand(ctx, it["text"], size, W_ - ctx.px(50)); ty = int(H_ * 0.42)
+        frac = _hand_frac(it["text"], t, it["at"] + 0.35); total = sum(len(l) for l in lines) or 1; left = frac * total
+        for ln in lines:
+            fr = max(0.0, min(1.0, left / max(1, len(ln)))); left -= len(ln)
+            _hand_line(note, ctx, ((W_ - _hand_w(ctx, ln, size)) / 2, ty), ln, size, T.WHITE, fr, False); ty += ctx.px(size * 1.2)
+        _doodle(note, ctx, kind, dcol, W_ / 2, H_ * 0.22, dr, (t - it["at"] - 0.2) / 0.4, 0.0)
+        ang = ((i * 37) % 7 - 3) * 1.1 + (1 - min(1.0, e)) * 10 + (0.6 * math.sin(t * 1.6 + i) if now else 0)
+        scale = (1.25 - 0.25 * min(1.0, e)) * (1.04 if now else 1.0)
+        note = note.resize((max(1, int(W_ * scale)), max(1, int(H_ * scale))), Image.BICUBIC).rotate(ang, resample=Image.BICUBIC, expand=True)
+        if p < 1: note.putalpha(note.getchannel("A").point(lambda v: int(v * min(1.0, p * 2.5))))
+        px_, py_ = int(x + nw / 2 - note.width / 2), int(y + nh / 2 - note.height / 2)
+        shd = Image.composite(Image.new("RGBA", note.size, (20, 30, 40, 255)), Image.new("RGBA", note.size, (0, 0, 0, 0)), note.getchannel("A").point(lambda v: int(v * (0.30 if now else 0.18))))
+        lift = ctx.px(16 if now else 8); cv.paste(shd, (px_ + lift, py_ + lift + ctx.px(4)), shd); cv.paste(note, (px_, py_), note)
+        if photo and now and x + nw + ctx.px(40) < photo[0]:
+            _arrow(ImageDraw.Draw(cv, "RGBA"), (x + nw + ctx.px(10), y + nh * 0.4), photo, T.ease_in_out((t - _write_end(it["text"], it["at"] + 0.35) - 0.2) / 0.5), MARKER_RED, ctx.px(6))
+
+def board_takeaway(cv: Image.Image, ctx: D.Ctx, tk: dict, t: float, pic: Optional[Image.Image] = None, caption: str = "") -> None:
+    """The takeaway on the whiteboard: each word handwritten as it is spoken, wrapped to the board, a highlighter swipe, a coral underline and a doodle of what it is
+    about once it is all said; the scene's picture held by magnets on the right."""
+    x0, y0, x1, y1, a = _board_frame(cv, ctx, t); words = tk["words"]
+    if pic is not None: _pinned(cv, ctx, pic, _photo_box(ctx, x0, y0, x1, y1), t, caption)
+    size = 88 if pic is None else 74; f = ctx.font(T.HAND_FONT, size); d0 = ImageDraw.Draw(cv, "RGBA"); sp = D._text_w(d0, " ", f, 0)
+    max_w = ((_photo_box(ctx, x0, y0, x1, y1)[0] - x0) if pic is not None else (x1 - x0)) - ctx.px(200); lines, cur, curw = [], [], 0.0
+    for w in words:
+        ww = D._text_w(d0, w["w"], f, 0)
+        if cur and curw + sp + ww > max_w: lines.append((cur, curw)); cur, curw = [], 0.0
+        cur.append((w, ww)); curw += (sp if len(cur) > 1 else 0) + ww
+    if cur: lines.append((cur, curw))
+    lh = ctx.px(size * 1.45); top = int((y0 + y1) / 2 - len(lines) * lh / 2); end = max((w["t0"] for w in words), default=0) + 0.5
+    for li, (ln, lw) in enumerate(lines): _hilite(d0, x0 + ctx.px(90), top + li * lh, lw, ctx.px(size * 1.15), T.ease_out((t - end - 0.1 * li) / 0.35))
+    last_x, pen = x0, None
+    for li, (ln, lw) in enumerate(lines):
+        x = x0 + ctx.px(90)
+        for w, ww in ln:
+            fr = max(0.0, min(1.0, (t - w["t0"]) * BOARD_CPS / max(2, len(w["w"]))))
+            _hand_line(cv, ctx, (x, top + li * lh), w["w"], size, T.WHITE, fr, False)
+            if 0 < fr < 1: pen = (x + (ww + ctx.px(8)) * fr, top + li * lh + ctx.px(size * 0.8))
+            x += ww + sp
+        last_x = x
+    u = T.ease_out((t - end) / 0.45)
+    if u > 0 and lines:
+        d = ImageDraw.Draw(cv, "RGBA"); uy = top + len(lines) * lh - ctx.px(6); d.line((x0 + ctx.px(90), uy, x0 + ctx.px(90) + (last_x - x0 - ctx.px(90)) * u, uy - ctx.px(6) * u), fill=MARKER_RED + (230,), width=ctx.px(7))
+        kind, col = doodle_for(" ".join(w["w"] for w in words)); _doodle(cv, ctx, kind, col, last_x + ctx.px(46), top + (len(lines) - 1) * lh + ctx.px(size * 0.6), ctx.px(42), (t - end - 0.3) / 0.45, 4 * math.sin(t * 2))
+    if pen: _pen(cv, ctx, pen, T.WHITE)

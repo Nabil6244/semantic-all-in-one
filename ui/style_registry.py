@@ -68,6 +68,14 @@ EXTRA_BLURBS[JUNG_THEORY] = ("Carl Jung and psychology explainers told the Rep T
                              "images (assets/jung/refs), paintings of the ideas, quote cards with their real source, study and versus cards. No 3D.")
 EXTRA_CARDS[JUNG_THEORY] = ("\u262F", "Jung explainers as a painted film", "Voiceover (scenes file optional)", "Jung, psychology, the shadow, archetypes")
 
+# Elder Health Theory: the Rep Theory engine with the calm clinic theme (reptheory/theme.py "elder"): soft-colour pictures of older people, organ illustrations, a handwriting board
+ELDER_THEORY = "Elder Health Theory"
+BUILT_ON[ELDER_THEORY] = "Rep Theory"
+GROUPS = tuple((title, tuple(x for n in names for x in ((n, ELDER_THEORY) if n == JUNG_THEORY else (n,)))) for title, names in GROUPS)
+EXTRA_BLURBS[ELDER_THEORY] = ("Health advice for older viewers told the Rep Theory way on a calm light canvas with large, easy type: soft-colour pictures of "
+                              "older people and of the organs through Flow, tips written on a whiteboard, study, number and warning cards. No 3D.")
+EXTRA_CARDS[ELDER_THEORY] = ("\u271A", "Elder health advice, calm and clear", "Voiceover (scenes file optional)", "Senior health, heart, joints, sleep, diet")
+
 
 def with_extras(choices: Tuple[str, ...]) -> Tuple[str, ...]:
     """The app's choices plus the card-only styles, each right after the style it is built on."""

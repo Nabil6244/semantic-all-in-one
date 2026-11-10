@@ -41,16 +41,18 @@ CAT_PROMPT_FILE = Path(__file__).with_name("cat_scenes_csv_prompt.txt")      # C
 
 JUNG_PROMPT_FILE = Path(__file__).with_name("jung_scenes_csv_prompt.txt")      # Carl Jung Theory's own CSV prompt (Jung paintings, ideas, sourced quotes)
 
+ELDER_PROMPT_FILE = Path(__file__).with_name("elder_scenes_csv_prompt.txt")      # Elder Health Theory's own CSV prompt (older people, organs, whiteboard)
+
 def theme_of(app) -> str: return getattr(app, "_rt_theme", "") or ""      # "" Rep Theory, "cat" Cat Theory, "jung" Carl Jung Theory (app._on_style_pick sets it)
 
-def style_name(app) -> str: return {"cat": "Cat Theory", "jung": "Carl Jung Theory"}.get(theme_of(app), STYLE_NAME)
+def style_name(app) -> str: return {"cat": "Cat Theory", "jung": "Carl Jung Theory", "elder": "Elder Health Theory"}.get(theme_of(app), STYLE_NAME)
 
-def is_cat(app) -> bool: return theme_of(app) in ("cat", "jung")      # a niche on this engine: Flow pictures always, never the 3D body
+def is_cat(app) -> bool: return theme_of(app) in ("cat", "jung", "elder")      # a niche on this engine: Flow pictures always, never the 3D body
 
 def prompt_text(script: str = "", cat=False) -> str:
     """The CSV prompt with the script in it. cat: True / "cat" for Cat Theory, "jung" for Carl Jung Theory, False / "" for Rep Theory."""
     from app_csv_prompts import SCRIPT_PLACEHOLDER
-    f = {"jung": JUNG_PROMPT_FILE, "cat": CAT_PROMPT_FILE, True: CAT_PROMPT_FILE}.get(cat, PROMPT_FILE)
+    f = {"jung": JUNG_PROMPT_FILE, "elder": ELDER_PROMPT_FILE, "cat": CAT_PROMPT_FILE, True: CAT_PROMPT_FILE}.get(cat, PROMPT_FILE)
     text = f.read_text(encoding="utf-8"); script = (script or "").strip()
     return text.replace(SCRIPT_PLACEHOLDER, script) if script else text
 

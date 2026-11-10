@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 from . import art as A, library as L
 
-SKIP_KINDS = {"tier", "equation", "stat", "steps", "versus", "takeaway"}      # these keep their own graphic
+SKIP_KINDS = {"tier", "equation", "stat", "steps", "versus", "takeaway", "vitals", "pressure", "sugar", "body", "water", "sleep"}      # these keep their own graphic
 REPEAT_KINDS = {"anatomy", "prop", "hold", "pose", "trainee"}      # a stored picture is kept for the first scene, but never shown again in the next scene: that scene gets its own picture
 SYNTH_RX = re.compile(r"\b(synthetic|made[- ]up|fictional|invented|test study)\b", re.I)
 TISSUE_RX = re.compile(r"\b(muscle|muscles|tendon|tendons|bone|bones|fibre|fibres|fiber|fibers|ligament|joint|nerve|blood flow|tissue)\b", re.I)
@@ -26,6 +26,28 @@ def _red_part(text: str) -> str:
 def _cat() -> bool:
     from . import theme as T
     return T.THEME == "cat"
+
+def _elder() -> bool:
+    from . import theme as T
+    return T.THEME == "elder"
+
+ORGAN_RX = re.compile(r"\b(heart|arter(?:y|ies)|veins?|blood vessels?|lungs?|liver|kidneys?|bladder|prostate|brain|stomach|gut|intestines?|colon|pancreas|thyroid|"
+                      r"bones?|joints?|knees?|hips?|spine|cartilage|eyes?|retina|ears?|skin|muscles?)\b", re.I)
+
+def _elder_prompt(text: str, hook: bool = False) -> str:
+    """Elder Health Theory: a sentence about an organ or a body part is a soft medical illustration of it; any other is an older person (60s-80s) in daily life doing what is said."""
+    m = ORGAN_RX.search(text)
+    if m and not re.search(r"\b(walk\w*|eat\w*|drink\w*|sleep\w*|sit\w*|stand\w*|cook\w*|stretch\w*|garden\w*|doctor)\b", text, re.I):
+        return f"A clear soft-colour illustration of the human {m.group(1).lower()} for an elder health explainer, showing exactly this narration: \"{text}\". {A.ELDER_ORGAN_STYLE}."
+    lead = "The opening image of an elder health explainer, one warm striking picture of this promise" if hook else "A single scene from an elder health explainer video, illustrating exactly this narration"
+    return (f"{lead}: \"{text}\". Show a healthy, dignified older person in their 60s to 80s (or an older couple) doing or experiencing what is described, every named object or food "
+            f"drawn clearly. {A.ELDER_STYLE}.")
+
+ORGAN_ASK_RX = re.compile(r"\b(organ|anatomy|anatomical|illustration of|cross[- ]section|inside)\b", re.I)
+
+def _elder_style_for(text: str) -> str:
+    """A CSV picture description that asks for an organ (names one and says anatomy / cross-section / inside) gets the medical leaflet style, any other the daily-life style."""
+    return A.ELDER_ORGAN_STYLE if ORGAN_RX.search(text) and ORGAN_ASK_RX.search(text) else A.ELDER_STYLE
 
 def _jung() -> bool:
     from . import theme as T
@@ -45,6 +67,7 @@ def _jung_prompt(desc: str, about_him: bool) -> str:
 def prompt_for(text: str, hook: bool = False) -> str:
     """Flow prompt for one beat: what the narration says at this moment, drawn in the reference style (ink, one side empty, the named part in red, the rival when there is an opponent)."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
+    if _elder(): return _elder_prompt(text, hook)
     if _cat(): return f"A single scene from a cat behaviour explainer video, illustrating exactly this narration: \"{text}\". {A.CAT_STYLE}."
     if _jung(): return _jung_prompt(f"A single scene from a psychology documentary, illustrating exactly this narration: \"{text}\"", bool(JUNG_RX.search(text)))
     if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):      # tissue: the realistic anatomy picture we always had, word for word, so pictures made before are reused
@@ -60,6 +83,7 @@ def prompt_for(text: str, hook: bool = False) -> str:
 def own_prompt(text: str) -> str:
     """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
+    if _elder(): return f"{text}. {_elder_style_for(text)}."      # the CSV prompt says when it is an organ
     if _cat(): return f"{text}. {A.CAT_STYLE}."      # the cat niche: no trainee cast, white background
     if _jung(): return _jung_prompt(text, bool(re.search(r"\b(?:jung|carl)\b", text, re.I)))      # the CSV prompt names Jung when he is in the picture
     if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing
@@ -85,7 +109,7 @@ def safe_prompt(prompt: str) -> str:
     clause (the action and the body part)."""
     p = SAID_RX.sub(lambda m: f'{m.group(1)}: "{re.split(r"[,;:.!?]", m.group(2))[0].strip()}"', prompt)
     for rx, rep in SAFE_SUBS: p = rx.sub(rep, p)
-    return p + (" A calm, friendly illustration for a general audience." if _cat() else " A calm, respectful painting for a general audience." if _jung() else " A calm, friendly fitness illustration for a general audience.")
+    return p + (" A calm, friendly illustration for a general audience." if _cat() or _elder() else " A calm, respectful painting for a general audience." if _jung() else " A calm, friendly fitness illustration for a general audience.")
 
 def art_id(prompt: str) -> str:
     """The picture's library id: a hash of its prompt, and for a Carl Jung Theory picture of Jung also of the references it is drawn from (other references, another picture)."""
@@ -93,6 +117,12 @@ def art_id(prompt: str) -> str:
     if wants_refs(prompt):
         refs = A.jung_refs()[:JUNG_FLOW_REFS]; key += "|refs:" + ",".join(hashlib.sha1(Path(r).read_bytes()).hexdigest()[:8] for r in refs)
     return "beat_" + hashlib.sha1(key.encode("utf-8")).hexdigest()[:12]
+
+BOARD_KINDS = ("steps", "checklist", "takeaway")      # Elder Health Theory draws these on its whiteboard (scenes.py)
+
+def board_wants_picture(sc: dict) -> bool:
+    """An Elder Health Theory whiteboard scene: it gets its own Flow picture (organ or older person, from its words or the CSV prompt) pinned to the board."""
+    return _elder() and sc.get("kind") in BOARD_KINDS and bool(sc.get("text", "").strip()) and not SYNTH_RX.search(sc.get("text", ""))
 
 def eligible(sc: dict) -> bool:
     return sc["kind"] not in SKIP_KINDS and sc["kind"] != "clip3d" and not SYNTH_RX.search(sc.get("text", "")) and bool(sc.get("text", "").strip())
@@ -108,10 +138,12 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
     prev = None
     for sc in scenes:
         asked = bool(sc.get("directed_look"))      # the scenes CSV chose this scene's look: a picture only where it asked for one
-        if (directed or asked) and sc.get("look") != "flow": stat["skipped"] += 1; continue      # the variety director chose which scenes get a Flow picture
+        board = board_wants_picture(sc)      # Elder Health Theory: the whiteboard carries its own picture (the organ or the older person the list is about); the scene stays a board
+        if board: sc["_board"] = True
+        if (directed or asked) and not board and sc.get("look") != "flow": stat["skipped"] += 1; continue      # the variety director chose which scenes get a Flow picture
         sig = (sc["kind"], sc.get("art"), sc.get("prop")); repeat = sc["kind"] in REPEAT_KINDS and prev == sig; prev = sig
-        if sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not (directed or asked): stat["skipped"] += 1; continue
-        if not eligible(sc): stat["skipped"] += 1; continue
+        if not board and sc["kind"] in REPEAT_KINDS and not repeat and not sc.get("want_picture") and not (directed or asked): stat["skipped"] += 1; continue
+        if not board and not eligible(sc): stat["skipped"] += 1; continue
         if sc.get("asset"):      # a library asset (assets.py): one fixed prompt and id, made once and reused by every video
             from . import assets as AS
             p = AS.prompt(sc["asset"]); i = AS.art_id(sc["asset"])
@@ -172,5 +204,8 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
                 else: stat["failed"] += 1; log(f"[REP THEORY ART] {i}: refused again ({getattr(r, 'error', None)}); that scene keeps its card or text. Prompt: {row.prompt[:160]}")
     for sc in scenes:
         got = sc.pop("_illus", None)
+        if sc.pop("_board", False):
+            if got and L.find(got[0]): sc["board_art"] = got[0]; sc["decisions"].append("whiteboard picture from the narration")
+            continue
         if got and L.find(got[0]): sc["decisions"].append(f"picture from the narration: {sc['kind']} -> illus"); sc["was_kind"] = sc["kind"]; sc["kind"] = "illus"; sc["art"] = got[0]; sc["prop"] = ""
     return stat

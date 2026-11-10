@@ -52,9 +52,9 @@ def study(path: str) -> Optional[dict]:
     if key in _cache: return _cache[key]
     try: im = Image.open(path).convert("RGB")
     except Exception: _cache[key] = None; return None
-    if T.THEME == "cat": im = _white_paper(im)
+    if T.THEME in T.LIGHT: im = _white_paper(im)
     a = np.asarray(im, dtype=np.float32); lum = a.mean(axis=2)
-    if T.THEME == "cat": lum = 255.0 - lum      # the cat pictures are drawn on white: the subject is what is darker than the paper
+    if T.THEME in T.LIGHT: lum = 255.0 - lum      # the cat pictures are drawn on white: the subject is what is darker than the paper
     ink = np.clip((lum - 28) / 90, 0, 1)
     red = _red(a); share = float(red.mean()); W, H = im.size
     subj = _centroid(ink); halves = (float(ink[:, : W // 2].mean()), float(ink[:, W // 2:].mean()))
@@ -147,7 +147,7 @@ def _revealed(info: dict, t_rel: float) -> Image.Image:
 def _crop(src: Image.Image, box: tuple) -> Image.Image:
     """src.crop, except that on the light (cat) canvas the part past the picture's edge is the canvas colour, not black."""
     if not T.THEME: return src.crop(box)
-    x0, y0, x1, y1 = box; out = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), T.BG_TOP if T.THEME == "cat" else T.BG_BOT); out.paste(src, (-x0, -y0)); return out
+    x0, y0, x1, y1 = box; out = Image.new("RGB", (max(1, x1 - x0), max(1, y1 - y0)), T.BG_TOP if T.THEME in T.LIGHT else T.BG_BOT); out.paste(src, (-x0, -y0)); return out
 
 def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
     """Draws the full-frame picture for time t (seconds into the scene). Returns {"x", "width"[, "anchor_y"]} for the words (1080p px), or None when this picture keeps the inset look."""
@@ -161,7 +161,7 @@ def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
     box = _window(info, cam, p, aw, ctx.H)
     shot = _crop(src, tuple(int(round(v)) for v in box)).resize((aw, ctx.H), Image.BICUBIC)
     if T.THEME == "jung": shot = _sink_edges(shot)      # the painting darkens into the umber canvas at its edges: no lighter box around it
-    if T.THEME == "cat":      # the cat pictures are ink on white paper: multiplied onto the canvas, the paper vanishes and no box edge shows
+    if T.THEME in T.LIGHT:      # the cat / elder pictures are drawn on white paper: multiplied onto the canvas, the paper vanishes and no box edge shows
         from PIL import ImageChops
         shot = ImageChops.multiply(cv.crop(rect).convert("RGB"), shot.convert("RGB"))
     cv.paste(shot, rect[:2], _feather(aw, ctx.H, side, vertical=True))      # outside the picture is black
