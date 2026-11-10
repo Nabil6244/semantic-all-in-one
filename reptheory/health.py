@@ -18,7 +18,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 from . import draw as D, theme as T, lexicon as LX
 
-KINDS = ("vitals", "pressure", "sugar", "body", "water", "sleep")      # side cards (the scene's words as callouts on the right); "doctor" draws the elder warning card
+KINDS = ("vitals", "pressure", "sugar", "body", "water", "sleep")      # side cards (+ the card library's types, added at the end of this file) (the scene's words as callouts on the right); "doctor" draws the elder warning card
 GOOD, MID, BAD = (92, 178, 120), (240, 188, 70), (226, 98, 82)      # the zone colours: healthy, borderline, high
 
 HEART_RX = re.compile(r"\b(heart\s*(?:beats?|rate)|heartbeats?|pulse|beats?\s+per\s+minute|bpm|your heart|the heart)\b", re.I)
@@ -78,6 +78,8 @@ def evidence(sc: dict, text: str, at: Callable[[dict, str, int], float]) -> Dict
     if m:
         key = ORGANS[m.group(1).lower()]
         ev["body"] = (0.8 if ev else 0.86, {"at": at(sc, text, m.start()), "organ": key, "label": m.group(1).upper()})
+    for k, v in LIB.evidence(sc, text, at).items():      # the card library (health_lib.py): gauges, tubes, people, risk, pills, foods, walking, breathing, clock, week, inside the body, balance, symptoms
+        if k not in ev: ev[k] = v
     return ev
 
 def doctor_payload(text: str, rules: list) -> dict:
@@ -312,6 +314,15 @@ def doctor(cv, ctx, p, t, t0):
 
 DRAW = {"vitals": vitals, "pressure": pressure, "sugar": sugar, "body": body, "water": water, "sleep": sleep, "doctor": doctor}
 
+from . import health_lib as LIB      # the card library (imported last: it uses the helpers above)
+KINDS = KINDS + LIB.ENGINES
+NUMBER_KINDS = ("vitals", "water", "sleep") + LIB.NUMBER_ENGINES      # these cards show the number: the callouts do not repeat it
+
+def topic_look(raw: str) -> str:
+    """A CSV look that names a library topic ("cholesterol", "salmon", "in_artery") -> its card type, else ""."""
+    sp = LIB.TOPICS.get(re.sub(r"[\s-]+", "_", str(raw or "").strip().lower()))
+    return sp["engine"] if sp else ""
+
 def draw(cv: Image.Image, ctx: D.Ctx, kind: str, payload: dict, t: float, t0: float) -> None:
     """One health card for time t (seconds into the scene); t0 = the scene's start (payload times are absolute)."""
-    DRAW[kind](cv, ctx, payload, t, t0)
+    (DRAW.get(kind) or LIB.DRAW[kind])(cv, ctx, payload, t, t0)

@@ -86,6 +86,37 @@ class ElderTheoryTheme(unittest.TestCase):
         self.assertEqual(HE.evidence(sc, "Your heart beats fast.", V._at), {})   # Rep Theory never gets health cards
         self.assertEqual(V._versus(sc, "Consistency beats intensity.")["a"]["text"], "CONSISTENCY")
 
+    def test_card_library(self):
+        from reptheory import health as HE, health_lib as L, variety as V, direction as DR
+        self.assertGreaterEqual(len(L.TOPICS), 100)
+        T.set_theme("elder"); sc = {"start": 0.0, "end": 6.0, "words": [], "text": ""}; ctx = D.Ctx(480, 270)
+        for tid in L.TOPICS:      # every topic builds and draws, from its first frame
+            eng, p = L.forced(tid, dict(sc, text="x"), "x", V._at)
+            for t in (0.0, 2.5):
+                cv = ctx.backdrop(); before = cv.tobytes(); HE.draw(cv, ctx, eng, p, t, 0.0)
+            self.assertNotEqual(cv.tobytes(), before, tid)
+        ev = lambda txt: V.evidence(dict(sc, text=txt))
+        self.assertEqual(ev("Statins lower your LDL cholesterol.")["meter"][1]["topic"], "ldl")
+        self.assertNotIn("value", ev("Low vitamin D is common after seventy.")["meter"][1])   # an age is not a reading
+        self.assertEqual(ev("Keep salt under one teaspoon a day.")["tube"][1]["value"], 1)
+        self.assertEqual(ev("One in three adults over 65 falls each year.")["people"][1]["topic"], "people_older")
+        self.assertEqual(ev("Walking cuts your stroke risk by 30 percent.")["risk"][1]["pct"], 30)
+        f = ev("Eat more berries and salmon, and cut back on bacon.")["foods"][1]["items"]
+        self.assertEqual([(i["topic"], i["bad"]) for i in f], [("berries", False), ("fish", False), ("processed_meat", True)])
+        self.assertEqual(ev("Aim for seven thousand steps a day.")["walk"][1]["value"], 7000)
+        self.assertEqual(ev("Lift light weights twice a week.")["weekly"][1]["n"], 2)
+        self.assertEqual(ev("Breathe in for four, hold for seven, out for eight.")["breath"][1]["out"], 8)
+        self.assertEqual(len(ev("Chest pain, shortness of breath and cold sweats mean call now.")["symptoms"][1]["items"]), 3)
+        self.assertNotIn("symptoms", ev("A headache after a long day is normal."))   # one sign alone is not a warning-signs card
+        d = ev("Walking after meals helps manage type 2 diabetes.")["disease"][1]; self.assertEqual((d["topic"], d["good"]), ("dz_diabetes", True))
+        d = ev("Osteoarthritis slowly wears down the cartilage in your knees.")["disease"][1]; self.assertEqual((d["topic"], d["good"]), ("dz_osteoarthritis", False))
+        self.assertEqual(ev("Rheumatoid arthritis is an autoimmune disease.")["disease"][1]["topic"], "dz_rheumatoid")   # the specific one before plain arthritis
+        self.assertEqual(DR.norm_look("parkinsons"), ""); self.assertEqual(DR.norm_look("dz_parkinsons"), "disease")
+        self.assertEqual(DR.norm_look("cholesterol"), "meter"); self.assertEqual(DR.norm_look("salmon"), "")
+        self.assertEqual(DR.norm_look("fish"), "foods")
+        T.set_theme("")
+        self.assertEqual(DR.norm_look("cholesterol"), ""); self.assertEqual(HE.evidence(sc, "Statins lower your LDL cholesterol.", V._at), {})   # Rep Theory never gets them
+
     def test_picker_prompt_and_look(self):
         self.assertEqual(R.BUILT_ON[R.ELDER_THEORY], "Rep Theory")
         out = R.with_extras(("Rep Theory", "Health Cinema"))

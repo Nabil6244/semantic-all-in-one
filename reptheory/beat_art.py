@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 from . import art as A, library as L
 
-SKIP_KINDS = {"tier", "equation", "stat", "steps", "versus", "takeaway", "vitals", "pressure", "sugar", "body", "water", "sleep"}      # these keep their own graphic
+SKIP_KINDS = {"tier", "equation", "stat", "steps", "versus", "takeaway", "vitals", "pressure", "sugar", "body", "water", "sleep", "meter", "tube", "people", "risk", "pills", "foods", "walk", "breath", "clock", "weekly", "inside", "steady", "symptoms", "disease"}      # these keep their own graphic (the last 13: health_lib.py)
 REPEAT_KINDS = {"anatomy", "prop", "hold", "pose", "trainee"}      # a stored picture is kept for the first scene, but never shown again in the next scene: that scene gets its own picture
 SYNTH_RX = re.compile(r"\b(synthetic|made[- ]up|fictional|invented|test study)\b", re.I)
 TISSUE_RX = re.compile(r"\b(muscle|muscles|tendon|tendons|bone|bones|fibre|fibres|fiber|fibers|ligament|joint|nerve|blood flow|tissue)\b", re.I)

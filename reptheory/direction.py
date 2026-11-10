@@ -7,8 +7,10 @@ import re
 from typing import Callable, Dict, List
 
 from .diagrams import KINDS as DIAGRAMS
+from .health import LIB as _HLIB      # Elder Health Theory's card library (health_lib.py); a CSV may also name one of its topics ("cholesterol", "salmon")
+HEALTH_LIB = _HLIB.ENGINES
 
-LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "quote", "vitals", "pressure", "sugar", "body", "water", "sleep") + DIAGRAMS
+LOOKS = ("auto", "figure", "3d", "flow", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "quote", "vitals", "pressure", "sugar", "body", "water", "sleep") + DIAGRAMS + HEALTH_LIB
 ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "trainee": "figure", "body": "3d", "3d body": "3d", "muscle": "3d", "clip3d": "3d",
            "picture": "flow", "image": "flow", "illustration": "flow", "illus": "flow", "number": "stat", "vs": "versus", "compare": "versus", "comparison": "versus",
            "list": "steps", "sequence": "steps", "key line": "takeaway", "board": "checklist", "whiteboard": "checklist", "handwriting": "checklist", "heart monitor": "vitals", "ecg": "vitals", "heart rate": "vitals", "monitor": "vitals",
@@ -20,7 +22,7 @@ ALIASES = {"": "auto", "app": "auto", "stock": "figure", "callout": "figure", "t
            "result board": "result", "tiers": "result", "score": "result", "safety": "warning", "warning card": "warning", "cta": "engage", "comment": "engage", "like": "engage", "subscribe": "engage", "myths": "myth", "myth vs fact": "myth", "fact": "myth", "chat": "question", "viewer question": "question", "q&a": "question", "checklist": "checklist", "ticks": "checklist",
            "count": "slots", "slot": "slots", "list slots": "slots", "tracker": "slots", "speed": "race", "race bars": "race", "equation": "formula", "not equal": "formula", "pull": "mechanism", "muscle tendon bone": "mechanism", "lock": "promise", "curiosity": "promise", "teaser": "promise", "sets": "tokens", "reps": "tokens", "holds": "tokens", "weight share": "share", "share of weight": "share",
            "balance": "seesaw", "gap graph": "gap", "area graph": "gap", "split circle": "split", "two panels": "panels", "before after": "panels", "tear-off": "tearoff", "tear off": "tearoff", "pages": "tearoff", "rest battery": "battery", "plan": "clipboard", "journey": "road", "path": "road", "silhouettes": "silrow", "silhouette row": "silrow", "progression": "silrow"}
-CARDS = ("quote", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "vitals", "pressure", "sugar", "body", "water", "sleep") + DIAGRAMS
+CARDS = ("quote", "stat", "versus", "steps", "takeaway", "timeline", "mistake", "slider", "dial", "study", "graph", "bars", "calendar", "result", "warning", "engage", "myth", "question", "checklist", "slots", "race", "formula", "mechanism", "promise", "tokens", "share", "vitals", "pressure", "sugar", "body", "water", "sleep") + DIAGRAMS + HEALTH_LIB
 LOCKED = {"tier", "equation"}      # a ranking board or an equation is built from the sentence's own structure: a row cannot turn it into something else
 
 NEEDS = {"vitals": "the heart, a heartbeat or a pulse (Elder Health Theory)", "pressure": "blood pressure (Elder Health Theory)", "sugar": "blood sugar, glucose or diabetes (Elder Health Theory)",
@@ -37,9 +39,19 @@ NEEDS = {"vitals": "the heart, a heartbeat or a pulse (Elder Health Theory)", "p
          "split": "half X, half Y / part X, part Y / both X and Y", "panels": "turn X into Y / from X to Y / X becomes Y", "tearoff": "two durations (a few months ... one to two years) or one and never",
          "battery": "rest / recover with training or days", "clipboard": "the plan as a list of three or more items (your plan: ..., ..., ...)", "road": "the road / path / way to a goal", "silrow": "three or more poses named in order (plank, frog stand, tuck planche)"}      # what each card look needs, for the log
 
+NEEDS.update({"meter": "a test reading or level: cholesterol, oxygen, BMI, vitamin D... (Elder Health Theory)", "tube": "a daily amount against a limit or goal: salt, sugar, alcohol, fibre... (Elder Health Theory)",
+              "people": "1 in 3 / half of / N percent of people (Elder Health Theory)", "risk": "the risk of a named condition (Elder Health Theory)", "pills": "a medicine or supplement to take (Elder Health Theory)",
+              "foods": "foods to eat or avoid (Elder Health Theory)", "walk": "steps or minutes of walking / exercise (Elder Health Theory)", "breath": "a breathing exercise (Elder Health Theory)",
+              "clock": "minutes or hours of sun, a nap, fasting, after meals, before bed (Elder Health Theory)", "weekly": "N times a week / every day (Elder Health Theory)",
+              "inside": "a process inside the body: arteries, bones, joints, brain cells, gut... (Elder Health Theory)", "steady": "balance or falls (Elder Health Theory)",
+              "symptoms": "two or more warning signs (Elder Health Theory)", "disease": "a named disease or condition (Elder Health Theory)"})      # the card library (health_lib.py)
+
 def norm_look(v: str) -> str:
     v = re.sub(r"\s+", " ", str(v or "").strip().lower())
     from . import theme as T
+    if T.THEME == "elder":
+        from .health import topic_look
+        if topic_look(v): return topic_look(v)      # a library topic names its card type (the row's own topic is used: place())
     v = v if (T.THEME == "elder" and v == "body") else ALIASES.get(v, v)      # Elder Health Theory: "body" is its body map (in Rep Theory it means the 3D body)
     return v if v in LOOKS else ""
 
@@ -181,7 +193,13 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
             if look == "quote":
                 from .cards import quote_payload
                 payload = quote_payload(sc.get("script_text") or sc["text"], sc.get("words") or [], sc.get("quote_source", ""))
-            for txt in ([] if look == "quote" else dict.fromkeys(x for x in (sc.get("script_text"), sc["text"]) if x)):      # the row's own words first (the transcript may drop "percent"), then the transcript's ("twelve-week" -> "12 week")
+            raw_topic = re.sub(r"[\s-]+", "_", str(s.get("look") or "").strip().lower())
+            from .health_lib import TOPICS as HTOP, forced as h_forced
+            if raw_topic in HTOP:      # Elder Health Theory: the row names a library topic: that card, with the sentence's own numbers
+                for txt in dict.fromkeys(x for x in (sc.get("script_text"), sc["text"]) if x):
+                    got = h_forced(raw_topic, dict(sc, text=txt), txt, V._at)
+                    if got: payload = got[1]; break
+            for txt in ([] if look == "quote" or payload is not None else dict.fromkeys(x for x in (sc.get("script_text"), sc["text"]) if x)):      # the row's own words first (the transcript may drop "percent"), then the transcript's ("twelve-week" -> "12 week")
                 sv = dict(sc, text=txt); ev = V.evidence(sv, last=True, role="claim") if look == "takeaway" else V.evidence(sv)
                 payload = (ev.get(look) or (None, None))[1]
                 if payload is not None: break
@@ -203,6 +221,7 @@ def build_card(sc: dict) -> None:
     if look not in CARDS or payload is None: return
     sc[look] = payload; sc["was_kind"] = sc["kind"]; sc["kind"] = look
     from .variety import FULL_CARDS
-    if look in ("stat", "bars", "vitals", "water", "sleep"):      # the card shows the number: the callouts do not repeat it
+    from .health import NUMBER_KINDS
+    if look in ("stat", "bars") + NUMBER_KINDS:      # the card shows the number: the callouts do not repeat it
         for pg in sc["pages"]: pg["value"] = ""
     if look in FULL_CARDS or look == "quote": sc["pages"] = []

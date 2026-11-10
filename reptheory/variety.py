@@ -842,7 +842,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         elif look == "equation": sc["was_kind"] = k; sc["kind"] = "equation"; sc["art"] = "rep_stand_v1"; sc["equations"] = payload; sc["decisions"].append(f"variety: equation lockup {payload[0]['lhs']} = {payload[0]['rhs']}")
         elif look in CARD_LOOKS:
             sc[look] = payload; sc["was_kind"] = k; sc["kind"] = look; sc["decisions"].append(f"variety: {look} card ({k} -> {look})")
-            if look in ("stat", "bars", "vitals", "water", "sleep"):
+            if look in ("stat", "bars") + HE.NUMBER_KINDS:
                 for pg in sc["pages"]: pg["value"] = ""      # the ring / health card shows the number: the callout column does not repeat it
             if look in FULL_CARDS: sc["pages"] = []      # the card fills the frame (a caption strip follows the narration: states.develop)
             if look == "takeaway": keyline_parts.add(sc.get("section"))
