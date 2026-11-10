@@ -528,9 +528,7 @@ def harvest(project_root: "str | Path", story, event: Dict, *, backend=None, pau
                 break
             if c.video_id in used_ids:
                 continue
-            if False:   # dates are not checked (the weather in the title is what matters)
-                out.notes.append(f"news footage: \"{c.title}\" is from {up}, not from this event; skipped")
-                continue
+            # dates are not checked (the weather in the title is what matters)
             start = INTRO_S if (c.duration or 0) > 60 else 2.0
             length = max(0.0, min(PIECE_S, (c.duration or 0) - start - 1.0))
             if length < RUN_MIN_S:
