@@ -153,7 +153,7 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
     prev = None; ehost = None
     if _elder():      # Elder Health Theory: one main person for the whole video and a shot for every scene, before any prompt is made (elder_art.py; rules only, no Gemini)
         from . import elder_art as EA
-        ehost = EA.plan(scenes); log(f"[ELDER ART] main person: {ehost.title()} ({'their own reference picture' if EA.user_ref(ehost) else 'reference made once by the app' if EA.host_refs(ehost) else 'reference to be made once by the app'})")
+        ehost = EA.plan(scenes); log(f"[ELDER ART] main person: {EA.person(ehost)['name']}{' (new for this video)' if EA.per_video() else ''} ({'their own reference picture' if EA.user_ref(ehost) else 'reference made once by the app' if EA.host_refs(ehost) else 'reference to be made once by the app'})")
     for sc in scenes:
         asked = bool(sc.get("directed_look"))      # the scenes CSV chose this scene's look: a picture only where it asked for one
         board = board_wants_picture(sc)      # Elder Health Theory: the whiteboard carries its own picture (the organ or the older person the list is about); the scene stays a board

@@ -152,6 +152,20 @@ def build(app, parent, *, row: int) -> None:
     ctk.CTkLabel(opts, text="Section label", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8))
     ctk.CTkEntry(opts, textvariable=app._rt_title_var, width=260, placeholder_text="e.g. Grip · No Gym").grid(row=0, column=1, padx=(0, 16))
     ctk.CTkCheckBox(opts, text="Preview (1280x720)", variable=app._rt_preview_var).grid(row=0, column=2)
+    from . import elder_art as EA      # Elder Health Theory only: the main person (an uploaded picture, a new person every video, or this channel's own cast); remembered, nothing runs
+    try: pv, own, sex = EA.per_video(), EA.own_picture(), EA.own_sex()
+    except Exception: pv, own, sex = False, None, "f"
+    app._rt_elder_new_var = ctk.BooleanVar(value=pv); app._rt_elder_pic_var = ctk.StringVar(value=""); app._rt_elder_sex_var = ctk.StringVar(value="Woman" if sex == "f" else "Man")
+    box = app._rt_elder_box = ctk.CTkFrame(opts, fg_color="transparent"); box.grid(row=1, column=0, columnspan=4, sticky="w", pady=(10, 0)); box.grid_columnconfigure(5, weight=1)
+    ctk.CTkLabel(box, text="Main person", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8), sticky="w")
+    ctk.CTkButton(box, text="Upload picture", width=120, command=lambda: upload_elder_picture(app)).grid(row=0, column=1, padx=(0, 6))
+    app._rt_elder_clear = ctk.CTkButton(box, text="Remove", width=70, command=lambda: remove_elder_picture(app)); app._rt_elder_clear.grid(row=0, column=2, padx=(0, 6))
+    ctk.CTkSegmentedButton(box, values=["Woman", "Man"], variable=app._rt_elder_sex_var, command=lambda v: EA.set_own_sex("m" if v == "Man" else "f")).grid(row=0, column=3, padx=(0, 12))
+    app._rt_elder_new_cb = ctk.CTkCheckBox(box, text="New main person every video", variable=app._rt_elder_new_var, command=lambda: (EA.set_per_video(app._rt_elder_new_var.get()), _elder_pic_state(app)))
+    app._rt_elder_new_cb.grid(row=0, column=4, padx=(0, 12))
+    ctk.CTkLabel(box, textvariable=app._rt_elder_pic_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=520, justify="left").grid(row=1, column=0, columnspan=6, sticky="ew", pady=(4, 0))
+    _elder_pic_state(app)
+    if theme_of(app) != "elder": box.grid_remove()
     mix = ctk.CTkFrame(controls, fg_color="transparent"); mix.grid(row=3, column=0, sticky="ew", pady=(10, 0))      # what each scene may be drawn with (long videos: keep all on)
     for i, (txt, var) in enumerate((("Scene per idea (smart planner)", app._rt_smart_var), ("3D muscle clips", app._rt_3d_var), ("Flow pictures", app._rt_flow_var), ("Mix looks for long videos", app._rt_variety_var))): ctk.CTkCheckBox(mix, text=txt, variable=var).grid(row=0, column=i, padx=(0, 16), sticky="w")
     end = ctk.CTkFrame(controls, fg_color="transparent"); end.grid(row=4, column=0, sticky="ew", pady=(10, 0)); end.grid_columnconfigure(1, weight=1)      # optional product end card: off by default, the ending is then unchanged
@@ -181,12 +195,38 @@ def browse_end_image(app) -> None:
     M = _m(app); path = M.filedialog.askopenfilename(title="Choose the end-card picture", filetypes=[("Pictures", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")])
     if path: app._rt_end_image.set(path)
 
+def _elder_pic_state(app) -> None:
+    """The Elder page's main-person line: which person the pictures will show, and Remove / the switch only when they apply."""
+    from . import elder_art as EA
+    own = EA.own_picture()
+    app._rt_elder_pic_var.set("Your uploaded picture is the main person in every video (Flow keeps that face)." if own else
+                              ("A new main person is made for every video." if app._rt_elder_new_var.get() else "This channel's own cast: four people made once for this app, kept across videos.")
+                              + " Optional: upload a picture to use your own person.")
+    try:
+        app._rt_elder_clear.configure(state="normal" if own else "disabled"); app._rt_elder_new_cb.configure(state="disabled" if own else "normal")
+    except Exception: pass
+
+def upload_elder_picture(app) -> None:
+    from . import elder_art as EA
+    M = _m(app); path = M.filedialog.askopenfilename(title="Choose a picture of the main person", filetypes=[("Pictures", "*.png *.jpg *.jpeg *.webp"), ("All files", "*.*")])
+    if not path: return
+    err = EA.set_own_picture(path)
+    if err: app._rt_status_var.set(err)
+    else: app._rt_status_var.set("Main person picture saved. It is used for the next Generate scenes.")
+    _elder_pic_state(app)
+
+def remove_elder_picture(app) -> None:
+    from . import elder_art as EA
+    EA.clear_own_picture(); app._rt_status_var.set("Main person picture removed: the app's own people are used again."); _elder_pic_state(app)
+
 def end_card_settings(app) -> dict:
     return {"enabled": bool(app._rt_end_var.get()), "title": app._rt_end_title.get().strip(), "url": app._rt_end_url.get().strip(), "image": app._rt_end_image.get().strip()}
 
 def activate(app) -> None:
     if getattr(app, "_rt_running", False): return
     app._rt_block.grid(); app._rt_status_var.set("")
+    box = getattr(app, "_rt_elder_box", None)      # the Elder Health switch shows only on that style
+    if box is not None: box.grid() if theme_of(app) == "elder" else box.grid_remove()
     try: app._rt_render_btn.configure(text=f"Render {style_name(app)}")      # Rep Theory or Cat Theory
     except Exception: pass
     on_workspace(app)      # this project's own choices (scenes CSV, Flow pictures ...), as they were when it was last used

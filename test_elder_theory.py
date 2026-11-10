@@ -10,6 +10,10 @@ from ui import style_registry as R
 
 
 class ElderTheoryTheme(unittest.TestCase):
+    def setUp(self):      # the Elder cast file (elder_art._state) goes to a temporary library, never the user's
+        td = tempfile.TemporaryDirectory(); self.addCleanup(td.cleanup)
+        env = mock.patch.dict("os.environ", {"REP_THEORY_ASSET_DIR": td.name}); env.start(); self.addCleanup(env.stop)
+
     def tearDown(self):
         T.set_theme("")
 
@@ -121,31 +125,45 @@ class ElderTheoryTheme(unittest.TestCase):
 
     def test_picture_director(self):
         from reptheory import elder_art as EA, beat_art as BA
-        T.set_theme("elder")
+        T.set_theme("elder"); td0 = tempfile.TemporaryDirectory(); self.addCleanup(td0.cleanup)
+        env = mock.patch.dict("os.environ", {"REP_THEORY_ASSET_DIR": td0.name}); env.start(); self.addCleanup(env.stop)
         S = ["Do your knees feel stiff in the morning?", "Walk for twenty minutes after dinner.", "Take your vitamin D with breakfast.", "Osteoarthritis wears down the cartilage in your knees.",
              "Plaque builds up in your arteries silently.", "Your kidneys filter your blood every minute.", "Call your grandchildren once a week.", "Call your grandchildren again tonight."]
         scenes = [{"no": i + 1, "text": t, "hook": i == 0} for i, t in enumerate(S)]
-        host = EA.plan(scenes); self.assertIn(host, EA.CAST)
+        host = EA.plan(scenes); self.assertIn(host, EA.cast())
         shots = [sc["elder_shot"] for sc in scenes]
         self.assertTrue(all(a != b or a == "organ" for a, b in zip(shots, shots[1:])), shots)   # never the same shot twice running
         ps = [EA.prompt(sc) for sc in scenes]
         for sc, p in zip(scenes, ps):
-            if sc["elder_shot"] != "organ": self.assertIn(EA.CAST[host]["sheet"], p); self.assertEqual(EA.wants_refs(p), host); self.assertTrue(BA.wants_refs(p))
+            if sc["elder_shot"] != "organ": self.assertIn(EA.person(host)["sheet"], p); self.assertEqual(EA.wants_refs(p), host); self.assertTrue(BA.wants_refs(p))
         self.assertIn("osteoarthritis", ps[3]); self.assertIn("plaque narrowing", ps[4]); self.assertIn("kidneys", ps[5]); self.assertFalse(BA.wants_refs(ps[5]))
         self.assertIn("pill organiser", ps[2]); self.assertIn("park path", ps[1])
         self.assertEqual(BA.art_id(ps[1]), BA.art_id(ps[1]))   # the id is known before the reference exists
-        self.assertEqual(EA.pick_host(["Menopause changes her bones."]) in ("rose", "amara"), True)
-        self.assertIn(EA.CAST["rose"]["sheet"], EA.own_prompt("the older woman reading a food label", "rose"))
+        self.assertEqual(EA.person(EA.pick_host(["Menopause changes her bones."]))["sex"], "f")
+        w = EA.pick_host(["Menopause changes her bones."]); self.assertIn(EA.person(w)["sheet"], EA.own_prompt("the older woman reading a food label", w))
+        mine = set(EA.cast()); self.assertEqual(len(mine), 4); self.assertEqual(set(EA.cast()), mine)   # this install's cast is kept
+        with mock.patch.object(EA, "_state", return_value={"seed": "another-install"}): self.assertFalse(set(EA.cast()) & mine)   # another user gets other people
+        EA.set_per_video(True); a = EA.pick_host(["Walk every day."]); b = EA.pick_host(["Sleep seven hours."])
+        self.assertNotIn(a, mine); self.assertNotEqual(a, b); self.assertEqual(a, EA.pick_host(["Walk every day."])); EA.set_per_video(False)   # per video: new, but the same script makes the same person
         made = []
         with tempfile.TemporaryDirectory() as td, mock.patch.object(EA, "host_refs", side_effect=lambda h: made[:]):
             def make_one(pr):
                 made.append(str(Path(td) / "ref.png")); Image.new("RGB", (64, 64), "white").save(made[-1]); return made[-1]
-            with mock.patch("reptheory.library.register"): self.assertEqual(EA.ensure_refs("rose", make_one, log=lambda *a: None), made)
-            self.assertIn("reference picture of Rose", EA.ref_prompt("rose"))
+            with mock.patch("reptheory.library.register"): self.assertEqual(EA.ensure_refs(host, make_one, log=lambda *a: None), made)
+            self.assertIn("reference picture of " + EA.person(host)["name"], EA.ref_prompt(host))
             good = Path(td) / "good.png"; im = Image.new("RGB", (300, 200), "white"); ImageDraw.Draw(im).ellipse((180, 40, 280, 160), fill=(40, 120, 120)); im.save(good)
             room = Path(td) / "room.png"; Image.new("RGB", (300, 200), (150, 120, 90)).save(room)
             self.assertEqual(EA.check(good), []); self.assertEqual(set(EA.check(room)), {"background not plain white", "no empty side for the words"})
             self.assertTrue(EA.stronger("X.", EA.check(room)).startswith("The background must be plain"))
+        with tempfile.TemporaryDirectory() as td2:      # the picture uploaded on the Elder page: checked, then the main person of every video, sent as the reference
+            small = Path(td2) / "s.png"; Image.new("RGB", (100, 100), "white").save(small); self.assertIn("too small", EA.set_own_picture(str(small)))
+            txt = Path(td2) / "x.png"; txt.write_text("no picture"); self.assertIn("not a picture", EA.set_own_picture(str(txt)))
+            big = Path(td2) / "me.jpg"; Image.new("RGB", (600, 800), (200, 180, 160)).save(big); self.assertEqual(EA.set_own_picture(str(big)), "")
+            EA.set_own_sex("m"); own = EA.pick_host(["Walk every day."]); self.assertTrue(own.startswith("own_"))
+            sc0 = {"no": 1, "text": "Walk for twenty minutes after dinner.", "elder_host": own, "elder_shot": "wide"}; pr = EA.prompt(sc0)
+            self.assertIn("exactly as in the reference picture", pr); self.assertEqual(EA.wants_refs(pr), own); self.assertEqual(EA.host_refs(own), [EA.own_picture()])
+            self.assertNotIn(EA.person(host)["sheet"], pr)   # no random description fighting the photo
+            EA.clear_own_picture(); self.assertIsNone(EA.own_picture()); self.assertFalse(EA.pick_host(["Walk every day."]).startswith("own_"))
         T.set_theme("")
         self.assertFalse(BA.wants_refs(ps[1]))   # outside the elder theme the host means nothing
 

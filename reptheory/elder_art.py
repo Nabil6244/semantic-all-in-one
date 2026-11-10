@@ -1,8 +1,8 @@
 """Elder Health Theory's Flow pictures, directed by rules (no Gemini call, ever):
 
-    1. one main person    a host from CAST, picked per video from the script; every picture of them carries the same verbatim description and is sent with
+    1. one main person    built from random parts per install (cast(): four, kept for every video) or per video (the Elder page switch); every picture of them carries the same verbatim description and is sent with
                           the host's reference picture (made once through Flow, saved in the Rep Theory library, reused by every later video). A picture the
-                          user puts at assets/elder/hosts/<host id>.png (or .jpg) is used instead: optional, never required.
+                          user uploads on the Elder page is used instead, for every video: optional, never required.
     2. scene director     the sentence -> a place, an action, the objects it names and a mood (RULES + the card library's 190 topics), not the raw sentence alone
     3. organ / disease    an exact leaflet description per organ (ORGANS) and, for a named disease, its healthy-versus-affected comparison (DISEASES)
     4. shot rotation      wide / medium / hands close-up / still life / with someone / organ, never the same shot twice in a row
@@ -21,39 +21,154 @@ STYLE = A.ELDER_STYLE
 ORGAN_STYLE = A.ELDER_ORGAN_STYLE
 REF_STYLE = ("Soft-colour illustration with gentle watercolour shading and clean soft outlines, calm pastel palette of teal, sage, warm peach and navy, plain solid pure white "
              "background (#FFFFFF), warm and respectful, no text, no letters, no numbers, no logos, no watermark, no border")
-HOSTS_DIR = Path(__file__).resolve().parent.parent / "assets" / "elder" / "hosts"
 
 # ---------------------------------------------------------------- 1. the cast: one of them is the main person of a video
 
-CAST: Dict[str, dict] = {
-    "rose": {"sex": "f", "sheet": "Rose, a warm white-haired woman in her early seventies with a short soft bob, round tortoiseshell glasses, small pearl earrings, a teal cardigan over a cream blouse and navy trousers"},
-    "walter": {"sex": "m", "sheet": "Walter, a tall man in his mid seventies with neat silver hair, a short trimmed grey beard, thin wire glasses, a navy quilted vest over a light blue shirt and khaki trousers"},
-    "amara": {"sex": "f", "sheet": "Amara, a Black woman in her late sixties with short natural grey hair, small gold stud earrings, a coral cardigan over a white top and dark grey trousers"},
-    "raj": {"sex": "m", "sheet": "Raj, a South Asian man in his early seventies with salt-and-pepper hair, a neat grey moustache, a sage-green sweater over a white collared shirt and brown trousers"},
-}
+# Every install builds its own people from random parts (no two app users share a face; 2026-11-10): a seed made once per install, saved with the
+# per-video switch in <Rep Theory library>/elder_cast.json. Per channel (default): four people from that seed, kept for every video. Per video:
+# a new person from the seed and the script (the same script makes the same person, so Generate scenes and Render agree).
+import json, random, secrets
+
+NAMES = {"f": "Rose Margaret Helen Amara Grace Linda Carmen Mei Priya Ruth Joan Fatima Elena Sofia Nora Ingrid Beatrice Hana Lucia Doris".split(),
+         "m": "Walter Raj George Frank Samuel Harold Carlos Kenji Ahmed Arthur Leon Victor Henry Omar Felix Bernard Tomas Desmond Hiro Malcolm".split()}
+AGES = ["early sixties", "mid sixties", "late sixties", "early seventies", "mid seventies", "late seventies", "early eighties"]
+ORIGINS = ["white", "Black", "South Asian", "East Asian", "Hispanic", "Middle Eastern", "Mediterranean", "Southeast Asian"]
+BUILDS = {"f": ["slim", "petite", "average-build", "sturdy", "tall"], "m": ["slim", "tall", "average-build", "sturdy", "broad-shouldered"]}
+HAIR = {"f": ["a short soft white bob", "silver hair in a low bun", "short curly grey hair", "shoulder-length silver hair", "a cropped white pixie cut", "grey hair in a neat braid",
+              "wavy salt-and-pepper hair", "short natural grey hair", "a silver chin-length cut with a side parting"],
+        "m": ["neat silver hair", "a bald head with a white fringe at the sides", "short grey curls", "thinning white hair combed back", "a salt-and-pepper crew cut", "wavy grey hair",
+              "short natural grey hair", "a shaved head"]}
+FACE_M = ["clean-shaven", "a short trimmed grey beard", "a neat white moustache", "a grey goatee", "light grey stubble", "a full white beard"]
+GLASSES = ["round tortoiseshell glasses", "thin wire glasses", "rectangular black glasses", "no glasses", "rimless glasses", "red-framed glasses", "no glasses"]
+COLOURS = ["teal", "coral", "sage-green", "navy", "mustard", "lilac", "burgundy", "sky-blue", "cream", "olive", "rust", "dusty-pink", "forest-green", "charcoal"]
+TOPS = {"f": ["cardigan", "knitted sweater", "quilted vest", "linen jacket", "soft fleece"], "m": ["sweater", "quilted vest", "cardigan", "zip-up fleece", "linen jacket"]}
+SHIRTS = {"f": ["blouse", "collared shirt", "plain top", "striped top", "polo shirt", "checked shirt"], "m": ["collared shirt", "plain T-shirt", "striped shirt", "polo shirt", "checked shirt"]}
+BOTTOMS = ["navy trousers", "khaki trousers", "dark grey trousers", "beige chinos", "dark jeans", "brown corduroy trousers"]
+EXTRAS = {"f": ["small pearl earrings", "gold stud earrings", "a silver wristwatch", "a patterned scarf", "a beaded necklace", "a simple pendant"],
+          "m": ["a silver wristwatch", "a flat cap", "a leather-strap watch", "a patterned scarf", "a wedding ring", "a fabric bracelet"]}
+
+def _state_path() -> Path:
+    from . import library as L
+    return L.root() / "elder_cast.json"
+
+def _state() -> dict:
+    """This install's seed and the per-video switch, made on first use."""
+    try: st = json.loads(_state_path().read_text(encoding="utf-8"))
+    except Exception: st = {}
+    if not st.get("seed"):
+        st = {"seed": secrets.token_hex(8), "per_video": bool(st.get("per_video", False))}
+        try: _state_path().parent.mkdir(parents=True, exist_ok=True); _state_path().write_text(json.dumps(st, indent=1), encoding="utf-8")
+        except OSError: pass
+    return st
+
+def per_video() -> bool: return bool(_state().get("per_video"))
+
+def set_per_video(on: bool) -> None:
+    """The Elder page's switch: a new main person for every video (True) or this channel's own cast (False). Only remembered; nothing runs."""
+    st = _state(); st["per_video"] = bool(on)
+    try: _state_path().write_text(json.dumps(st, indent=1), encoding="utf-8")
+    except OSError: pass
+
+# ---- the user's own main person: a picture uploaded on the Elder page (optional), used for every video while it is set
+
+OWN_EXT = (".png", ".jpg", ".jpeg", ".webp"); OWN_MIN_SIDE = 256; OWN_MAX_BYTES = 10 * 1024 * 1024      # Flow's reference limits (story_character.py)
+OWN_SHEET = "the main older person exactly as in the reference picture: the same face, hair, skin tone, build and clothes"
+
+def own_picture() -> Optional[str]:
+    from . import library as L
+    for ext in OWN_EXT:
+        p = L.root() / f"elder_main_person{ext}"
+        if p.is_file(): return str(p)
+    return None
+
+def own_sex() -> str: return "m" if _state().get("own_sex") == "m" else "f"
+
+def set_own_sex(sex: str) -> None:
+    st = _state(); st["own_sex"] = "m" if sex == "m" else "f"
+    try: _state_path().write_text(json.dumps(st, indent=1), encoding="utf-8")
+    except OSError: pass
+
+def set_own_picture(src: str) -> str:
+    """Copies the chosen picture in as the main person (any earlier one replaced). Returns "" when done, else what is wrong with it."""
+    from PIL import Image
+    from . import library as L
+    p = Path(src); ext = p.suffix.lower()
+    if ext not in OWN_EXT: return "Choose a PNG, JPG or WEBP picture."
+    if not p.is_file(): return "That file could not be found."
+    if p.stat().st_size > OWN_MAX_BYTES: return "That picture is over 10 MB: choose a smaller one."
+    try:
+        with Image.open(p) as im: im.verify()
+        with Image.open(p) as im: w, h = im.size
+    except Exception: return "That file is not a picture the app can read."
+    if min(w, h) < OWN_MIN_SIDE: return f"That picture is too small ({w}x{h}): at least {OWN_MIN_SIDE} pixels on each side."
+    clear_own_picture(); L.root().mkdir(parents=True, exist_ok=True)
+    import shutil; shutil.copyfile(p, L.root() / f"elder_main_person{ext}"); return ""
+
+def clear_own_picture() -> None:
+    from . import library as L
+    for ext in OWN_EXT:
+        try: (L.root() / f"elder_main_person{ext}").unlink()
+        except OSError: pass
+
+def _own_person() -> Optional[dict]:
+    pic = own_picture()
+    if not pic: return None
+    sex = own_sex(); hid = "own_" + hashlib.sha1(Path(pic).read_bytes()).hexdigest()[:8]
+    p = {"id": hid, "sex": sex, "name": "Your main person", "sheet": OWN_SHEET + f" (an older {'woman' if sex == 'f' else 'man'})"}; _EXTRA[hid] = p; return p
+
+def make_person(seed: str, sex: str) -> dict:
+    """One older person from random parts: a name and the verbatim description put in every prompt that shows them."""
+    r = random.Random(seed); c1, c2 = r.sample(COLOURS, 2); an = lambda w: ("an " if w[0].lower() in "aeiou" else "a ") + w
+    noun = "woman" if sex == "f" else "man"; face = "" if sex == "f" else f", {r.choice(FACE_M)}"; gl = r.choice(GLASSES); gl = "" if gl == "no glasses" else f", {gl}"
+    name = r.choice(NAMES[sex])
+    sheet = (f"{name}, {an(r.choice(BUILDS[sex]))} {r.choice(ORIGINS)} {noun} in {'her' if sex == 'f' else 'his'} {r.choice(AGES)} with {r.choice(HAIR[sex])}{face}{gl}, "
+             f"{an(c1)} {r.choice(TOPS[sex])} over {an(c2)} {r.choice(SHIRTS[sex])} and {r.choice(BOTTOMS)}, {r.choice(EXTRAS[sex])}")
+    return {"id": "h_" + hashlib.sha1(sheet.encode()).hexdigest()[:8], "sex": sex, "name": name, "sheet": sheet}
+
 COMPANION = {"f": "her husband, a friendly older man with grey hair in a beige sweater", "m": "his wife, a friendly older woman with grey hair in a lilac cardigan"}
+_EXTRA: Dict[str, dict] = {}      # per-video people made in this run
+
+def cast() -> Dict[str, dict]:
+    """This channel's four people (two women, two men), the same for every video of this install."""
+    seed = _state()["seed"]; out = {}
+    for k, sex in enumerate("fmfm"):
+        p = make_person(f"{seed}:{k}", sex); out[p["id"]] = p
+    return out
+
+def person(host: str) -> dict:
+    if host.startswith("own_") and host not in _EXTRA: _own_person()
+    return _EXTRA.get(host) or cast()[host]
+
+def _people() -> Dict[str, dict]:
+    _own_person(); return {**cast(), **_EXTRA}
+
 WOMAN_RX = re.compile(r"\b(she|her|women|woman|ladies|menopaus\w*|grandmother|grandma|wife's)\b", re.I)
 MAN_RX = re.compile(r"\b(he|him|his|men|man|prostate|grandfather|grandpa|husband's)\b", re.I)
 
 def pick_host(texts: List[str], prompts: List[str] = ()) -> str:
-    """The video's main person: a CSV picture description that says woman / man decides, then the script's own words, else one of the cast by the script (same script, same host)."""
+    """The video's main person: a CSV picture description that says woman / man decides the sex, then the script's own words; per channel one of this install's cast
+    (same script, same person), per video a new person from the install's seed and the script."""
+    sex = ""
     for src in (" ".join(prompts), " ".join(texts)):
         w, m = len(WOMAN_RX.findall(src)), len(MAN_RX.findall(src))
-        if w != m and (w or m): pool = [k for k, v in CAST.items() if v["sex"] == ("f" if w > m else "m")]; break
-    else: pool = list(CAST)
-    return pool[zlib.crc32(" ".join(texts).encode()) % len(pool)]
+        if w != m and (w or m): sex = "f" if w > m else "m"; break
+    own = _own_person()
+    if own: return own["id"]      # the picture the user uploaded: their person in every video
+    h = zlib.crc32(" ".join(texts).encode())
+    if per_video():
+        p = make_person(f"{_state()['seed']}:video:{h}", sex or "fm"[h % 2]); _EXTRA[p["id"]] = p; return p["id"]
+    pool = [k for k, v in cast().items() if not sex or v["sex"] == sex]
+    return pool[h % len(pool)]
 
 def ref_prompt(host: str) -> str:
-    return (f"A character reference picture of {CAST[host]['sheet']}: the same person shown twice side by side, on the left a full-body front view standing relaxed, "
+    return (f"A character reference picture of {person(host)['sheet']}: the same person shown twice side by side, on the left a full-body front view standing relaxed, "
             f"on the right a head-and-shoulders portrait with a gentle smile. {REF_STYLE}.")
 
 def ref_id(host: str) -> str: return "elderhost_" + host + "_" + hashlib.sha1(ref_prompt(host).encode()).hexdigest()[:8]
 
 def user_ref(host: str) -> Optional[str]:
-    for ext in (".png", ".jpg", ".jpeg", ".webp"):
-        p = HOSTS_DIR / f"{host}{ext}"
-        if p.is_file(): return str(p)
-    return None
+    """The picture the user uploaded on the Elder page, for their own main person (host id own_...)."""
+    return own_picture() if host.startswith("own_") else None
 
 def host_refs(host: str) -> List[str]:
     """The reference picture(s) for this host that exist now: the user's own, else the one the app made. [] until it is made."""
@@ -71,17 +186,17 @@ def ensure_refs(host: str, make_one, log=print) -> List[str]:
     """The host's reference, made once through Flow when there is none (make_one(prompt) -> a file path or None), saved in the Rep Theory library."""
     got = host_refs(host)
     if got: return got
-    log(f"[ELDER ART] making the reference picture of {host.title()} once (reused by every later video)")
+    log(f"[ELDER ART] making the reference picture of {person(host)['name']} once" + ("" if host in _EXTRA else " (reused by every later video)"))
     path = make_one(ref_prompt(host))
     if path and Path(path).is_file():
         from . import library as L
-        L.register(path, id=ref_id(host), kind="reference", subject=f"Elder Health host {host}", prompt=ref_prompt(host), source="flow", notes="elder host reference")
-    else: log(f"[ELDER ART] the reference picture of {host.title()} could not be made: their pictures use the description alone")
+        L.register(path, id=ref_id(host), kind="reference", subject=f"Elder Health host {person(host)['name']}", prompt=ref_prompt(host), source="flow", notes="elder host reference")
+    else: log(f"[ELDER ART] the reference picture of {person(host)['name']} could not be made: their pictures use the description alone")
     return host_refs(host)
 
 def wants_refs(prompt: str) -> Optional[str]:
     """The host whose description is in this prompt (sent with their reference picture), or None."""
-    for k, v in CAST.items():
+    for k, v in _people().items():
         if v["sheet"] in prompt: return k
     return None
 
@@ -242,7 +357,7 @@ def prompt(sc: dict) -> str:
         op = organ_prompt(text)
         if op: return op
         shot = "medium"
-    s = scene_of(text); who = CAST[host]["sheet"]; comp = COMPANION[CAST[host]["sex"]]
+    s = scene_of(text); who = person(host)["sheet"]; comp = COMPANION[person(host)["sex"]]
     objs = (" Clearly drawn: " + ", ".join(s["objects"]) + ".") if s["objects"] else ""
     lead = "The opening image of an elder health explainer, one warm, inviting picture" if sc.get("hook") else "A single scene from an elder health explainer"
     if shot == "still":
@@ -257,7 +372,7 @@ def own_prompt(text: str, host: Optional[str]) -> str:
     from .beat_art import _elder_style_for
     style = _elder_style_for(text)
     if host and style == STYLE and re.search(r"\b(older|elderly|senior|woman|man|person|grandmother|grandfather|lady|gentleman|she|he)\b", text, re.I):
-        return f"{text}. The main older person is {CAST[host]['sheet']}. {style}."
+        return f"{text}. The main older person is {person(host)['sheet']}. {style}."
     return f"{text}. {style}."
 
 # ---------------------------------------------------------------- 5. the quality check (pixels only: no call, no render time worth noting)
