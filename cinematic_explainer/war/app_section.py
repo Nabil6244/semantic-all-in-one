@@ -405,7 +405,8 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     lib_dir = _library_dir(library, manager) if fetch else None
     if fetch and lib_dir is not None:
         try:
-            lib_plan = LIB.apply(scenes, [r for r in rows if r.asset_type in FETCH_TYPES], Path(images_dir), state_dir, lib=lib_dir, log=log)
+            lib_plan = LIB.apply(scenes, [r for r in rows if r.asset_type in FETCH_TYPES], Path(images_dir), state_dir, lib=lib_dir, log=log,
+                                 settings=getattr(manager, "settings", None))
         except Exception as exc:  # noqa: BLE001 - a library problem leaves every row to the live search
             log(f"War library skipped: {type(exc).__name__}: {exc}")
             lib_plan = {}

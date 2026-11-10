@@ -34,6 +34,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 SETTING = "war_footage_library"
 DIR_SETTING = "war_library_dir"
 ENV_DIR = "WAR_LIBRARY_DIR"
+LIVE_SETTING = "war_live_searches"   # rows per video that may still go to YouTube / Flow / stock; -1 = every row the library lacks
+LIVE_DEFAULT = 10
 REPORT = "war_library_report.json"
 METHOD = "war_library"
 MAX_USES = 3              # one clip in one video
@@ -61,6 +63,15 @@ def enabled(settings: Optional[Dict[str, Any]]) -> bool:
     return bool((settings or {}).get(SETTING, True))
 
 
+def live_cap(settings: Optional[Dict[str, Any]]) -> Optional[int]:
+    """How many rows may be searched live (None: no limit)."""
+    try:
+        n = int((settings or {}).get(LIVE_SETTING, LIVE_DEFAULT))
+    except (TypeError, ValueError):
+        n = LIVE_DEFAULT
+    return None if n < 0 else n
+
+
 def load(lib: Path) -> List[Dict[str, Any]]:
     """The index's clips whose file is on disk, in a fixed order (file name)."""
     try:
@@ -72,9 +83,10 @@ def load(lib: Path) -> List[Dict[str, Any]]:
     return sorted(out, key=lambda c: str(c["file"]))
 
 
-_ACTIONS = {"launch", "strike", "attack", "firing", "view", "combat", "sinking", "aftermath", "production", "repair"}   # what happens,
-#   not what is shown: one of these in a clip's subject name is never enough alone (a drone launch is no rocket salvo)
-_SAME = {"army": "military", "truck": "vehicle", "troop": "soldier", "warship": "ship", "rouble": "ruble", "cash": "money"}   # one word each
+_ACTIONS = {"military", "war", "launch", "strike", "attack", "firing", "view", "combat", "sinking", "aftermath", "production", "repair"}   # what happens,
+#   not what is shown, and words every war clip carries: one of these in a clip's subject name is never enough alone (a drone
+#   launch is no rocket salvo, army vehicles are no military factory)
+_SAME = {"army": "military", "truck": "vehicle", "troop": "soldier", "rouble": "ruble", "cash": "money"}   # one word each
 
 
 def _stem(w: str) -> str:
@@ -100,7 +112,8 @@ def _clip_view(c: Dict[str, Any]) -> Dict[str, Any]:
     subj = [t for t in _tokens(c.get("subject", "")) if t not in _STOP]
     words = set(_tokens(c.get("words", ""))) | set(subj)
     order = _tokens(c.get("subject", "")) + _tokens(c.get("words", ""))
-    return {"subject": subj, "words": words, "side": _side(list(words)), "domain": _domain(order)}
+    return {"subject": subj, "words": words, "side": _side(list(words)), "domain": _domain(order), "text": f" {' '.join(order)} ",
+            "ai": bool(c.get("ai_generated"))}
 
 
 def _alternatives(prompt: str) -> List[Dict[str, Any]]:
@@ -112,10 +125,22 @@ def _alternatives(prompt: str) -> List[Dict[str, Any]]:
         if not part:
             continue
         toks = [t for t in _tokens(part) if t not in _STOP]
-        names = [n for n in _names(part) if not all(w in _SIDES for w in n.split())]
+        names = _joined([n for n in _names(part) if not all(w in _SIDES for w in n.split())], part)
         context = {t for m in _CONTEXT.finditer(part) for t in _tokens(m.group(0))}
         out.append({"text": part, "tokens": [t for t in toks if t not in _SIDES], "names": names, "side": _side(_tokens(part)),
                     "domain": _domain(_tokens(part)), "context": context, "subject": "_".join(toks)})
+    return out
+
+
+def _joined(names: List[str], part: str) -> List[str]:
+    """Names that stand next to each other in the search are one name ('Storm' + 'Shadow' -> 'storm shadow')."""
+    text = f" {' '.join(_tokens(part))} "
+    out: List[str] = []
+    for n in names:
+        if out and f" {out[-1]} {n} " in text:
+            out[-1] = f"{out[-1]} {n}"
+        else:
+            out.append(n)
     return out
 
 
@@ -128,8 +153,10 @@ def _names(part: str) -> List[str]:
     return [" ".join(_stem(w) for w in n.split()) for n in FD._prompt_part(part, skip)["names"]]
 
 
-def score(alt: Dict[str, Any], view: Dict[str, Any], subject_key: str = "") -> Tuple[int, int]:
-    """(score, position of the first shared word in the search); score 0 = this clip does not show what the search asks for."""
+def score(alt: Dict[str, Any], view: Dict[str, Any], subject_key: str = "", relax: bool = False) -> Tuple[int, int]:
+    """(score, position of the first shared word in the search); score 0 = this clip does not show what the search asks for. relax: the
+    search's names are read as plain words (a row past the live-search limit takes a clip of the same kind of thing: a warship for
+    'warships Novorossiysk', an air-defence launcher for 'Pantsir'); side, sea/air and every plain-word rule still hold."""
     if alt["side"] and view["side"] and not (alt["side"] & view["side"]):
         return 0, 99
     if subject_key and alt["subject"] == subject_key:
@@ -138,21 +165,23 @@ def score(alt: Dict[str, Any], view: Dict[str, Any], subject_key: str = "") -> T
         return 0, 99                        # an underwater / sea search never takes an aerial clip, nor the other way round
     shared = [t for t in alt["tokens"] if t in view["words"] or (t in _DOMAINS and _DOMAINS[t] in alt.get("domain", ()) and
                                                                     _DOMAINS[t] in view.get("domain", ()))]
-    if alt["names"]:
-        if not all(w in view["words"] for w in alt["names"][0].split()):
+    if alt["names"] and not relax:
+        if f" {alt['names'][0]} " not in view.get("text", f" {' '.join(sorted(view['words']))} "):
             return 0, 99                    # it names a ship, a person, a weapon, a place: only a clip that carries the name
         return 4 + len(set(shared)), 0
     ctx = alt.get("context") or set()
     core = [t for t in shared if t not in ctx]   # 'Black Sea Fleet' says where: a submarine search never takes a coast clip for it
     pts = sum(2 if t in view["subject"] and t not in _ACTIONS else 1 for t in set(core))
-    pts -= sum(1 for t in view["subject"] if t in _DOMAINS and _DOMAINS[t] not in (alt.get("domain") or ()))   # a sea / aerial version of a thing the search
+    placed = set(alt.get("domain") or ()) | ({"sea"} if ctx else set())   # a Black Sea Fleet search welcomes a ship at sea
+    pts -= sum(1 for t in view["subject"] if t in _DOMAINS and _DOMAINS[t] not in placed)   # a sea / aerial version of a thing the search
     if pts < 2:                                                                          # did not place there (a drone launch: no sea drone)
         return 0, 99
     pts += 1 if set(shared) & ctx else 0
     return pts, alt["tokens"].index(core[0])
 
 
-def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Sequence[Dict[str, Any]]] = None) -> List[Tuple[int, int, int]]:
+def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Sequence[Dict[str, Any]]] = None,
+               relax: bool = False) -> List[Tuple[int, int, int]]:
     """[(score, position, clip index)] of the clips that fit the prompt, best first; ties in file order."""
     views = views or [_clip_view(c) for c in clips]
     alts = _alternatives(prompt)
@@ -160,7 +189,7 @@ def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Seq
     for i, (c, v) in enumerate(zip(clips, views)):
         best = (0, 99, 0)
         for k, a in enumerate(alts):
-            s, pos = score(a, v, "_".join(_tokens(c.get("subject", ""))))
+            s, pos = score(a, v, "_".join(_tokens(c.get("subject", ""))), relax=relax)
             if s and (s, -k, -pos) > (best[0], -best[2], -best[1]):
                 best = (s, pos, k)
         if best[0]:
@@ -168,12 +197,33 @@ def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Seq
     return sorted(out, key=lambda x: (-x[0], x[1], x[2]))
 
 
+def live_rows(rows: Sequence[Any], clips: Sequence[Dict[str, Any]], views: Sequence[Dict[str, Any]], cap: Optional[int],
+              held: Dict[str, str]) -> set:
+    """The rows the library has nothing for that may be searched live: every different search once, in scene order, then second rows of the
+    same searches, ... until `cap` rows (None: all of them)."""
+    groups: Dict[str, List[str]] = {}
+    for r in rows:
+        no = str(r.scene_number)
+        if no not in held and not candidates(_query(r), clips, views):
+            groups.setdefault(_query(r).split("||")[0].strip().lower(), []).append(no)
+    if cap is None:
+        return {no for g in groups.values() for no in g}
+    out: List[str] = []
+    k = 0
+    while len(out) < cap and any(len(g) > k for g in groups.values()):
+        out += [g[k] for g in groups.values() if len(g) > k][:cap - len(out)]
+        k += 1
+    return set(out)
+
+
 def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[Dict[str, Any]],
-         held: Optional[Dict[str, str]] = None) -> Dict[str, Dict[str, Any]]:
+         held: Optional[Dict[str, str]] = None, cap: Optional[int] = None) -> Dict[str, Dict[str, Any]]:
     """{scene no: {source: 'library', clip, score} | {source: 'graphics', subject, why} | {source: 'live'}} for the footage rows, in scene
-    order. held: {scene no: library file} rows that keep a clip the user picked or an earlier live fetch (never changed here)."""
+    order. held: {scene no: library file} rows that keep a clip the user picked or an earlier live fetch (never changed here). cap: at most
+    this many rows go live (live_rows); the others take a clip of the same kind of thing (relaxed match) or the War graphics."""
     held = held or {}
     views = [_clip_view(c) for c in clips]
+    live = live_rows(rows, clips, views, cap, held)
     by_no = {str(sc.get("scene_no")): (i, sc) for i, sc in enumerate(scenes)}
     uses: Dict[int, List[Tuple[float, int]]] = {}
     out: Dict[str, Dict[str, Any]] = {}
@@ -187,8 +237,14 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
         except (TypeError, ValueError):
             t = None
         cands = candidates(_query(r), clips, views)
-        if not cands:
+        relaxed = False
+        if not cands and no in live:
             out[no] = {"source": "live"}
+            continue
+        if not cands:
+            cands, relaxed = candidates(_query(r), clips, views, relax=True), True
+        if not cands:
+            out[no] = {"source": "graphics", "subject": "", "why": "over the live-search limit and nothing like it in the library: War graphics"}
             continue
         top = cands[0][0]
         free = []
@@ -201,14 +257,14 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
             if u and ((t is not None and u[-1][0] is not None and t - u[-1][0] < REUSE_GAP_S) or
                       ((t is None or u[-1][0] is None) and idx - u[-1][1] < REUSE_GAP_SCENES)):
                 continue
-            free.append((len(u), -s, pos, i))
+            free.append((len(u), -s, views[i].get("ai", False), pos, i))   # at the same fit, real footage before an AI clip
         if not free:
             subj = str(clips[cands[0][2]].get("subject") or "")
             out[no] = {"source": "graphics", "subject": subj, "why": f"library subject '{subj}' has no unused clip left for this scene"}
             continue
-        i = sorted(free)[0][3]
+        i = sorted(free)[0][-1]
         uses.setdefault(i, []).append((t, idx))
-        out[no] = {"source": "library", "clip": clips[i], "score": next(s for s, _p, j in cands if j == i)}
+        out[no] = {"source": "library", "clip": clips[i], "score": next(s for s, _p, j in cands if j == i), "relaxed": relaxed}
     return out
 
 
@@ -265,7 +321,7 @@ def apply(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Pat
         if rec.get("user_override") or rec.get("source") == "manual" or getattr(r, "asset_type", "") in ("local", "local_video") or (
                 not mine and str(rec.get("status") or "").lower() == "complete" and Path(str(rec.get("local_path") or "")).is_file()):
             held[str(r.scene_number)] = ""
-    got = plan(scenes, rows, clips, held)
+    got = plan(scenes, rows, clips, held, cap=live_cap(settings))
     by_no = {str(r.scene_number): r for r in rows}
     for no, d in got.items():
         rec = man.get(no) or {}
@@ -286,8 +342,8 @@ def apply(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Pat
     except OSError:
         pass
     n = report["counts"]
-    log(f"War library: {n['library']} scenes from the library ({n['clips']} different clips), {n['graphics']} to War graphics (subject used up), "
-        f"{n['live']} to the live search")
+    log(f"War library: {n['library']} scenes from the library ({n['clips']} different clips, {n['relaxed']} of them over the live-search "
+        f"limit), {n['graphics']} to War graphics, {n['live']} to the live search")
     for s in report["need_more"][:8]:
         log(f"  library needs more '{s['subject']}': {s['rows']} rows wanted it, {s['short']} got graphics")
     return got
@@ -309,6 +365,7 @@ def summary(got: Dict[str, Dict[str, Any]], by_no: Optional[Dict[str, Any]] = No
     return {"version": 1,
             "counts": {"library": sum(1 for d in got.values() if d["source"] == "library"),
                        "clips": len({d["clip"]["file"] for d in got.values() if d["source"] == "library"}),
+                       "relaxed": sum(1 for d in got.values() if d["source"] == "library" and d.get("relaxed")),
                        "graphics": sum(1 for d in got.values() if d["source"] == "graphics"),
                        "live": sum(1 for d in got.values() if d["source"] == "live")},
             "need_more": sorted(({"subject": k, "rows": v[0], "short": v[1]} for k, v in need.items() if v[1]), key=lambda x: (-x["short"], x["subject"])),
@@ -391,19 +448,35 @@ def _sheet(files: Sequence[Tuple[str, Path]], out: Path) -> Optional[Path]:
     return out
 
 
-def _batch_names(csv_path: Optional[Path]) -> Dict[str, str]:
-    """{scene number: library name} from a friend batch CSV (its library_name column)."""
+def _batch_names(csv_path: Optional[Path]) -> Dict[str, Dict[str, str]]:
+    """{scene number: {name, prompt, asset_type}} from a friend batch CSV (its library_name column)."""
     import csv
 
     if not csv_path or not Path(csv_path).is_file():
         return {}
     with open(csv_path, encoding="utf-8-sig", newline="") as fh:
-        return {str(r.get("scene_number") or "").strip(): str(r.get("library_name") or "").strip() for r in csv.DictReader(fh)
-                if str(r.get("library_name") or "").strip()}
+        return {str(r.get("scene_number") or "").strip().lstrip("0") or "0": {"name": str(r.get("library_name") or "").strip(),
+                                                                               "prompt": str(r.get("prompt") or "").strip(),
+                                                                               "asset_type": str(r.get("asset_type") or "").strip().lower()}
+                for r in csv.DictReader(fh) if str(r.get("library_name") or "").strip()}
 
 
 def _subject_of(name: str) -> str:
-    return re.sub(r"[_-]?\d+$", "", Path(name).stem).strip("_-").lower()
+    """'ai_dry_dock_2_01' -> 'ai_dry_dock': the clip number goes, then a one-digit batch marker ('_2'); 'su_34_01' stays 'su_34'."""
+    s = re.sub(r"[_-]?\d+$", "", Path(name).stem).strip("_-")
+    return re.sub(r"[_-][2-9]$", "", s).strip("_-").lower()
+
+
+def _clip_key(stem: str) -> str:
+    """'scene_007' / '007' -> '7': the scene number a War page or a hand-cut batch gave the file."""
+    return re.sub(r"^scene[_-]?", "", stem, flags=re.I).lstrip("0") or "0"
+
+
+def _words_of(prompt: str, subject: str) -> str:
+    """What a clip shows, for the matcher: the search's first clause (an AI prompt's camera and light notes are left out)."""
+    first = re.split(r"[,;]|\|\|", str(prompt or ""))[0]
+    first = re.sub(r"\b(footage|illustration)\b:?", "", first, flags=re.I)
+    return " ".join(dict.fromkeys(first.split())) or subject.replace("_", " ")
 
 
 def import_batch(src: Path, batch_csv: Optional[Path] = None, lib: Optional[Path] = None, log: Callable[[str], None] = print) -> Path:
@@ -432,7 +505,7 @@ def import_batch(src: Path, batch_csv: Optional[Path] = None, lib: Optional[Path
             if p.is_file() and p.suffix.lower() in (".mp4", ".mov", ".mkv", ".webm", ".json", ".csv") and not p.name.startswith("."):
                 shutil.copyfile(p, raw / p.name)
     csvs = [batch_csv] if batch_csv else sorted(raw.glob("*.csv"))
-    names: Dict[str, str] = {}
+    names: Dict[str, Dict[str, str]] = {}
     for c in csvs:
         names.update(_batch_names(c))
     records: Dict[str, Dict[str, Any]] = {}
@@ -445,20 +518,21 @@ def import_batch(src: Path, batch_csv: Optional[Path] = None, lib: Optional[Path
         if isinstance(items, dict):
             for k, v in items.items():
                 if isinstance(v, dict) and v.get("local_path"):
-                    records[Path(str(v["local_path"])).stem.lstrip("0") or "0"] = v
+                    records[_clip_key(Path(str(v["local_path"])).stem)] = v
     pending, ok_files = [], []
     seen: Dict[str, int] = {}
     for p in sorted(list(raw.glob("*.mp4")) + list(raw.glob("*.mov")) + list(raw.glob("*.mkv")) + list(raw.glob("*.webm"))):
-        key = p.stem.lstrip("0") or "0"
-        name = names.get(key) or names.get(p.stem) or p.stem
+        key = _clip_key(p.stem)
+        row = names.get(key) or {}
+        name = row.get("name") or p.stem
         subject = _subject_of(name)
         chk = check_clip(p)
         rec = records.get(key) or {}
         seen[subject] = seen.get(subject, 0) + 1
         item = {"raw": p.name, "name": name, "subject": subject, **chk, "url": rec.get("source_url") or "", "title": rec.get("video_title") or "",
                 "channel": rec.get("channel") or "", "upload_date": rec.get("upload_date") or "",
-                "words": " ".join(dict.fromkeys(re.sub(r"\bfootage\b", "", str(rec.get("prompt") or subject.replace("_", " ")).split("||")[0]).split())),
-                "ai_generated": "flow" in str(rec.get("source") or rec.get("asset_type") or "").lower()}
+                "words": _words_of(rec.get("prompt") or row.get("prompt") or "", subject),
+                "ai_generated": "flow" in str(rec.get("source") or rec.get("asset_type") or row.get("asset_type") or "").lower()}
         pending.append(item)
         if chk["ok"]:
             ok_files.append((name, p))

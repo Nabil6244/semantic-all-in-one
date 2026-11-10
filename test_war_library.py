@@ -90,6 +90,36 @@ class TestMatch(unittest.TestCase):
         self.assertEqual(got["1"]["source"], "library")
 
 
+class TestNamesAndAi(unittest.TestCase):
+    def test_a_name_must_appear_as_one_phrase_and_military_alone_is_not_a_match(self):
+        clips = L.load(make_library({"ai_black_sea_storm/a_01.mp4": ("ai_black_sea_storm", "rough storm sea, ships in shadow"),
+                                     "ai_factory_military/b_01.mp4": ("ai_factory_military", "artillery shells on a factory line")}))
+        self.assertEqual(files("Storm Shadow missile footage", clips), [])
+        self.assertEqual(files("Russian army military vehicles footage", clips), [])
+        self.assertEqual(files("Russian military factory production footage", clips), ["ai_factory_military"])
+
+    def test_at_the_same_fit_real_footage_comes_before_an_ai_clip(self):
+        clips = L.load(make_library({"a_steel/steel_mill_001.mp4": ("steel_mill", "molten steel sparks"),
+                                     "z_steel/steel_mill_002.mp4": ("steel_mill", "molten steel sparks")}, ai={"a_steel/steel_mill_001.mp4"}))
+        sc = scenes_for(["steel mill footage"])
+        self.assertEqual(L.plan(sc, rows_for(sc), clips)["1"]["clip"]["file"], "z_steel/steel_mill_002.mp4")
+
+
+class TestLiveCap(unittest.TestCase):
+    def test_past_the_live_limit_a_named_row_takes_the_same_kind_of_clip_or_war_graphics(self):
+        clips = L.load(make_library({"warship_port/warship_port_001.mp4": ("warship_port", "Russian warship moored in port"),
+                                     "warship_port/warship_port_002.mp4": ("warship_port", "warships moored at a naval base pier")}))
+        prompts = ["Russian warships Novorossiysk footage"] * 3 + ["Storm Shadow missile footage", "Pletenchuk navy spokesman footage"]
+        sc = scenes_for(prompts, step=70.0)
+        got = L.plan(sc, rows_for(sc), clips, cap=2)
+        self.assertEqual(sorted(no for no, d in got.items() if d["source"] == "live"), ["1", "4"])   # each different search first
+        self.assertEqual((got["2"]["source"], got["2"]["relaxed"]), ("library", True))
+        self.assertEqual(got["5"]["source"], "graphics")                                          # nothing like it: map / cards
+        self.assertEqual(sum(d["source"] == "live" for d in L.plan(sc, rows_for(sc), clips).values()), 5)   # no limit: all live
+        self.assertEqual(L.live_cap({}), 10)
+        self.assertIsNone(L.live_cap({"war_live_searches": -1}))
+
+
 class TestPlan(unittest.TestCase):
     def test_reuse_gap_and_max_uses_then_war_graphics(self):
         clips = L.load(make_library({"refinery_fire/refinery_fire_001.mp4": ("refinery_fire", "refinery fire black smoke")}))
@@ -127,7 +157,7 @@ class TestApply(unittest.TestCase):
         self.assertTrue(man.get("3")["ai_generated"])
         self.assertIsNone(man.get("2"))
         rep = json.loads((state / L.REPORT).read_text(encoding="utf-8"))
-        self.assertEqual(rep["counts"], {"library": 2, "clips": 2, "graphics": 0, "live": 1})
+        self.assertEqual(rep["counts"], {"library": 2, "clips": 2, "relaxed": 0, "graphics": 0, "live": 1})
         self.assertEqual(L.library_nos(images, rows_for(sc)), {"1", "3"})
 
     def test_fetch_asks_the_library_first_and_keeps_user_picks_and_earlier_live_clips(self):
@@ -184,6 +214,24 @@ class TestImport(unittest.TestCase):
         self.assertEqual(L.load(lib), [])                                       # nothing enters the library before approve
         self.assertEqual(L.approve(box.name, ["steel_mill_02"], lib=lib, log=lambda m: None), 1)
         self.assertEqual([c["file"] for c in L.load(lib)], ["steel_mill/steel_mill_001.mp4"])
+
+    def test_a_flow_batch_folder_with_scene_names_is_named_marked_ai_and_described_by_its_prompt(self):
+        work = Path(tempfile.mkdtemp())
+        lib = make_library({})
+        (work / "clips").mkdir()
+        for name in ("scene_001", "scene_002"):
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=1280x720:rate=25:duration=4", "-c:v", "libx264",
+                            "-preset", "ultrafast", str(work / "clips" / f"{name}.mp4")], check=True)
+        (work / "flow_batch.csv").write_text(
+            "scene_number,start,end,script_segment,asset_type,prompt,graphic,library_name\n"
+            '1,0,8,x,flow_video,"a grey warship in a foggy harbour at dawn, slow push-in",,ai_dry_dock_2_01\n'
+            '2,8,16,x,flow_video,"molten steel pouring in a mill, sparks",,ai_steel_mill_02\n', encoding="utf-8")
+        box = L.import_batch(work, lib=lib, log=lambda m: None)
+        pend = {c["name"]: c for c in json.loads((box / "pending.json").read_text(encoding="utf-8"))["clips"]}
+        self.assertEqual(set(pend), {"ai_dry_dock_2_01", "ai_steel_mill_02"})
+        self.assertEqual(pend["ai_dry_dock_2_01"]["subject"], "ai_dry_dock")               # the batch marker '_2' joins the subject
+        self.assertTrue(all(c["ai_generated"] for c in pend.values()))
+        self.assertEqual(pend["ai_steel_mill_02"]["words"], "molten steel pouring in a mill")  # camera / light notes left out
 
 
 if __name__ == "__main__":
