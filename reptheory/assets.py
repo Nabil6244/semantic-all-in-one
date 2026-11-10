@@ -54,6 +54,8 @@ def prompt(name: str) -> str:
 
 def plan(scenes: List[dict]) -> int:
     """Gives each picture scene that names an asset's subject (or whose CSV row asked for one) its library asset. Returns how many scenes got one."""
+    from . import theme as T
+    if T.THEME in T.NO_GYM: return 0      # Cat / Carl Jung / Elder Health draw every picture in their own style; these assets are manga ink on black (pipeline check 2026-11-10: an x-ray knee in an Elder video)
     seen: Dict[str, float] = {}; n = 0; prev = None
     for sc in scenes:
         if sc.get("same_picture") and prev is not None and prev.get("asset") and sc.get("look") == "flow": sc["asset"] = prev["asset"]; prev = sc; continue      # a long asset shot cut in two: the same asset, re-framed

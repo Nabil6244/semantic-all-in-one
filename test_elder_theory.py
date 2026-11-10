@@ -120,6 +120,11 @@ class ElderTheoryTheme(unittest.TestCase):
         self.assertEqual(DR.norm_look("parkinsons"), ""); self.assertEqual(DR.norm_look("dz_parkinsons"), "disease")
         self.assertEqual(DR.norm_look("cholesterol"), "meter"); self.assertEqual(DR.norm_look("salmon"), "")
         self.assertEqual(DR.norm_look("fish"), "foods")
+        e = ev("So stand on one leg while you brush your teeth.")
+        self.assertNotIn("inside", e); self.assertEqual(e["steady"][1]["topic"], "steady_balance")   # pipeline check 2026-11-10: the teeth magnifier showed for a balance tip
+        from reptheory import assets as AS
+        knee = [{"look": "flow", "start": 0.0, "end": 3.0, "text": "Osteoarthritis wears down the cartilage in your knees.", "decisions": []}]
+        self.assertEqual(AS.plan(knee), 0); self.assertNotIn("asset", knee[0])   # no manga x-ray on the Elder page
         T.set_theme("")
         self.assertEqual(DR.norm_look("cholesterol"), ""); self.assertEqual(HE.evidence(sc, "Statins lower your LDL cholesterol.", V._at), {})   # Rep Theory never gets them
 

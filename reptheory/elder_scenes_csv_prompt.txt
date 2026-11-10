@@ -108,10 +108,12 @@ Your knees are not wearing out because of age. A 2018 study of 1,200 adults over
 
 CSV:
 text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
-Your knees are not wearing out because of age.,Your knees,flow,"a white-haired woman in her seventies with glasses and a teal cardigan, walking confidently up a few garden steps, smiling",,wide,NOT AGE,hook,
+Your knees are not wearing out because of age.,Your knees,flow,"the older woman walking confidently up a few garden steps, smiling",,wide,NOT AGE,hook,
 "A 2018 study of 1,200 adults over 65 found that walking protects the cartilage.",,study,,,,WALKING PROTECTS CARTILAGE,why,
-"Walk after breakfast, after lunch and after dinner.",Three walks,board,"the same white-haired woman walking with her husband on a sunny path after a meal",,,,plan,
+"Walk after breakfast, after lunch and after dinner.",Three walks,board,"the older woman walking with her husband on a sunny path after a meal",,,,plan,
 Do your knees feel stiff in the morning?,,flow,"a cross-section illustration of a healthy knee joint showing smooth cartilage",,medium,STIFF IN THE MORNING,result,
+Osteoarthritis slowly wears down that cartilage.,,disease,,,,,why,
+Keep salt under one teaspoon a day.,,tube,,,,,plan,
 Tell me in the comments.,,engage,,,,,,
 
 SCRIPT

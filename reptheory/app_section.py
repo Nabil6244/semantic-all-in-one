@@ -15,9 +15,37 @@ OWNER = "reptheory"      # its Flow pictures in the Visuals tab (visual_bridge)
 
 def _m(app): return sys.modules[type(app).__module__]
 
+PAUSE_CUT_S, MIN_WORDS, MAX_SENTENCE_S = 0.45, 4, 10.0      # sentences from pauses, when the words carry no punctuation
+
 def sentences_from_words(words, total_s: float = 0.0):
+    """Sentences from the narration's word times. The app's Whisper words come back without punctuation (video_generator.transcribe_audio normalises them), so the
+    shared cutter (health_cinema) only cut at pauses over 1.2 s: a smooth 22 s voiceover was ONE scene with one picture (pipeline check 2026-11-10).
+    Without punctuation the narration is cut where the speaker pauses (0.45 s and up, between sentences and at commas), pieces under 4 words join the one
+    before, and a piece over 10 s is cut again at its longest pause."""
     from health_cinema.app_section import sentences_from_words as f      # the same sentence cutter every narration-driven style uses
-    return f(words, total_s)
+    import re as _re
+    ws = []
+    for it in words or []:
+        try: ws.append((str(it[0]), float(it[1]), float(it[2])))
+        except (TypeError, ValueError, IndexError): continue
+    if not ws or any(_re.search(r"[.!?]['\")\]]*$", w) for w, _, _ in ws): return f(words, total_s)
+    groups, cur = [], [ws[0]]
+    for prev, w in zip(ws, ws[1:]):
+        if w[1] - prev[2] >= PAUSE_CUT_S: groups.append(cur); cur = []
+        cur.append(w)
+    groups.append(cur); merged = []
+    for g in groups:
+        if merged and len(g) < MIN_WORDS: merged[-1] = merged[-1] + g
+        else: merged.append(g)
+    if len(merged) > 1 and len(merged[0]) < MIN_WORDS: merged[1] = merged[0] + merged[1]; merged.pop(0)
+    out_g = []
+    def split_long(g):
+        if g[-1][2] - g[0][1] <= MAX_SENTENCE_S or len(g) < 2 * MIN_WORDS: out_g.append(g); return
+        k = max(range(MIN_WORDS, len(g) - MIN_WORDS + 1), key=lambda i: g[i][1] - g[i - 1][2]); split_long(g[:k]); split_long(g[k:])
+    for g in merged: split_long(g)
+    marked = []
+    for g in out_g: marked += [(w, a, b) for w, a, b in g[:-1]] + [(g[-1][0] + ".", g[-1][1], g[-1][2])]      # a full stop where the speaker paused: the shared cutter ends the sentence there
+    return f(marked, total_s)
 
 def read_scenes_file(path: str):
     import csv, json

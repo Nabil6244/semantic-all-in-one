@@ -761,6 +761,7 @@ def _b_weekly(sp, sc, text, at, m):
     return 0.9, {"topic": sp["id"], "at": at(sc, text, m.start() if m else 0), "n": n, "n_at": at(sc, text, pos)}
 
 def _b_inside(sp, sc, text, at, m):
+    if m is not None and re.search(r"\b(brush\w*|floss\w*|wash\w*|clean\w*|rub\w*|scratch\w*|close|open|rest|cross\w*)\s+(?:your|the|both|one)\s+$", text[:m.start()], re.I): return None      # "while you brush your teeth": an everyday action, not the inside of the body
     good = not WORSE_RX.search(text) or bool(re.search(r"\b(protects?|prevents?|repairs?|heals?|strengthens?|builds?|improves?|clears?|keeps?|helps?)\b", text, re.I) and not re.search(r"\b(damag\w*|harm\w*)\b", text, re.I))
     tm = (DOWN_RX.search(text) or UP_RX.search(text) or WORSE_RX.search(text))
     return (0.88 if tm else 0.84), {"topic": sp["id"], "at": at(sc, text, m.start() if m else 0), "good": good, "move_at": at(sc, text, tm.start()) if tm else None}
@@ -873,7 +874,8 @@ def tube(cv, ctx, p, t, t0):
     Y = lambda v: ty1 - (ty1 - ty0) * (_cl(v, lo, hi) - lo) / (hi - lo)
     d.rounded_rectangle((tx0 - P(10), ty0 - P(10), tx1 + P(10), ty1 + P(60)), radius=P(70), fill=(232, 238, 241, 255)); d.rounded_rectangle((tx0, ty0, tx1, ty1 + P(50)), radius=P(60), fill=(255, 255, 255, 255), outline=_c((170, 184, 196)), width=P(3))
     for k in range(6): v = lo + (hi - lo) * k / 5; yy = Y(v); d.line((tx0 - P(40), yy, tx0 - P(12), yy), fill=_c(INK, 0.6), width=P(3)); _label(d, ctx, (tx0 - P(56) - P(len(_num_txt(v, sp.get('decimals'))) * 15), yy - P(14)), _num_txt(v, sp.get("decimals")), (110, 124, 140), 20)
-    q = T.ease_in_out(_since(p, "value_at", t0, t, 1.6, 0.4)); v = lo + (p["value"] - lo) * q; over = v > mark
+    va = _rel(p, "value_at", t0); va = 0.4 if va is None else va; begin = min(va, 1.0)      # a number said late: the tube starts rising when the card shows and lands just after the word (never sits empty)
+    q = T.ease_in_out(_cl((t - begin) / max(1.6, va - begin + 0.6))); v = lo + (p["value"] - lo) * q; over = v > mark
     col = (BAD if over else GOOD) if sp["mode"] == "limit" else (GOOD if v >= mark * 0.98 else MID)
     d.rounded_rectangle((tx0 + P(14), Y(v), tx1 - P(14), ty1 + P(36)), radius=P(44), fill=_c(col)); d.rectangle((tx0 + P(24), Y(v) + P(6), tx0 + P(36), ty1), fill=(255, 255, 255, 90)) if Y(v) + P(6) < ty1 else None
     my = Y(mark)      # the limit / goal line, dashed across

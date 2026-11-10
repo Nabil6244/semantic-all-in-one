@@ -134,3 +134,21 @@ class ElderHostAndQualityCheck(unittest.TestCase):      # Elder Health Theory (e
             self.assertEqual(sent[2][:2], (["2"], True)); self.assertTrue(sent[2][2][0].startswith("The background must be plain"))   # redrawn once, in stronger wording
             self.assertEqual(len(sent), 3); self.assertNotIn("referenceImages", m.flow_image_provider.flow_settings)   # settings restored
             self.assertTrue(m.man.get("2")["local_path"].endswith("_3.png"))   # the better picture is kept
+
+
+class SentencesWithoutPunctuation(unittest.TestCase):      # the app's Whisper words carry no punctuation: a smooth 22 s voiceover was one scene (pipeline check 2026-11-10)
+    def test_cut_at_pauses(self):
+        def say(*parts, gap=0.55):
+            out, t = [], 0.0
+            for k, p in enumerate(parts):
+                for w in p.split(): out.append((w, t, t + 0.3)); t += 0.3
+                t += gap
+            return out
+        words = say("do your knees feel stiff in the morning", "walk for twenty minutes after dinner", "eat", "keep salt under one teaspoon a day")
+        got = [s["text"] for s in A.sentences_from_words(words, 15.0)]
+        self.assertEqual(len(got), 3); self.assertTrue(got[1].startswith("walk") and "eat" in got[1])   # a one-word piece joins the one before
+        long_one = say(" ".join(["word"] * 50))      # no pause at all for 15 s: cut again at its longest pause
+        self.assertGreaterEqual(len(A.sentences_from_words(long_one, 15.0)), 1)
+        punct = [("Hello", 0.0, 0.3), ("there", 0.3, 0.6), ("my", 0.6, 0.8), ("friend.", 0.8, 1.0), ("Bye", 1.6, 1.9), ("now", 1.9, 2.1), ("my", 2.1, 2.3), ("friend.", 2.3, 2.6)]
+        from health_cinema.app_section import sentences_from_words as shared
+        self.assertEqual(A.sentences_from_words(punct, 3.0), shared(punct, 3.0))   # punctuated words: the shared cutter, unchanged
