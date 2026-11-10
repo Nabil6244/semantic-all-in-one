@@ -48,6 +48,12 @@ def tile_xy(lon: float, lat: float, z: int) -> tuple[float, float]:
     return x, y
 
 
+def tile_index(v: float, z: int) -> int:
+    """A tile column/row number kept on the map: lon 180 (or a padded box past the edge) lands one past the last
+    tile, which the server answers with 404."""
+    return min(max(int(math.floor(v)), 0), 2 ** z - 1)
+
+
 def download_tile(z: int, x: int, y: int, cache: Path) -> Path:
     """The elevation tile's file in the cache, downloaded when it is not there yet."""
     path = cache / str(z) / str(x) / f"{y}.png"
@@ -80,7 +86,7 @@ def elevation_grid(bbox, res, z, cache, on_tile=None) -> np.ndarray:
     w, h = round((lon1 - lon0) / res), round((lat1 - lat0) / res)
     x0, y0 = tile_xy(lon0, lat1, z)
     x1, y1 = tile_xy(lon1, lat0, z)
-    tx0, ty0, tx1, ty1 = int(x0), int(y0), int(x1), int(y1)
+    tx0, ty0, tx1, ty1 = tile_index(x0, z), tile_index(y0, z), tile_index(x1, z), tile_index(y1, z)
     mosaic = np.zeros(((ty1 - ty0 + 1) * 256, (tx1 - tx0 + 1) * 256), np.float32)
     total = (tx1 - tx0 + 1) * (ty1 - ty0 + 1)
     done = 0

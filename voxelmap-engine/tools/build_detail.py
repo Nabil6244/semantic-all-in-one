@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from build_world import DATA, HERE, download_tile, elevation_grid, overlaps, rasterize, tile_xy  # noqa: E402
+from build_world import DATA, HERE, download_tile, elevation_grid, overlaps, rasterize, tile_index, tile_xy  # noqa: E402
 
 TILE = 160
 PAD = 16
@@ -86,8 +86,8 @@ def missing_elevation(world: dict, todo: list, cache: Path) -> list:
         z = detail_zoom(t["level"], world["res"])
         x0, y0 = tile_xy(lon0, lat1, z)
         x1, y1 = tile_xy(lon1, lat0, z)
-        for y in range(int(y0), int(y1) + 1):
-            for x in range(int(x0), int(x1) + 1):
+        for y in range(tile_index(y0, z), tile_index(y1, z) + 1):
+            for x in range(tile_index(x0, z), tile_index(x1, z) + 1):
                 names.add((z, x, y))
     return sorted(n for n in names if not (cache / str(n[0]) / str(n[1]) / f"{n[2]}.png").exists())
 

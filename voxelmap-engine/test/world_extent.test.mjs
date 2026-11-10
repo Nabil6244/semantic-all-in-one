@@ -47,3 +47,10 @@ test('common date forms become YYYY-MM; times and words are still refused', () =
   assert.equal(parseStory(csv).beats[0].date, '1954-03');
   assert.throws(() => parseStory(csv.replace('1954-3-7', 'March')), /date must be YYYY-MM/);
 });
+
+test('a story reaching the 180 degree line never asks for a tile past the map edge (HTTP 404)', () => {
+  const w = worldFor({ beats: [{ lon: 139.7, lat: 35.7 }, { lon: -157.9, lat: 21.3 }, { lon: 179.5, lat: -10 }, { lon: -179.5, lat: 60 }] });
+  const n = 2 ** w.zoom;
+  assert.equal(w.bbox[2], 180);
+  for (const t of w.tiles) { const [, x, y] = t.split('/').map(Number); assert.ok(x >= 0 && x < n && y >= 0 && y < n, t); }
+});

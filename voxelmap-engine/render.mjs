@@ -218,7 +218,8 @@ async function checkStory(story, tl, storyPath) {
   for (const t of missing) {
     const res = meta.res / kOf[t.level], pad = 16 * res, lon = lo0 + t.tx * cellsOf[t.level] * meta.res, lat = la1 - t.tz * cellsOf[t.level] * meta.res, span = cellsOf[t.level] * meta.res, z = zoomOf[t.level];
     const [x0, y0] = txy(lon - pad, lat + pad, z), [x1, y1] = txy(lon + span + pad, lat - span - pad, z);
-    for (let y = Math.floor(y0); y <= Math.floor(y1); y++) for (let x = Math.floor(x0); x <= Math.floor(x1); x++) if (!fs.existsSync(path.join(HERE, 'cache', 'terrarium', String(z), String(x), `${y}.png`))) need.add(`${z}/${x}/${y}`);
+    const ti = (v) => Math.min(Math.max(Math.floor(v), 0), 2 ** z - 1);   // never past the map edge (404)
+    for (let y = ti(y0); y <= ti(y1); y++) for (let x = ti(x0); x <= ti(x1); x++) if (!fs.existsSync(path.join(HERE, 'cache', 'terrarium', String(z), String(x), `${y}.png`))) need.add(`${z}/${x}/${y}`);
   }
   if (story.beats.some((b) => b.rung === 'globe') && !fs.existsSync(path.join(HERE, 'worlds', '_globe', 'meta.json'))) warnings.push('globe beats need tools/build_globe.py once (~5 MB)');
   return { errors, warnings, duration_s: tl.duration, beats: story.beats.length, chapters: story.chapters.length, shots: tl.shots.map((x) => x.shot),

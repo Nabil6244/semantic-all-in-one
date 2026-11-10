@@ -41,6 +41,7 @@ export function worldFor(story) {
   let zoom = 3;
   while (zoom < 7 && 360 / (2 ** zoom * 256) > res / 2) zoom++;
   const [x0, y0] = txy(lon0, lat1, zoom), [x1, y1] = txy(lon1, lat0, zoom), tiles = [];
-  for (let y = Math.floor(y0); y <= Math.floor(y1); y++) for (let x = Math.floor(x0); x <= Math.floor(x1); x++) tiles.push(`${zoom}/${x}/${y}`);
+  const ti = (v) => Math.min(Math.max(Math.floor(v), 0), 2 ** zoom - 1);   // lon 180 lands one past the last tile (404)
+  for (let y = ti(y0); y <= ti(y1); y++) for (let x = ti(x0); x <= ti(x1); x++) tiles.push(`${zoom}/${x}/${y}`);
   return { bbox: [lon0, lat0, lon1, lat1], res, zoom, w: Math.round((lon1 - lon0) / res), h: Math.round((lat1 - lat0) / res), tiles };
 }
