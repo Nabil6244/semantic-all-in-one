@@ -34,8 +34,11 @@ def _ffmpeg() -> str:
 
 
 def frames_of(path: str, fps: float = 2.0, w: int = 160, h: int = 90) -> List[np.ndarray]:
-    r = subprocess.run([_ffmpeg(), "-v", "error", "-i", str(path), "-vf", f"fps={fps},scale={w}:{h}:flags=area,format=rgb24", "-f", "rawvideo", "-"],
-                       capture_output=True)
+    try:      # a clip that never finishes decoding gives no frames, never a frozen render
+        r = subprocess.run([_ffmpeg(), "-v", "error", "-i", str(path), "-vf", f"fps={fps},scale={w}:{h}:flags=area,format=rgb24", "-f", "rawvideo", "-"],
+                           capture_output=True, timeout=300)
+    except subprocess.TimeoutExpired:
+        return []
     raw = r.stdout
     n = len(raw) // (w * h * 3)
     return [np.frombuffer(raw[i * w * h * 3:(i + 1) * w * h * 3], np.uint8).reshape(h, w, 3) for i in range(n)]
@@ -134,8 +137,11 @@ def _usable_run(path: Path) -> Optional[float]:
 
 
 def _trim(src: Path, dst: Path, a: float, b: float) -> bool:
-    r = subprocess.run([_ffmpeg(), "-v", "error", "-y", "-ss", f"{a:.2f}", "-i", str(src), "-t", f"{b - a:.2f}", "-c:v", "libx264", "-crf", "16",
-                        "-preset", "fast", "-c:a", "aac", "-movflags", "+faststart", str(dst)], capture_output=True)
+    try:
+        r = subprocess.run([_ffmpeg(), "-v", "error", "-y", "-ss", f"{a:.2f}", "-i", str(src), "-t", f"{b - a:.2f}", "-c:v", "libx264", "-crf", "16",
+                            "-preset", "fast", "-c:a", "aac", "-movflags", "+faststart", str(dst)], capture_output=True, timeout=600)
+    except subprocess.TimeoutExpired:      # a trim that hangs counts as failed: the next clip is tried
+        return False
     return r.returncode == 0 and dst.is_file()
 
 

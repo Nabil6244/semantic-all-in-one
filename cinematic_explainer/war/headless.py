@@ -81,10 +81,10 @@ def build_manager(images_dir: Path, settings: Optional[Dict[str, Any]] = None, l
 
 
 def _duration(path: Path) -> float:
-    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)], capture_output=True, text=True)
     try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)], capture_output=True, text=True, timeout=60)
         return float(r.stdout.strip())
-    except ValueError:
+    except (ValueError, subprocess.TimeoutExpired):      # unknown length, never a frozen render
         return 0.0
 
 

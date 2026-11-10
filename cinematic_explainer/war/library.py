@@ -402,8 +402,11 @@ def library_nos(images_dir: Path, rows: Sequence[Any]) -> set:
 
 # ---- friends' batches -------------------------------------------------------------------------------------------------------------
 def _probe(path: Path) -> Dict[str, Any]:
-    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json",
-                        str(path)], capture_output=True, text=True)
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json",
+                            str(path)], capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:      # an unreadable file: no size, no length
+        return {"w": 0, "h": 0, "seconds": 0.0}
     try:
         d = json.loads(r.stdout or "{}")
         st = (d.get("streams") or [{}])[0]
@@ -452,8 +455,11 @@ def _sheet(files: Sequence[Tuple[str, Path]], out: Path) -> Optional[Path]:
         n = _probe(path)["seconds"]
         draw.text((6, row * (th + pad) + 4), f"{row + 1}. {name}  ({n:.1f} s)", fill=(235, 235, 235))
         for k, frac in enumerate((0.1, 0.5, 0.9)):
-            r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{n * frac:.2f}", "-i", str(path), "-frames:v", "1", "-vf", f"scale={tw}:{th}",
-                                "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True)
+            try:
+                r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{n * frac:.2f}", "-i", str(path), "-frames:v", "1", "-vf", f"scale={tw}:{th}",
+                                    "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True, timeout=60)
+            except subprocess.TimeoutExpired:      # a frame that never comes leaves a dark tile
+                continue
             if r.stdout:
                 try:
                     import io

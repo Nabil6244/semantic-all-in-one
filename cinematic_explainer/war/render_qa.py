@@ -46,7 +46,7 @@ def _ffmpeg() -> str:
 def decode(path: str, fps: float = FPS, w: int = QW, h: int = QH) -> np.ndarray:
     """(n, h, w, 3) uint8 frames at `fps`."""
     cmd = [_ffmpeg(), "-v", "error", "-i", str(path), "-vf", f"fps={fps},scale={w}:{h}:flags=area,format=rgb24", "-f", "rawvideo", "-"]
-    raw = subprocess.run(cmd, capture_output=True, check=True).stdout
+    raw = subprocess.run(cmd, capture_output=True, check=True, timeout=1800).stdout      # a decode that hangs raises like a failed one (subprocess.TimeoutExpired)
     n = len(raw) // (w * h * 3)
     return np.frombuffer(raw[: n * w * h * 3], np.uint8).reshape(n, h, w, 3)
 
