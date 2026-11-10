@@ -2505,6 +2505,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         _harden(plan, rows, cat, log_by_no, counts, max((r["_end"] for r in rows), default=0.0), float((st_stats.get("hook") or {}).get("window") or 0.0), cfg)
     if cfg.get("protect_earned", True):
         protect_earned(plan, rows, counts, log_by_no)
+    if cfg.get("no_flash", True):                 # last word: nothing seen for a split second (a cut inside a clip, a glimpse between cards)
+        no_flash(plan, counts)
     counts["empty_stretches"] = len(gap_notes)
     return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats, "engagement": eng}
 
@@ -2619,6 +2621,152 @@ def _fold_glimpses(plan: Any, counts: Dict[str, int]) -> None:
         counts["glimpses_folded"] = counts.get("glimpses_folded", 0) + 1
         i += 1
     plan.shots[:] = shots
+
+
+# ------------------------------------------------------------------------------------------------ no flash --------------------------
+# The owner (2026-11-10, Novorossiysk render): "some clips just came for a mini sec ... they are falling back or glitching". Not the plan's
+# shots: a clip's played part began or ended a frame or two from a hard cut INSIDE the source file (library and YouTube clips are often
+# edits), so one frame of the source's next shot flashed (render QA: 1:28.1, 12:06.6, 23:39.2; 10 in that video). Cuts are measured at
+# 10 fps, so a cut is only known to +-0.1 s: the played part keeps CUT_MARGIN_S clear of every cut and never shows under SLIVER_S of a shot.
+# Runs after every other rule (and after the render-time repair), so nothing later can bring a flash back.
+SLIVER_S = 1.0
+CUT_MARGIN_S = 0.15
+
+
+def _window_ok(s0: float, spans: Sequence[Tuple[float, float]], cuts: Sequence[float], n: float, dur: float) -> bool:
+    """Every part of the clip the viewer sees (spans: offsets from the shot's start) shows SLIVER_S or more of each source shot."""
+    if s0 < -1e-6 or s0 + dur > n - 0.04 + 1e-6:
+        return False
+    for u0, u1 in spans:
+        a, b = s0 + u0, s0 + u1
+        inside = sorted(min(max(c, a), b) for c in cuts if a - CUT_MARGIN_S < c < b + CUT_MARGIN_S)
+        if not inside:
+            continue
+        marks = [a] + inside + [b]
+        if any(y - x < SLIVER_S for x, y in zip(marks[:-1], marks[1:])):
+            return False
+    return True
+
+
+def _clean_seek(seek: float, dur: float, n: float, cuts: Sequence[float], spans: Optional[Sequence[Tuple[float, float]]] = None) -> Optional[float]:
+    """The seek nearest `seek` whose visible parts show no sliver of a source shot; None when the clip has none."""
+    spans = list(spans) if spans is not None else [(0.0, dur)]
+    if _window_ok(seek, spans, cuts, n, dur):
+        return seek
+    opts = {round(k * 0.1, 2) for k in range(int(max(0.0, n - dur) * 10) + 1)}
+    opts |= {round(c + CUT_MARGIN_S - u0, 3) for c in cuts for u0, _u1 in spans} | {round(c - CUT_MARGIN_S - u1, 3) for c in cuts for _u0, u1 in spans}
+    within = lambda o: sum(1 for c in cuts if o < c < o + dur)        # noqa: E731 - one whole source shot first, then the nearest start
+    for o in sorted(opts, key=lambda o: (within(o), abs(o - seek))):
+        if _window_ok(o, spans, cuts, n, dur):
+            return round(o, 3)
+    return None
+
+
+def _min_piece(s0: float, spans: Sequence[Tuple[float, float]], cuts: Sequence[float]) -> float:
+    m = 99.0
+    for u0, u1 in spans:
+        a, b = s0 + u0, s0 + u1
+        inside = sorted(min(max(c, a), b) for c in cuts if a - CUT_MARGIN_S < c < b + CUT_MARGIN_S)
+        if inside:
+            marks = [a] + inside + [b]
+            m = min(m, min(y - x for x, y in zip(marks[:-1], marks[1:])))
+    return m
+
+
+def _best_seek(seek: float, dur: float, n: float, cuts: Sequence[float], spans: Sequence[Tuple[float, float]]) -> Optional[float]:
+    opts = [round(k * 0.04, 2) for k in range(int(max(0.0, n - 0.04 - dur) / 0.04) + 1)]
+    if not opts:
+        return None
+    return max(opts, key=lambda o: (round(_min_piece(o, spans, cuts), 2), -abs(o - seek)))
+
+
+def _visible_spans(sh: Any, end: float, cov: Sequence[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    out, cur = [], sh.start
+    for x, y in list(cov) + [(end, end)]:
+        if y <= cur or x >= end:
+            continue
+        if x - cur > 0.04:
+            out.append((cur - sh.start, min(x, end) - sh.start))
+        cur = max(cur, y)
+    if end - cur > 0.04:
+        out.append((cur - sh.start, end - sh.start))
+    return out
+
+
+def no_flash(plan: Any, counts: Dict[str, int], cuts=None, probe=None, picture=None) -> None:
+    cuts = cuts or source_cuts
+    probe = probe or _clip_seconds
+    shots = sorted(plan.shots, key=lambda x: x.start)
+    cov = _spans_union([_cover_span(ly) for ly in plan.layers if _covers(ly)])
+    for i, sh in enumerate(shots):
+        end = min(sh.end, shots[i + 1].start) if i + 1 < len(shots) else sh.end
+        dur = sh.end - sh.start
+        n = probe(str(sh.path)) if sh.path else None
+        if not n or dur <= 0:
+            continue
+        cs = [c for c in (cuts(str(sh.path)) or []) if 0.0 < c < n]
+        spans = _visible_spans(sh, end, cov)
+        if not cs or not spans:
+            continue
+        seek = float(getattr(sh, "seek", 0.0) or 0.0)
+        new = _clean_seek(seek, dur, n, cs, spans)
+        if new is None:
+            # a short edit with no clean window this long: play one whole source shot from its start, and hand the rest of the time
+            # to the next clip (which starts that much earlier from its own earlier frames)
+            nxt = shots[i + 1] if i + 1 < len(shots) and abs(shots[i + 1].start - sh.end) < 0.05 else None
+            runs = [(a + CUT_MARGIN_S, b - CUT_MARGIN_S) for a, b in zip([-CUT_MARGIN_S] + cs, cs + [n - 0.04 + CUT_MARGIN_S])]
+            done = False
+            for a0, b0 in sorted(runs, key=lambda r: -(r[1] - r[0])):
+                keep = b0 - a0
+                give = dur - keep
+                if keep < max(SLIVER_S, MIN_SHOT_S * 0.5) or nxt is None or nxt.seek < give - 1e-6:
+                    continue
+                cut_at = fr(sh.start + keep)
+                shots[i] = dataclasses.replace(sh, seek=round(a0, 3), end=cut_at)
+                shots[i + 1] = dataclasses.replace(nxt, start=cut_at, seek=round(nxt.seek - (nxt.start - cut_at), 3), dissolve_in=0.0)
+                counts["flash_cut_trimmed"] = counts.get("flash_cut_trimmed", 0) + 1
+                done = True
+                break
+            if not done:                          # best effort: the start whose shortest visible piece is longest (a quick cut, not a frame)
+                best = _best_seek(seek, dur, n, cs, spans)
+                if best is not None and abs(best - seek) > 1e-3:
+                    shots[i] = dataclasses.replace(sh, seek=best)
+                counts["flash_cut_kept"] = counts.get("flash_cut_kept", 0) + 1
+        elif abs(new - seek) > 1e-3:
+            shots[i] = dataclasses.replace(sh, seek=new)
+            counts["flash_cut_moved"] = counts.get("flash_cut_moved", 0) + 1
+    plan.shots[:] = shots
+    # what no seek can clean sits next to a card (a clip too short to dodge its last cut, a news clip's flash-cut opening): the card
+    # takes the sliver (the next card starts at the cut, or the one before holds until the source settles), never more than SLIVER_S
+    total = max((x.end for x in shots), default=0.0)
+    for _round in range(300):                      # one move per measure; a video has a few dozen at most
+        moved = False
+        for a, b, path in visible_footage_pieces(plan, total, picture=picture, cuts=cuts):
+            if b - a >= SLIVER_S - 1e-6:
+                continue
+            before = [ly for ly in plan.layers if _covers(ly) and abs(_cover_span(ly)[1] - a) < 0.06]
+            after = [ly for ly in plan.layers if _covers(ly) and abs(_cover_span(ly)[0] - b) < 0.06]
+            if before:
+                ly = max(before, key=lambda x: x.end)
+                ly.end = fr(ly.end + (b - a))
+            elif after:
+                ly = min(after, key=lambda x: x.start)
+                ly.start = fr(ly.start - (b - a))
+            else:
+                continue
+            counts["flash_sliver_covered"] = counts.get("flash_sliver_covered", 0) + 1
+            moved = True
+            break                                  # pieces change after each move: measure again
+        if not moved:
+            break
+    # a clip glimpsed under SLIVER_S between two full-frame cards: the card before it holds until the next one
+    full = sorted((ly for ly in plan.layers if _opaque(ly)), key=lambda x: x.start)
+    for i, a in enumerate(full[:-1]):
+        b = min(full[i + 1:], key=lambda x: x.start)
+        gap = b.start - a.end
+        if 0.0 < gap < SLIVER_S and any(sh.start < b.start - 0.01 and sh.end > a.end + 0.01 for sh in plan.shots):
+            a.end = b.start
+            counts["flash_glimpse_covered"] = counts.get("flash_glimpse_covered", 0) + 1
 
 
 def _has_frames(sh: Any, extra: float) -> bool:
@@ -3362,6 +3510,7 @@ def harden_measured(plan: Any, scenes: Sequence[Dict[str, Any]], plate_path: Opt
     _absorb_short_pieces(plan, rows, cat, {}, counts, total, hook_end)
     _cover_plate(plan, rows, cat, {}, counts, total)
     protect_earned(plan, rows, counts)
+    no_flash(plan, counts)
     _prune_marks(plan, counts)
     plan.layers.sort(key=draw_order)          # the planner's own order: the later start is drawn on top
     return counts

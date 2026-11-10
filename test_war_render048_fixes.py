@@ -137,3 +137,36 @@ class InterviewClips(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NoFlash(unittest.TestCase):
+    """2026-11-10 owner: "some clips just came for a mini sec ... falling back or glitching": a frame of the source's next shot showed where
+    a clip's played part began or ended next to a cut inside the source file."""
+
+    def _plan(self, shots, layers=()):
+        from types import SimpleNamespace
+        from cinematic_explainer.render import Shot, Layer
+        return SimpleNamespace(shots=[Shot(p, a, b, seek=s) for p, a, b, s in shots], layers=[Layer(*x) for x in layers])
+
+    def pieces(self, plan, cuts):
+        return [(round(a, 2), round(b, 2)) for a, b, _p in D.visible_footage_pieces(plan, 100.0, picture=lambda p: True, cuts=cuts)]
+
+    def test_the_played_part_moves_off_a_cut_inside_the_clip(self):
+        cuts = lambda p: [4.0]
+        plan = self._plan([("a.mp4", 0.0, 3.9, 0.0)])
+        D.no_flash(plan, {}, cuts=cuts, probe=lambda p: 12.0, picture=lambda p: True)
+        self.assertTrue(all(b - a >= D.SLIVER_S for a, b in self.pieces(plan, cuts)))
+        sh = plan.shots[0]
+        self.assertFalse(any(sh.seek - D.CUT_MARGIN_S < c < sh.seek + 3.9 + D.CUT_MARGIN_S for c in cuts("a")))
+
+    def test_a_clip_too_short_to_dodge_its_cut_hands_the_sliver_to_the_next_card(self):
+        cuts = lambda p: [4.1]
+        plan = self._plan([("a.mp4", 0.0, 4.04, 0.44)], [("tac_map", 4.04, 8.0, {})])
+        D.no_flash(plan, {}, cuts=cuts, probe=lambda p: 4.5, picture=lambda p: True)
+        self.assertTrue(all(b - a >= D.SLIVER_S for a, b in self.pieces(plan, cuts)))
+
+    def test_a_flash_cut_opening_after_a_card_stays_under_the_card(self):
+        cuts = lambda p: [0.2, 0.3, 0.4]
+        plan = self._plan([("a.mp4", 0.0, 7.5, 0.0)], [("tac_map", 0.0, 0.12, {})])
+        D.no_flash(plan, {}, cuts=cuts, probe=lambda p: 7.6, picture=lambda p: True)
+        self.assertTrue(all(b - a >= D.SLIVER_S for a, b in self.pieces(plan, cuts)))
