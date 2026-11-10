@@ -422,7 +422,9 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
         inside = lambda ly: ly.start >= t0 - 0.05 and ly.end <= t1 + 0.6   # noqa: E731
         merged = [ly for ly in plan.layers if inside(ly) and ly.kind in REPLACED and not (ly.params or {}).get("csv_graphic")]
         plan.layers[:] = [ly for ly in plan.layers if ly not in merged]
-        blocks = sorted([(ly.start, ly.end) for ly in plan.layers if (ly.kind in full_kinds or (ly.params or {}).get("csv_graphic"))
+        # only a full-frame card splits the map; a corner graphic the CSV asked for (a locator, a label) sits on the map instead of
+        # cutting a hole in it (render 048: an empty backdrop with a corner locator where the map should have been)
+        blocks = sorted([(ly.start, ly.end) for ly in plan.layers if ly.kind in full_kinds
                          and ly.end > t0 and ly.start < t1] + [(a, b) for a, b in earned_spans if b > t0 and a < t1])     # a map never covers an earned clip
         cur, pieces = t0, []
         for a, b in blocks + [(t1, t1)]:

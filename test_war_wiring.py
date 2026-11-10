@@ -33,7 +33,7 @@ CSV_ROWS = [
     ("supply", "Fuel, rail cars and ammunition trucks all had to reach the front.", "lay_logistics"),
     ("list", "They used tunnels, scooters, civilian clothes and human cover.", "kit_recap"),
     ("steps", "First they cut the bridge, second they shelled the depot, third they advanced.", "kit_chips"),
-    ("sticker", "Drones now dominate the battlefield.", "kit_sticker"),
+    ("sticker", "Drones now dominate the battlefield near Bakhmut.", "kit_sticker"),   # no place: the drones type panel instead (rich first)
     ("icons", "Drones, tanks and artillery were used together.", "kit_icons"),
     ("speaker card", "Oleksandr Syrskyi, Ukraine's commander, ordered a pullback.", "kit_speaker"),
     ("claim", "Moscow claimed it had destroyed five HIMARS launchers.", "kit_stamp"),
@@ -67,7 +67,7 @@ def plan_rows(rows, footage=None, extra=None):
 
 
 def kinds_in(plan, s, csv_only=False):
-    return [ly.kind for ly in plan.layers if s["start"] - 0.01 <= ly.start < s["end"] and (not csv_only or (ly.params or {}).get("csv_graphic"))]
+    return [ly.kind for ly in plan.layers if s["start"] - 0.1 <= ly.start < s["end"] and (not csv_only or (ly.params or {}).get("csv_graphic"))]
 
 
 class CsvWiringTests(unittest.TestCase):

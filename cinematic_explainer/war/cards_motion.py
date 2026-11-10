@@ -213,6 +213,9 @@ def _paper(w: int, h: int, seed: int) -> Image.Image:
     return im
 
 
+DOSSIER_TYPED = 0.6
+
+
 def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     p = p or {}
     title = str(p.get("title") or "").strip().upper()
@@ -230,7 +233,13 @@ def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     sheet = _memo("mpaper" + str(seed) + "x" + str(ph), lambda: _paper(pw, ph, seed)).copy()
     d = ImageDraw.Draw(sheet)
     n_title = sum(len(x) for x in tl)
-    typed = int(n_title * _k(t, 0.45, max(0.6, min(1.4, n_title * 0.045))))
+    n_body0 = sum(len(x) for x in _wrap(body, fb, pw - 100, 0.01, 6)) if body else 0
+    d_title, d_body = max(0.6, min(1.4, n_title * 0.045)), (max(0.8, min(2.2, n_body0 * 0.02)) if body else 0.0)
+    # all typing done by DOSSIER_TYPED of the card's time, so the whole text is read before it fades (render 048: a 4.4 s card was
+    # still typing 'creates another opportun' a moment before it went)
+    sc = min(1.0, (DOSSIER_TYPED * dur) / (0.45 + d_title + 0.2 + d_body)) if dur > 0 else 1.0
+    d_title, d_body = d_title * sc, d_body * sc
+    typed = int(n_title * _k(t, 0.45 * sc, d_title))
     y, left = 70, typed
     for ln in tl:
         part = ln[:max(0, left)]
@@ -240,11 +249,11 @@ def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         y += 60
     d.rectangle([50, y + 4, pw - 50, y + 7], fill=KRED)
     y += 30
-    t_body = 0.45 + max(0.6, min(1.4, n_title * 0.045)) + 0.2
+    t_body = (0.45 + 0.2) * sc + d_title
     if body:
         bl = _wrap(body, fb, pw - 100, 0.01, 6)
         n_body = sum(len(x) for x in bl)
-        shown = int(n_body * _k(t, t_body, max(0.8, min(2.2, n_body * 0.02))))
+        shown = int(n_body * _k(t, t_body, d_body))
         left = shown
         for ln in bl:
             part = ln[:max(0, left)]
@@ -255,7 +264,7 @@ def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
                     at = low.find(m)
                     if 0 <= at and at + len(m) <= len(part):
                         x0 = 50 + _sw(ln[:at], fb, 0.01)
-                        k = M.ease_out(_k(t, t_body + 1.4, 0.4))
+                        k = M.ease_out(_k(t, t_body + min(1.4, d_body), 0.4))
                         if k > 0:
                             d.rectangle([x0 - 4, y + 2, x0 - 4 + (_sw(ln[at:at + len(m)], fb, 0.01) + 8) * k, y + 36], fill=(255, 222, 60, 255))
                 L.spaced(d, (50, y), part, fb, (40, 38, 36, 255), 0.01)

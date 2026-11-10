@@ -74,11 +74,12 @@ def _phrase(sentence: str) -> str:
     """3-6 words that end on a natural boundary (comma, 'and', 'because' ...), taken verbatim from the sentence; '' when there is none."""
     for piece in re.split(r"(?<!\d),|,(?!\d{3}\b)|;|:| because | while | and | but | which | that | so ", sentence.strip()):   # '2,000' is one word
         w = piece.strip(" .\"'").split()
-        if 3 <= len(w) <= 6 and w[-1].lower() not in _STOP_END and not _weak_piece(w):
+        if 3 <= len(w) <= 6 and w[-1].lower() not in _STOP_END and not _weak_piece(w) and w[0].lower() not in _PIECE_BAD_OPEN:
             return " ".join(w)
     return ""
 
 
+_PIECE_BAD_OPEN = {"into", "onto", "beyond", "than", "of", "to", "that", "which", "this", "it", "its", "whose", "where", "what"}   # 'into the defence sector'
 _WEAK_OPEN = re.compile(r"^(these|those|this|that|it|they|there|he|she|we)\s+(are|is|was|were|'s|’s)$", re.IGNORECASE)
 _DANGLING_VERB = {"showed", "shows", "show", "said", "says", "claimed", "claims", "meant", "means", "found", "finds", "suggests", "suggested",
                   "proved", "proves", "warned", "believed", "thought", "knew", "argued", "added", "noted", "reported", "explained"}
@@ -86,8 +87,30 @@ _DANGLING_VERB = {"showed", "shows", "show", "said", "says", "claimed", "claims"
 
 def _weak_piece(w: Sequence[str]) -> bool:
     """A fragment that says nothing on screen (Black Sea film, 2026-11-09): 'These are small' (pronoun + to be + one word), or a clause that
-    stops on its reporting verb ('the war at sea showed')."""
-    return bool(_WEAK_OPEN.match(" ".join(w[:2]))) and len(w) <= 4 or w[-1].strip(",;:").lower() in _DANGLING_VERB
+    stops on its reporting verb ('the war at sea showed'). Novorossiysk render (2026-11-10): 'This is what', 'And its access', 'But one',
+    'It is not simply trying', 'The supposed safe haven has become', 'The importance of NLMK extends beyond' filled whole screens: a piece
+    needs two content words and must not stop on a word that leaves the thought open."""
+    if not w:
+        return True
+    if bool(_WEAK_OPEN.match(" ".join(w[:2]))) and len(w) <= 4 or w[-1].strip(",;:").lower() in _DANGLING_VERB:
+        return True
+    if w[-1].strip(",;:.!?\"'").lower() in _OPEN_END:
+        return True
+    return _content_count(w) < 2
+
+
+_FUNCTION_WORDS = {"it", "they", "he", "she", "we", "you", "i", "there", "here", "what", "where", "why", "how", "who", "when", "one", "just",
+                   "simply", "not", "no", "also", "even", "still", "now", "then", "so", "has", "have", "had", "be", "been", "being", "can",
+                   "could", "will", "would", "may", "might", "must", "should", "do", "does", "did", "us", "our", "your", "my", "me", "them",
+                   "brings", "bring", "make", "makes", "get", "gets", "only", "all", "some", "any", "every", "each", "if", "whether", "yet",
+                   "become", "becomes", "became", "today", "s", "is", "are", "was", "were", "it's", "that's", "here's", "there's"}
+_OPEN_END = {"become", "becomes", "became", "beyond", "where", "what", "why", "how", "who", "when", "whom", "whose", "trying", "simply", "one",
+             "if", "whether", "like", "about", "just", "also", "even", "still", "not", "can", "could", "will", "would", "must", "should", "has",
+             "have", "had", "been", "being", "be", "do", "does", "did", "every", "each", "another", "such", "both", "either"}
+
+
+def _content_count(w: Sequence[str]) -> int:
+    return sum(1 for x in w if (y := x.strip(",;:.!?\"'()“”‘’").lower()) and y not in _FUNCTION_WORDS and y not in _STOP_END)
 
 
 _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from", "and", "or", "but", "that", "which", "is", "are", "was",
@@ -96,9 +119,8 @@ _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by"
 
 
 def _phrase_or_lead(sentence: str) -> str:
-    """_phrase, else the sentence's first 3-6 words ending on a content word (verbatim): a long sentence with no comma still gives a tag.
-    A short payoff after a colon ('Then Ukraine turned to a new weapon: sea drones') is the line itself; a lead never stops inside a
-    noun phrase ('... to a new')."""
+    """_phrase, else the whole sentence when it is short (LEAD_MAX_WORDS) and says something; '' otherwise (no card beats a fragment).
+    A short payoff after a colon ('Then Ukraine turned to a new weapon: sea drones') is the line itself."""
     if ":" in sentence:
         tail = sentence.rsplit(":", 1)[1].strip(" .\"'")
         if 1 <= len(tail.split()) <= 5 and not re.search(r"\d", tail):
@@ -106,13 +128,39 @@ def _phrase_or_lead(sentence: str) -> str:
     h = _phrase(sentence)
     if h:
         return h
-    w = sentence.strip(" .\"'").split()
-    for n in range(min(6, len(w)), 2, -1):
-        cut_np = (n >= 2 and w[n - 2].lower() in ("a", "an", "the") and n < len(w) and not w[n - 1].endswith((",", ";", ":"))
+    # No natural break: the whole sentence when it is short and says something. Otherwise its first 3-6 words only when they open on what
+    # the sentence is about and close on a name or a figure ('Losses rose from 2,000 in March', 'Thousands of kilometres inside Russia'):
+    # Novorossiysk render 2026-11-10 filled whole screens with leads like 'The importance of NLMK extends beyond' and 'This is what'.
+    w = sentence.strip(" .\"'!?").split()
+    if 2 <= len(w) <= LEAD_MAX_WORDS and not _weak_piece(w):
+        return " ".join(w).rstrip(",;:")
+    if not w or w[0].strip(",;:").lower() in _WEAK_LEAD_OPEN:
+        return ""
+    for n in range(min(6, len(w) - 1), 2, -1):
+        last = w[n - 1].strip(",;:'’\"")
+        named = (bool(re.search(r"\d", last)) or (last[:1].isupper() and n > 1)) and not last.lower().endswith(("'s", "’s"))
+        if named and not _weak_piece(w[:n]):
+            return " ".join(w[:n]).rstrip(",;:")
+    for n in range(min(6, len(w) - 1), 2, -1):
+        cut_np = (w[n - 2].lower() in ("a", "an", "the") and not w[n - 1].endswith((",", ";", ":"))
                   and w[n].strip(",;:.").lower() not in _STOP_END)      # 'a new | weapon' cuts a noun phrase; 'the map | of' does not
         if w[n - 1].strip(",;:").lower() not in _STOP_END and not cut_np and not _weak_piece(w[:n]):
             return " ".join(w[:n]).rstrip(",;:")
     return ""
+
+
+LEAD_MAX_WORDS = 8
+
+
+def _title_lead(sentence: str) -> str:
+    """The sentence's first 3-6 words ending on a content word: only for a card that shows the whole sentence under it (the dossier)."""
+    w = sentence.strip(" .\"'").split()
+    for n in range(min(6, len(w)), 2, -1):
+        if w[n - 1].strip(",;:").lower() not in _STOP_END and w[n - 1].strip(",;:").lower() not in _OPEN_END and _content_count(w[:n]) >= 2:
+            return " ".join(w[:n]).rstrip(",;:")
+    return ""
+_WEAK_LEAD_OPEN = {"and", "but", "so", "or", "this", "that", "these", "those", "it", "its", "there", "here", "what", "which", "who", "they",
+                   "then", "yet", "because", "if", "when", "while", "as", "even", "every", "each", "one", "some", "brings", "now"}
 
 
 def fr(t: float) -> float:
@@ -675,12 +723,19 @@ _COUNT_W = re.compile(r"\b(two|three|four|five|six|\d)\s+(?:[A-Z][\w-]+\s+){0,2}
 _NUM_W = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 
 
+_SIDE_WEAPON = re.compile(r"\b(ukrainian|ukraine's|russian|russia's)\s+(?:[\w-]+\s+){0,3}?(missiles?|drones?|strikes?|attacks?|rockets?|"
+                          r"sea drones?|naval drones?|forces|navy|air force)\b", re.I)
+
+
 def _attacker(text: str) -> str:
     """'ua' / 'ru' / '' : who fires, from the weapon or the side named before the strike verb. Never guessed."""
     if _UA_WEAPON.search(text):
         return "ua"
     if _RU_WEAPON.search(text):
         return "ru"
+    m = _SIDE_WEAPON.search(text)    # 'While Russia's ships are trapped ..., Ukrainian missiles and drones are reaching ...': the weapon's side
+    if m:
+        return "ua" if m.group(1).lower().startswith("ukrain") else "ru"
     sv = _STRIKE_V.search(text)
     head = text[:sv.start()] if sv else text
     sides = [("ua" if m.group(0).lower().startswith(("ukrain", "kyiv")) else "ru")
@@ -696,7 +751,16 @@ def _side_cities(side: str) -> List[Dict[str, Any]]:
     except Exception:  # noqa: BLE001
         return []
     want = "Ukraine" if side == "ua" else "Russia"
-    return [e for e in es if e.get("type") == "city" and e.get("region") == want and e.get("lat") is not None]
+    out = [e for e in es if e.get("type") == "city" and e.get("region") == want and e.get("lat") is not None]
+    if side == "ua":                 # a Ukrainian missile never leaves a town Russia holds (render 048 launched from Berdiansk)
+        out = [e for e in out if str(e.get("name", "")).lower() not in _RU_HELD]
+    return out
+
+
+_RU_HELD = {"berdiansk", "mariupol", "melitopol", "donetsk", "luhansk", "horlivka", "makiivka", "henichesk", "nova kakhovka", "enerhodar",
+            "tokmak", "skadovsk", "sievierodonetsk", "severodonetsk", "lysychansk", "bakhmut", "avdiivka", "alchevsk", "kadiivka",
+            "starobilsk", "volnovakha", "debaltseve", "yasynuvata", "khrustalnyi", "rovenky", "dovzhansk", "sverdlovsk", "chornomorske",
+            "vuhledar", "marinka", "popasna", "rubizhne", "svatove", "kreminna", "polohy", "vasylivka", "kherson oblast left bank"}
 
 
 def _one_sided_strike(text: str, places: Sequence[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
@@ -1007,6 +1071,8 @@ _PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split
                   "timeline": ("timeline",), "institution": ("institution",), "source": ("evidence",),
                   "claim": ("evidence", "figure")}   # a leader's claim with no outlet line: the claimant's portrait card carries it
 CSV_MAX_S, CSV_MIN_S = 8.0, 3.0
+LIGHT_ASKS = {"kinetic", "keywords", "radar", "dossier", "sticker"}    # label / big word / caption: a figure or words over the playing clip, kept
+RICH_PANEL_KINDS = ("number", "compare", "split", "equipment", "figure", "timeline", "institution", "evidence")
 TEXT_CARD_KINDS = {"kit_title", "kit_datecard", "kit_kinetic", "kit_keywords"}
 TEXT_CARD_MAX_S = 4.5
 
@@ -1054,6 +1120,19 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
     seed = int(r["_no"]) if str(r["_no"]).isdigit() else 0
     h = _phrase_or_lead(sents[0].text) if sents else ""
     full = lambda k, p: Layer(k, r["_start"], r["_end"], dict(p, seed=seed), dim=(k in DIM))   # noqa: E731
+    if kind in LIGHT_ASKS:
+        # The owner (2026-11-10): the rich panels must show up every time the narration supports one. A light text ask (kinetic words, a
+        # big word, a caption ...) on a sentence that carries a stat, a comparison, a weapon type, a person, dates or a cited source gets
+        # that rich panel instead.
+        rich = _planner_layer(r, cfg, cat, RICH_PANEL_KINDS)
+        if rich is not None:
+            return rich, ""
+        from . import graphics_lib as GL
+
+        for sent in sents:
+            ch = GL.chart_of(sent.text, sent.numbers)
+            if ch:
+                return full("kit_chart", ch), ""
     if kind in _PLANNER_KINDS:
         ly = _planner_layer(r, cfg, cat, _PLANNER_KINDS[kind])
         if ly is None and kind == "number":       # a figure the parser could not pair with its referent: labelled with the narration's next words
@@ -1108,7 +1187,7 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
                     a = max(r["_start"], A.time_at(lab[1]) - 0.1)
                     return Layer("bc_label", a, min(r["_end"] + 0.4, a + 2.8), {"text": lab[0], "sub": lab[2]}, dim=False), ""
             elif kind == "bc_caption":
-                cap = _bc._caption_of(sent, text) or (" ".join(sent.text.split()[:14]) if sent.text else None)
+                cap = _bc._caption_of(sent, text)      # reported or quoted words only: never a sentence cut at 14 words
                 if cap:
                     a = A.time_at(sent.span[0]) + 0.2
                     return Layer("bc_caption", a, min(r["_end"] + 0.3, a + min(5.0, max(2.6, len(cap.split()) * 0.36))),
@@ -1118,10 +1197,7 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
                 if bw:
                     a = max(r["_start"], A.time_at(bw[2]) - 0.15)
                     return Layer("bc_bigword", a, min(r["_end"] + 0.3, a + 2.6), {"text": bw[0], "sub": bw[1], "accent": "yellow"}, dim=False), ""
-        if kind == "bc_bigword":
-            h2 = _phrase_or_lead(sents[0].text) if sents else ""
-            if h2:
-                return Layer("bc_bigword", r["_start"] + 0.2, min(r["_end"], r["_start"] + 2.8), {"text": " ".join(h2.split()[:3]), "accent": "yellow"}, dim=False), ""
+        # 'big word' is a figure; a sentence without one no longer shows its first three words ('Every damaged industrial', render 048)
         return None, f"the narration has nothing for a {kind[3:]}"
     if kind == "locator":
         for sent in sents:
@@ -1304,6 +1380,8 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             return Layer("kit_sticker", r["_start"], min(r["_end"], r["_start"] + 4.0),
                          {"name": found[0][1], "x": 0.68, "y": 0.46, "size": 260, "label": found[0][2].upper(), "label_style": "tape"}, dim=True), ""
         return None, "nothing the icon set can draw"
+    if kind == "dossier" and not h and sents:
+        h = _title_lead(sents[0].text)        # the body types the whole sentence: a short title from its first words is enough
     if kind in ("kinetic", "dossier", "radar", "keywords"):
         if not sents or not h:
             return None, "no words"
@@ -1328,13 +1406,16 @@ def _csv_wins(plan: Any, counts: Dict[str, int]) -> None:
         return
     csv_full = [(ly.start, ly.end) for ly in plan.layers if (ly.params or {}).get("csv_graphic") and ly.kind in FULL_KINDS
                 and not (ly.params or {}).get("over")]
+    csv_big = [(ly.start, ly.end) for ly in plan.layers if (ly.params or {}).get("csv_graphic")
+               and not (ly.kind in CORNER_KINDS and ly.kind not in FULL_KINDS)]
     keep = []
     for ly in plan.layers:
         if (ly.params or {}).get("csv_graphic") or ly.kind in SOFT or ly.kind in ("shot_headline", "kit_badge", "kit_grain"):
             keep.append(ly)
             continue
         # a small card (name, stamp, tag, sticker, fly-over ...) lies beside an overlay the CSV asked for; only a full-frame CSV card hides it
-        span = csv_full if ly.kind in CORNER_KINDS else csv
+        # ... and a corner card the CSV asked for (locator, label, caption) never cuts a full-frame map or panel (render 048)
+        span = csv_full if ly.kind in CORNER_KINDS else csv_big
         hit = [(a, b) for a, b in span if ly.start < b - 0.01 and ly.end > a + 0.01]
         if not hit:
             keep.append(ly)
@@ -1380,8 +1461,12 @@ def _csv_graphics(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any]
         if ly.kind in MOTION_KINDS and dec is not None and "no_footage" not in dec.flags:
             ly.params["over"] = True             # a YouTube / stock row: the graphic lies over the playing clip instead of hiding it
             ly.dim = False
+        # A corner or over-the-clip graphic (locator, label, caption, big word, sticker) only replaces another small card: the full-frame
+        # panel or map under it stays (render 048: a corner locator over a no-footage row wiped the map and left an empty backdrop).
+        small = ly.kind in CORNER_KINDS and ly.kind not in FULL_KINDS
         plan.layers[:] = [x for x in plan.layers if not (x.kind not in SOFT and x.kind not in ("shot_headline", "kit_badge")
-                                                           and x.start < b and x.end > a and not (x.params or {}).get("csv_graphic"))]
+                                                           and x.start < b and x.end > a and not (x.params or {}).get("csv_graphic")
+                                                           and not (small and x.kind in FULL_KINDS and not (x.params or {}).get("over")))]
         if ly.kind in FULL_KINDS or ly.kind in ("lay_inset",):
             _yield_headline(plan, a, b)
         plan.layers.append(ly)
@@ -1398,7 +1483,164 @@ def _csv_graphics(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any]
 # (a map for a place or country, icons or a sticker for the things named, a list recap, an inset caption or a hook tag). The least used
 # kind so far goes first, so one video shows the whole kit instead of the same card again and again.
 GRAPHIC_GAP = 10.0
+FLOOR_RICH = {"kit_chart", "lay_document"}
 _NOT_A_GRAPHIC = SOFT | {"shot_headline", "kit_ribbon", "kit_stamp", "kit_flag"}     # small marks; a gap with only these is still empty
+
+
+# ------------------------------------------------------------------------------------------------ strike maps -------------------------
+# The owner (2026-11-10, Novorossiysk render): "the animated map and other engaging things was not shown". 49 sentences named a strike,
+# but strike lines sit on footage rows, where the rules only gave a corner locator or a text card: 2 of 62 maps moved. Now a sentence
+# that names a strike AND a place it can pin gets the moving strike map (the missile or drone flies from the attacker's side to the target,
+# the camera follows, the target pulses), over the clip for a few seconds. It replaces light cards (kinetic words, keywords, radar,
+# stickers, a still map) in those seconds, never a rich panel, a quote or a date card, and never real footage of the event itself.
+STRIKE_MAP_GAP = 12.0
+STRIKE_MAP_MIN_S, STRIKE_MAP_MAX_S = 3.8, 6.5
+_LIGHT_LAYERS = {"kit_kinetic", "kit_keywords", "kit_radar", "kit_sticker", "kit_tag", "lay_inset", "map_inset", "kit_icons", "kit_dossier",
+                 "kit_flyover", "bc_bigword", "bc_label", "map_card", "kit_recap", "kit_field"}
+
+
+BACK_REF_S = 150.0
+_BACK_REF = re.compile(r"\b(?:the|that|this)\s+(?:same\s+)?(?:port|harbou?r|base|naval base|city|town|terminal|refinery|plant|facility|"
+                       r"airfield|air base|shipyard|dock|bay)\b", re.I)
+
+
+_SIDE_VERB = re.compile(r"\b(ukraine|ukrainian forces|kyiv|russia|russian forces|moscow)\b(?:'s)?\s+(?:\w+\s+){0,2}?"
+                        r"(?:struck|strikes|hit|hits|attacked|attacks|launched|launches|targeted|targets|bombed|shelled|fired)\b", re.I)
+
+
+def _stated_attacker(text: str) -> str:
+    """'ua' / 'ru' only when the text says who fires: a side's own weapon ('Neptune', 'Shahed'), 'Ukrainian drones', or 'Ukraine struck'."""
+    if _UA_WEAPON.search(text):
+        return "ua"
+    if _RU_WEAPON.search(text):
+        return "ru"
+    m = _SIDE_WEAPON.search(text) or _SIDE_VERB.search(text)
+    if not m:
+        return ""
+    return "ua" if m.group(1).lower().startswith(("ukrain", "kyiv")) else "ru"
+
+
+def _light(ly: Any) -> bool:
+    return ly.kind in _LIGHT_LAYERS or (ly.kind == "tac_map" and not (ly.params or {}).get("routes"))
+
+
+def _strike_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int]) -> None:
+    earned = [(r["_start"], r["_end"]) for r in earned_rows(rows)]
+    last = -999.0
+    recent, recent_at = None, -999.0              # the place the narration named last ('the port' further on means it)
+    for r in rows:
+        text = str(r.get("text") or "")
+        dec = log_by_no.get(str(r["_no"]))
+        if r["_start"] - recent_at > BACK_REF_S:
+            recent = None
+        if dec is None or not _STRIKE_V.search(text):
+            if text.strip():
+                A0 = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
+                for s0 in A0.sentences:
+                    own = _places(s0)
+                    if own:
+                        recent, recent_at = own[-1], r["_start"]
+            continue
+        # a checked clip keeps its scene: the strike map is then the one short insert such a scene may have (EARNED_INSERT_S)
+        on_earned = any(a < r["_end"] - 0.05 and b > r["_start"] + 0.05 for a, b in earned)
+        A = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
+        for sent in A.sentences:
+            if not _STRIKE_V.search(sent.text):
+                own = _places(sent)
+                if own:
+                    recent, recent_at = own[-1], r["_start"]
+                continue
+            pl = _places(sent)
+            if pl:
+                recent, recent_at = pl[-1], r["_start"]
+            elif recent is not None and _BACK_REF.search(sent.text):
+                pl = [recent]                         # 'a major combined attack against the port': the port the story just named
+            if not pl:
+                counts["strike_map_skip_no_place"] = counts.get("strike_map_skip_no_place", 0) + 1
+                continue
+            p = _tac_params(sent, pl, _countries(sent, as_place=True), False)
+            if not p:
+                continue
+            a, b = _sent_window(A, sent, r["_start"], r["_end"])
+            sv = _STRIKE_V.search(sent.text)
+            a = fr(max(a, A.time_at(sent.span[0] + sv.start()) - 1.2))      # the missile leaves as the strike is spoken, not late in the card
+            if a - last < STRIKE_MAP_GAP:
+                counts["strike_map_skip_gap"] = counts.get("strike_map_skip_gap", 0) + 1
+                continue
+            lo, hi = (EARNED_INSERT_S, EARNED_INSERT_S) if on_earned else (STRIKE_MAP_MIN_S, STRIKE_MAP_MAX_S)
+            b = fr(min(max(b, a + lo), a + hi, r["_end"] + (0.0 if on_earned else 1.5)))
+            if b - a < lo - 0.3:
+                counts["strike_map_skip_short"] = counts.get("strike_map_skip_short", 0) + 1
+                continue
+            side = _stated_attacker(sent.text) or _stated_attacker(text)
+            tgt = pl[-1]
+            reg = str(((getattr(tgt, "entry", None) or {}).get("region")) or "")
+            if not side or (side == "ua" and reg not in ("Russia", "Crimea")) or (side == "ru" and reg != "Ukraine"):
+                counts["strike_map_skip_side"] = counts.get("strike_map_skip_side", 0) + 1
+                continue                              # who fires and at whose ground must be stated, never guessed (render check: Tver -> Moscow)
+            p = _narrate_map(p, text, A, a, _countries_in(A))
+            if not p.get("routes"):
+                counts["strike_map_skip_no_side"] = counts.get("strike_map_skip_no_side", 0) + 1
+                continue                              # no side to fly from (never guessed): the map would not move
+            if any(ly.start < b - 0.3 and ly.end > a + 0.3 and ly.kind in FULL_KINDS and not _light(ly) for ly in plan.layers):
+                counts["strike_map_skip_busy"] = counts.get("strike_map_skip_busy", 0) + 1
+                continue                              # a rich panel, quote, date or moving map already holds these seconds
+            keep = []
+            for ly in plan.layers:
+                if _light(ly) and ly.start < b and ly.end > a:
+                    if ly.start <= a - 1.5:
+                        ly.end = fr(a - 0.05)         # what was on screen before ends as the strike starts
+                    elif ly.end >= b + 1.5 and ly.kind != "kit_field":
+                        ly.start = fr(b + 0.05)       # ... or carries on after it
+                    else:
+                        continue
+                keep.append(ly)
+            plan.layers[:] = keep
+            _yield_headline(plan, a, b)
+            plan.layers.append(Layer("tac_map", a, b, dict(p, strike_map=True), dim=False))
+            dec.flags.append("dir:strike_map")
+            dec.candidates.append({"kind": "tac_map", "score": 0.0, "reason": "direction: a strike on a named place: the strike flies on the map",
+                                   "accepted": True, "start": a, "end": b})
+            counts["strike_maps"] = counts.get("strike_maps", 0) + 1
+            last = a
+            break
+
+
+# The owner (2026-11-10): "we also had map animation and many types of maps pointing areas". In render 048, 43 of 66 maps were the same
+# Russia-red / Ukraine-blue country frame with nothing pinned. A map with no place of its own now points at the place the story named
+# last (within BACK_REF_S): the pin lands, a ring pulses on it and the camera pushes in from the countries to it. Never a place the
+# narration has not named.
+def _point_bare_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, counts: Dict[str, int]) -> None:
+    named: List[Tuple[float, str]] = []
+    for r in rows:
+        text = str(r.get("text") or "")
+        if not text.strip():
+            continue
+        A = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
+        for sent in A.sentences:
+            for e in _places(sent):
+                named.append((A.time_at(sent.span[0] + max(0, sent.text.find(e.name))), e.name))
+    if not named:
+        return
+    named.sort()
+    for ly in plan.layers:
+        p = ly.params or {}
+        if ly.kind != "tac_map" or p.get("places") or p.get("routes") or p.get("control") or p.get("frontline"):
+            continue
+        before = [nm for t, nm in named if ly.start - BACK_REF_S <= t <= ly.end]
+        if not before:
+            continue
+        nm = before[-1]
+        q = dict(p)
+        q["theme"] = "tactical"
+        q["places"] = [{"name": nm, "start": 0.5}]
+        q["glyphs"] = [g for g in (p.get("glyphs") or []) if g.get("kind") != "ring"] + [{"kind": "ring", "place": nm, "start": 0.9}]
+        q.pop("frame", None)
+        q["focus"] = [[nm], [nm]]                     # wide on the region first, then in on the place
+        q["focus_times"] = [0.0, 1.2]
+        q["close_steps"] = [False, True]
+        ly.params = q
+        counts["maps_pointed"] = counts.get("maps_pointed", 0) + 1
 
 
 def _floor_options(sent: Any, has_footage: bool, layouts: bool) -> List[Tuple[str, Dict[str, Any], float]]:
@@ -1486,7 +1728,9 @@ def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_n
             dec = log_by_no.get(str(r["_no"]))
             has_footage = "no_footage" not in dec.flags
             opts = _floor_options(sent, has_footage, layouts)
-            opts.sort(key=lambda o: (o[0] == last_kind, used.get(o[0], 0)))     # least used first, never the same kind twice in a row
+            # the rich ones (a chart of the script's figures, a cited document) first whenever the sentence has them; then least used first,
+            # never the same kind twice in a row
+            opts.sort(key=lambda o: (o[0] not in FLOOR_RICH, o[0] == last_kind, used.get(o[0], 0)))
             full = [(ly.start, ly.end) for ly in plan.layers if ly.kind in FULL_KINDS]
             for kind, params, secs in opts:
                 ign = ("shot_headline",)
@@ -2152,6 +2396,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         _broll_returns(plan, rows, log_by_no, meta_by_start, counts, earned=earned_paths)
     _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes, motion=bool(cfg.get("motion_fill", True)))
     _csv_wins(plan, counts)
+    if cfg.get("strike_maps", True):              # a strike on a named place: the missile flies to it on the map (the most engaging card)
+        _strike_maps(plan, rows, cat, log_by_no, counts)
+    if cfg.get("point_maps", True):               # a bare country map points at the place the story is about (pin, ring, push-in)
+        _point_bare_maps(plan, rows, cat, counts)
     if cfg.get("graphic_floor", True):
         _graphic_floor(plan, rows, cat, log_by_no, counts, float(cfg.get("graphic_gap", GRAPHIC_GAP)), float(cfg.get("first_at", 4.0)),
                        layouts=bool(cfg.get("layouts", True)))

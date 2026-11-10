@@ -611,10 +611,12 @@ def _cands_equipment(ctx: _Ctx, sent: SentenceInfo) -> List[Candidate]:
         out.append(_equipment_card(ctx, sent, e, has_attr))
     places = [e for e in sent.entities if e.kind == "place"]
     classes = {_CLASS_OF.get(g.name.lower(), "generic") for g in gen}
-    plural = [g for g in gen if g.name.lower().endswith("s") and g.name.lower() not in ("air defense", "air defence")]
-    event = re.search(r"\b(struck|strikes?|hit|hits|attack\w*|launched|fired|shot down|intercepted|bombed|shelled|destroyed)\b", sent.text, re.IGNORECASE)
-    if not equip and gen and (places or event or len(classes) > 1 or not plural):
-        # a place belongs on the map, several things on the icon explainer, and 'drones struck Vilnius' is an event (the map), not the weapon
+    plural = [g for g in gen if g.name.lower().endswith("s") or g.name.lower().replace("-", " ") in ("air defense", "air defence")]
+    # Novorossiysk render (2026-11-10): 66 sentences about warships, submarines, drones and air defence got no panel because they also
+    # said 'attack' or 'struck'. Only a named place sends the sentence to the map ('drones struck Vilnius'); an attack alone keeps the
+    # type card, so the rich panels show up through a long video instead of text cards.
+    if not equip and gen and (places or len(classes) > 1 or not plural):
+        # a place belongs on the map, several things on the icon explainer
         out.append(_rej("equipment", "ambiguous_entity", f"class word only ({', '.join(sorted({g.name.lower() for g in gen}))}): no system named", sent.index))
     elif not equip and gen:
         gen = plural

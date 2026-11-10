@@ -482,10 +482,13 @@ class CsvGraphicMoreKindsAndOverlay(unittest.TestCase):
         return planner.plan(sc)
 
     def test_each_kind_lands_in_its_own_scene_and_nothing_covers_it(self):
+        from cinematic_explainer.war.direction import CORNER_KINDS, FULL_KINDS
         p = self.plan()
         self.assertNotIn("error", p.stats["direction"])
         csv = sorted((ly for ly in p.layers if (ly.params or {}).get("csv_graphic")), key=lambda ly: ly.start)
-        self.assertEqual([ly.kind for ly in csv], ["lay_claim", "kit_bignum", "kit_flag", "kit_chips", "kit_sticker", "lay_logistics", "kit_datecard"])
+        # 2026-11-10, the owner: rich panels every time the narration supports one: 'sticker' on "Russian drones filled the sky" is the
+        # drones type panel
+        self.assertEqual([ly.kind for ly in csv], ["lay_claim", "kit_bignum", "kit_flag", "kit_chips", "lay_equipment_hero", "lay_logistics", "kit_datecard"])
         for i, ly in enumerate(csv):
             self.assertGreaterEqual(ly.start, i * 7.0 - 0.01)
             self.assertLessEqual(ly.end, i * 7.0 + 7.0 + 0.01)                     # never into the next scene
@@ -493,7 +496,9 @@ class CsvGraphicMoreKindsAndOverlay(unittest.TestCase):
         for ly in p.layers:
             if ly.kind in soft or ly.kind == "kit_field" or (ly.params or {}).get("csv_graphic"):     # kit_field is the opaque backing UNDER a transparent card
                 continue
-            self.assertFalse(any(ly.start < c.end - 0.01 and ly.end > c.start + 0.01 for c in csv), f"{ly.kind} covers a CSV graphic")
+            # 2026-11-10: a corner card the CSV asked for (sticker, chips, flag ...) sits on a map or panel; only a full-frame one hides it
+            big = [c for c in csv if not (c.kind in CORNER_KINDS and c.kind not in FULL_KINDS)]
+            self.assertFalse(any(ly.start < c.end - 0.01 and ly.end > c.start + 0.01 for c in big), f"{ly.kind} covers a CSV graphic")
 
     @unittest.skipUnless(HAVE_FFMPEG, "ffmpeg needed")
     def test_on_a_footage_row_the_cinematic_card_lies_over_the_clip(self):
@@ -519,7 +524,7 @@ class PhraseFixesFromTheStills(unittest.TestCase):
         from cinematic_explainer.war.direction import _after_date
 
         self.assertEqual(_after_date("In February 2022, Russian columns advanced from Belarus toward Kyiv.", "February 2022"),
-                         "Russian columns advanced from Belarus")
+                         "Russian columns advanced from Belarus toward Kyiv")    # 2026-11-10: a short line is shown whole, never cut
         self.assertEqual(_after_date("The invasion began in February 2022.", "February 2022"), "The invasion began")
 
     def test_a_name_and_role_is_not_a_list_but_a_list_of_actions_is(self):

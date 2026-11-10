@@ -246,18 +246,35 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
         if not cands:
             out[no] = {"source": "graphics", "subject": "", "why": "over the live-search limit and nothing like it in the library: War graphics"}
             continue
-        top = cands[0][0]
-        free = []
-        for s, pos, i in cands:
-            if s < top - 1:
-                break                       # only clips about as fitting as the best one take turns
-            u = uses.get(i) or []
-            if len(u) >= MAX_USES:
-                continue
-            if u and ((t is not None and u[-1][0] is not None and t - u[-1][0] < REUSE_GAP_S) or
-                      ((t is None or u[-1][0] is None) and idx - u[-1][1] < REUSE_GAP_SCENES)):
-                continue
-            free.append((len(u), -s, views[i].get("ai", False), pos, i))   # at the same fit, real footage before an AI clip
+        said = set(_tokens(f"{getattr(r, 'script_segment', '')} {_query(r)}")) - _STOP
+
+        def free_of(pool: Sequence[Tuple[int, int, int]], window: bool) -> List[Tuple[Any, ...]]:
+            top = pool[0][0] if pool else 0
+            got = []
+            for s, pos, i in pool:
+                if window and s < top - 1:
+                    break                       # only clips about as fitting as the best one take turns
+                u = uses.get(i) or []
+                if len(u) >= MAX_USES:
+                    continue
+                if u and ((t is not None and u[-1][0] is not None and t - u[-1][0] < REUSE_GAP_S) or
+                          ((t is None or u[-1][0] is None) and idx - u[-1][1] < REUSE_GAP_SCENES)):
+                    continue
+                # Novorossiysk render (2026-11-10): 107 of 191 shots were AI clips and 'gold bars' played over 'a constant flow of money'.
+                # Among clips that fit about as well: real footage before an AI clip, then the clip whose own description shares the most
+                # words with what is said, then the least used.
+                fit = len(views[i]["words"] & said)
+                got.append((views[i].get("ai", False), len(u), -s, -fit, pos, i))
+            return got
+
+        free = free_of(cands, True)
+        if not free:          # the best clips are used up: another clip that still fits, before the row loses its footage (render 048's last 3 min)
+            free = free_of(cands, False)
+        if not free and not relaxed:
+            more = candidates(_query(r), clips, views, relax=True)
+            free = free_of(more, False)
+            if free:
+                cands, relaxed = more, True
         if not free:
             subj = str(clips[cands[0][2]].get("subject") or "")
             out[no] = {"source": "graphics", "subject": subj, "why": f"library subject '{subj}' has no unused clip left for this scene"}

@@ -210,6 +210,7 @@ def score_clip(narr: Profile, meta: Optional[Dict[str, Any]], path: str = "") ->
         score += k
         reasons.append("shared words: " + ", ".join(sorted(shared)[:6]))
     contra += _graphic_source(meta, narr)
+    contra += _talking_head(meta, narr)
     if contra:
         score = max(0.0, score - 0.4)
     return {"score": round(min(1.0, score), 3), "reasons": reasons, "contradictions": contra, "subject_match": subject_match, "informative": True}
@@ -222,6 +223,21 @@ _GRAPHIC_TITLE = re.compile(r"\b(?:the map|maps?|mapped|mapping|map update|front
                             r"explained|explainer|analysis|debrief|breakdown|infographic|animated|animation|every day|day by day|timelapse)\b", re.IGNORECASE)
 _GRAPHIC_CHANNEL = re.compile(r"(?:mapper|maps?\b|mapping|debrief|analysis|explained|\bisw\b|deepstate|geopolitic)", re.IGNORECASE)
 _AREA = re.compile(r"(\d[\d,]*(?:\.\d+)?)\s*(?:km²|km2|sq\.? ?km|square kilomet(?:er|re)s)", re.IGNORECASE)
+
+
+# An interview, a press conference or a defence-expo stand is a person talking, not footage of what the line is about (render 048: a copper
+# company chairman over 'NLMK steel', a Naval News expo interview over 'missiles and drones'). Kept only when the line names a person.
+_TALK_TITLE = re.compile(r"\b(?:interview\w*|talks? (?:to|with)|speaks? (?:to|with)|in conversation|press (?:conference|briefing)|q ?& ?a|"
+                         r"chairman|ceo|chief executive|director general|podcast|panel discussion|exhibition|expo|trade (?:show|fair)|"
+                         r"idex|eurosatory|dsei|army-20\d\d|booth|stand at)\b", re.IGNORECASE)
+
+
+def _talking_head(meta: Optional[Dict[str, Any]], narr: "Profile") -> List[str]:
+    m = meta if isinstance(meta, dict) else {}
+    title = str(m.get("video_title") or m.get("title") or "")
+    if not title or narr.hits.get("figure") or not _TALK_TITLE.search(title):
+        return []
+    return [f"an interview or expo clip ('{title[:60]}') over a line that names no person: a talking head, not footage of it"]
 
 
 def _graphic_source(meta: Optional[Dict[str, Any]], narr: "Profile") -> List[str]:

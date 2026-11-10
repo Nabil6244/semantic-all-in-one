@@ -60,7 +60,8 @@ COLUMNS
     scale       "twelve soldiers in single file": a row of figures to scale
     radar       air threats, drones, missiles, air defence: a radar sweep with the sentence's words
     dossier     a report, plan, order, decision or claim: a paper file typed out
-    kinetic     a strong line worth showing as big moving words
+    kinetic     a short, complete turning-point sentence of 8 words or fewer ("The war is far from over."): big moving words.
+                At most one scene in twenty. Never a linking or set-up line ("This is what ...", "So here is the question", "And ...").
     chart       three or more figures each tied to a month, year or name ("1,200 in January, 1,500 in February, 2,100 in March"), or two
                 dated percentages: an animated bar / line / percentage chart of exactly those figures
     article     a named outlet or report is cited with what it said ("Reuters reported that ..."): a document page with those words
@@ -69,14 +70,22 @@ COLUMNS
     satellite   a before/after satellite comparison; only when you will attach two image files (add an images column: before.jpg|after.jpg)
                 or one image (images column with one file, or asset_type local with a picture)
     locator     a place named over a clip: a small corner map shows where it is while the clip keeps playing
-    label       a figure or a named system spoken over a clip ("44 missiles", "Iskander-M"): a yellow keyword label top-left
-    caption     reported or quoted words over a clip ("officials said ...", "Zelensky warned ..."): a white caption box on the clip
-    big word    a headline figure over a clip ("2.1 billion dollars", "1 percent"): the figure huge on the clip itself
+    label       a figure or a named system spoken over a clip ("44 missiles", "Iskander-M"): a yellow keyword label top-left.
+                Only when the sentence says that figure or name.
+    caption     reported or quoted words over a clip ("officials said ...", "Zelensky warned ..."): a white caption box on the clip.
+                Only for words someone said or reported; never a plain narration sentence.
+    big word    a headline figure over a clip ("2.1 billion dollars", "1 percent"): the figure huge on the clip itself.
+                Only when the sentence states a figure; never for a sentence without a number.
   map rows that say a place was captured, retaken, lost or abandoned, with a date, also show that area changing hands on the map.
   On a footage row (youtube_video, stock_video ...) the graphic is laid OVER the clip: title, date, quote, kinetic, radar, dossier and
   keywords darken the clip and play on top of it; sticker, speaker card, stamp, steps and number sit in a corner or on one side of it;
   map, timeline, equipment, speaker, supply, icons and compare fill the frame for a few seconds, then the clip returns.
-  On a none row, graphic says which graphic replaces the footage. Use graphic on roughly one scene in two; leave the rest empty.
+  On a none row, graphic says which graphic replaces the footage. Use graphic on roughly one scene in three; leave the rest empty.
+  RICH PANELS FIRST. Whenever the sentence can fill one, choose a rich panel: number, compare, ratio, chart, equipment (a weapon or a
+  type such as "warships", "submarines", "air defence", "drones"), speaker, timeline, institution, supply, article, map, route.
+  At least half of the graphics in the CSV are rich panels. kinetic, title, keywords, radar, big word, label and caption are light
+  graphics: use one only when no rich panel fits, never two light graphics in a row, and leave graphic empty for a sentence that only
+  links ideas or sets up what comes next.
 
 RULES FOR WHAT GETS FOOTAGE
 - Choose the source in this order: youtube_video when real footage of the event would exist; stock_video when a generic real clip shows it;
@@ -93,7 +102,7 @@ RULES FOR WHAT GETS FOOTAGE
 FORMAT
 - Quote any cell that contains a comma or a line break, and double any quote inside it.
 - One row for every scene, exactly 5 cells per row (graphic may be empty), no blank lines, no comments.
-- Vary the graphics: never the same graphic on two scenes in a row, and use the cinematic ones (title, date, quote) where they fit.
+- Vary the graphics: never the same graphic on two scenes in a row; rich panels first, light graphics (kinetic, big word, caption) rarely.
 
 SCRIPT:
 <<<PASTE THE SCRIPT HERE>>>
