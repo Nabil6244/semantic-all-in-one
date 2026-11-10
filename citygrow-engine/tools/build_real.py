@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Real-look data for a City Timelapse world (optional, once per city, cached): real building footprints, land use, satellite ground.
 
-    python3 tools/build_real.py --id dubai [--kinds buildings,landuse,satellite] [--chunks 3]
+    python3 tools/build_real.py --id dubai [--kinds buildings,landuse,satellite] [--buildings-source auto|overture|osm] [--chunks 3]
 
 Writes worlds/<id>/ (landuse_cls.u8 is also made with every new world by build_city.py):
-  buildings.json   [[x, z, rot, w, d, height_m], ...]  each OpenStreetMap building as its smallest rotated rectangle (metres from the
-                   world centre, z south, same axes as the engine); height from the height / building:levels tags, else a size guess
+  buildings.json   [[x, z, rot, w, d, height_m], ...]  each building as its smallest rotated rectangle (metres from the world
+                   centre, z south, same axes as the engine). Source: Overture Maps (OSM + Microsoft + Google footprints; needs
+                   `pip install duckdb`) or OpenStreetMap through Overpass. Height from the height / floors data, else a size guess.
+                   The buildings credit is written into meta.json.
   landuse_cls.u8   1024 x 1024 bytes, land-use class per cell (0 unmapped, 1 built up, 2 green, 3 dry, 4 wet), north edge = first row
   landuse.png      2048 px colour map of the ground in world space (OpenStreetMap land use, parks, sand, water-free): north edge = top
   ground_sat.jpg   2048 px satellite mosaic of the same area (Esri World Imagery: check its terms before publishing a film that uses it)
-Sources: OpenStreetMap contributors (ODbL) for buildings and land use. Chunks that fail are skipped and reported; rerun to fill them.
+Sources: Overture Maps Foundation or OpenStreetMap contributors (ODbL) for buildings; OpenStreetMap for land use. Chunks that fail are skipped and reported; rerun to fill them.
 """
 from __future__ import annotations
 
@@ -170,7 +172,22 @@ def height_of(tags: dict, area: float) -> float:
     return 7.0 if tags.get("building") not in ("garage", "shed", "roof", "kiosk") else 3.5
 
 
-def build_buildings(w: World, chunks: int) -> dict:
+def to_building(w: World, pts: np.ndarray, height) -> list | None:
+    """One footprint (metres, engine axes) -> [x, z, rot, w, d, height_m], or None when outside the world or too small.
+    `height` is a number or a function of the footprint area."""
+    if len(pts) < 4 or np.abs(pts).max() > w.half:
+        return None
+    r = min_rect(pts)
+    if r is None:
+        return None
+    cx, cz, rot, bw, bd = r
+    if bw * bd < 14:
+        return None
+    h = height(bw * bd) if callable(height) else height
+    return [round(cx, 1), round(cz, 1), round(rot, 3), round(bw, 1), round(bd, 1), round(h, 1)]
+
+
+def build_buildings_osm(w: World, chunks: int) -> dict:
     out, failed, seen = [], 0, set()
     for j in range(chunks):
         for i in range(chunks):
@@ -186,17 +203,187 @@ def build_buildings(w: World, chunks: int) -> dict:
                     continue
                 seen.add(el["id"])
                 pts = np.array([w.xz(g["lon"], g["lat"]) for g in el["geometry"]])
-                if np.abs(pts).max() > w.half:
-                    continue
-                r = min_rect(pts)
-                if r is None:
-                    continue
-                cx, cz, rot, bw, bd = r
-                if bw * bd < 14:
-                    continue
-                out.append([round(cx, 1), round(cz, 1), round(rot, 3), round(bw, 1), round(bd, 1), round(height_of(el.get("tags", {}), bw * bd), 1)])
+                tags = el.get("tags", {})
+                b = to_building(w, pts, lambda area, tags=tags: height_of(tags, area))
+                if b:
+                    out.append(b)
     (w.dir / "buildings.json").write_text(json.dumps(out), encoding="utf-8")
-    return {"buildings": len(out), "chunks_failed": failed, "chunks": chunks * chunks}
+    set_buildings_credit(w, OSM_BUILDINGS_CREDIT)
+    return {"buildings": len(out), "buildings_source": "osm", "chunks_failed": failed, "chunks": chunks * chunks}
+
+
+# ---------------------------------------------------------------- buildings from Overture Maps
+# Overture's buildings theme joins OpenStreetMap with Microsoft and Google machine-traced footprints (and more), so cities
+# that OSM maps thinly get far more houses. Read with DuckDB straight from Overture's public S3 bucket (no account). Only the
+# files whose box touches the world are read: their boxes come from Overture's STAC catalog, cached once per release.
+
+OSM_BUILDINGS_CREDIT = "Buildings: © OpenStreetMap contributors (ODbL)"
+OVERTURE_STAC = "https://stac.overturemaps.org"
+OVERTURE_CREDIT_OF = {   # sources[].dataset -> credit wording
+    "OpenStreetMap": "© OpenStreetMap contributors (ODbL)",
+    "Microsoft ML Buildings": "Microsoft Global ML Building Footprints (ODbL)",
+    "Google Open Buildings": "Google Open Buildings (CC BY 4.0 / ODbL)",
+    "Esri Community Maps": "Esri Community Maps contributors",
+}
+
+
+def get_json(url: str, timeout: int = 30) -> dict:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=timeout, context=ssl_context()) as r:
+        return json.loads(r.read())
+
+
+def set_buildings_credit(w: World, line: str) -> None:
+    """Puts the buildings credit in meta.json (replacing an older one), so the film's credits file carries it."""
+    path = w.dir / "meta.json"
+    if not path.exists():
+        return
+    meta = json.loads(path.read_text(encoding="utf-8"))
+    meta["credits"] = [c for c in meta.get("credits", []) if not c.startswith("Buildings:")] + [line]
+    path.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+    w.meta = meta
+
+
+def overture_release(fetch=get_json) -> str:
+    return fetch(f"{OVERTURE_STAC}/catalog.json")["latest"]
+
+
+def overture_index(release: str, fetch=get_json, workers: int = 32) -> list:
+    """[[xmin, ymin, xmax, ymax, s3_url], ...] for every buildings file of a release (512 small JSONs, cached once)."""
+    cache = HERE / "cache" / "overture" / f"{release}_buildings_index.json"
+    if cache.exists():
+        return json.loads(cache.read_text(encoding="utf-8"))
+    from concurrent.futures import ThreadPoolExecutor
+    base = f"{OVERTURE_STAC}/{release}/buildings/building/"
+    hrefs = [l["href"] for l in fetch(base + "collection.json")["links"] if l["rel"] == "item"]
+
+    def item(href):
+        d = fetch(href)
+        return [*d["bbox"], d["assets"]["aws"]["alternate"]["s3"]["href"]]
+    with ThreadPoolExecutor(workers) as ex:
+        index = list(ex.map(item, hrefs))
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(index), encoding="utf-8")
+    return index
+
+
+def files_for(index: list, s: float, we: float, n: float, e: float) -> list:
+    return [f[4] for f in index if f[0] <= e and f[2] >= we and f[1] <= n and f[3] >= s]
+
+
+def wkb_rings(blob: bytes) -> list:
+    """Outer rings ([[lon, lat], ...]) of a WKB Polygon or MultiPolygon (2D, or with Z/M values that are dropped)."""
+    import struct
+    rings, pos = [], 0
+
+    def geom():
+        nonlocal pos
+        end = "<" if blob[pos] == 1 else ">"
+        kind = struct.unpack_from(end + "I", blob, pos + 1)[0]
+        pos += 5
+        t = kind & 0x0FFFFFFF                      # ISO codes (1000s Z, 2000s M, 3000s ZM) or EWKB flag bits
+        has_z = bool(kind & 0x80000000) or t // 1000 in (1, 3)
+        has_m = bool(kind & 0x40000000) or t // 1000 in (2, 3)
+        dims, base = 2 + has_z + has_m, t % 1000
+        if base == 3:
+            nr = struct.unpack_from(end + "I", blob, pos)[0]
+            pos += 4
+            for k in range(nr):
+                npt = struct.unpack_from(end + "I", blob, pos)[0]
+                pos += 4
+                a = np.frombuffer(blob, dtype=end + "f8", count=npt * dims, offset=pos).reshape(npt, dims)[:, :2]
+                pos += npt * dims * 8
+                if k == 0:
+                    rings.append(a)
+        elif base == 6:
+            n = struct.unpack_from(end + "I", blob, pos)[0]
+            pos += 4
+            for _ in range(n):
+                geom()
+        else:
+            raise ValueError(f"not a polygon (WKB type {kind})")
+    geom()
+    return rings
+
+
+def overture_height(height, floors, cls, area: float) -> float:
+    if height and height > 0:
+        return max(2.5, float(height))
+    if floors and floors > 0:
+        return max(3.0, floors * 3.3 + 1.0)
+    return height_of({"building": cls or "yes"}, area)
+
+
+def overture_buildings_from_rows(w: World, rows) -> tuple[list, dict]:
+    """Rows of (geometry WKB, height, num_floors, class, [datasets]) -> (buildings, {dataset: count})."""
+    out, by_source = [], {}
+    for blob, height, floors, cls, datasets in rows:
+        try:
+            rings = wkb_rings(bytes(blob))
+        except Exception:  # noqa: BLE001  a broken footprint is skipped, never the city
+            continue
+        if not rings:
+            continue
+        ring = max(rings, key=len)
+        pts = np.array([w.xz(lon, lat) for lon, lat in ring])
+        b = to_building(w, pts, lambda area: overture_height(height, floors, cls, area))
+        if b:
+            out.append(b)
+            for d in set(datasets or []) or {"unknown"}:
+                by_source[d] = by_source.get(d, 0) + 1
+    return out, by_source
+
+
+def query_overture(w: World, release: str, index: list) -> list:
+    """Downloads (once, cached as Parquet) the world's Overture buildings and returns their rows."""
+    import duckdb
+    cache = HERE / "cache" / "overture" / f"{w.meta['id']}_{release}_buildings.parquet"
+    s, we, n, e = w.bbox()
+    con = duckdb.connect()
+    if not cache.exists():
+        files = files_for(index, s, we, n, e)
+        if not files:
+            raise RuntimeError("no Overture buildings files cover this area")
+        con.execute("INSTALL httpfs; LOAD httpfs; SET s3_region='us-west-2';")
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        tmp = cache.with_suffix(".part")
+        src = ", ".join(f"'{f}'" for f in files)
+        con.execute(f"""COPY (SELECT geometry, height, num_floors, class, [x.dataset FOR x IN sources] AS datasets
+            FROM read_parquet([{src}])
+            WHERE bbox.xmin <= {e} AND bbox.xmax >= {we} AND bbox.ymin <= {n} AND bbox.ymax >= {s}
+              AND coalesce(is_underground, false) = false) TO '{tmp}' (FORMAT parquet)""")
+        tmp.rename(cache)
+    return con.execute(f"SELECT geometry::BLOB, height, num_floors, class, datasets FROM read_parquet('{cache}')").fetchall()
+
+
+def build_buildings_overture(w: World) -> dict:
+    release = overture_release()
+    rows = query_overture(w, release, overture_index(release))
+    out, by_source = overture_buildings_from_rows(w, rows)
+    (w.dir / "buildings.json").write_text(json.dumps(out), encoding="utf-8")
+    parts = [OVERTURE_CREDIT_OF.get(d, d) for d, _ in sorted(by_source.items(), key=lambda kv: -kv[1]) if d != "unknown"]
+    set_buildings_credit(w, f"Buildings: Overture Maps Foundation, release {release} (overturemaps.org), including "
+                            + "; ".join(parts or ["© OpenStreetMap contributors (ODbL)"]))
+    return {"buildings": len(out), "buildings_source": "overture", "overture_release": release, "by_source": by_source}
+
+
+def build_buildings(w: World, chunks: int = 3, source: str = "auto") -> dict:
+    """source: "overture", "osm", or "auto" (Overture when DuckDB is installed and the download works, else OpenStreetMap)."""
+    if source in ("auto", "overture"):
+        try:
+            import duckdb  # noqa: F401
+        except ImportError:
+            if source == "overture":
+                raise SystemExit("Overture needs DuckDB: pip install duckdb")
+            print(json.dumps({"event": "note", "message": "DuckDB not installed (pip install duckdb): using OpenStreetMap buildings"}), flush=True)
+        else:
+            try:
+                return build_buildings_overture(w)
+            except Exception as ex:  # noqa: BLE001
+                if source == "overture":
+                    raise
+                print(json.dumps({"event": "note", "message": f"Overture unavailable ({str(ex)[:120]}): using OpenStreetMap buildings"}), flush=True)
+    return build_buildings_osm(w, chunks)
 
 
 # ---------------------------------------------------------------- land use
@@ -287,7 +474,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--id", required=True)
     ap.add_argument("--kinds", default="buildings,landuse,satellite")
-    ap.add_argument("--chunks", type=int, default=3)
+    ap.add_argument("--chunks", type=int, default=3, help="OpenStreetMap buildings: Overpass requests per side")
+    ap.add_argument("--buildings-source", choices=("auto", "overture", "osm"), default="auto",
+                    help="auto = Overture Maps when DuckDB is installed, else OpenStreetMap")
     a = ap.parse_args(argv)
     w = World(a.id)
     res = {}
@@ -297,7 +486,7 @@ def main(argv=None) -> int:
     if "landuse" in kinds:
         res.update(build_landuse(w))
     if "buildings" in kinds:
-        res.update(build_buildings(w, a.chunks))
+        res.update(build_buildings(w, a.chunks, a.buildings_source))
     print(json.dumps({"event": "done", **res}), flush=True)
     return 0
 

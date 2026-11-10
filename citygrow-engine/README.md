@@ -27,5 +27,12 @@ imports it except `ui/city_timelapse_section.py`.
 | Sound | `tools/music_bed.py` | One bundled Kevin MacLeod track (CC BY 4.0), looped with a crossfade when needed, faded, -14 LUFS; an optional voice-over ducks it. Credits are written next to the video |
 | App | `runner.py`, `../ui/city_timelapse_section.py` | check → (build the world after a yes/no) → plan → render. Nothing starts until Generate |
 
+## Real buildings (optional, `look: "real"`)
+`python3 tools/build_real.py --id <world> --kinds buildings` writes `worlds/<id>/buildings.json`. With `pip install duckdb` it reads
+**Overture Maps** (OpenStreetMap + Microsoft + Google footprints, often 10–1000× more buildings outside Europe/US; ~20 s per city,
+only the files covering the city are read, cached in `cache/overture/`); without DuckDB, or if the download fails, it falls back to
+OpenStreetMap through Overpass. Force one with `--buildings-source overture|osm`. The buildings credit goes into `meta.json`.
+
 ## Credits a video must carry
-Written to `<video>.credits.txt`: the music line, "© OpenStreetMap contributors (ODbL)" and the Terrain Tiles credit.
+Written to `<video>.credits.txt`: the music line, "© OpenStreetMap contributors (ODbL)", the Terrain Tiles credit and, for real
+buildings, the buildings line (Overture release + the datasets it used, or OpenStreetMap).
