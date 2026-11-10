@@ -171,7 +171,8 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
               disclaimer: Optional[str] = None, disclaimer_on: bool = True, width: int = 1920, height: int = 1080, fps: int = 30, use_ai: bool = False,
               max_clips: int = 3, voiceover: Optional[str] = None, words: Optional[Sequence[Any]] = None, voice_seconds: Optional[float] = None, style: str = "mixed", llm_run: Optional[Callable[[str, str], str]] = None,
               stock_settings: Optional[Dict[str, Any]] = None, log: Callable[[str], None] = print, footage_chosen: Optional[Dict[int, Dict[str, str]]] = None,
-              subtitles: Optional[bool] = None, news_backend: Any = None, news_footage: bool = True) -> Dict[str, Any]:
+              subtitles: Optional[bool] = None, news_backend: Any = None, news_footage: bool = True, footage_library: Optional[str] = None,
+              library_labels: Optional[str] = None) -> Dict[str, Any]:
     """Write the film's spec and return {"spec_path", "summary", "pack", "notes"}. use_ai uses the pictures make_scenes() saved (a missing one is 3D).
     Review looks: "mixed" (3D + cards), "infographic" (one paper look), "news" (real footage first: YouTube runs of the phone, then stock, cards only
     for figures, documents and quotes). subtitles: None = the look's default (off for news, as the reference channels have none; on elsewhere, as before)."""
@@ -234,7 +235,7 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
                         it["_own"] = True                      # a directive the author wrote is never swapped by the variety pass
             new = llm_director.llm_direct(parsed, phone, llm_run, log) if llm_run else None
             parsed = new or director.auto_direct(parsed, phone)          # the AI's scenes, or the built-in rules when it is not available
-            if look == "mixed":
+            if look == "mixed" and not footage_library:       # the variety pass swaps scenes for generic 3D shots; the footage library chooses its own visuals
                 parsed = balance.balance(parsed, phone, footage=bool(stock_settings))        # keep every reference look in rotation
             parsed = put_features(parsed)
             if look == "news":                        # footage first: YouTube runs of this phone by subject, then stock for what is left
@@ -249,6 +250,12 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
                     for it in ch["items"]:
                         if it.get("kind") == "footage" and not it.get("query"):
                             it["query"] = NF.TOPIC_QUERY.get(it.get("topic"), "smartphone hands on").format(p="smartphone", old="smartphone")
+            if footage_library and voiceover and words and Path(footage_library).is_dir():   # the user's own footage: the moment that shows what each line says (footage_library.py)
+                from . import footage_library as FL
+
+                dur0 = float(voice_seconds or 0.0) or float(list(words)[-1][2]) + 0.6
+                lib = FL.apply_library(parsed, phone, footage_library, out / "footage_library", words, dur0, log, labels_path=library_labels)
+                notes += [f"line {d['line']}: missing {d['missing_asset']}" for d in lib["decisions"] if d.get("missing_asset")]
             if stock_settings and look != "infographic":
                 got = footage.resolve_footage(parsed, out, stock_settings, log, chosen=footage_chosen, items=footage_items)
                 log(f"Stock footage: {got['found']} clip(s) found, {got['missing']} not found")

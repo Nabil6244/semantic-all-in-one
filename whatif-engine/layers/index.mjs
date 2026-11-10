@@ -35,6 +35,7 @@ import pt_compare3 from './pt_compare3.mjs';
 import pt_badge from './pt_badge.mjs';
 import pt_caption from './pt_caption.mjs';
 import pt_paper from './pt_paper.mjs';
+import pt_tag from './pt_tag.mjs';
 import pt_flatphones from './pt_flatphones.mjs';
 import pt_gauge from './pt_gauge.mjs';
 import pt_tweet from './pt_tweet.mjs';
@@ -47,6 +48,8 @@ import pt_coststack from './pt_coststack.mjs';
 import pt_doc from './pt_doc.mjs';
 import pt_glass from './pt_glass.mjs';
 import pt_words from './pt_words.mjs';
+import pt_fact from './pt_fact.mjs';
+import pt_evidence from './pt_evidence.mjs';
 import pt_iconbuild from './pt_iconbuild.mjs';
 import rh_set from './rh_set.mjs';
 import rh_figure from './rh_figure.mjs';
@@ -61,7 +64,7 @@ import rh_crowd from './rh_crowd.mjs';
 import rh_bg from './rh_bg.mjs';
 import rh_mirror from './rh_mirror.mjs';
 
-export const BUILTIN_LAYERS = [tm_metric, tm_caption, tm_title, tm_cite, tm_clock, tm_survival, tm_gauge, tm_logaxis, tm_bars, tm_curve, tm_compare, tm_composition, tm_timeline, tm_fade, tm_dial, tm_wave, tm_section, tm_grid, tm_orbitmap, tm_phase, tm_discmap, tm_annotate, tm_template, tm_mission, pt_bench, pt_feature, pt_tagline, pt_bigtype, pt_reveal, pt_card, pt_badge, pt_caption, pt_subtitle, pt_curve, pt_compare3, pt_paper, pt_flatphones, pt_gauge, pt_tweet, pt_thermal, pt_swatches, pt_lenses, pt_ring, pt_sides, pt_coststack, pt_doc, pt_glass, pt_words, pt_iconbuild, rh_set, rh_figure, rh_mark, rh_rulecard, rh_caption, rh_glitch, rh_picture, rh_animal, rh_prop, rh_crowd, rh_bg, rh_mirror];
+export const BUILTIN_LAYERS = [tm_metric, tm_caption, tm_title, tm_cite, tm_clock, tm_survival, tm_gauge, tm_logaxis, tm_bars, tm_curve, tm_compare, tm_composition, tm_timeline, tm_fade, tm_dial, tm_wave, tm_section, tm_grid, tm_orbitmap, tm_phase, tm_discmap, tm_annotate, tm_template, tm_mission, pt_bench, pt_feature, pt_tagline, pt_bigtype, pt_reveal, pt_card, pt_badge, pt_caption, pt_subtitle, pt_curve, pt_compare3, pt_paper, pt_tag, pt_flatphones, pt_gauge, pt_tweet, pt_thermal, pt_swatches, pt_lenses, pt_ring, pt_sides, pt_coststack, pt_doc, pt_glass, pt_words, pt_fact, pt_evidence, pt_iconbuild, rh_set, rh_figure, rh_mark, rh_rulecard, rh_caption, rh_glitch, rh_picture, rh_animal, rh_prop, rh_crowd, rh_bg, rh_mirror];
 
 export function registerBuiltins(registry) {
   for (const L of BUILTIN_LAYERS) registry.register(L);

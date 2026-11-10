@@ -11,9 +11,9 @@ export default {
   create: (def) => { if (!String(def.text || '').trim()) throw new Error('pt_tweet: "text" is required'); return { def }; },
   draw(inst, f) {
     const d = inst.def, { g, W, H } = f, T = tm(g, W), S = T.S;
-    const m = ptMotion(d, f.t, S, { inDur: 0.45, outDur: 0.3, rise: 30 });
+    const m = ptMotion(d, f.t, S, { inDur: 0.3, outDur: 0.3, rise: 20 });
     if (m.k <= 0.002) return;
-    const cw = W * 0.62, fs = 38, lh = fs * 1.42 * S, text = String(d.text).trim(), hl = String(d.highlight || '');
+    const cw = W * 0.74, fs = 46, lh = fs * 1.42 * S, text = String(d.text).trim(), hl = String(d.highlight || '');
     g.save(); T.set(ptFont(S, fs, 500, 'sans'));
     const words = text.split(/\s+/), lines = []; let cur = '';
     for (const w of words) { const t = cur ? cur + ' ' + w : w; if (g.measureText(t).width > cw - 120 * S && cur) { lines.push(cur); cur = w; } else cur = t; }

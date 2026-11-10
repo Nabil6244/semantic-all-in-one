@@ -81,9 +81,10 @@ def vary_shots(spec: Dict[str, Any], seed: int) -> Dict[str, Any]:
         s["move"] = move
         used[move] = used.get(move, 0) + 1
         recent = (recent + [move])[-RECENT:]
-        s["vary"] = _vary(move, rng)
+        s["vary"] = _vary(move, rng) if not s.get("_hero") else {"yaw": round(rng.uniform(-0.15, 0.15), 3), "lift": 0.0, "dist": round(rng.uniform(1.02, 1.12), 3), "roll": 0.0, "fov": 0.0}   # a hero render keeps the whole phone in frame
         s["cam_side"] = rng.choice(["left", "right"])
-        s["seed"] = rng.randrange(1, 10_000)
+        if not s.get("_hero"):
+            s["seed"] = rng.randrange(1, 10_000)
         if s.get("backdrop") == BRIGHT and not _dark_text_over(spec, s):
             pick = rng.choice([b for b in OTHER_SETS if b != prev_set] or OTHER_SETS)
             s["backdrop"] = pick

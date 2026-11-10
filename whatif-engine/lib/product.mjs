@@ -35,7 +35,7 @@ const SEMANTIC_MOVES = new Set(['flip', 'rise', 'reveal', 'demo']);   // these e
 const lerp = (a, b, k) => a + (b - a) * k;
 
 export const PRODUCT_OBJECTS = ['phone', 'iphone', 'galaxy', 'chip'];
-export const PRODUCT_MOVES = ['island', 'monolith', 'hero', 'hero_back', 'profile', 'orbit', 'screen', 'edge', 'flip', 'rise', 'port', 'buttons', 'chip', 'chip_macro', 'reveal', 'demo'];
+export const PRODUCT_MOVES = ['island', 'monolith', 'hero', 'hero_back', 'profile', 'orbit', 'screen', 'edge', 'flip', 'rise', 'port', 'buttons', 'chip', 'chip_macro', 'reveal', 'demo', 'lens_push', 'plateau_rake', 'capsule_macro', 'overhead_back', 'pull_back', 'dutch_back', 'spin_back'];
 export const PRODUCT_BACKDROPS = ['stars', 'wash', 'horizon', 'studio', 'charcoal', 'daylight'];
 const seeded = (seed) => { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 
@@ -76,7 +76,7 @@ function studioEnvironment(THREE, renderer, shot) {
   panel(0.9, 0, '#ffffff', 9.0, [5, 5, 5], [0, 0, 0], true);      // a round hot spot
   panel(10, 1.0, '#ffffff', 1.4, [0, -6, 3], [0, 0, 0]);          // faint floor bounce
   if (shot.wash) panel(3, 8, shot.wash, 1.2, [6, -1, -6], [0, 0, 0]);   // the wash colour picked up on the edges
-  const sweep = shot.sweep === false ? null : panel(1.1, 14, '#ffffff', 6.0, [0, 0, 8], [0, 0, 0]);
+  const sweep = shot.sweep === false ? null : panel(1.1, 14, '#ffffff', 6.0 * (shot.sweep_gain ?? 1), [0, 0, 8], [0, 0, 0]);
   const pm = new THREE.PMREMGenerator(renderer);
   let rt = pm.fromScene(env, 0.02), last = null;
   const speed = typeof shot.sweep === 'number' ? shot.sweep : 0.35;
@@ -119,6 +119,14 @@ function backdropCanvas(THREE, shot, W, H) {
       for (let i = 0; i < 90; i++) { const o = (r() - 0.5) * 0.22, m = r(); g.strokeStyle = css(m < 0.6 ? c1 : c2, 0.05 + 0.12 * r(), 1 + m * 0.5); curve(o, (2 + 10 * r()) * u); }
       g.filter = `blur(${18 * u}px)`; g.strokeStyle = css(c2, 0.5, 1.5); curve(-0.02, 26 * u);
     }
+    g.filter = 'none'; g.globalCompositeOperation = 'source-over';
+  } else if (kind === 'colorsweep') {   // a rich single-colour studio sweep (the review channels' red / navy / green phone shots): a bright pool behind the phone, deep edges, a soft diagonal sheen
+    const col = new THREE.Color(shot.wash || '#1c3a8a'), rgb = (m, a = 1) => `rgba(${Math.min(255, col.r * 255 * m) | 0},${Math.min(255, col.g * 255 * m) | 0},${Math.min(255, col.b * 255 * m) | 0},${a})`;
+    const gr = g.createRadialGradient(cw * 0.5, ch * 0.45, 0, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.72);
+    gr.addColorStop(0, rgb(1.25)); gr.addColorStop(0.5, rgb(0.7)); gr.addColorStop(1, rgb(0.22));
+    g.fillStyle = gr; g.fillRect(0, 0, cw, ch);
+    g.globalCompositeOperation = 'lighter'; g.filter = `blur(${90 * u}px)`;
+    g.strokeStyle = rgb(1.6, 0.16); g.lineWidth = 260 * u; g.beginPath(); g.moveTo(-0.1 * cw, ch * 0.95); g.bezierCurveTo(cw * 0.3, ch * 0.5, cw * 0.6, ch * 0.9, cw * 1.1, ch * 0.1); g.stroke();
     g.filter = 'none'; g.globalCompositeOperation = 'source-over';
   } else if (kind === 'horizon') {   // transparent sky (the stars show), a warm-blue glow on the horizon, a black ridge, city lights
     const hy = ch * (shot.horizon_y ?? 0.78);
@@ -509,6 +517,29 @@ function placement(THREE, shot, k, t) {
     case 'buttons': {   // macro down the side keys, the frame turned a little toward the lens
       return { q: eul(0, lerp(-0.3, -0.12, e), 0.02), pos: new THREE.Vector3(lerp(1.15, 1.0, e), lerp(0.6, 0.0, e), lerp(0.75, 0.55, e)), at: new THREE.Vector3(0.45, lerp(0.42, 0.0, e), 0.1), fov: 28, roll: 0.02, phone: new THREE.Vector3(0, fl * 0.5, 0) };
     }
+    // ---- back-of-phone moves for the new plateau design (lenses upper-left of the back view, flash capsule beside them) ----
+    case 'lens_push': {   // pushing straight in on the two big lenses until the glass fills the frame
+      return { q: eul(0.04, Math.PI + lerp(0.2, 0.02, e), lerp(-0.05, 0.03, e)), pos: new THREE.Vector3(lerp(0.5, 0.18, e), lerp(0.72, 0.7, e), lerp(2.3, 0.85, e)), at: new THREE.Vector3(0.2, 0.72, 0.1), fov: 30, roll: lerp(0.05, -0.03, e), phone: new THREE.Vector3(0, fl, 0) };
+    }
+    case 'plateau_rake': {   // a low raking angle skimming the plateau edge: the step, the satin face, the lens rings catching light
+      return { q: eul(0.0, Math.PI + lerp(1.25, 0.85, e), 0.0), pos: new THREE.Vector3(lerp(2.3, 1.5, e), lerp(0.95, 0.8, e), lerp(0.7, 0.95, e)), at: new THREE.Vector3(lerp(0.3, 0.1, e), 0.72, 0.05), fov: 28, roll: lerp(0.06, 0.0, e), phone: new THREE.Vector3(0, fl, 0) };
+    }
+    case 'capsule_macro': {   // the black glass flash capsule: the LED, the small lens, the reflections sliding across
+      return { q: eul(0.05, Math.PI + lerp(-0.18, 0.14, e), 0.02), pos: new THREE.Vector3(lerp(-0.3, 0.3, e), lerp(0.6, 0.85, e), lerp(1.2, 0.95, e)), at: new THREE.Vector3(0.1, 0.72, 0.1), fov: 24, roll: lerp(-0.03, 0.03, e), phone: new THREE.Vector3(0, fl, 0) };
+    }
+    case 'overhead_back': {   // lying flat on its face, seen from above: the whole plateau, the wordmark, the lenses, turning slowly
+      return { q: eul(Math.PI / 2, Math.PI + lerp(0.35, -0.25, e), 0), pos: new THREE.Vector3(0, lerp(3.9, 3.1, e), 0.5), at: new THREE.Vector3(0, 0, 0), fov: 32, roll: 0, phone: new THREE.Vector3(0, fl, 0) };
+    }
+    case 'pull_back': {   // starts inside the lens, pulls out until the whole phone is in frame
+      const r = 1 - (1 - clamp01(k)) ** 2;
+      return { q: eul(0.05, Math.PI + lerp(0.25, -0.3, r), lerp(-0.04, 0.03, r)), pos: new THREE.Vector3(lerp(0.3, 0, r), lerp(0.7, 0.05, r), lerp(0.85, 4.6, r)), at: new THREE.Vector3(lerp(0.2, 0, r), lerp(0.72, 0, r), 0), fov: 32, roll: 0, phone: new THREE.Vector3(0, fl, 0) };
+    }
+    case 'dutch_back': {   // the back, close and tilted, drifting: an off-kilter hero
+      return { q: eul(lerp(0.1, 0.02, e), Math.PI + lerp(-0.4, 0.3, e), 0), pos: new THREE.Vector3(lerp(-0.2, 0.2, e), 0.2, lerp(3.1, 2.7, e)), at: new THREE.Vector3(0, 0.25, 0), fov: 30, roll: lerp(0.34, 0.12, e), phone: new THREE.Vector3(0, fl * 2, 0) };
+    }
+    case 'spin_back': {   // static camera, the phone whips round from the back through its edge
+      return { q: eul(0.05, Math.PI + lerp(-1.1, 1.1, e), 0.0), pos: new THREE.Vector3(0, 0.1, 3.0), at: new THREE.Vector3(0, 0.1, 0), fov: 32, roll: 0, phone: new THREE.Vector3(0, fl, 0) };
+    }
     case 'demo': {   // the front, the camera dollying in for real (z0 -> z1) while the phone turns: the interface grows to fill the frame. All values in shot.cam
       // (p0/p1 pitch, y0/y1 yaw, r0/r1 roll in radians; z0/z1 distance; cy0/cy1 camera height; ay0/ay1 aim height), so a title can own the top of the frame
       return { q: eul(lerp(c.p0 ?? 0.05, c.p1 ?? 0.02, e), lerp(c.y0 ?? -0.3, c.y1 ?? 0.08, e), lerp(c.r0 ?? 0.02, c.r1 ?? 0, e)),
@@ -619,7 +650,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   else if (shot.phone || shot.glb) {   // a real model (assets/models/phones/<id>.glb) first, then the code-built preset, then the built-in phone
     let pm = null;
     try { pm = await import('./phone_models.mjs'); spec = pm.resolvePhone(phoneSpec(shot)); } catch (err) { console.warn(`product: phone library not loaded (${err && err.message})`); }
-    if (shot.glb !== false) {
+    if (shot.glb !== false && !(spec?.concept && typeof shot.glb !== 'string' && !spec?.glb)) {   // a concept phone (a leak) is drawn from its own measured layout, never from another model's file
       try { const { loadPhoneGlb } = await import('./phone_glb.mjs');
         phone = await loadPhoneGlb(THREE, spec?.id || String(shot.phone || ''), { envMap, file: typeof shot.glb === 'string' ? shot.glb : spec?.glb || null,
           screenMap: live ? live.texture : shot.screen ? screenTexture(THREE, shot.screen) : null });
@@ -631,6 +662,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   }
   if (!phone) phone = buildPhone(THREE, shot, envMap, live ? live.texture : null);
   const holder = new THREE.Group(); holder.add(phone); scene.add(holder);
+  if (shot.hide_phone) holder.visible = false;   // a phone-free title card on the backdrop (the references' Android 17 / All-Day Battery cards)
   const stage = shot.object !== 'chip' && (shot.layers3d || shot.wall) ? buildUiStage(THREE, shot, phone, holder, scene, envMap, Math.max(0.5, (shot.end ?? 0) - (shot.start ?? 0))) : null;
   // dark finishes (Titanium Black...) reflect almost nothing as pure metal: lift the base colour to a floor and the reflections with it,
   // so the frame and back still carry broad soft highlights; light finishes are left as they are so they never blow out
@@ -749,7 +781,7 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   // only upright, mid-sized moves take the side shift; thin and macro moves (profile, edge, port, buttons, screen, island...) stay centred
   const SIDE_OK = ['hero', 'hero_back', 'monolith', 'orbit', 'flip', 'rise', 'chip', undefined, 'default'];
   const mirror = shot.cam_side === 'left', fShift = !SIDE_OK.includes(shot.move) ? 0 : shot.frame_side === 'left' ? 1 : shot.frame_side === 'right' ? -1 : 0, fAmt = (shot.frame_shift ?? 0.2) * W;
-  const pbox = new THREE.Box3(), pv = new THREE.Vector3(), MACRO = ['island', 'island_old', 'screen', 'edge', 'port', 'buttons', 'chip_macro'];
+  const pbox = new THREE.Box3(), pv = new THREE.Vector3(), MACRO = ['island', 'island_old', 'screen', 'edge', 'port', 'buttons', 'chip_macro', 'lens_push', 'plateau_rake', 'capsule_macro', 'pull_back'];
   // the object's projected box in pixels (no view offset), or null when it is behind the camera
   const projBox = (camera) => {
     holder.updateMatrixWorld(true); pbox.setFromObject(holder);

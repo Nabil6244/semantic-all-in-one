@@ -92,17 +92,24 @@ def _clean(s: str) -> str:
 ROOMS = ["gallery", "loft", "terrace", "gallery", "loft"]          # the bright rooms (the dark studio and the orange desk read as a toy set in a review)
 POSES = ["back", "fan", "mixed", "back"]
 ALL_ROOMS = ("loft", "gallery", "studio", "terrace", "desk")      # every room an author may name in [lineup: ...]                             # backs first: the camera bar is what the narration talks about
+HERO_WASH = [("#b3121c", "Pink"), ("#12306e", "Navy"), ("#14614a", "Sky Blue"), ("#1f6b73", "Black"), ("#0e5a8f", "Sky Blue"), ("#6b1f4a", "Pink")]   # (backdrop colour, phone colour)
+HERO_MOVES = ["hero_back", "hero", "flip", "hero_back", "hero", "flip"]   # the whole phone in frame beside its words (orbit / profile crop it)
 MACRO_MOVES = ["island", "edge", "port", "buttons", "screen", "monolith"]
 DIRECTIVE_SECONDS = {"bars": 7.0, "curve": 8.0, "compare": 7.0, "stat": 4.0, "xray": 5.0, "fold": 5.0, "lineup": 5.0, "chip": 5.0, "macro": 4.0,
                      "bigtype": 3.5, "intro": 5.0, "outro": 5.0, "flat": 5.0, "gauge": 5.5, "tweet": 6.0, "thermal": 5.5, "cost": 6.0, "scene": 4.0, "bench": 5.5, "feature": 4.5, "callout": 4.0, "sides": 4.5,
-                     "ui": 6.0, "icon": 5.0, "wall": 5.0}
+                     "ui": 6.0, "icon": 5.0, "wall": 5.0, "timeline": 5.0, "evidence": 6.0}
 PAPER_SHOT = {"kind": "black"}
+MONTH_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 STYLES = ("mixed", "cinematic", "infographic", "follow", "news")
 
 
+PAPER_TONES = ["#F1EEF1", "#EEF0F4", "#F2F0EA", "#EDF2F1", "#F3EFEA", "#F3EEF4", "#EDF0F5", "#EEF3EE", "#F1EEF4", "#F3F0EC"]   # a faint tint per chapter: the paper changes with the topic, as the references' backgrounds do
+_PAPER_TONE = [None]
+
+
 def _paper(layers_fn):
-    """Wrap a layer maker so the flat paper sheet is drawn first (the shot under it is black and never seen)."""
-    return lambda a, b: [{"type": "pt_paper", "start": a, "end": b, "fade_in": 0, "fade_out": 0}] + layers_fn(a, b)
+    """Wrap a layer maker so the flat paper sheet drawn first (the shot under it is black and never seen). The sheet carries the chapter's tint."""
+    return lambda a, b: [{"type": "pt_paper", "start": a, "end": b, "fade_in": 0, "fade_out": 0, **({"tone": _PAPER_TONE[0]} if _PAPER_TONE[0] else {})}] + layers_fn(a, b)
 
 
 BENCH_TINTS = ["teal", "green", "blue"]
@@ -148,9 +155,11 @@ def infographic_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: i
         return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_curve", "title": it["title"], "x_label": it["x_label"], "y_label": it["y_label"], "points": it["points"],
                                                  "marks": it["marks"], "level": {"y": max(p[1] for p in it["points"]), "text": ""}, "start": a + 0.2, "end": b - 0.1}]), sec
     if kind == "compare":
-        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_compare3", "title": it["title"], "unit": it["unit"], "cols": it["cols"], "start": a + 0.2, "end": b - 0.1}]), sec
+        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_compare3", "title": it["title"], "unit": it["unit"], "cols": it["cols"], "start": a + 0.2, "end": b - 0.1,
+                                                 **({"note": it["note"]} if it.get("note") else {})}]), sec
     if kind == "bars":
-        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_bench", "title": it["title"], "rows": it["rows"], "start": a + 0.2, "end": b - 0.1}]), sec
+        return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_bench", "title": it["title"], "rows": it["rows"], "start": a + 0.2, "end": b - 0.1,
+                                                 **({"note": it["note"]} if it.get("note") else {}), **({"delta": it["delta"]} if it.get("delta") else {})}]), sec
     return None
 
 
@@ -231,6 +240,104 @@ def ui_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int, produ
     return shot, make, DIRECTIVE_SECONDS[kind]
 
 
+def _cue_timeline(layers: List[Dict[str, Any]], W: Sequence[Any]) -> None:
+    """A timeline's dot lands when the narrator says its date ("October" then the day), else on its own stagger."""
+    months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
+    for L in layers:
+        if L.get("type") != "tm_timeline":
+            continue
+        for i, e in enumerate(L.get("events") or []):
+            md = e.pop("_date", None)
+            if not md:
+                continue
+            hit = False
+            for j in range(len(W) - 1):
+                if W[j][0] == months[md[0] - 1] and W[j + 1][0].startswith(str(md[1])) and L["start"] - 0.3 <= W[j][1] <= L["end"] + 0.3:
+                    e["t"] = round(W[j][1], 3)
+                    hit = True
+                    break
+            if not hit:                                                              # a date spoken before the timeline came up (earlier line): it is already there, in order
+                e["t"] = round(L["start"] + 0.2 + 0.3 * i, 3)
+        prev = None
+        for e in L.get("events") or []:                                              # dates land in order, never two at once
+            if prev is not None and e["t"] < prev + 0.3:
+                e["t"] = round(prev + 0.3, 3)
+            prev = e["t"]
+
+
+def _cue_numbers(layers: List[Dict[str, Any]], W: Sequence[Any]) -> None:
+    """A price ladder's bar and a claim chart's figure come up on the word that says the figure ("2,599", "35"), in the order they are spoken."""
+    import re as _re
+
+    for L in layers:
+        if L.get("type") == "pt_compare3":
+            key = lambda c: _re.sub(r"\D", "", str(int(c["value"])) if float(c["value"]).is_integer() else str(c["value"]))
+            items = L.get("cols") or []
+        elif L.get("type") == "pt_bench" and L.get("delta"):
+            key = lambda r: _re.sub(r"\D", "", str(r.get("text") or ""))
+            items = [r for r in L.get("rows") or [] if _re.search(r"\d", str(r.get("text") or ""))]
+        else:
+            continue
+        for it in items:
+            k = key(it)
+            if not k:
+                continue
+            dg = [_re.sub(r"\D", "", w[0]) for w in W]          # Whisper splits "$3,199" into "$3" ",199": a figure may be two tokens
+            hit = next((W[j] for j in range(len(W)) if L["start"] - 0.2 <= W[j][1] <= L["end"] + 0.3 and (dg[j] == k or (j + 1 < len(W) and dg[j] + dg[j + 1] == k))), None)
+            if hit:
+                it["at"] = round(max(0.0, hit[1] - L["start"]), 3)
+
+
+def _cue_claim_bars(layers: List[Dict[str, Any]]) -> None:
+    """A claim chart ("up to 35 percent better than the iPhone 17 Pro"): the baseline bar comes up with the claimed one, not at the far end of the sentence."""
+    for L in layers:
+        if L.get("type") != "pt_bench" or not L.get("delta"):
+            continue
+        rows = L.get("rows") or []
+        base = [r for r in rows if str(r.get("text")) == "BASELINE"]
+        claim = [r for r in rows if r not in base]
+        if base and claim:
+            at = min(r["at"] for r in claim if "at" in r) if any("at" in r for r in claim) else 0.35
+            for r in base:
+                r["at"] = round(at + 0.25, 3)
+
+
+def flat_facts(it: Dict[str, Any], phone: str) -> Optional[Dict[str, Any]]:
+    """The figures a director graphic (sides, feature, callout, scene) puts on the paper, as {"items": [{"value", "sub", "at"}], "kicker"}, so the same figures can stand
+    over real footage. None when the graphic carries anything else (battery fills, charts, photographs): those stay on their own scene."""
+    try:
+        _shot, make, _sec = directive_visual(dict(it, flat=True), phone, [], 0, None, "news")
+        lay = make(0.0, 10.0)
+    except Exception:
+        return None
+    items, kicker = [], ""
+    for L in lay:
+        t = L.get("type")
+        if t == "pt_paper":
+            continue
+        if t == "pt_sides":
+            items += [{"value": str(x.get("value", "")), "sub": str(x.get("sub", "")), **({"at": x["at"] - 0.0} if x.get("at") is not None else {})} for x in L.get("items") or []]
+        elif t == "pt_flatphones":
+            kicker = kicker or str(L.get("title") or "")
+            for p in L.get("phones") or []:
+                sd = p.get("side")
+                if p.get("fill") is not None or p.get("cap") or p.get("caption") or p.get("cutaway") or p.get("cable") or p.get("badge") or p.get("top") or p.get("text"):
+                    return None                    # a battery cutaway, a cable, a badge or a before/after figure is its own drawing: it keeps its scene
+                if isinstance(sd, dict) and sd.get("text"):
+                    items.append({"value": str(sd["text"]), "sub": str(p.get("label") or "") if not L.get("title") else "", **({"at": p["at"]} if p.get("at") is not None else {})})
+        else:
+            return None
+    items = [x for x in items if x["value"]]
+    return {"items": items[:4], "kicker": kicker} if items else None
+
+
+def over_layers(it: Dict[str, Any], phone: str, a: float, b: float) -> List[Dict[str, Any]]:
+    facts = it.get("_facts") or flat_facts(it, phone)
+    if not facts:
+        return []
+    return [{"type": "pt_fact", "items": [dict(x) for x in facts["items"]], "kicker": facts.get("kicker") or "", "start": round(a + 0.1, 3), "end": round(b - 0.05, 3)}]
+
+
 def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int, product: Optional[Dict[str, Any]] = None, style: str = "cinematic"):
     """The shot and layers of one non-spoken item (chart, stat, X-ray, fold, lineup, chip, macro, big word, intro, outro): (shot fields, make(a, b) -> layers, seconds)."""
     kind = it["kind"]
@@ -241,14 +348,18 @@ def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int
     if kind == "sides":                              # two figures either side of one phone, each on its word (REVIEW_REFERENCE_5 gap 17)
         items = [dict(x) for x in it.get("items") or []]
         sec = DIRECTIVE_SECONDS["sides"]
-        if style in ("infographic", "news"):
+        if style in ("infographic", "news") or it.get("flat"):
             return PAPER_SHOT, _paper(lambda a, b: [{"type": "pt_flatphones", "phones": [{"label": phone.title(), "color": "#2b2b2e", "cams": 3}], "start": round(a + 0.05, 3), "end": round(b - 0.03, 3)},
                                                      {"type": "pt_sides", "items": [dict(x) for x in items], "ink": "dark", "start": round(a + 0.15, 3), "end": round(b - 0.05, 3)}]), sec
         shot = {"kind": "product", "object": "phone", "phone": phone, "move": "hero_back", "backdrop": REVIEW_SET, "seed": 61 + k}
         return shot, lambda a, b: [{"type": "pt_sides", "items": [dict(x) for x in items], "ink": "dark" if REVIEW_SET == "daylight" else "light",
                                     "start": round(a + 0.15, 3), "end": round(b - 0.05, 3)}], sec
+    if kind == "chip" and it.get("flat"):            # a named chip as the film's chip badge (pt_badge), not a 3D chip marked "Reported"
+        flat = paper_form(it, phone, cols, k)
+        if flat:
+            return flat
     if kind in ("feature", "callout"):
-        if style in ("infographic", "news"):
+        if style in ("infographic", "news") or it.get("flat"):
             return paper_form(it, phone, cols, k)
         return feature_visual(it, phone, k, product)
     if style in ("infographic", "follow", "news") or kind in ("flat", "gauge", "tweet", "thermal", "cost", "scene"):
@@ -288,6 +399,41 @@ def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int
             return shot, lambda a, b: cap(it.get("text"), a, b) + [{"type": "pt_ring", "part": "lens", "index": int(rg.get("index", -1)), "phrase": str(rg.get("phrase") or ""),
                                                                     "x": 0.5, "y": 0.42, "r": 0.07, "start": round(a + 0.1, 3), "end": round(b - 0.05, 3)}], sec
         return shot, lambda a, b: cap(it.get("text"), a, b), sec
+    if kind == "timeline":                           # dates the script has given, on one axis: a dot lands on each date as it is spoken (tm_timeline; the layer's own look)
+        evs = [e for e in it.get("events") or []][:3]
+        import datetime as _dt
+        doy = [_dt.date(2001, int(e["month"]), int(e["day"])).timetuple().tm_yday for e in evs]
+        base0 = min(doy)
+        days = [d - base0 for d in doy]                                                # days from the first date: one axis across months
+        ticks = [{"at": d, "text": MONTH_ABBR[int(e["month"]) - 1] + " " + str(int(e["day"]))} for d, e in zip(days, evs)]
+        def make_tl(a, b):
+            return [{"type": "tm_timeline", "from": min(days) - 1, "to": max(days) + 1, "step": 1, "ticks": ticks, "scale": 2.6, "label_all": True, "connect": True,
+                     "events": [{"t": round(a + 0.5 + (b - a - 1.2) * i / max(1, len(evs) - 1) * 0.9, 3), "year": days[i], "label": e.get("label") or "", "_date": [int(e["month"]), int(e["day"])]} for i, e in enumerate(evs)],
+                     "start": round(a + 0.1, 3), "end": round(b - 0.05, 3)}]
+        return {"kind": "plate", "tint": "cool"}, make_tl, sec
+    if kind == "evidence":                           # a statement / report / reported fact: source label, the line's clauses as beats with the key fact picked out (pt_evidence)
+        paper = style == "infographic"               # the one-look paper film: the card sits on the paper, dark ink (no dark plate with particles)
+        mk = lambda a, b: [{"type": "pt_evidence", "kicker": str(it.get("kicker") or ""), "beats": [dict(x) for x in it.get("beats") or []],
+                            "start": round(a + 0.1, 3), "end": round(b - 0.05, 3), **({"light": True} if paper else {})}]
+        return ({"kind": "black"}, _paper(mk), sec) if paper else ({"kind": "plate", "tint": "cool"}, mk, sec)
+    if kind == "hero":                               # a 3D render of the film's phone on a colour-matched sweep with the line's few key words: a picture, not a card
+        wash = HERO_WASH[k % len(HERO_WASH)]
+        mv = HERO_MOVES[k % len(HERO_MOVES)]
+        shot = {"kind": "product", "object": "phone", "phone": phone, "move": mv, "backdrop": "colorsweep", "wash": wash[0], "color": wash[1], "seed": 31 + k,
+                "screen": {"wallpaper": ("liquid", "wave", "liquid")[k % 3], **({"tint": wash[0]} if k % 3 == 2 else {})}, "_own": True, "_hero": True}
+        left = k % 2 == 0
+        if str(it.get("text") or "").strip():          # room for the words beside it; with none, the phone stays centred
+            shot["frame_side"] = "right" if left else "left"
+        label = str(it.get("text") or "").strip()
+        return shot, lambda a, b: [{"type": "pt_words", "text": label, "start": round(a + 0.2, 3), "end": round(b - 0.1, 3),
+                                    "x": 0.07 if left else 0.93, "y": 0.5, "align": "left" if left else "right", "size": 56, "ink": "light"}] if label else [], sec
+    if kind == "phrase":                             # the narration's own key words on a plain plate: no phone behind them, nothing implied that is not said
+        return {"kind": "plate", "tint": "cool"}, lambda a, b: [{"type": "pt_words", "text": str(it.get("text") or ""), "start": round(a + 0.15, 3), "end": round(b - 0.1, 3),
+                                                                 "y": 0.45, "ink": "light"}], sec
+    if kind == "bigtype" and it.get("_plate"):      # a short lead-in ("Now the problem.") as the film's big italic type on the dark plate, no phone behind it
+        if style == "infographic":                   # on the paper, dark type
+            return {"kind": "black"}, _paper(lambda a, b: [{"type": "pt_bigtype", "text": str(it.get("text") or ""), "y": 0.5, "start": a + 0.15, "end": b - 0.1, "ink": "dark"}]), sec
+        return {"kind": "plate", "tint": "cool"}, lambda a, b: [{"type": "pt_bigtype", "text": str(it.get("text") or ""), "y": 0.5, "start": a + 0.15, "end": b - 0.1}], sec
     if kind == "bigtype":
         shot = {"kind": "product", "object": "phone", "phone": phone, "move": "monolith", "backdrop": REVIEW_SET, "seed": 51 + k}
         return shot, lambda a, b: [{"type": "pt_bigtype", "text": str(it.get("text") or ""), "y": 0.22, "start": a + 0.2, "end": b - 0.1}], sec
@@ -745,12 +891,23 @@ def _filler_shot(phone: str, cols: Sequence[str], k: int, moves: Sequence[str], 
     return {"kind": "product", "object": "phone", "phone": phone, "move": moves[k % len(moves)], "backdrop": REVIEW_SET, "seed": 9 + k}
 
 
-def footage_shot(it: Dict[str, Any], media_dir: Optional[Path], k: int) -> Optional[Dict[str, Any]]:
-    """A video shot for a resolved footage item (its clip copied into the film's media folder), or None when it has no clip."""
+def footage_shot(it: Dict[str, Any], media_dir: Optional[Path], k: int, dur: Optional[float] = None) -> Optional[Dict[str, Any]]:
+    """A video shot for a resolved footage item (its clip copied into the film's media folder), or None when it has no clip.
+    An item from the footage library carries `seg` (source file, in, out): that moment is cut out of the source (never altered) to the length of its slot."""
     path = it.get("path")
     if not path or not Path(path).is_file() or not media_dir:
         return None
     Path(media_dir).mkdir(parents=True, exist_ok=True)
+    seg = it.get("seg")
+    if seg:
+        from . import footage_library as FL
+
+        name = f"footage_{k:03d}.mp4"
+        want = float(seg["out"]) - float(seg["in"])
+        if dur:
+            want = min(max(want, 0.5), float(dur) + 0.12) if float(dur) + 0.12 <= float(seg.get("room", want)) else float(seg.get("room", want))
+        FL.cut_segment({**seg, "out": float(seg["in"]) + want}, Path(media_dir) / name)
+        return {"kind": "video", "file": name, "loop": bool(dur and float(dur) > want + 0.3)}
     name = f"footage_{k:03d}{Path(path).suffix or '.mp4'}"
     shutil.copyfile(path, Path(media_dir) / name)
     return {"kind": "video", "file": name, "loop": True}
@@ -941,7 +1098,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
     def directive(it: Dict[str, Any], a: float, b: float) -> None:
         nonlocal k3
         if it["kind"] == "footage":
-            fs = footage_shot(it, media_dir, k3)
+            fs = footage_shot(it, media_dir, k3, b - a)
             last_dir.clear()
             if fs:
                 add(a, b, fs)
@@ -969,7 +1126,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
             last_dir.update({"shot": s, "first": first, "last": len(layers), "t0": a})
             held = layers[first:]
             most = MAX_CARD_S if s.get("kind") == "black" else MAX_SCENE_S
-            if style in ("follow", "news") and (mid - a) > most + 1.0:
+            if style in ("follow", "news") and (mid - a) > most + 1.0 and not it.get("_stay"):   # _stay: a figure scene the footage library chose to keep for its whole line
                 cut = a + most                           # a long line: the scene has its read, then moving 3D shots carry the rest of the line
                 s["end"] = round(cut, 3)
                 for L in held:
@@ -1000,7 +1157,18 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
         flat[-1]["pending"] = flat[-1]["pending"] + pend      # directives after the last line share its stretch
     from . import director
 
+    library_mode = any(u.get("_own") for ff in flat for u in ff.get("pending", []))
+    ch_title: Dict[int, str] = {}
+    ch_span: Dict[int, List[float]] = {}
     for i, f in enumerate(flat):
+        if style == "infographic":
+            _PAPER_TONE[0] = PAPER_TONES[f["ch"] % len(PAPER_TONES)] if f.get("ch") is not None else None
+            if f.get("title"):
+                ch_title[f["ch"]] = str(f["title"])
+            _a = 0.0 if i == 0 else spans[i][0]
+            _b = D if i + 1 >= len(flat) else spans[i + 1][0]
+            sp = ch_span.setdefault(f["ch"], [_a, _b])
+            sp[0], sp[1] = min(sp[0], _a), max(sp[1], _b)
         cur_topic[0] = director.topic_of(director.spoken_numbers(f["line"]["text"])) or cur_topic[0]
         a = 0.0 if i == 0 else spans[i][0]
         b = D if i + 1 >= len(flat) else spans[i + 1][0]
@@ -1010,16 +1178,62 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
         card = min(CHAPTER_S, 0.4 * span) if f["title"] else 0.0
         cur = a
         if card:
-            s = add(cur, cur + card, {"kind": "plate", "tint": "cool"})
-            layers.append({"type": "tm_title", "line1": f"CHAPTER {f['ch'] + 1}", "line2": f["title"], "accent": "cyan", "start": s["start"] + 0.1, "end": s["end"] - 0.05})
+            if style == "infographic":               # the chapter's name in big dark type on the paper
+                s = add(cur, cur + card, {"kind": "black"})
+                layers.append({"type": "pt_paper", "start": s["start"], "end": s["end"], "fade_in": 0, "fade_out": 0})
+                layers.append({"type": "pt_bigtype", "text": str(f["title"]).upper(), "y": 0.5, "start": s["start"] + 0.1, "end": s["end"] - 0.05, "ink": "dark"})
+            else:
+                s = add(cur, cur + card, {"kind": "plate", "tint": "cool"})
+                layers.append({"type": "tm_title", "line1": f"CHAPTER {f['ch'] + 1}", "line2": f["title"], "accent": "cyan", "start": s["start"] + 0.1, "end": s["end"] - 0.05})
             cur += card
         rest = b - cur
-        share = rest / (len(units) + 1)
-        if units and (share < MIN_CHART_S or style in ("follow", "news")):          # too short to read a chart and then a filler shot: the graphics own the whole line
-            share = rest / len(units)
-        for u in units:
+        over = [u for u in units if u.get("_over")]       # figures drawn over the line's footage (pt_fact): they take no shot of their own
+        vis = sorted([u for u in units if not u.get("_over")], key=lambda u: 0 if u.get("_first") else 1)     # a lead-in the planner marked comes before the scene it leads into
+        t_over = cur
+        share = rest / (len(vis) + 1)
+        if vis and (share < MIN_CHART_S or style in ("follow", "news")):          # too short to read a chart and then a filler shot: the graphics own the whole line
+            share = rest / len(vis)
+        todo = vis
+        if vis and all(u["kind"] == "phrase" for u in vis):     # phrase cards follow the speech: time in proportion to their words, so a card is never up before it is said
+            wts = [max(1, len(str(u.get("text") or "").split())) for u in vis]
+            cuts = [cur + rest * sum(wts[:j]) / sum(wts) for j in range(len(vis))] + [b]
+            if ok and words and len(vis) > 1:      # better: each card starts on its first spoken word (the narrator's own timing)
+                from .voiceover import _wtimes
+
+                W = _wtimes(words)
+                s0, e0 = ranges[i]
+                idx, wc = s0, []
+                for u in vis:
+                    wc.append(idx)
+                    idx += max(1, len(str(u.get("text") or "").split()))
+                if all(s0 <= q <= e0 and q < len(W) for q in wc):
+                    ts = [max(cur, min(b, W[q][1])) for q in wc]
+                    ts[0] = cur
+                    if all(ts[j + 1] - ts[j] >= 0.6 for j in range(len(ts) - 1)) and b - ts[-1] >= 0.6:
+                        cuts = ts + [b]
+            for j, u in enumerate(vis):
+                directive(u, cuts[j], cuts[j + 1])
+            cur = b
+            todo = []
+        foot_end = None
+        if (over or any(u.get("_lead") for u in todo)) and any(u["kind"] == "footage" and u.get("seg") for u in todo):    # figures over footage: each clip lasts as long as its moment, the director's scene (if any) takes the rest
+            for u in [x for x in todo if x["kind"] == "footage"] + [x for x in todo if x["kind"] != "footage"]:      # the footage leads, the director's scene follows
+                if u["kind"] == "footage" and u.get("seg"):
+                    d_u = float(u["seg"]["out"]) - float(u["seg"]["in"])
+                    nxt = min(b, cur + d_u)
+                    directive(u, cur, nxt)
+                    cur, foot_end = nxt, nxt
+                else:
+                    directive(u, cur, b)
+                    cur = b
+            todo = []
+        for u in todo:
             directive(u, cur, cur + share)
             cur += share
+            if u["kind"] == "footage":
+                foot_end = cur
+        for u in over:                                    # the figures stand over the footage; if a graphic scene follows for the rest of the line, they end where it begins
+            layers.extend(over_layers(u, phone, t_over, foot_end if (foot_end and foot_end < b - 0.3) else b))
         if units and b - cur < 0.3:
             continue_line = True
         else:
@@ -1045,6 +1259,14 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
             chunks += voiceover.chunks(f["line"]["text"], spans[i], words, ranges[i], ok)
             continue
         sc = by_n.get(i + 1, {"source": "3d"})
+        if style == "infographic" and library_mode and b - cur > 0.6:         # the footage library chose this film's visuals: the rest of the line gets its own card, never a stand-in phone
+            from . import footage_library as _fl
+            bt = _fl.make_beats(f["line"]["text"], words, ranges[i], (cur, b), ok, from_t=cur)
+            if bt:
+                for n2, (a2, b2) in enumerate(_beats(cur, b, 5.0)):    # a picture, not a card: the phone on a colour sweep, a new colour and move each ~5 s, the line's first clause beside it once
+                    directive({"kind": "hero", "text": _fl.clause_label(f["line"]["text"]) if n2 == 0 else "", "_own": True}, a2, b2)
+                chunks += voiceover.chunks(f["line"]["text"], spans[i], words, ranges[i], ok)
+                continue
         if style == "infographic":
             for a2, b2 in _beats(cur, b, 4.0):        # a long line changes its flat-phone arrangement every ~4 s
                 shot, make = line_visual(phone, cols, k3 + 1)
@@ -1092,6 +1314,9 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
     if words and ok:                                 # each label, badge, bar and card lands on the word that names it (REVIEW_REFERENCE_4 gap 1)
         from .wordcue import cue_layers
         cue_layers(layers, voiceover._wtimes(words))
+        _cue_timeline(layers, voiceover._wtimes(words))
+        _cue_numbers(layers, voiceover._wtimes(words))
+        _cue_claim_bars(layers)
     layers.append({"type": "pt_subtitle", "chunks": chunks, "box": True})
     t = D
     card_lines = [x for x in (prod.get("disclaimer"),) if x]
@@ -1101,6 +1326,14 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
         t += 4.0
     if not ok:
         notes.append("the voice-over did not follow the script word for word: lines were spread evenly over its length")
+    if style == "infographic" and ch_title:          # the section tag on every shot of a chapter (bottom-left), drawn last so it sits on top of the shots
+        _PAPER_TONE[0] = None
+        total = len(ch_title)
+        for n, ci in enumerate(sorted(ch_title)):
+            a0, b0 = ch_span[ci]
+            a0 = a0 + CHAPTER_S                          # the chapter card has its own title; the tag starts after it
+            if b0 - a0 > 1.0:
+                layers.append({"type": "pt_tag", "text": ch_title[ci], "index": n + 1, "total": total, "start": round(a0, 3), "end": round(b0, 3)})
     spec = {"width": int(width), "height": int(height), "fps": int(fps), "duration": round(t, 3), "look": dict(FLAT_LOOK if style == "infographic" else NEWS_LOOK if style == "news" else LOOK), "shots": shots, "layers": layers,
             "whatif": {"title": parsed.get("title") or "Review", "notes": notes},
             "product_trailer": {"pace": "review", "product": prod, "voiceover_timed": True, "voice_matched": bool(ok)}}

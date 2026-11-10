@@ -45,7 +45,7 @@ export default {
   create: (def) => { if (def.value == null || def.value === '') throw new Error('pt_feature: "value" is required'); return { def }; },
   draw(inst, f) {
     const d = inst.def, { g, W, H } = f, T = tm(g, W), S = T.S, m = ptMotion(d, f.t, S);
-    const { x, align, maxW } = ptSide(d.side === 'right' ? 'right' : 'left', W);
+    const { x, align, maxW } = ptSide(d.side === 'right' ? 'right' : d.side === 'center' ? 'center' : 'left', W);   // 'center' for phone-free title cards
     const value = String(d.value), vpx = ptFit(T, value, 210, maxW, 800, 'display', -3);
     const cy = H * 0.5, vy = cy + vpx * S * 0.34;
     ptWith(g, f, m, () => {

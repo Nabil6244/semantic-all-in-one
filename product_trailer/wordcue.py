@@ -17,7 +17,7 @@ FIRST_MAX = 0.8                 # a fresh graphic shows its first item by then, 
 STEP = 0.12                     # an unnamed item after a named one follows it by this much (the layers' own stagger)
 ITEMS = {                       # layer type -> (list key, fields that name an item, in order of preference)
     "pt_flatphones": ("phones", ("label", "text", "top")),
-    "pt_compare3": ("cols", ("label",)),
+    "pt_compare3": ("cols", ("label", "value")),
     "pt_bench": ("rows", ("label", "text")),
     "pt_glass": ("cards", ("title",)),
     "pt_gauge": ("gauges", ("label",)),

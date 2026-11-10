@@ -19,7 +19,7 @@
    "frame_finish": "satin",
    "frame_color": "#5d6a80",
    "back_color": "#2f3a50",
-   "back_finish": "satin",
+   "back_finish": "metal",
    "camera": {
     "layout": "galaxy_s27_video",
     "flash": true

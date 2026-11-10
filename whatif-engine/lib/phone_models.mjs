@@ -103,7 +103,7 @@ export function resolvePhone(idOrSpec) {
   for (const [k, d] of [['w_mm', 74], ['h_mm', 160], ['d_mm', 8.3], ['corner_mm', 10]]) if (!(Number(m[k]) > 0)) m[k] = d;
   m.frame = m.frame === 'rounded' ? 'rounded' : 'flat';
   m.frame_finish = ['polished', 'brushed', 'matte', 'satin'].includes(m.frame_finish) ? m.frame_finish : 'brushed';
-  m.back_finish = ['glossy', 'satin'].includes(m.back_finish) ? m.back_finish : 'matte';
+  m.back_finish = ['glossy', 'satin', 'metal'].includes(m.back_finish) ? m.back_finish : 'matte';
   m.buttons = ['right', 'left', 'both'].includes(m.buttons) ? m.buttons : 'right';
   m.frame_color = m.frame_color || '#9aa1a8'; m.back_color = m.back_color || '#2b3036';
   return m;
@@ -259,7 +259,10 @@ export function buildPhoneModel(THREE, model, { envMap = null, shot = {}, screen
   const glossy = m.back_finish === 'glossy';
   const light = backCol.getHSL({}).l > 0.72;   // white/near-white backs blow out under the studio rig: tame the reflections, keep the tone
   const satin = m.back_finish === 'satin';   // frosted, matte-satin glass (no gloss, no brushing)
-  const backMat = satin
+  const metal = m.back_finish === 'metal';   // satin anodised metal back (the S27 reference look): real reflections, broad light streaks across the flat faces
+  const backMat = metal
+    ? new THREE.MeshPhysicalMaterial({ color: light ? backCol.clone().multiplyScalar(0.85) : backCol, metalness: 0.9, envMap, roughness: 0.34, clearcoat: 0.3, clearcoatRoughness: 0.3, ior: 1.5, envMapIntensity: light ? 0.9 : 0.85 })
+    : satin
     ? new THREE.MeshPhysicalMaterial({ color: light ? backCol.clone().multiplyScalar(0.7) : backCol, metalness: 0, envMap, roughness: 0.55, clearcoat: 0.12, clearcoatRoughness: 0.6,
       sheen: 0.25, sheenRoughness: 0.7, sheenColor: backCol.clone().lerp(new THREE.Color('#ffffff'), 0.3), ior: 1.5, envMapIntensity: light ? 0.6 : 0.95 })
     : new THREE.MeshPhysicalMaterial({ color: light ? backCol.clone().multiplyScalar(0.62) : backCol, metalness: 0.05, envMap, roughness: glossy ? 0.08 : 0.52,
@@ -302,6 +305,7 @@ export function buildPhoneModel(THREE, model, { envMap = null, shot = {}, screen
     const I = lay.island, depth = mm(L_ISLAND[m.camera.layout] ?? 1.6);
     const shape = I.shape === 'circle' ? circleShape(THREE, mm(I.r)) : roundedRect(THREE, mm(I.w), mm(I.h), mm(I.r));
     const islandMat = I.shape === 'bar' || m.camera.layout === 'iphone_pro' ? frameMat
+      : metal ? new THREE.MeshPhysicalMaterial({ color: light ? backCol.clone().multiplyScalar(0.85) : backCol.clone().multiplyScalar(1.05), metalness: 0.92, roughness: 0.26, clearcoat: 0.35, clearcoatRoughness: 0.25, envMap, envMapIntensity: light ? 0.9 : 1.1 })
       : satin ? new THREE.MeshPhysicalMaterial({ color: light ? backCol.clone().multiplyScalar(0.68) : backCol.clone().multiplyScalar(0.97), metalness: 0, roughness: 0.42, clearcoat: 0.25, clearcoatRoughness: 0.4,
         sheen: 0.3, sheenRoughness: 0.6, sheenColor: backCol.clone().lerp(new THREE.Color('#ffffff'), 0.35), envMap, envMapIntensity: light ? 0.7 : 1.05 })
       : new THREE.MeshPhysicalMaterial({ color: backCol.clone().multiplyScalar(light ? 0.6 : 0.92), metalness: light ? 0.1 : 0.3, roughness: glossy ? 0.08 : 0.35, clearcoat: 1, clearcoatRoughness: 0.05, envMap, envMapIntensity: light ? 0.7 : 1.4 });

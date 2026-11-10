@@ -67,6 +67,12 @@ def _canon(t: str) -> str:
 
 def sides_for(text: str, phone: str) -> Optional[Dict[str, Any]]:
     """{"items": [{value, sub, side}, {value, sub, side}]} for a sentence with two figures of one kind, or two "X instead of Y"; else None."""
+    mem = list(dict.fromkeys(_canon(m.group(0)) for m in re.finditer(r"(?i)\b(?:LPDDR\d+X?|UFS \d(?:\.\d)?)\b", text)))
+    if len(mem) >= 2 and len({m[:3] for m in mem}) >= 2 and not NOT_PAIR.search(text):                      # a memory type and a storage type in one sentence: both figures, each with what the sentence says of it
+        miss = re.search(r"(?i)miss(?:es|ing)? out|without|no longer|not getting|skips?", text)
+        back = re.search(r"(?i)\b(?:is )?back\b|returns?|instead|newer|even faster", text)
+        sub = "Possibly missing" if miss else "Newer report" if back else "Reported"
+        return {"items": [{"value": mem[0], "sub": sub, "side": "left"}, {"value": mem[1], "sub": sub, "side": "right"}]}
     pairs = list(NOT_PAIR.finditer(text))
     if pairs:
         items = [{"value": _canon(m.group(1)), "sub": "Not " + _canon(m.group(2))} for m in pairs[:2]]

@@ -133,6 +133,7 @@ export default {
       if (p.side) {
         const sd = p.side, kk = quartOut((fAge('side') - 0.25) / 1.2), v = sd.text != null ? sd.text : `${sd.prefix ?? ''}${Math.round((sd.from ?? 0) + ((sd.to ?? 0) - (sd.from ?? 0)) * kk)}${sd.suffix ?? ''}`;
         T.text(v, x + ph_w + gap * 0.3, y0 + ph_h * 0.56, { font: ptFont(S, sd.size || 96, 900), color: sd.color || '#1d2127', shadow: 0, alpha: a * fA('side') });
+        if (sd.sub) T.text(String(sd.sub).toUpperCase(), x + ph_w + gap * 0.3 + 4 * S, y0 + ph_h * 0.56 + (sd.size || 96) * 0.42 * S, { font: ptFont(S, 28, 700, 'sans'), track: 3, color: '#5d636d', shadow: 0, alpha: a * fA('side') * clamp01((fAge('side') - 0.2) / 0.3) });   // what the figure is for
       }
       if (p.cable) {
         const cxp = x + ph_w / 2, yb = y0 + ph_h;

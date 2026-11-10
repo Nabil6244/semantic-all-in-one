@@ -13,7 +13,7 @@ export default {
     const cy = H * (Number.isFinite(d.y) ? d.y : 0.22), sc = 1.08 - 0.08 * quartOut(m.age / 1.4) - 0.015 * Math.max(0, m.age - 1.4) / 6;
     ptWith(g, f, m, () => {
       g.translate(W / 2, cy); g.scale(sc * 1.06, sc); g.transform(1, 0, -0.16, 1, 0, 0);   // wide + italic (sheared Montserrat Black)
-      T.text(text, 0, px * S * 0.36, { font: ptFont(S, px, 900), track: px * 0.02, color: C.white, align: 'center', shadow: 0.3 });
+      T.text(text, 0, px * S * 0.36, { font: ptFont(S, px, 900), track: px * 0.02, color: d.ink === 'dark' ? '#161A21' : C.white, align: 'center', shadow: d.ink === 'dark' ? 0 : 0.3 });
     });
   },
 };

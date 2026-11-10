@@ -93,6 +93,9 @@ def spoken_numbers(text: str) -> str:
         if nxt == out:
             break
         out = nxt
+    if re.search(r"\bdollars?\b", out, re.I):         # a script written for the ear: "1,999 dollars", "up to 2,199, 2,599, and 3,199 dollars"
+        out = re.sub(r"(?<![\d$,.])(\d[\d,]*(?:\.\d+)?)\s+dollars?\b", r"$\1", out, flags=re.I)
+        out = re.sub(r"(?<![\w$,.])(\d{1,3}(?:,\d{3})+)(?=,\s+(?:and\s+)?\$?\d)", r"$\1", out)
     if PRICE_WORDS.search(out):
         out = re.sub(r"(?<![\d.,$])\$?(\d[\d,]*) (\d{2})(?![\d,]|\s*(?:%|mah|w\b|mp\b|hz\b))", r"$\1.\2", out, flags=re.I)
     return out
@@ -114,6 +117,51 @@ def topic_of(text: str) -> Optional[str]:
 def _callout(kicker: str, value: str, sub: str = "", topic: Optional[str] = None) -> Dict[str, Any]:
     """A short spoken claim as big readable type beside the 3D phone of its subject (review.feature_visual draws it)."""
     return {"kind": "callout", "kicker": kicker.upper()[:34], "value": value[:28], "sub": sub[:40], "feature": topic or "", "look": "", "_own": True}   # the point itself: the variety pass never swaps it
+
+
+MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december")
+DATE_LABELS = (("launch", "LAUNCH"), ("announce", "ANNOUNCED"), ("pencil", "PENCIL"), ("update", "UPDATE"), ("respon", "RESPONSE"), ("memo", "MEMO"), ("release", "RELEASE"), ("recall", "RECALL"),
+               ("teardown", "TEARDOWN"), ("report", "REPORT"), ("guide", "GUIDE"))
+
+
+def _doy(e: Dict[str, Any]) -> int:
+    import datetime as _dt
+    return _dt.date(2001, int(e["month"]), int(e["day"])).timetuple().tm_yday
+
+
+def _span_days(evs: List[Dict[str, Any]]) -> int:
+    d = [_doy(e) for e in evs]
+    return max(d) - min(d)
+
+
+_VERBS = r"published|acknowledged|sent|announced|released|confirmed|launched|issued|opened|posted|said|told|responded|updated|reported|quoted|quoting|arrived|started"
+
+
+def event_label(text: str, month: int, day: int) -> str:
+    """A short label for what happened on a date, from the sentence's own words: 'On October 26, it acknowledged an inner display issue affecting...' -> 'ACKNOWLEDGED INNER DISPLAY ISSUE'."""
+    t = re.sub(r"\s+", " ", text)
+    m = re.search(r"\b(?:" + MONTHS[month - 1] + r")\s+" + str(day) + r"(?:st|nd|rd|th)?\b[,]?\s*(?:\d{4}[,]?\s*)?(.*)", t, re.I)
+    rest = (m.group(1) if m else "").strip(" .")
+    v = re.search(r"\b(reportedly\s+)?(" + _VERBS + r")\b\s*(.*)", rest, re.I)
+    if not v:
+        return ""
+    noun = re.split(r"\b(?:affecting|and|to|for|that|which|with|in|on|at|of)\b|[,.;]", v.group(3), maxsplit=1)[0]
+    words = [w for w in noun.split() if w.lower() not in ("a", "an", "the", "its", "it", "some", "their")][:4]
+    lab = " ".join(([v.group(1).strip()] if v.group(1) else []) + [v.group(2)] + words)
+    return lab.upper()
+
+
+def _dates_in(text: str) -> List[Dict[str, Any]]:
+    """Each "October 23" in a sentence with a short label for what happened that day (from the sentence's own words: launch, update, response...)."""
+    out = []
+    t = text.lower()
+    for m in re.finditer(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})(?:st|nd|rd|th)?\b", t):
+        near = t[max(0, m.start() - 90):m.end() + 40]
+        hit = [lab for key, lab in DATE_LABELS if key in near][:2]
+        mo, dy = MONTHS.index(m.group(1)) + 1, int(m.group(2))
+        lab = event_label(text, mo, dy) if not re.search(r"launch", t[max(0, m.start() - 30):m.end() + 30]) else ""     # what the sentence says happened that day; launch day keeps LAUNCH
+        out.append({"month": mo, "day": dy, "label": lab or " ".join(hit[::-1] if len(hit) == 2 and hit[0] == "UPDATE" else hit)})
+    return out
 
 
 def talk_scene(text: str, phone: str = "", ctx: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
@@ -186,7 +234,16 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
     """The scene a sentence calls for. `ctx` carries what the sentences before it were about ({"unit", "topic"}), so "the S26 Ultra has 5,000"
     after a battery sentence is read as mAh."""
     text = spoken_numbers(text)
+    prior_dates = list(ctx.get("dates", [])) if ctx is not None else []
+    if ctx is not None:                                                  # the dates the script has given so far, with what happened on each (a later date draws a timeline)
+        for d in _dates_in(text):
+            ctx.setdefault("dates", []).append(d)
     lens_open = bool(ctx.pop("lens_open", False)) if ctx is not None else False   # the sentence before drew lens callouts (gap 4)
+    new_dates = [d for d in _dates_in(text) if d not in prior_dates]
+    if new_dates and prior_dates and len(text.split()) <= 24 and not re.search(r"\$\d", text):
+        evs = [d for d in prior_dates if d["month"] != new_dates[0]["month"] or d["day"] != new_dates[0]["day"]][-2:] + new_dates[:1]
+        if len({(e["month"], e["day"]) for e in evs}) >= 2 and _span_days(evs) <= 45:      # a short run of dates on one axis
+            return {"kind": "timeline", "events": evs[-3:]}
     talk = talk_scene(text, phone, ctx)
     if talk:
         return talk
@@ -194,7 +251,7 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
     nums = _numbers(text)
     unit = (ctx or {}).get("unit")
     if unit and not [n for n in nums if n["unit"] != "%"]:            # bare figures in a sentence that continues a battery / camera point
-        bare = [float(x.replace(",", "")) for x in re.findall(r"(?<![\d.$])(\d[\d,]{2,})(?![\d.]|\s*(?:%|percent))", text)]
+        bare = [float(x.replace(",", "")) for x in re.findall(r"(?<![\d.$])(\d[\d,]{2,})(?![\d.]|\s*(?:%|percent))", text) if not re.fullmatch(r"(?:19[89]\d|20[0-3]\d)", x)]   # a bare year ("a 2027 flagship") is not a figure
         nums = [{"v": v, "unit": unit, "raw": f"{v:,.0f}"} for v in bare] + nums
     if not nums and _has(t, "geekbench", "score", "scores", "benchmark"):                   # "scores 4,719 against 3,832": bare figures are points
         bare = [float(x.replace(",", "")) for x in re.findall(r"\b\d[\d,]{2,}(?:\.\d+)?\b", text)]
@@ -206,15 +263,24 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
     if _has(t, "certification", "certified", "certifies", "bis", "fcc", "3c", "regulatory", "database", "listing", "listed", "geekbench") and len(nums) < 2 and (named or not nums):
         return _scene(type="pt_doc", title="Regulatory listing" if chip != "Geekbench" else "Benchmark listing", chip=(chip.upper() + " CERTIFICATION") if chip not in ("Geekbench", "CERTIFICATION") else chip.upper(),
                       rows=7, highlight=3, stamp=_fmt(nums[0]["v"], nums[0]["unit"]) if nums else ("5G" if _has(t, "5g") else ""))
-    # 2. a named source
+    # 2. a named source (unless the sentence itself calls for a graphic: lens callouts, colour cards, two chips; those draw the claim, the source stays in the voice)
+    from . import lenses as _lenses0
+    _cols0 = {c for c in COLOURS if re.search(r"(?<![a-z])" + c + r"(?![a-z])", t)}
+    graphic_first = bool(_lenses0.layer_for(text, name) or _lenses0.ring_for(text) or (len(_cols0) >= 3 and _has(t, "colour", "colours", "color", "colors", "shades", "options")) or len(_chips_in(text)) >= 2)
     who = re.search(r"(?i:tipster|leaker|source)\s+([A-Z][\w]*(?:\s+[A-Z][\w]*)?)", text)
     pub = re.match(r"([A-Z][\w]+(?:\s+[A-Z][\w]+){0,2})\s+(?:says|said|reports|reported|built|claims|shared|posted|leaked)\b", text.strip())
-    if pub and pub.group(1).split()[0] not in NOT_NAMES and not who:     # "Android Headlines built dummy units ...": the source named on its card
+    if pub and pub.group(1).split()[0] not in NOT_NAMES and not who and not graphic_first:     # "Android Headlines built dummy units ...": the source named on its card
         rest = text.strip()[pub.end():].strip(" .")
         return {"kind": "tweet", "author": pub.group(1), "handle": "", "text": text.strip(), "highlight": " ".join(rest.split()[:4])}
-    if _has(t, "tipster", "leaker", "according to", "rumor", "rumour", "sources say") and (who or _has(t, "tipster", "leaker") or not nums) and len(text.split()) >= 6:   # a bare "rumor" with figures shows the figures
+    if not graphic_first and _has(t, "tipster", "leaker", "according to", "rumor", "rumour", "sources say") and (who or _has(t, "tipster", "leaker") or not nums) and len(text.split()) >= 6:   # a bare "rumor" with figures shows the figures
         hl = nums and re.search(re.escape(nums[0]["raw"]) + r"[^,.]*", text)
         return {"kind": "tweet", "author": who.group(1) if who else "As reported", "handle": "", "text": text, "highlight": hl.group(0).strip() if hl else ""}
+    bf = body_figure(text, name)
+    if bf:
+        return bf
+    chips2 = _chips_in(text)
+    if len(chips2) >= 2:                         # "a standard Snapdragon 8 Elite Gen 6 and a higher-end ... Extreme Gen 6": one phone per chip, the chip badge on each
+        return _scene(phones=[{"label": ("Extreme" if "Extreme" in c else "Standard" if i == 0 else "Other"), "color": [PURPLE, DARK][i % 2], "cams": 3, "badge": c} for i, c in enumerate(chips2[:3])], title="Chips")
     # 2b. lens callouts (REVIEW_REFERENCE_4 gap 4): a camera sentence after one keeps that scene and adds to it; two lenses named, or one asked
     #     about, draw the callouts; every other such sentence keeps the older camera scenes below
     from . import lenses as _lenses
@@ -287,6 +353,30 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
             return _scene(title="Size (mm)", phones=[{"label": other, "color": PURPLE, "cams": 4, "top": " x ".join(sizes[1])},
                                                      {"label": name, "color": DARK, "cams": 3, "top": " x ".join(sizes[0]), **({"badge": f"{dh:+.2f} mm"} if dh else {})}])
         return {"kind": "macro", "text": "Dimensions", "move": "edge"}
+    # 5c. battery life in hours for two screens: the battery cutaway on each phone, filled in proportion (a battery sentence is drawn as a battery)
+    hrs = [n for n in nums if n["unit"] == "h"]
+    if len(hrs) == 2 and _has(t, "battery", "batteries") and _has(t, "outer", "inner", "cover", "main", "front") and hrs[0]["v"] != hrs[1]["v"]:
+        top = max(h["v"] for h in hrs)
+        labs = ["Outer screen" if _has(t, "outer") else "Cover screen", "Inner screen" if _has(t, "inner") else "Main screen"]
+        return _scene(title="Battery life", phones=[{"label": labs[i], "color": DARK, "cams": 3, "cutaway": True, "cell_from": 0.15, "cell": round(0.9 * h["v"] / top, 2),
+                                                      "side": {"text": f"{h['v']:.0f} hrs", "size": 84, "sub": labs[i]}} for i, h in enumerate(hrs)])
+    # 5d. "up to 35 percent better sustained performance than the iPhone 17 Pro": the claim as two bars, the old one as the baseline
+    pc = re.search(r"up to (\d{1,3}) ?(?:%|percent) (better|faster|more|longer|higher|lower|less|quicker) ([a-z ]{3,34}?) than (?:the |last year['’]s )?([A-Za-z0-9 ]{3,26}?)(?:[.,;]|$)", text, re.I)
+    if pc:
+        n, word, what, other = int(pc.group(1)), pc.group(2).lower(), pc.group(3).strip(), pc.group(4).strip()
+        sign = -1 if word in ("lower", "less") else 1
+        by = re.search(r"\b(Apple|Samsung|Google|[A-Z][a-z]+) (?:says|said|claims|rates)\b", text)
+        return {"kind": "bars", "title": what.upper(), "note": (f"{by.group(1).upper()}'S CLAIM, UP TO" if by else "UP TO"),
+                "rows": [{"label": name.upper(), "value": 100 + sign * n, "text": f"{'+' if sign > 0 else '-'}{n}%", "highlight": True}, {"label": other.upper(), "value": 100, "text": "BASELINE"}],
+                "delta": {"text": f"{'+' if sign > 0 else '-'}{n}%", "sub": "UP TO"}}
+    # 5e. a score out of a maximum ("a repairability score of 5 out of 10"): the dial
+    sc = re.search(r"(?:(?:a|an|the)\s+)?((?:[a-z]+\s+){0,3}?(?:score|rating))\s+of\s+(\d+(?:\.\d+)?)\s+out of\s+(\d+)", t)
+    if sc and float(sc.group(3)) >= float(sc.group(2)) > 0:
+        by = re.search(r"\b(iFixit|Apple|Samsung|Google|DXOMARK|[A-Z][a-z]+)\b(?= gave| rated| scored| awarded)", text)
+        name_ = re.sub(r"\b(provisional)\b", "", sc.group(1)).strip().upper() or "SCORE"
+        prov = " (PROVISIONAL)" if "provisional" in t else ""
+        return {"kind": "gauge", "title": (name_ + prov), "unit": f"/{int(float(sc.group(3)))}", "max": float(sc.group(3)),
+                "gauges": [{"label": (by.group(1).upper() if by else name), "value": float(sc.group(2)), "highlight": True}]}
     # 6a. two figures of one kind either side of the phone (REVIEW_REFERENCE_5 gap 17); every other such sentence keeps the flat scenes below
     from .sides import sides_for
     two = sides_for(text, name)
@@ -299,11 +389,20 @@ def scene_for(text: str, phone: str = "Galaxy S27 Ultra", ctx: Optional[Dict[str
         if ctx["sides_n"] % 2 == 1:
             return {"kind": "sides", **two}
     # 6b. prices ("dropped to $919.99 ... a $1,299.99 list price")
-    prices = re.findall(r"\$(\d[\d,]*(?:\.\d{2})?)", text)
+    prices = [x.rstrip(",") for x in re.findall(r"\$(\d[\d,]*(?:\.\d{2})?)", text)]
     if prices:
         said = re.search(r"\b(?:galaxy\s+)?s(\d{2})(?:\s+(plus|pro|edge|ultra|fe)\b)?|\biphone\s+(\d{2})(?:\s+(pro max|pro|plus|air)\b)?", t)
         lab = uniq[0] if uniq else ((f"Galaxy S{said.group(1)}" + (f" {said.group(2).title()}" if said.group(2) else "")) if said and said.group(1)
                                     else (f"iPhone {said.group(3)}" + (f" {said.group(4).title()}" if said.group(4) else "")) if said else name)
+        if len(prices) >= 3:                         # a price ladder ("starts at 1,999, then 2,199, 2,599 and 3,199"): the tiers as rising bars, a storage size only where the sentence names one
+            vals = [int(float(x.replace(",", ""))) if float(x.replace(",", "")).is_integer() else float(x.replace(",", "")) for x in prices[:4]]
+            sto = [(m.start(), f"{m.group(1)} {'TB' if m.group(2).lower().startswith(('t')) else 'GB'}") for m in re.finditer(r"(\d+)\s*(gigabytes?|gb|terabytes?|tb)\b", t)]
+            labs = [""] * len(vals)                  # a storage size only where the sentence names one: nothing is inferred for the tiers in between
+            if sto:
+                labs[0] = sto[0][1]
+                if len(sto) > 1:
+                    labs[-1] = sto[-1][1]
+            return {"kind": "compare", "title": "PRICE", "unit": "$", "cols": [{"label": labs[i], "value": v, **({"highlight": True} if i == 0 else {})} for i, v in enumerate(vals)]}
         if len(prices) >= 2:
             return _scene(phones=[{"label": lab, "color": DARK, "cams": 3, "top": "Now", "text": "$" + prices[0]},          # one phone, two prices: the same body twice
                                   {"label": lab, "color": DARK, "cams": 3, "top": "List price", "text": "$" + prices[1]}], title="Price")
@@ -395,6 +494,38 @@ def ui_for(text: str) -> Optional[Dict[str, Any]]:
                     parts.append(p)
             rows = [p[0].upper() + p[1:] for p in parts][:5] if len(parts) >= 2 else []
             return {"kind": "ui", "title": title, "rows": rows, "look": look}
+    return None
+
+
+CHIP_NAME = re.compile(r"(Snapdragon 8 Elite(?: Extreme)?(?: Gen \d)?|Exynos \d{4}|Dimensity \d{4}|Tensor G\d|A\d{2} Pro|A\d{2})")
+_NUMWORD = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
+
+
+def _chips_in(text: str) -> List[str]:
+    """The distinct chip names in a sentence, in spoken order (the longest form of each: 'Snapdragon 8 Elite Extreme Gen 6' over 'Snapdragon 8 Elite')."""
+    found: List[str] = []
+    for m in CHIP_NAME.finditer(text):
+        n = m.group(1)
+        if not any(n in f or f in n for f in found):
+            found.append(n)
+        else:
+            found = [n if (f in n) else f for f in found]
+    return list(dict.fromkeys(found))
+
+
+def body_figure(text: str, name: str) -> Optional[Dict[str, Any]]:
+    """A sentence that states one body measure ("the thickness should stay at 7.9 millimetres", "four grams heavier than the S26 Ultra"): the figure large
+    beside the phone, with what it measures under it. Only what the sentence says."""
+    t = text.lower()
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(?:millimet(?:re|er)s?|mm)\b", t)
+    if m and _has(t, "thick", "thin", "thickness"):
+        return _scene(phones=[{"label": name, "color": DARK, "cams": 3, "side": {"text": f"{m.group(1)}mm", "size": 96, "sub": "Thickness"}}], title="Thickness")
+    g = re.search(r"\b(\d+(?:\.\d+)?|" + "|".join(_NUMWORD) + r")\s+grams?\s+(heavier|lighter)\b", t)
+    if g:
+        v = g.group(1)
+        n = _NUMWORD.get(v) or float(v)
+        sign = "+" if g.group(2) == "heavier" else "-"
+        return _scene(phones=[{"label": name, "color": DARK, "cams": 3, "side": {"text": f"{sign}{n:g}g", "size": 96, "sub": g.group(2).title() + " than before"}}], title="Weight")
     return None
 
 
