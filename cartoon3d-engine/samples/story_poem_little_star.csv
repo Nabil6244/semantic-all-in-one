@@ -1,0 +1,7 @@
+type,text,object,color,count,word,gesture,emotion,pause,sound,set
+say,"Hi friend! Here's a little story poem.",,,,,,happy,,,playroom
+word,"One sleepy night, a star fell down, down to town.",star,yellow,,Star,,surprised,,,bedroom
+animal,"A kitten found it. Meow! Don't cry, little star!",cat,,,,,happy,,Meow,park
+count,"They counted flowers, one, two, three!",flower,pink,3,,,happy,,,park
+say,"Then up, up, up, back to the sky!",,,,,cheer,surprised,,,space
+cheer,"Twinkle, twinkle! Good night, friend!",,,,,,laugh,,,bedroom

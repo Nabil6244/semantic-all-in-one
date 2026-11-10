@@ -126,6 +126,8 @@ export function buildLesson(beats, voices, opts = {}) {
     // A set change happens in the pause before its line (never inside a sentence): halfway through the pause, at most 0.45 s early.
     if (sets && (!i || sets[i].set !== sets[i - 1].set)) sw.push({ t: i ? +Math.max((lines[i - 1].t1 + t0) / 2, t0 - 0.45).toFixed(3) : 0, set: sets[i].set });
     gestures.push({ t: Math.max(0, +(t0 - (b.type === 'chant' ? 0 : 0.15)).toFixed(3)), gesture: b.gesture, emotion: b.emotion, look: live.length || ['word', 'count', 'color'].includes(b.type) ? 'props' : 'camera', ...(b.type === 'chant' && beat ? { beat: +beat.toFixed(5) } : {}) });
+    // A card lasts until the next card or until its props leave: a line that clears the props clears the cards too.
+    if (ONE_PROP.includes(b.type) || b.type === 'count' || b.type === 'say') for (const c of cards) if (c.t1 === null) c.t1 = +(t0 - 0.05).toFixed(3);
     if (ONE_PROP.includes(b.type)) {
       endLive(t0 - 0.05);
       const find = (w) => words.find((x) => norm(x.text) === norm(w));
@@ -158,8 +160,6 @@ export function buildLesson(beats, voices, opts = {}) {
     } else if (b.type === 'say') {
       endLive(t0 - 0.05);
     }
-    // A card lasts until the next card or until its props leave.
-    if (b.type === 'say') for (const c of cards) if (c.t1 === null) c.t1 = t0 - 0.05;
     t = t1 + gap + b.pause;
     const nextT0 = timed && timed[i + 1] ? timed[i + 1].t0 : null;           // with a recording, "Your turn" lasts until the next line
     if (b.type === 'repeat') badges.push({ text: 'Your turn!', t0: +(t1 + 0.1).toFixed(3), t1: +(nextT0 !== null ? Math.max(t1 + 0.7, nextT0 - 0.1) : t1 + gap + b.pause - 0.1).toFixed(3) });

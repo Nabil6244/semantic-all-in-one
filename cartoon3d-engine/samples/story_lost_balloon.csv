@@ -1,0 +1,7 @@
+type,text,object,color,count,word,gesture,emotion,pause,sound,set
+say,"Hi friend! Today I have a story for you.",,,,,,happy,,,playroom
+color,"Mia had a red balloon. She loved it so much.",balloon,red,,,,happy,,,park
+say,"But the wind blew, and away it went! Oh no!",,,,,,surprised,,,park
+animal,"A little duck saw it. Quack! I will help you!",duck,,,,,happy,,Quack,beach
+say,"The duck flew up and brought the balloon back.",,,,,cheer,surprised,,,beach
+cheer,"Thank you, duck! Helping friends is the best!",,,,,,laugh,,,park

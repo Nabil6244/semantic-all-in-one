@@ -132,7 +132,9 @@ function drawSleeve(x, sd, E, rig, C) {
 // A child's hand, drawn finger by finger so each keeps its own outline. Local drawing: wrist at 0, fingers toward +y, `th` = the thumb's side.
 function drawHand(x, W, dir, side, kind, phase, C) {
   x.save(); x.translate(W[0], W[1]); x.rotate(-side * dir); x.lineCap = 'round'; x.lineJoin = 'round';
-  const th = -side;
+  // The thumb sits where a real one would: body side on a hanging hand, top side on a held-out hand, inner side
+  // on a raised hand. It slides across behind the palm as the arm lifts, so it never jumps.
+  const th = -side * Math.max(-1, Math.min(1, (Math.cos(dir) - 0.35) * 3));
   const finger = (fx, fy, len, ang, r = 12.5) => { const tx = fx + Math.sin(ang) * len, ty = fy + Math.cos(ang) * len; x.strokeStyle = css(C.line); x.lineWidth = r * 2 + 6; x.beginPath(); x.moveTo(fx, fy); x.lineTo(tx, ty); x.stroke(); x.strokeStyle = css(C.armSkin); x.lineWidth = r * 2; x.beginPath(); x.moveTo(fx, fy); x.lineTo(tx, ty); x.stroke(); };
   const palm = (h = 66) => { x.beginPath(); x.roundRect(-40, -8, 80, h + 8, 30); x.fillStyle = css(C.line); x.save(); x.lineWidth = 6; x.strokeStyle = css(C.line); x.stroke(); x.restore(); x.fillStyle = css(C.armSkin); x.fill(); };
   const curled = () => { palm(62); x.strokeStyle = css(C.line); x.lineWidth = 3; for (const v of [-13, 7, 26]) { x.beginPath(); x.moveTo(v, 62); x.lineTo(v, 44); x.stroke(); } };
@@ -144,7 +146,7 @@ function drawHand(x, W, dir, side, kind, phase, C) {
     // open hands: spread and wiggle fan out, flat stays together
     const flat = kind === 'flat', fan = flat ? 0.05 : kind === 'open' ? 0.2 : 0.3, big = kind === 'spread' || kind === 'wiggle' ? 1.08 : 1;
     [[-29, 42], [-10, 52], [10, 54], [29, 44]].forEach(([v, l], i) => { const wig = kind === 'wiggle' ? Math.sin(phase * 16 + i * 1.8) * 8 : 0; finger(v, 56, l * big + wig, (i - 1.5) * fan); });
-    finger(th * 32, 14, 40 * big, th * (flat ? 0.5 : 0.95), 13);
+    finger(th * 30, 22, 42 * big, th * (flat ? 0.4 : 0.7), 13);   // rises from the palm's lower side, angled up, not out flat
     palm(62);
   }
   // the wrist flows into the arm with no line across it

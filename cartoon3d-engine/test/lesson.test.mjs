@@ -118,3 +118,14 @@ test('scene changes: the set column and clear place words move the lesson, betwe
     assert.ok(x.t > L.lines[k - 1].t1 && x.t < L.lines[k].t0, JSON.stringify(x));
   }
 });
+
+test('a card leaves with its props: an animal card never shows into the next counting line', () => {
+  const csv = `type,text,object,color,count,word,gesture,emotion,pause,sound
+animal,"A kitten. Meow! Hi!",cat,,,,,,,Meow
+count,"One, two, three!",flower,pink,3,,,,,
+`;
+  const { beats } = normalizeRows(parseCsv(csv));
+  const L = buildLesson(beats, beats.map((b) => v(b.text)));
+  const countLine = L.lines[1];
+  for (const c of L.cards.filter((x) => x.t0 < countLine.t0)) assert.ok(c.t1 <= countLine.t0, `card "${c.text}" lasts to ${c.t1}, into the counting line at ${countLine.t0}`);
+});
