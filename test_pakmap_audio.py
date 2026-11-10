@@ -89,7 +89,7 @@ class TestVocabulary(unittest.TestCase):
 
     def test_levels_stay_well_below_speech_and_no_music(self):
         for s in sd.SOUNDS.values():
-            if s.id.startswith("wi_"):
+            if s.id.startswith(("wi_", "sv_")):      # sv_: Survival's scene beds (reptheory/survival_sound.py), heard faintly like What If's, about 3 dB under them
                 # What If's own beds (whatif/sound.py) are meant to be heard on laptop speakers, 14-19 dB under the voice like its references (#016), so
                 # they have their own, higher cap; they are still ambience only, never loud effects and never music
                 self.assertEqual(s.kind, "ambience", s.id)

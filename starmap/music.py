@@ -33,6 +33,9 @@ CROSSFADE_S, FADE_IN_S, FADE_OUT_S = 5.0, 3.0, 5.0
 # ducking under the narrator: down in 40 ms when the voice starts; back up in 300 ms, so the music swells in the
 # short breaths between sentences (900 ms only came halfway back in a narrator's usual 0.5-1 s pauses)
 DUCK_ATTACK_MS, DUCK_RELEASE_MS = 40, 300
+# the bed's own swells evened out before it is set under the voice (owner, 2026-11-10: "Long Note Four" swelled to 5 dB under the narrator in a pause
+# at 0:11 of the Survival test): loudness range 14.5 -> 8.2 LU, peaks -9 dB. Slow attack / release, so the music breathes but never surges.
+BED_LEVELER = "acompressor=threshold=0.05:ratio=4:attack=300:release=1500:makeup=1"
 
 
 def music_dir() -> Path:
@@ -98,7 +101,7 @@ def add_music(mix: Path, out: Path, duration: float, text: str, seed: str = "", 
         chain.append(f"[{last}][{i}:a]acrossfade=d={CROSSFADE_S}:c1=tri:c2=tri[m{i}]")
         last = f"m{i}"
     fade_out_at = max(0.0, duration - FADE_OUT_S)
-    chain.append(f"[{last}]atrim=0:{duration:.3f},asetpts=PTS-STARTPTS,volume={MUSIC_GAIN if gain is None else gain},"
+    chain.append(f"[{last}]atrim=0:{duration:.3f},asetpts=PTS-STARTPTS,{BED_LEVELER},volume={MUSIC_GAIN if gain is None else gain},"
                  f"afade=t=in:d={FADE_IN_S},afade=t=out:st={fade_out_at:.3f}:d={FADE_OUT_S}[bed]")
     chain.append("[0:a]asplit=2[main][key]")
     # ducked by the mix itself (the narrator above all): down quickly when the voice starts, back up in the gaps

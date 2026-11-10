@@ -37,7 +37,8 @@ def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str
     if not bed_only: return None
     bed = measure_loudness(str(bed_only), ffmpeg)["lufs"]
     if not (voice > -70 and bed > -70): return None
-    g = MUSIC_GAIN * 10 ** ((voice - MUSIC_UNDER_VOICE_LU - bed) / 20)
+    under = MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME == "survival" else 0.0)      # Survival: the bed 3 dB further under the voice (owner, 2026-11-10: a bit too loud)
+    g = MUSIC_GAIN * 10 ** ((voice - under - bed) / 20)
     return max(MUSIC_GAIN_RANGE[0], min(MUSIC_GAIN_RANGE[1], g)), voice, bed
 
 def cues(scenes: List[dict]) -> List[dict]:
@@ -66,7 +67,11 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
     try:
         from pakmap.audio_mix import mix_pakmap_audio, resolve_assets
         from pakmap.audio_plan import plan_audio
-        cs = cues(scenes); plan = resolve_assets(plan_audio({"duration": duration}, {"cues": cs, "ambience": []}, duration=duration))
+        cs = cues(scenes); from . import theme as T
+        amb = []
+        if T.THEME == "survival":      # Survival: a quiet scene bed that follows what the narration is about (survival_sound.py)
+            from . import survival_sound as SS; amb = SS.beds(scenes); notes.append(f"scene sounds: {', '.join(a['ambience'] for a in amb) or 'none'}")
+        plan = resolve_assets(plan_audio({"duration": duration}, {"cues": cs, "ambience": amb}, duration=duration))
         notes += [f"missing sound {sid}: {what}" for sid, what in sorted(plan.missing.items())]
         path = str(mix_pakmap_audio(plan, voiceover, work / "rt_audio_sfx.wav", duration=duration).path); notes.append(f"{len(cs)} sounds on screen events ({60 * len(cs) / max(duration, 1):.0f} a minute)")
     except Exception as ex: notes.append(f"event sounds skipped ({type(ex).__name__}: {ex})")
@@ -76,7 +81,7 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
         gain = MUSIC_GAIN
         try:
             got = music_gain(voiceover, work, duration, text, title or text[:60], ffmpeg, log)
-            if got: gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU:.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
+            if got: from . import theme as T; gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME == 'survival' else 0.0):.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
         except Exception as ex: notes.append(f"music level kept at its default ({type(ex).__name__}: {ex})")
         from . import theme as T
         mood = "mystery" if T.THEME == "jung" else None      # Carl Jung Theory: the dark beds (Dark Fog, Interloper, Long Note Four), never "wonder"

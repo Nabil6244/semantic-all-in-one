@@ -79,6 +79,22 @@ def sound_hints(spec: Dict[str, Any]) -> Dict[str, List[Dict[str, Any]]]:
     return {"cues": kept, "ambience": amb}
 
 
+CINEMA_BED_GAIN = 0.7      # owner, 2026-11-10: StarMap Cinema's beds a bit lower (about -3 dB) than What If's, which share the same files
+
+
+def cinema_bed(sound_id: str) -> str:
+    """Cinema's own, quieter copy of one of What If's beds ("wi_space" -> "cin_wi_space"), registered once in pakmap.sounds.SOUNDS; "none" stays "none"."""
+    from dataclasses import replace
+    from pakmap import sounds as PS
+
+    if not sound_id or sound_id == "none" or sound_id not in PS.SOUNDS:
+        return sound_id
+    cid = "cin_" + sound_id
+    if cid not in PS.SOUNDS:
+        PS.SOUNDS[cid] = replace(PS.SOUNDS[sound_id], id=cid, volume=round(PS.SOUNDS[sound_id].volume * CINEMA_BED_GAIN, 4))
+    return cid
+
+
 def plan_sound(spec: Dict[str, Any], *, enabled: bool = True, catalog: Any = None, ambience_shots: Any = None, words: Any = ()):
     """The AudioPlan (pakmap.audio_plan) with the library files found; nothing is read or mixed yet. With `ambience_shots` (Cinema's
     ambience box: what is on screen, cinema.ambience_shots) the bed is What If's: it follows the scene, the beds crossfade."""
@@ -89,7 +105,7 @@ def plan_sound(spec: Dict[str, Any], *, enabled: bool = True, catalog: Any = Non
     if ambience_shots:
         from whatif.sound import XFADE_S, _ambience
 
-        hints["ambience"] = _ambience({"shots": ambience_shots}, words)
+        hints["ambience"] = [dict(h, ambience=cinema_bed(h["ambience"])) for h in _ambience({"shots": ambience_shots}, words)]
     plan = plan_audio({"duration": spec.get("duration", 0)}, hints, enabled=enabled, duration=spec.get("duration"))
     if ambience_shots:
         for bed, nxt in zip(plan.beds, plan.beds[1:]):    # each bed runs on under the next one's fade-in: a crossfade
