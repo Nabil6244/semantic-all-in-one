@@ -322,7 +322,11 @@ def _place_from_ai(name: str, answer: Optional[dict]) -> Optional[Place]:
         return Place(name=name, kind="point", point=(lon, lat),
                      radius_km=float(answer.get("radius_km") or 8.0), source="ai")
     if kind in ("us_counties", "admin1", "countries") and isinstance(answer.get("items"), list):
-        return _from_components(name, kind, answer["items"], "ai")
+        hit = _from_components(name, kind, answer["items"], "ai")
+        if hit is not None:
+            return hit
+        if "lat" in answer and "lon" in answer:  # an area the bundled borders don't know: shown as its point
+            return _place_from_ai(name, dict(answer, type="point"))
     return None
 
 

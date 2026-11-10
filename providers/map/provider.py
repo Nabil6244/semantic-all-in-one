@@ -42,12 +42,10 @@ class MapProvider(AssetProvider):
         if not self._ai_ready:
             self._ai_ready = True
             try:
-                from visual_director.llm import gemini_configured
+                # Free OpenStreetMap lookup first; Gemini only as a backup when a key is set.
+                from map_scene.ai_places import place_resolver
 
-                if gemini_configured(self.settings):
-                    from map_scene.ai_places import gemini_place_resolver
-
-                    self._ai = gemini_place_resolver(self.settings)
+                self._ai = place_resolver(self.settings)
             except Exception:
                 self._ai = None
         return self._ai

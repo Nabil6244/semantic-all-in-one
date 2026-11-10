@@ -121,6 +121,62 @@ class TestPlaceLookup(unittest.TestCase):
             self.assertIn(">some base", json.loads((Path(tmp) / "ai.json").read_text()))
 
 
+class TestOpenStreetMapFallback(unittest.TestCase):
+    """No Gemini (quota spent or no key): places outside the bundled data come from OpenStreetMap, offline here."""
+
+    ANSWERS = {
+        "Líbano": [
+            {"name": "Líbano", "addresstype": "town", "importance": 0.40, "lat": "4.92", "lon": "-75.06",
+             "boundingbox": ["4.9", "4.95", "-75.1", "-75.0"], "address": {"country": "Colombia"}},
+            {"name": "Lebanon", "addresstype": "country", "importance": 0.78, "lat": "33.9", "lon": "35.9",
+             "boundingbox": ["33.05", "34.69", "35.1", "36.62"], "address": {"country": "Lebanon"}},
+        ],
+        "Monte Hermón, Líbano": [],
+        "Monte Hermón": [
+            {"name": "Jabal Ash Shaykh", "addresstype": "peak", "importance": 0.5, "lat": "33.4168",
+             "lon": "35.8564", "boundingbox": ["33.41", "33.42", "35.85", "35.86"], "address": {"country": "Syria"}},
+        ],
+    }
+
+    def _resolver(self, tmp, calls, fail=False):
+        from map_scene.ai_places import osm_place_resolver, place_resolver
+
+        def fetch(params):
+            calls.append(params["q"])
+            if fail:
+                raise OSError("offline")
+            return self.ANSWERS.get(params["q"], [])
+
+        def broken_gemini(name, parent):
+            return None
+
+        broken_gemini.last_error = "Gemini quota exceeded"
+        osm = osm_place_resolver(fetch=fetch, path=Path(tmp) / "osm.json", sleep=lambda s: None)
+        return place_resolver(osm=osm, gemini=broken_gemini)
+
+    def test_foreign_country_and_peak_found_without_gemini(self):
+        calls = []
+        with tempfile.TemporaryDirectory() as tmp:
+            ai = self._resolver(tmp, calls)
+            country = find_place("Líbano", ai=ai)
+            self.assertEqual(country.kind, "region")             # Lebanon's borders, not the Colombian town
+            west, south, east, north = country.bbox()
+            self.assertTrue(35 < west < east < 37 and 33 < south < north < 35)
+            peak = find_place("Monte Hermón", parent=country, ai=ai)
+            self.assertTrue(peak.is_point)
+            self.assertAlmostEqual(peak.point[1], 33.4168, places=3)
+            self.assertEqual(calls, ["Líbano", "Monte Hermón, Líbano", "Monte Hermón"])
+            find_place("Monte Hermón", parent=country, ai=ai)   # cached: no new request
+            self.assertEqual(len(calls), 3)
+
+    def test_both_lookups_failing_names_both_reasons(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(PlaceNotFound) as ctx:
+                find_place("Monte Hermón", ai=self._resolver(tmp, [], fail=True))
+        self.assertIn("OpenStreetMap could not be reached", str(ctx.exception))
+        self.assertIn("Gemini quota exceeded", str(ctx.exception))
+
+
 class TestSeaMask(unittest.TestCase):
     def test_sea_and_land_around_florida(self):
         sea = sea_polygon((-95, 20, -75, 36))

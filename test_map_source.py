@@ -100,8 +100,12 @@ class TestAssetManagerMapSource(unittest.TestCase):
         self.assertEqual(self.calls, ["Florida > Florida Panhandle", "Egypt"])
 
     def test_unknown_place_is_a_clear_needs_action_failure(self):
+        from unittest import mock
+
         mgr = AssetManager(self.tmp / "Images2", log=lambda *_: None, map_provider=MapProvider())
-        result = mgr.resolve_all([self._row("Atlantis Plateau")]).results["4"]
+        with mock.patch("boundary_source._http_fetch", return_value=[]), \
+                mock.patch("map_scene.ai_places._osm_cache_path", return_value=self.tmp / "osm.json"):
+            result = mgr.resolve_all([self._row("Atlantis Plateau")]).results["4"]
         self.assertEqual(result.status, SceneStatus.NEEDS_ACTION)
         self.assertIn('Couldn\'t find "Atlantis Plateau"', result.error)
 

@@ -24,9 +24,9 @@ def main(argv=None) -> int:
     width, height = (int(v) for v in args.size.lower().split("x"))
     ai = None
     if args.ai:
-        from .ai_places import gemini_place_resolver
+        from .ai_places import place_resolver
 
-        ai = gemini_place_resolver()
+        ai = place_resolver()
     start = time.monotonic()
     try:
         result = render_map(args.prompt, Path(args.output), duration=args.duration, fps=args.fps,
