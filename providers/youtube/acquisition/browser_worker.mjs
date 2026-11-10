@@ -11,7 +11,7 @@ import { spawn } from "node:child_process";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const AD_WAIT_MS = 15000;
+const AD_WAIT_MS = 45000; // two unskippable pre-rolls can run ~30 s; an ad that never ends fails the video (never recorded)
 const PLAYBACK_WAIT_MS = 20000;
 const SEEK_WAIT_MS = 12000;
 const CONSENT_MS = 2500;
@@ -115,24 +115,81 @@ async function classifyBlock(page) {
   return null;
 }
 
+// The player marks itself while an ad plays (#movie_player.ad-showing / .ad-interrupting); the older overlay is checked too.
+async function adShowing(page) {
+  return page
+    .evaluate(() => {
+      const p = document.getElementById("movie_player");
+      if (p && (p.classList.contains("ad-showing") || p.classList.contains("ad-interrupting"))) return true;
+      if (document.querySelector(".ytp-ad-player-overlay, .ytp-ad-player-overlay-layout, .ytp-ad-text")) return true;
+      // between two ads the player can drop its ad classes for a moment; the <video> then still holds an ad, whose length is not the
+      // video's own (the player's getDuration() keeps the real video's length the whole time)
+      const v = document.querySelector("video");
+      const real = p && typeof p.getDuration === "function" ? Number(p.getDuration()) : NaN;
+      if (v && Number.isFinite(v.duration) && v.duration > 0 && Number.isFinite(real) && real > 0 && Math.abs(v.duration - real) > 1.5) return true;
+      return false;
+    })
+    .catch(() => false);
+}
+
+// 2026-11-09 (owner): an unskippable ad was recorded as a War scene's footage, because after 15 s the old wait carried on and captured
+// whatever played. Now: click any skip button, fast-forward an unskippable ad to its end, and when an ad still has not ended after
+// AD_WAIT_MS the video fails (kind playback_failed: the next candidate is tried) instead of being recorded.
 async function skipAdIfPresent(page) {
   const deadline = Date.now() + AD_WAIT_MS;
+  let seen = false;
+  let clear = 0;
   while (Date.now() < deadline) {
-    const skip = page.locator(".ytp-ad-skip-button-modern, .ytp-ad-skip-button, .ytp-skip-ad-button").first();
+    if (!(await adShowing(page))) {
+      clear += 1;                      // ad-free for ~1.2 s in a row: a second ad that follows the first is caught before recording
+      if (!seen || clear >= 3) {
+        if (seen) log("ad finished");
+        return;
+      }
+      await page.waitForTimeout(400);
+      continue;
+    }
+    clear = 0;
+    seen = true;
+    const skip = page
+      .locator(".ytp-ad-skip-button-modern, .ytp-ad-skip-button, .ytp-skip-ad-button, .ytp-ad-skip-button-container button")
+      .first();
     if (await skip.count()) {
       try {
         await skip.click({ timeout: 800 });
         log("skipped ad");
-        return;
       } catch {
         /* keep waiting */
       }
     }
-    const ad = page.locator(".ytp-ad-player-overlay");
-    if (!(await ad.count())) return;
+    await page
+      .evaluate(() => {
+        const p = document.getElementById("movie_player");
+        const v = document.querySelector("video");
+        if (p && p.classList.contains("ad-showing") && v && Number.isFinite(v.duration) && v.duration > 0.5) {
+          v.muted = true;
+          v.currentTime = Math.max(0, v.duration - 0.1);
+        }
+      })
+      .catch(() => {});
     await page.waitForTimeout(400);
   }
-  log("ad wait timed out; continuing");
+  throw Object.assign(new Error("an ad would not end; this video is skipped (an ad is never recorded)"), { kind: "playback_failed" });
+}
+
+async function reseek(page, startAt) {
+  await page.evaluate(async (t) => {
+    const v = document.querySelector("video");
+    if (!v) return;
+    v.muted = true;
+    if (Number.isFinite(t) && Math.abs(v.currentTime - t) > 1.25) v.currentTime = t;
+    try {
+      await v.play();
+    } catch {
+      /* ignore */
+    }
+  }, startAt);
+  await page.waitForTimeout(600);
 }
 
 async function waitForPlayback(page, start) {
@@ -402,9 +459,17 @@ async function handleJob(job) {
         log("playback ready");
         const q = await requestHighestQuality(page);
         log(`seeking to ${startAt}s`);
+        if (await adShowing(page)) {        // an ad that started after the first wait (pre-roll after the seek, or a mid-roll)
+          log("ad before capture; waiting it out");
+          await skipAdIfPresent(page);
+          await reseek(page, startAt);
+        }
         log("playback confirmed");
         log(`capturing ${dur}s`);
         const record = await captureClip(page, dur);
+        if (await adShowing(page)) {
+          throw Object.assign(new Error("an ad played during the capture; this clip is not used"), { kind: "playback_failed" });
+        }
         const tmpDir = await mkdtemp(path.join(tmpdir(), "yt-browser-"));
         tmpWebm = path.join(tmpDir, `${videoId}.webm`);
         await writeFile(tmpWebm, Buffer.from(record.b64, "base64"));

@@ -1,6 +1,7 @@
 """Map framing, context layers and sequencing for the War Documentary tactical / political maps (cinematic_explainer/war/maps_tactical.py)."""
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 import math
 
