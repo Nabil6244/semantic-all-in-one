@@ -49,6 +49,10 @@ def _elder_style_for(text: str) -> str:
     """A CSV picture description that asks for an organ (names one and says anatomy / cross-section / inside) gets the medical leaflet style, any other the daily-life style."""
     return A.ELDER_ORGAN_STYLE if ORGAN_RX.search(text) and ORGAN_ASK_RX.search(text) else A.ELDER_STYLE
 
+def _survival() -> bool:
+    from . import theme as T
+    return T.THEME == "survival"
+
 def _jung() -> bool:
     from . import theme as T
     return T.THEME == "jung"
@@ -96,6 +100,7 @@ def prompt_for(text: str, hook: bool = False, ctx: Optional[dict] = None) -> str
     ctx: the scene's script-bible entry (bible.py). Without one the prompt is word for word what it always was, so pictures made before are reused."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if _elder(): return _elder_prompt(text, hook)
+    if _survival(): return f"A single scene from a frontier survival skills video, illustrating exactly this narration: \"{text}\". {A.SURVIVAL_STYLE}."
     if _cat(): return f"A single scene from a cat behaviour explainer video, illustrating exactly this narration: \"{text}\". {A.CAT_STYLE}."
     if _jung(): return _jung_prompt(f"A single scene from a psychology documentary, illustrating exactly this narration: \"{text}\"", bool(JUNG_RX.search(text)))
     if ctx and (ctx.get("context") or ctx.get("means") or ctx.get("people") or ctx.get("kind") == "study") and (ctx.get("people") or ctx.get("means") or ctx.get("mode") in ("setup", "study")
@@ -116,6 +121,7 @@ def own_prompt(text: str, cast: Optional[list] = None) -> str:
     cast: the script bible's people (bible.py); a CSV picture that names one of them ("the gym bro", "the construction worker") gets that person's look, not our fixed rival."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if _elder(): return f"{text}. {_elder_style_for(text)}."      # the CSV prompt says when it is an organ
+    if _survival(): return f"{text}. {A.SURVIVAL_STYLE}."
     if _cat(): return f"{text}. {A.CAT_STYLE}."      # the cat niche: no trainee cast, white background
     if _jung(): return _jung_prompt(text, bool(re.search(r"\b(?:jung|carl)\b", text, re.I)))      # the CSV prompt names Jung when he is in the picture
     if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing

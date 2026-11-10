@@ -1,0 +1,67 @@
+You are writing the voiceover script for a Survival video: a long-form survival and preparedness explainer (20 to 45 minutes) for ordinary families, drawn as ink-and-watercolour field-guide pictures on white paper. Write the script for the TOPIC at the end. Output the title line first, then the script only, as plain sentences, nothing else.
+
+WHO IS LISTENING
+An ordinary adult with a family, a house, a car and a modest budget, who worries about blackouts, winter storms, shortages and worse. Not a soldier, not a rich prepper. They want to know what actually works, what is a waste of money, and what they can do tonight. Talk to them as "you", warmly and plainly, like a calm neighbour who has lived through a few hard winters.
+
+STEP 1: PICK THE FORMAT THAT FITS THE TOPIC
+1. COUNTDOWN: "25 forgotten frontier tricks", "15 skills you can learn in one day". Items counted down from the highest number to number one.
+2. ONE SECRET, MANY MYTHS: "Hide from thermal drones with a $20 trick". One promised answer held to the end; the chapters knock down the wrong answers on the way.
+3. PLACE RANKING: "If the grid collapses, these states go dark first". Places ranked from worst to best (or first to last), each with its weak spot and the fix.
+4. TIMELINE: "The first 7 days of a total blackout, hour by hour". The story moves forward in time; each step says what goes wrong and what to do.
+5. PERSONA STORY: "9 items old-timers buy every winter". One believable person (a first name, an age, a place, the hard times they lived through) carries every item. Make the person up and keep them modest and believable; never present them as a real, named public figure.
+6. THEY LIED (GEAR): "They lied about survival gear: the only 7 tools that matter". The version they sell you against the version that works, with a simple test that sorts them.
+
+STEP 2: THE TITLE (first line, starting with "TITLE: ")
+Mix two of these: a number + the thing + the disaster ("15 Ways to Purify WATER After SHTF"); a they-lied or insider line ("They Lied About...", "Nobody Has the Guts to Tell You"); old wisdom ("Old-Timers", "Depression Grandmas", "Frontier", "Before Electricity"); a pointed number ("Almost Everyone Gets #4 Wrong"); a price ("a $20 Trick", "All Under $2"). Put one to three words in CAPITALS. Two parts joined by an em dash work well. Never promise something the script does not deliver.
+
+STEP 3: THE OPENING (the first 30 to 45 seconds)
+1. Open on a concrete scene or a claim that flips a belief. Examples of the shape: "That 40-pound bag in your closet was packed by somebody who wanted your money." / "Most emergency advice tells you to be ready for 3 days. On the frontier, help could be a whole season away."
+2. Give the whole video ONE LENS in a sentence or two: a simple test or idea every item is judged by ("the verb test": a tool must give your hands a job they can't do bare; "think in layers"; "every state lives on what it already has").
+3. TEASE THE ENDING with a strange, specific detail that makes no sense yet ("And number one is a sickness that shows up around the third month in forts stocked with food for the whole winter."). In format 2 this is the promise ("a way to hide for about $20, and it starts with something already in a lot of first aid kits"), followed by a twist ("most people who own one would use it in the exact way that gets them spotted").
+4. In a countdown, tease one middle item with a cost ("Number seven costs $300 if you get it wrong, and you won't know until you're already sick.").
+5. No subscribe request, no channel name, no long disclaimer in the opening.
+
+STEP 4: EVERY ITEM / CHAPTER (60 to 120 seconds each)
+Write each one in this order. Leave out a part the item really doesn't have, but never leave out the hook, the rule or the bridge.
+1. HOOK before the number: a line that makes them curious ("We still say somebody blazed a trail, and almost nobody remembers what a blaze actually is.") or a second-person scene ("Night one on the walk home. Try fixing anything in the dark with a flashlight in your mouth.").
+2. THE NUMBER, said plainly on its own: "That's number 22." / "Number 15 works like this." (countdown and ranking formats).
+3. THE STORY: who did this and when (trail diaries, long hunters, Depression kitchens, an old-timer's barn, a real recent event), with one human detail and one small joke if it fits.
+4. WHY IT WORKS: simple science with one memorable number ("water pulls heat from your body about 25 times faster than air").
+5. HOW TO DO IT TODAY: two to four short steps in order, with real amounts, sizes and times ("soak a cup of dry lentils overnight", "every finger is about 15 minutes of daylight").
+6. THE ONE RULE: a single safety rule or mistake, said as a rule ("The one rule that matters: only dung from animals that eat grass."). Water, food, medicine, fire, carbon monoxide, cold and heat ALWAYS get their real safety rule.
+7. THE PUNCHLINE: one dry, quotable line ("It was the original pellet stove, and the bison delivered it for free.").
+8. THE BRIDGE: the last sentence opens the next item ("Of course, all that travel only helps if you can find your way home again.").
+Say what it costs, how long it takes and how hard it is whenever the item has those ("about $2", "takes three days", "a child can do it"): the app shows them under the item's title.
+
+STEP 5: KEEP THEM WATCHING
+1. Every 5 or 6 minutes, point back to the teased ending ("Remember that thing sitting in a lot of first aid kits? Hold on to it.").
+2. Two or three times, point forward to a later item ("keep this in mind, it matters again in number 8") and call back to an earlier one ("the same salt from number 19").
+3. Put a vivid mental picture in every 20 to 30 seconds ("a person-shaped light bulb", "a dark mirror", "a lattice of bare branches like a chain-link fence"): each one becomes a picture on screen.
+4. Keep the family in it: the kids, the elderly parent, the dog, the neighbours.
+5. Once, about two thirds in, use subscribe as a tease, not a request: "If you just pictured your own roof on that screen, hit subscribe, because next is the hour you glow the brightest."
+6. Once, be honest about the limits ("I'll be honest, nothing makes you invisible for hours."). It makes everything else believable.
+
+STEP 6: THE ENDING (the last 60 to 90 seconds)
+1. Pay off the teased ending in full, with its two common wrong ways and the right way.
+2. Bring back the lens in one line.
+3. HOMEWORK TONIGHT: one small, real thing to do this week ("dump your bag out on the floor", "run one evening with the main breaker off while help is still a phone call away").
+4. A FORCED-CHOICE QUESTION for the comments: "You can only carry four of the seven. Which three stay home?" / "Would you rather ... or ...? Pick a side and say which state you're in."
+5. A SUBSCRIBE JOKE tied to the topic ("Frontier families never had a subscribe button, and most people who watch to the end still skip it."), then the NEXT VIDEO tease in one sentence.
+6. The very last line calls back to the first line or the lens, short.
+
+WRITING RULES
+- Plain spoken English, short sentences, one idea per sentence. Write numbers as you would say them in a sentence; years as digits.
+- Never invent a study, a statistic, a date, a quote or a historical event. If you are not sure, say it generally ("trail diaries are full of jokes about it") or leave it out.
+- No medical, legal or weapons instructions beyond basic, widely published safety advice. No advice to break the law. Treat looters, strangers and conflict as things to avoid, never to attack.
+- No fear for its own sake: every danger comes with what to do about it.
+- Length: about 150 words per minute of video. A 30-minute video is about 4,500 words; a 40-minute countdown of 25 items is about 6,000.
+
+CHECK BEFORE YOU ANSWER
+- The first line is "TITLE: ..." and the title's promise is delivered.
+- The opening has the scene or flipped belief, the lens, the tease of the ending, and no subscribe request.
+- Every item has a hook, a rule and a bridge; the number is said on its own sentence in countdowns and rankings.
+- The teased ending is pointed back to at least twice and paid off at the end.
+- There is one honesty line, one subscribe tease, homework, a forced-choice question, a subscribe joke, a next-video tease and a callback last line.
+- No invented facts.
+
+TOPIC: (replace this line with your topic, for example "20 forgotten ways people kept food cold before refrigerators")

@@ -56,7 +56,15 @@ def build_voiceover(workdir: Path, rate: int = 145, voice: str = "Daniel", scrip
     sil = workdir / "gap.wav"; subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", str(gap), str(sil)], check=True, timeout=900)
     for i, text in enumerate(script):
         aif, wav = workdir / f"s{i}.aiff", workdir / f"s{i}.wav"
-        subprocess.run(["say", "-v", voice, "-r", str(rate), "-o", str(aif), text], check=True, timeout=900)
+        if voice.startswith("edge:"):      # a free Edge neural voice ("edge:en-US-AndrewNeural") instead of macOS say
+            import asyncio, edge_tts
+            aif = workdir / f"s{i}.mp3"
+            for k in range(4):      # the free service sometimes answers with no audio: try again
+                try: asyncio.run(edge_tts.Communicate(text, voice[5:]).save(str(aif))); break
+                except edge_tts.exceptions.NoAudioReceived:
+                    if k == 3: raise
+                    __import__("time").sleep(2)
+        else: subprocess.run(["say", "-v", voice, "-r", str(rate), "-o", str(aif), text], check=True, timeout=900)
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(aif), "-ar", "24000", "-ac", "1", str(wav)], check=True, timeout=900)
         with wave.open(str(wav)) as w: d = w.getnframes() / w.getframerate()
         sent = {"text": text, "start": t, "end": t + d}
@@ -70,19 +78,19 @@ def build_voiceover(workdir: Path, rate: int = 145, voice: str = "Daniel", scrip
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(); ap.add_argument("--preview", action="store_true"); ap.add_argument("--out", default="out/rep_theory_spike"); ap.add_argument("--rate", type=int, default=145)
-    ap.add_argument("--script", default=""); ap.add_argument("--title", default=""); ap.add_argument("--planner", default="legacy", choices=["legacy", "beats"]); ap.add_argument("--align", action="store_true"); ap.add_argument("--plan-only", action="store_true"); ap.add_argument("--per-beat", action="store_true"); ap.add_argument("--illustrate", action="store_true"); ap.add_argument("--clips3d", action="store_true"); ap.add_argument("--variety", action="store_true"); ap.add_argument("--flow-mode", default="agent"); ap.add_argument("--name", default="rep_theory_spike")
+    ap.add_argument("--script", default=""); ap.add_argument("--title", default=""); ap.add_argument("--planner", default="legacy", choices=["legacy", "beats"]); ap.add_argument("--align", action="store_true"); ap.add_argument("--plan-only", action="store_true"); ap.add_argument("--per-beat", action="store_true"); ap.add_argument("--illustrate", action="store_true"); ap.add_argument("--clips3d", action="store_true"); ap.add_argument("--variety", action="store_true"); ap.add_argument("--flow-mode", default="agent"); ap.add_argument("--name", default="rep_theory_spike"); ap.add_argument("--theme", default=""); ap.add_argument("--voice", default="Daniel")
     ap.add_argument("--end-card", action="store_true"); ap.add_argument("--end-title", default=""); ap.add_argument("--end-url", default=""); ap.add_argument("--end-image", default=""); a = ap.parse_args(argv)
     from . import engine
     out_dir = Path(a.out); out_dir.mkdir(parents=True, exist_ok=True); work = Path(tempfile.mkdtemp(prefix="rt_spike_"))
     script = [ln.strip() for ln in Path(a.script).read_text(encoding="utf-8").splitlines() if ln.strip() and not ln.startswith("#")] if a.script else None
-    vo, sents = build_voiceover(work, a.rate, script=script, align=a.align); (out_dir / "voiceover.wav").write_bytes(vo.read_bytes()); (out_dir / "sentences.json").write_text(__import__("json").dumps(sents, indent=1))
+    vo, sents = build_voiceover(work, a.rate, voice=a.voice, script=script, align=a.align); (out_dir / "voiceover.wav").write_bytes(vo.read_bytes()); (out_dir / "sentences.json").write_text(__import__("json").dumps(sents, indent=1))
     if a.plan_only:      # plan report only (no render): the beat plan, or the legacy plan measured the same way
         from . import beats as B, cadence as C, planner as P
         if a.planner == "beats": res = B.plan(sents, title=a.title or TITLE, per_beat=a.per_beat)
         else: sc = P.plan(sents, title=a.title or TITLE); res = {"title": a.title or TITLE, "planner": "legacy", "timing": "word" if all(x.get("words") for x in sents) else "estimated", "scenes": sc, "beats": [], "metrics": C.metrics(sc), "narrative": None, "summary": {"scenes": len(sc)}}
         C.write_report(out_dir / f"{a.name}.plan", res); print(res["summary"]); return 0
     rep = engine.run_rep_theory(out_dir, sents, str(out_dir / "voiceover.wav"), str(out_dir / f"{a.name}.mp4"), quality="preview" if a.preview else "final", title=a.title or TITLE, log=print, planner=a.planner, per_beat=a.per_beat, illustrate=a.illustrate, clips3d=a.clips3d, variety=a.variety, flow_mode=a.flow_mode, end_card={"enabled": a.end_card, "title": a.end_title, "url": a.end_url, "image": a.end_image},
-                                progress_cb=lambda k, m: print(f"{int(k * 100):3d}% {m}", flush=True) if m == "done" or int(k * 100) % 10 == 0 else None)
+                                theme=a.theme, progress_cb=lambda k, m: print(f"{int(k * 100):3d}% {m}", flush=True) if m == "done" or int(k * 100) % 10 == 0 else None)
     print({k: rep[k] for k in ("out", "size", "video_seconds", "seconds", "kind_counts", "art_source")}); return 0
 
 if __name__ == "__main__":

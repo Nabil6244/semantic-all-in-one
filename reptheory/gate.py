@@ -118,6 +118,23 @@ def picture_developments(sc: dict) -> int:
     except Exception: pass
     return n
 
+FILLER = {"that", "thats", "its", "it", "is", "the", "a", "an", "and", "this", "here", "s", "so", "now"}
+
+def _cw(txt: str) -> set:
+    from . import lexicon as LX
+    t = re.sub(r"\b(?:" + LX.NUM[1:-1] + r")\b", lambda m: LX.num(m.group(0)), str(txt or "").lower().replace("'", ""))      # "twenty-two" and "22" are one word
+    return {w for w in re.findall(r"[a-z0-9%]+", t) if w not in FILLER}
+
+def repeats(txt: str, shown) -> bool:
+    """True when txt says what one of the shown texts already says: its words (fillers like "that's" left out, spoken numbers as digits) are inside the other's, or the other's inside it.
+    The opening of survival test 1 showed "NUMBER TWENTY-TWO", a stamp and a chip of "THAT'S NUMBER TWENTY-TWO" at once: an exact-text check missed both."""
+    a = _cw(txt)
+    if not a: return False
+    for x in shown:
+        b = _cw(x)
+        if b and (a <= b or b <= a): return True
+    return False
+
 def thicken_pictures(scenes: List[dict]) -> int:
     """Run after the phrases are developed: a picture shot with fewer than THIN_MIN developments gets its sentence's key phrase as a chip at its own word (a phrase of the script,
     never a repeat of what is on screen). Plan-only, no render time. Returns how many shots were thickened."""
@@ -126,7 +143,7 @@ def thicken_pictures(scenes: List[dict]) -> int:
     for sc in scenes:
         if not (sc.get("look") == "flow" or sc["kind"] == "illus") or sc["end"] - sc["start"] < 2.0 or picture_developments(sc) >= THIN_MIN: continue
         key, pos = strong_key(sc.get("text", ""), sc.get("words") or [], 3); key = N.phrase(key, sc.get("words") or []) if key else ""; shown = {pg.get("headline") for pg in sc.get("pages", [])} | {c["text"] for pg in sc.get("pages", []) for c in pg.get("chips", [])}
-        if not key or key.upper() in shown: continue
+        if not key or repeats(key, shown): continue
         ws = sc.get("words") or []; i = pos if isinstance(pos, int) else len(ws) // 2      # key_phrase gives the word index
         at = float(ws[min(i, len(ws) - 1)]["t0"]) if ws else sc["start"] + 1.0
         at = min(max(at, sc["start"] + 0.6), sc["end"] - 0.8)
@@ -163,7 +180,7 @@ def fill_empty_openings(scenes: List[dict]) -> int:
         if not ws: continue
         key, pos = strong_key(" ".join(w["w"] for w in ws), ws, 3); key = N.phrase(key, ws) if key else ""
         shown = {pg.get("headline") for pg in pages} | {c["text"] for pg in pages for c in pg.get("chips", [])}
-        if not key or key.upper() in shown: continue
+        if not key or repeats(key, shown): continue
         i = pos if isinstance(pos, int) else len(ws) // 2
         at = min(max(float(ws[min(i, len(ws) - 1)]["t0"]), sc["start"] + 0.4), nxt - 0.6)
         first.setdefault("chips", []).append({"text": key.upper(), "at": at}); sc["decisions"].append(f"quality gate: the picture opened with nothing beside it; its first words get '{key.upper()}'"); n += 1

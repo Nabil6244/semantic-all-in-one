@@ -29,6 +29,11 @@ CAT_STYLE = ("Soft hand-drawn storybook illustration of a domestic cat, clean in
              "no text, no letters, no numbers, no logos, no watermark, no border, no people unless the sentence names them (then only hands or a friendly owner), "
              "the subject in one side of the frame (about 60%) with the other side empty white for on-screen text")      # the cat niche (theme.THEME == "cat")
 
+SURVIVAL_STYLE = ("Hand-drawn field-guide illustration, confident black ink line art with loose muted watercolour washes (earth browns, sage, rust, pale sky blue), "
+                  "plain solid pure white paper background (#FFFFFF), frontier and homestead feel, the detail the sentence is about (a cut, a knot, a mark, a tool) drawn large, "
+                  "high-contrast and unmistakable as on a field-guide plate, no text, no letters, no numbers, no logos, no watermark, no border, "
+                  "the subject in one side of the frame (about 60%) with the other side empty white for on-screen text")      # Survival theme (theme.THEME == "survival")
+
 ELDER_STYLE = ("Soft-colour illustration with gentle watercolour shading and clean soft outlines, calm pastel palette of teal, sage, warm peach and navy, plain solid pure white "
                "background (#FFFFFF), warm and respectful, no text, no letters, no numbers, no logos, no watermark, no border, the subject in one side of the frame (about 60%) with "
                "the other side empty white for on-screen text")      # Elder Health Theory (theme.THEME == "elder"): older people in daily life

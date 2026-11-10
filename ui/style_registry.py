@@ -77,6 +77,14 @@ EXTRA_BLURBS[ELDER_THEORY] = ("Health advice for older viewers told the Rep Theo
 EXTRA_CARDS[ELDER_THEORY] = ("\u271A", "Elder health advice, calm and clear", "Voiceover (scenes file optional)", "Senior health, heart, joints, sleep, diet")
 
 
+# Survival: the Rep Theory engine with the field-guide theme (reptheory/theme.py "survival"): ink-and-watercolour frontier and family pictures, countdown / ranking / timeline cards
+SURVIVAL = "Survival"
+BUILT_ON[SURVIVAL] = "Rep Theory"
+GROUPS = tuple((title, tuple(x for n in names for x in ((n, SURVIVAL) if n == ELDER_THEORY else (n,)))) for title, names in GROUPS)
+EXTRA_BLURBS[SURVIVAL] = ("Long-form survival and preparedness explainers (countdowns, one-secret myth busters, place rankings, hour-by-hour timelines, "
+                          "old-timer stories, gear that lies) on white paper: ink-and-watercolour field-guide pictures through Flow, number, rule and versus cards. No 3D.")
+EXTRA_CARDS[SURVIVAL] = ("\u26FA", "Survival explainers in a field guide", "Voiceover (scenes file optional)", "Blackouts, winter, water, food, frontier skills")
+
 def with_extras(choices: Tuple[str, ...]) -> Tuple[str, ...]:
     """The app's choices plus the card-only styles, each right after the style it is built on."""
     out: List[str] = []

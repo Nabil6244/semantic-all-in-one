@@ -26,9 +26,13 @@ _JUNG = dict(BG_TOP=(34, 26, 20), BG_BOT=(12, 9, 7), WHITE=(242, 232, 212), SOFT
 _ELDER = dict(BG_TOP=(250, 251, 249), BG_BOT=(236, 242, 241), WHITE=(28, 44, 70), SOFT_WHITE=(78, 96, 120), GREY=(130, 144, 158), DIM=(214, 226, 228),
               ORANGE=(22, 150, 150), ORANGE_DEEP=(12, 112, 116), RED=(226, 98, 82), PLATE=(255, 255, 255), GREEN=(92, 158, 104),
               HEAD_FONT="PlusJakartaSans-ExtraBold.ttf", BODY_FONT="PlusJakartaSans-Bold.ttf")
-THEMES = {"": _BASE, "cat": _CAT, "jung": _JUNG, "elder": _ELDER}
-NO_GYM = ("cat", "jung", "elder")
-LIGHT = ("cat", "elder")      # light canvases: pictures drawn on white paper, multiplied onto the canvas; dark ink type
+# the survival look is a frontier field notebook's: off-white paper, dark ink type, rust red accent, a hand-lettered marker face for headlines
+_SURVIVAL = dict(BG_TOP=(250, 248, 242), BG_BOT=(240, 236, 226), WHITE=(34, 32, 30), SOFT_WHITE=(92, 86, 78), GREY=(150, 142, 130), DIM=(226, 220, 206),
+                 ORANGE=(178, 64, 38), ORANGE_DEEP=(140, 46, 26), RED=(196, 52, 40), PLATE=(255, 254, 250), GREEN=(86, 128, 74),
+                 HEAD_FONT="sys:Marker Felt", BODY_FONT="PlusJakartaSans-Bold.ttf")
+THEMES = {"": _BASE, "cat": _CAT, "jung": _JUNG, "elder": _ELDER, "survival": _SURVIVAL}
+NO_GYM = ("cat", "jung", "elder", "survival")
+LIGHT = ("cat", "elder", "survival")      # light canvases: pictures drawn on white paper, multiplied onto the canvas; dark ink type
 HAND_FONT = "sys:Marker Felt"      # Elder Health Theory's handwriting board (a marker on a whiteboard)      # niches with no 3D body and no gym trainee art: every picture is the niche's own (Flow)
 THEME = ""
 

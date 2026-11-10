@@ -17,6 +17,7 @@ from . import library as L, theme as T
 WIDE_ASPECT = 1.45      # a picture at least this wide fills the frame; narrower ones stay an inset
 PUSH = {"wide": (1.0, 1.05), "medium": (1.05, 1.12), "close": (1.12, 1.22)}      # gentle push on the framed subject (render final 3: Flow pictures shown full-bleed put the person at
 # 97-100% of the screen height, touching the frame edge in every shot)
+SURVIVAL_PUSH = {"wide": (1.0, 1.06), "medium": (1.08, 1.16), "close": (1.55, 1.70)}      # survival test 1: a "same" picture re-framed close looked like the shot before it; a close-up must read as one
 FOCUS_PULL = {"wide": 0.0, "medium": 0.5, "close": 0.8}      # how far the framing moves from the subject's centre toward the shot's focus point (its red part, its face)
 SUBJECT_H = 0.72      # the subject's height on screen at the start of a wide shot (the reference keeps its person at ~55-75% with black around)
 AREA = 0.60      # the picture's share of the frame width; the words have the rest
@@ -125,7 +126,7 @@ def _window(info: dict, cam: dict, p: float, W: int, H: int) -> tuple:
     it is wide), with black around it (the box may reach past the picture's edge: that is black), pushed gently toward the shot's focus, and never closer than HEAD_ROOM to the top."""
     iw, ih = info["size"]; bx0, by0, bx1, by1 = info.get("bbox", (0.0, 0.0, 1.0, 1.0)); pad = 0.03
     bx0, by0, bx1, by1 = max(0.0, bx0 - pad) * iw, max(0.0, by0 - pad) * ih, min(1.0, bx1 + pad) * iw, min(1.0, by1 + pad) * ih; bw, bh = max(1.0, bx1 - bx0), max(1.0, by1 - by0)
-    mode = cam.get("mode", "wide"); z0, z1 = PUSH.get(mode, PUSH["wide"]); e = T.ease_in_out(min(1.0, max(0.0, p))); z = z0 + (z1 - z0) * e
+    mode = cam.get("mode", "wide"); z0, z1 = (SURVIVAL_PUSH if T.THEME == "survival" else PUSH).get(mode, PUSH["wide"]); e = T.ease_in_out(min(1.0, max(0.0, p))); z = z0 + (z1 - z0) * e
     s = min(W * 0.92 / bw, H * SUBJECT_H / bh) * z
     fx, fy = cam.get("focus") or info["subject"]; k = FOCUS_PULL.get(mode, 0.0) * (0.4 + 0.6 * e)
     cx = (bx0 + bx1) / 2 + (fx * iw - (bx0 + bx1) / 2) * k; cy = (by0 + by1) / 2 + (fy * ih - (by0 + by1) / 2) * k
@@ -163,7 +164,13 @@ def render(cv: Image.Image, ctx, sc: dict, t: float) -> Optional[dict]:
     if T.THEME == "jung": shot = _sink_edges(shot)      # the painting darkens into the umber canvas at its edges: no lighter box around it
     if T.THEME in T.LIGHT:      # the cat / elder pictures are drawn on white paper: multiplied onto the canvas, the paper vanishes and no box edge shows
         from PIL import ImageChops
+        lum = np.asarray(shot.convert("L"), dtype=np.float32)
         shot = ImageChops.multiply(cv.crop(rect).convert("RGB"), shot.convert("RGB"))
+        if T.THEME == "survival":      # the paper itself is left out (survival test 1: a box about 8 levels lighter than the canvas showed round every picture): near-white is see-through, ink and wash stay
+            ink = Image.fromarray(np.clip((252.0 - lum) * 10.0, 0, 255).astype("uint8"), "L")
+            cv.paste(shot, rect[:2], ImageChops.multiply(_feather(aw, ctx.H, side, vertical=True).convert("L"), ink)); sc["_shown"] = (box, rect)
+            text_x = (ax0 + aw) / ctx.S + 50 if side == "right" else 110
+            return {"x": text_x, "width": 0.0 if side == "right" else ax0 / ctx.S - 170}
     cv.paste(shot, rect[:2], _feather(aw, ctx.H, side, vertical=True))      # outside the picture is black
     sc["_shown"] = (box, rect)      # where the picture is on screen this frame: overlays() pins labels to its parts
     text_x = (ax0 + aw) / ctx.S + 50 if side == "right" else 110

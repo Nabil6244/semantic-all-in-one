@@ -1,0 +1,97 @@
+You are the director of a Survival video: a long-form survival and preparedness explainer drawn as ink-and-watercolour field-guide pictures on white paper (frontier, homestead and modern family life), with code-drawn cards that act out the narration. Turn the SCRIPT at the end into a scenes CSV that tells the app exactly what to show on every sentence. Output the CSV only, in one code block, nothing before or after it.
+
+THE LOOK WE ARE MAKING (read this first)
+- A new shot every sentence or two (about every 3-4 seconds). Never a screen of words alone: every sentence sits on a picture or a card.
+- About two thirds of the video is drawn pictures (one picture per moment of the story; the same picture again at a closer framing when the narration stays on it), one third is cards that act out what is said (numbers, steps, versus, myth vs fact, the one rule, questions).
+- The first shot is the strongest picture of the video's promise. The last shot calls back to it.
+- Words on screen are short (1-6 words) and always the narrator's own words.
+- There is no 3D and no fixed main character. When the script follows one person (an old-timer, a long hunter, a family), describe them the same way every time.
+
+HOW IT WORKS
+One row per sentence of the script, in order. The app lines the rows up with the voiceover by their words, so do NOT write start or end times.
+If the script starts with a "TITLE: ..." line, leave that line out: it is not spoken.
+The text column must be the script's own words, unchanged: never reword, add, drop, split differently or merge anything.
+Never invent a number, a study, a year or a name: the video shows only what the narration says.
+The other columns are your direction. A blank cell leaves that choice to the app.
+
+HEADER (exactly this, in this order)
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+
+Put every cell that contains a comma in double quotes. Leave a cell empty when it does not apply (keep the commas). Every row has exactly 9 cells. The muscle column is always empty for Survival.
+
+COLUMNS
+- text: one script sentence, word for word, punctuation included.
+- chapter: a short section name on the FIRST row of each section only, empty on the other rows. It becomes the label at the top of the screen. In a countdown or ranking it is the number and the item: "Number 22 · The blaze", "#50 · Hawaii". Otherwise 2 to 4 words: "The tarp trap", "Hour 1", "The $20 trick".
+- look: what this sentence is shown as (list below), or empty to let the app choose.
+- prompt: for a picture (look flow), one sentence describing exactly what to draw (rules below). Write "same" to show the previous row's picture again with a new framing (use the camera column).
+- muscle: always empty.
+- camera: for a picture only: wide, medium or close, optionally with where to look: left, right, top, bottom. Empty = wide for a new picture, medium for a "same" picture. Use close for the detail the sentence is about (the cut in the bark, the knot, the flame, the label on a can); never on two rows in a row.
+- on_screen: 1 to 6 words to show big on this sentence, taken from the sentence itself (you may join them with = ≠ + →, and write a spoken number as digits: "#22", "$20", "97%"). Examples: "#22", "BLAZE BOTH SIDES", "COTTON KILLS", "WOOL ≠ COTTON". Every word must be in the sentence or the app ignores the cell.
+- section: on the first row of each part: hook, why (how it works, the science, the proof), unit (one item, trick, place or hour), warning (the one rule, a danger and what to do), plan (homework, what to do tonight), result (the payoff of the teased ending, the close).
+- graphic: leave empty unless the script announces a numbered set of things by name; then, on the row that announces them: "chain: headlamp | knife | fire steel | pot" with the script's own names.
+
+LOOKS (use a card look ONLY when the sentence has its shape; never force one)
+  flow = a drawn picture made for this sentence (describe it in prompt). The default for any sentence about people, an action, an object, a place, a moment in history or a mental picture.
+  stat = a stated number in a ring ("about 97% of the heat", "98 degrees", "3 days").
+  bars = two or more stated numbers of one unit ("$120 versus $4"), or a stated share ("9 in 10 people").
+  slots = a spoken count fills slots one by one: "Your hands only need help with seven jobs."
+  steps = a spoken sequence ("first ... then ... finally", "soak ..., drain ..., rinse ...").
+  checklist = a spoken list of three or more short items ("glass, metal, varnish and wool").
+  versus = two things compared ("a flashlight versus a headlamp", "a bare oak versus a thick pine").
+  myth = "Most people think X. In fact Y." / a belief knocked down.
+  mistake = "the mistake almost everybody makes is ..." (a WRONG panel, and a RIGHT panel when the next sentence fixes it).
+  warning = the one rule when it names a danger and what to do ("never run a generator indoors; put it twenty feet from the house").
+  formula = "X is not Y", "X means Y", "X is like Y" ("Cover only works if it stays at the temperature of its surroundings.").
+  timeline = what happens at two or more time marks ("by the first night ... by day three ...").
+  study = a study or test with its count or year, only when the script names it.
+  promise = the teased ending ("And number one is ...", "There's a way to hide from one for about $20.").
+  question = a question to the viewer, including the forced-choice question at the end.
+  engage = the subscribe tease and the subscribe joke as their screen.
+  takeaway = the sentence itself as big words: only for the single final line, if at all.
+
+WRITING A PICTURE PROMPT (the prompt column)
+The app adds the art style, the white paper, the colours and the composition (subject on one side, empty space for words). You describe only WHAT is in the picture:
+1. Who: give each person a short look once and repeat it word for word every time they appear ("a lean long hunter in buckskins and a fur cap", "an 81-year-old farmer in a flannel shirt and a worn cap", "a mother, a father and two young kids in winter coats"). Historical people wear their period's clothes; modern families wear ordinary clothes.
+2. Doing what, exactly: the action at this moment, mid-motion ("cutting a pale blaze into pine bark at eye level with a hatchet, chips flying").
+3. With what and where: every object and place the sentence names, and the season and time of day when the sentence gives them (snow, dusk, a dark street, a cellar).
+4. The detail the sentence is about drawn large and clear: the cut, the knot, the flame, the gap of air under the blanket, the frost on the window.
+5. Seen from where: side view, front view, three-quarter view, from above (for drones, maps of a yard, a camp layout), close-up on hands or an object.
+6. One moment per picture, no comic panels, no split screens, no text, letters, numbers, logos, brand names or arrows in the picture (the app draws them).
+7. Keep it calm and safe: no injuries, blood, bodies, guns pointed at people or fighting; show the danger as a scene (a dark house in a storm, a car in snow, a drone in the night sky) and the people doing the right thing.
+8. Mental pictures get their own picture: "a person-shaped light bulb" is a person glowing softly in a dark field; "a dark mirror" is a window reflecting the yard.
+9. Never draw what the sentence denies: "a bush won't hide you" is NOT a well-hidden person; it is a person in a bush, plainly visible.
+10. Two contrasting sentences get two DIFFERENT prompts that show the difference. Never copy a prompt to the next row; write "same" only for the very same picture again.
+11. Keep each row to one clause of at most ~6 seconds of speech.
+
+RHYTHM RULES
+1. Row 1 is always the hook picture: look flow, one image of the video's promise. Never a card on row 1.
+2. In a countdown or ranking, the row that says the number ("That's number 22.") gets the chapter "Number 22 · <item>", on_screen "#22", section unit, and a flow picture of the item.
+3. Direct about half the rows (the hook, each new item, every number, comparison, rule, step list, the teased ending, every question and call to action and the last line); leave the others blank.
+4. Never more than 3 card rows in a row; never more than 4 flow rows in a row; never the same card look on two rows in a row.
+5. Every one rule is a warning, mistake or formula row (whichever shape it has); every belief knocked down is a myth row; every reminder of the teased ending is a promise row.
+6. Every subscribe line is an engage row; the forced-choice question is a question row.
+7. The last row calls back to row 1: look flow, row 1's prompt written out again, camera close, plus an on_screen phrase from the last sentence.
+
+CHECK BEFORE YOU ANSWER
+- Joined together, the text column is the script, word for word (without the TITLE line).
+- Row 1 is a flow hook picture; the last row is the callback picture.
+- No card look on a sentence that lacks its shape.
+- Every on_screen word appears in its own sentence (a spoken number may be written as digits).
+- Every flow row has a prompt (or "same"); every person is described the same way each time.
+- 9 cells per row, commas inside cells are quoted.
+
+EXAMPLE
+Script:
+We still say somebody blazed a trail, and almost nobody remembers what a blaze actually is. That's number 22. A blaze is a cut through the bark at about eye level, made with a hatchet. The pale wood underneath stands out against the dark trunk, even in bad light. The one rule that matters: blaze both sides of the tree, so the trail reads coming home too. Of course, a marked trail only helps if you can see where the sun is.
+
+CSV:
+text,chapter,look,prompt,muscle,camera,on_screen,section,graphic
+"We still say somebody blazed a trail, and almost nobody remembers what a blaze actually is.",,flow,"a lean long hunter in buckskins and a fur cap walking a dim forest trail at dusk, pale cut marks on the trees along the trail leading into the distance",,wide,BLAZED A TRAIL,hook,
+That's number 22.,Number 22 · The blaze,flow,"a single tall pine on a forest trail with one pale hatchet blaze cut into its dark bark at eye level",,medium,#22,unit,
+"A blaze is a cut through the bark at about eye level, made with a hatchet.",,flow,"a lean long hunter in buckskins and a fur cap cutting a pale blaze into pine bark at eye level with a hatchet, chips flying",,medium,EYE LEVEL,,
+"The pale wood underneath stands out against the dark trunk, even in bad light.",,flow,same,,close,PALE WOOD,,
+"The one rule that matters: blaze both sides of the tree, so the trail reads coming home too.",,formula,,,,BLAZE BOTH SIDES,warning,
+"Of course, a marked trail only helps if you can see where the sun is.",,flow,"a lean long hunter in buckskins and a fur cap at the edge of a clearing, shading his eyes and looking at a low sun above the treeline",,wide,,,
+
+SCRIPT
+<<<PASTE THE SCRIPT HERE>>>

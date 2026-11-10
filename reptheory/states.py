@@ -159,7 +159,8 @@ def stamps(scenes: List[dict]) -> int:
             sent, cur = cur, []
             if not 2 <= len(sent) <= 4 or "?" in sent[-1].get("p", "") or float(sent[0]["t0"]) - last < STAMP_GAP_S or float(sent[0]["t0"]) > sc["end"] - 1.0: continue
             txt = N._shown(sent, 0, len(sent)); first, end = N._nw(sent[0]["w"]), N._nw(sent[-1]["w"])
-            if not txt or txt in heads or first in SIGNPOST or end in N.DANGLING: continue      # "Here are three." announces, "It is not." trails: neither is said for emphasis
+            from . import gate as G
+            if not txt or txt in heads or G.repeats(txt, heads | {c.get("text") for pg in sc.get("pages", []) for c in pg.get("chips", [])}) or first in SIGNPOST or end in N.DANGLING: continue      # "Here are three." announces, "It is not." trails: neither is said for emphasis
             sc["stamp"] = {"text": txt, "at": float(sent[0]["t0"]), "red": bool(DANGER_RX.search(txt))}; last = sc["stamp"]["at"]; n += 1; sc["decisions"].append(f"stamp: '{txt}'"); break
     return n
 

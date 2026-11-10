@@ -77,6 +77,8 @@ def on_screen_ok(v, text: str) -> str:
     v = re.sub(r"\s+", " ", str(v or "").strip())
     if not v: return ""
     said = set(re.findall(r"[a-z0-9%]+", text.lower().replace("'", "")))
+    from . import lexicon as LX
+    said |= {LX.num(m.group(0)) for m in re.finditer(r"\b" + LX.NUM + r"\b", text.lower(), re.I)}      # "#22" when the sentence says "twenty-two"
     toks = [p for w in v.split() if w.lower() not in SYMBOLS for p in w.split("-")]      # "SEVENTY-FOUR", "TWELVE-WEEK": each part must be said
     words = [re.sub(r"[^a-z0-9%]", "", w.lower().replace("'", "")) for w in toks]
     if not words or len(words) > ON_SCREEN_MAX or any(w and w not in said for w in words): return ""

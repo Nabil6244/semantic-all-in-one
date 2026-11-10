@@ -71,16 +71,19 @@ JUNG_PROMPT_FILE = Path(__file__).with_name("jung_scenes_csv_prompt.txt")      #
 
 ELDER_PROMPT_FILE = Path(__file__).with_name("elder_scenes_csv_prompt.txt")      # Elder Health Theory's own CSV prompt (older people, organs, whiteboard)
 
+SURVIVAL_PROMPT_FILE = Path(__file__).with_name("survival_scenes_csv_prompt.txt")      # Survival's own CSV prompt (field-guide pictures, countdown / ranking / timeline cards)
+SURVIVAL_SCRIPT_PROMPT_FILE = Path(__file__).with_name("survival_script_prompt.txt")      # Survival's script blueprint: six formats, openings, item grammar, endings (docs/survival/NICHE_STUDY.md)
+
 def theme_of(app) -> str: return getattr(app, "_rt_theme", "") or ""      # "" Rep Theory, "cat" Cat Theory, "jung" Carl Jung Theory (app._on_style_pick sets it)
 
-def style_name(app) -> str: return {"cat": "Cat Theory", "jung": "Carl Jung Theory", "elder": "Elder Health Theory"}.get(theme_of(app), STYLE_NAME)
+def style_name(app) -> str: return {"cat": "Cat Theory", "jung": "Carl Jung Theory", "elder": "Elder Health Theory", "survival": "Survival"}.get(theme_of(app), STYLE_NAME)
 
-def is_cat(app) -> bool: return theme_of(app) in ("cat", "jung", "elder")      # a niche on this engine: Flow pictures always, never the 3D body
+def is_cat(app) -> bool: return theme_of(app) in ("cat", "jung", "elder", "survival")      # a niche on this engine: Flow pictures always, never the 3D body
 
 def prompt_text(script: str = "", cat=False) -> str:
     """The CSV prompt with the script in it. cat: True / "cat" for Cat Theory, "jung" for Carl Jung Theory, False / "" for Rep Theory."""
     from app_csv_prompts import SCRIPT_PLACEHOLDER
-    f = {"jung": JUNG_PROMPT_FILE, "elder": ELDER_PROMPT_FILE, "cat": CAT_PROMPT_FILE, True: CAT_PROMPT_FILE}.get(cat, PROMPT_FILE)
+    f = {"jung": JUNG_PROMPT_FILE, "elder": ELDER_PROMPT_FILE, "survival": SURVIVAL_PROMPT_FILE, "cat": CAT_PROMPT_FILE, True: CAT_PROMPT_FILE}.get(cat, PROMPT_FILE)
     text = f.read_text(encoding="utf-8"); script = (script or "").strip()
     return text.replace(SCRIPT_PLACEHOLDER, script) if script else text
 
@@ -103,10 +106,11 @@ GUIDE_PROMPT_FILE = Path(__file__).with_name("full_guide_prompt.txt")      # the
 def copy_script_prompt(app) -> None:
     """"Copy the script prompt": the Full Guide blueprint an AI fills in for any topic, so the script's sentences have shapes the app can draw."""
     M = _m(app)
-    try: text = GUIDE_PROMPT_FILE.read_text(encoding="utf-8")
+    survival = theme_of(app) == "survival"      # Survival writes its own long-form scripts (survival_script_prompt.txt), not the fitness Full Guide
+    try: text = (SURVIVAL_SCRIPT_PROMPT_FILE if survival else GUIDE_PROMPT_FILE).read_text(encoding="utf-8")
     except OSError as exc: M.messagebox.showerror("Copy the script prompt", f"The prompt file could not be read: {exc}"); return
     app.clipboard_clear(); app.clipboard_append(text)
-    app._rt_status_var.set("Full Guide script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.")
+    app._rt_status_var.set("Survival script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.") if survival else app._rt_status_var.set("Full Guide script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.")
 
 SETTINGS_KEY = "reptheory_settings"
 SETTINGS = {"scenes": "_rt_scenes_var", "title": "_rt_title_var", "preview": "_rt_preview_var", "smart": "_rt_smart_var", "3d": "_rt_3d_var", "flow": "_rt_flow_var",
