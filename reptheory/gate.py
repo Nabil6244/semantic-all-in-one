@@ -135,6 +135,24 @@ def repeats(txt: str, shown) -> bool:
         if b and (a <= b or b <= a): return True
     return False
 
+def keep_csv_words(scenes: List[dict]) -> int:
+    """The scenes CSV's on_screen words hold for their whole row: a phrase the app added later inside that row (survival test 2: "BAD LIGHT" replaced the CSV's
+    "PALE WOOD") is folded into the CSV's page (its chips kept, its headline dropped). Run after every phrase is added. Returns how many pages were folded."""
+    n = 0
+    for sc in scenes:
+        shown, span = sc.get("on_screen"), sc.get("on_screen_span")
+        pages = sc.get("pages") or []
+        if not shown or not span or len(pages) < 2: continue
+        hold = next((pg for pg in pages if pg.get("headline") == shown), None)
+        if hold is None: continue
+        keep = []
+        for pg in pages:
+            if pg is not hold and span[0] - 1e-6 <= float(pg.get("at", 0)) < span[1] and float(pg.get("at", 0)) >= float(hold.get("at", 0)):
+                hold.setdefault("chips", []).extend(ch for ch in pg.get("chips", []) if not repeats(ch.get("text", ""), {shown})); n += 1; continue
+            keep.append(pg)
+        sc["pages"] = keep
+    return n
+
 def thicken_pictures(scenes: List[dict]) -> int:
     """Run after the phrases are developed: a picture shot with fewer than THIN_MIN developments gets its sentence's key phrase as a chip at its own word (a phrase of the script,
     never a repeat of what is on screen). Plan-only, no render time. Returns how many shots were thickened."""

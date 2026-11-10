@@ -304,13 +304,13 @@ def _question(sc: dict, text: str) -> Optional[dict]:
     m = QUESTION_RX.search(text)
     if not m or EASY_RX.search(m.group(1)) or HARD_RX.search(m.group(1)): return None
     q = re.sub(r"^so\s+", "", m.group(1).strip(), flags=re.I); ws = q.split()
-    if not 3 <= len(ws) <= 12: return None
+    if not 3 <= len(ws) <= 16: return None      # a pick-a-side question ("Which one would you trust on a dark trail, the blaze or the look back?") runs past 12 words; the bubble wraps
     key = N.key_phrase(q, 3)[0].upper(); return {"text": q.upper(), "key": key, "at": _at(sc, text, m.start(1))}
 
 LEAD_STOP = N.STOP - set(LX.NUMBER_WORDS)      # "one more rep" is an item; "while you eat" is not
 
 COUNT_WORDS = {"two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
-SLOTS_RX = re.compile(r"\b(two|three|four|five|six|[2-6])\s+(?:key\s+|main\s+|big\s+|simple\s+|crucial\s+)?(moments|things|mistakes|moves|rules|steps|reasons|exercises|holds|parts|signs|phases|levels|tips|habits|ways|stages|pillars)\b", re.I)
+SLOTS_RX = re.compile(r"\b(two|three|four|five|six|[2-6])\s+(?:key\s+|main\s+|big\s+|simple\s+|crucial\s+)?(moments|things|mistakes|moves|rules|steps|reasons|exercises|holds|parts|signs|phases|levels|tips|habits|ways|stages|pillars|tricks|items|hacks|skills|tools|foods|places|states|methods)\b", re.I)
 
 def _slots(sc: dict, text: str) -> Optional[dict]:
     """A spoken count ("every match comes down to four moments. The go. The wrist...") as N slots that fill as each item is named; the short fragments that follow are the items."""

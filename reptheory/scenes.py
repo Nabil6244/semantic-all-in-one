@@ -38,7 +38,7 @@ def callouts(cv: Image.Image, ctx: D.Ctx, sc: dict, t: float, x: float, anchor_y
     if not pages: return
     ctx.col_x = x
     live = [i for i, p in enumerate(pages) if _rel(sc, p["at"]) <= t + 1e-6] or [0]; i = live[-1]
-    if i > 0 and t - _rel(sc, pages[i]["at"]) < PAGE_OUT_S: D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y, width), 1 - (t - _rel(sc, pages[i]["at"])) / PAGE_OUT_S)      # the old page is gone before the new one has typed a word over it
+    if i > 0 and t - _rel(sc, pages[i]["at"]) < PAGE_OUT_S: return D.overlay_paste(cv, _page_layer(ctx, sc, pages[i - 1], t, x, anchor_y, width), 1 - (t - _rel(sc, pages[i]["at"])) / PAGE_OUT_S)      # the old page is gone before the new one has typed a word over it      # a hand-off, never a stack: the new page starts once the old one is gone (2026-11-10: "FORKS" under "PEOPLE GO WRONG")
     D.overlay_paste(cv, _page_layer(ctx, sc, pages[i], t, x, anchor_y, width))
 
 def _label_ring(cv, ctx, box, ring, t, sc):
@@ -197,6 +197,8 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     if not sc.get("cam"): cv = _push(cv, ctx, sc, t)      # a full-frame picture moves with its own camera (picture.py)
     if sc.get("chain"):      # the progression chain over the scene at a unit's start and at the end (chain.py), steady (after the push)
         from . import chain as CH; CH.draw(cv, ctx, sc["chain"], sc["start"] + t)
+    if sc.get("sv"):      # Survival cards (survival.py), steady (after the push), each from the word that says it
+        from . import survival as SV; SV.draw(cv, ctx, sc, sc["start"] + t)
     if sc.get("qlist") or sc.get("qtrack"):      # viewer questions: the list full screen, the Q tracker in the corner (qa.py), steady (after the push)
         from . import qa as QA
         if sc.get("qtrack"): QA.draw_track(cv, ctx, sc["qtrack"], sc["start"] + t)

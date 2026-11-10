@@ -136,6 +136,15 @@ def _split_at(scenes: List[dict], t: float) -> None:
             part["was_kind"] = part["kind"]; part["kind"] = "callout"; part["art"] = ""; part["glows"] = []; part.pop("glow", None)
     scenes.insert(i + 1, b)
 
+def word_time(shown: str, s: dict) -> float:
+    """When the sentence says the first word of its on_screen text ("#22" on "twenty-two", "PALE WOOD" on "pale"); the sentence's start when it has no word times."""
+    from . import lexicon as LX
+    first = next((re.sub(r"[^a-z0-9%]", "", w.lower()) for w in shown.replace("-", " ").split() if re.sub(r"[^a-z0-9%]", "", w.lower())), "")
+    for w in s.get("words") or []:
+        tok = re.sub(r"[^a-z0-9%]", "", str(w.get("w", "")).lower().replace("'", "")); parts = [re.sub(r"[^a-z0-9%]", "", p) for p in str(w.get("w", "")).lower().split("-")]
+        if first and (tok == first or first in parts or LX.num(str(w.get("w", "")).lower().strip(".,!?;:")) == first): return float(w["t0"])
+    return float(s["start"])
+
 def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] = lambda m: None) -> Dict[str, int]:
     """Puts each directed row on its scene: sc["look"] + sc["directed_look"], sc["flow_prompt"], sc["muscle"], and the chapter as the scene's section. Returns counts."""
     from . import clip3d as C3, planner as P, variety as V
@@ -172,10 +181,10 @@ def apply(scenes: List[dict], sentences: List[dict], log: Callable[[str], None] 
         shown = on_screen_ok(s.get("on_screen"), s.get("text", ""))
         if str(s.get("on_screen") or "").strip() and not shown: log(f"[REP THEORY CSV] row {ri}: on_screen '{s.get('on_screen')}' uses words the sentence does not say (or more than {ON_SCREEN_MAX} words); the app picks the words")
         if shown:      # the words this row puts on screen, as its scene's first headline (never invented: every word is the sentence's own)
-            hs = scene_at(float(s["start"]), float(s["end"]))
-            if hs.get("pages"): hs["pages"][0]["headline"] = shown; hs["pages"][0]["headline_at"] = max(float(hs["pages"][0].get("at", hs["start"])), float(s["start"]))
-            else: hs["pages"] = [{"at": float(s["start"]), "headline": shown, "headline_at": float(s["start"]), "value": "", "chips": []}]
-            hs["on_screen"] = shown
+            hs = scene_at(float(s["start"]), float(s["end"])); said_at = word_time(shown, s)      # on the word that says it, not at the sentence's start
+            if hs.get("pages"): hs["pages"][0]["headline"] = shown; hs["pages"][0]["headline_at"] = max(float(hs["pages"][0].get("at", hs["start"])), said_at)
+            else: hs["pages"] = [{"at": float(s["start"]), "headline": shown, "headline_at": said_at, "value": "", "chips": []}]
+            hs["on_screen"] = shown; hs["on_screen_span"] = (float(s["start"]), float(s["end"]))
         if not look: continue
         sc = scene_at(float(s["start"]), float(s["end"]))
         if sc["no"] in claimed: stat["shared"] += 1; log(f"[REP THEORY CSV] row {ri} shares scene {sc['no']} with row {claimed[sc['no']]}: row {claimed[sc['no']]}'s direction is used"); continue

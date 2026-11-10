@@ -59,11 +59,11 @@ def build_voiceover(workdir: Path, rate: int = 145, voice: str = "Daniel", scrip
         if voice.startswith("edge:"):      # a free Edge neural voice ("edge:en-US-AndrewNeural") instead of macOS say
             import asyncio, edge_tts
             aif = workdir / f"s{i}.mp3"
-            for k in range(4):      # the free service sometimes answers with no audio: try again
+            for k in range(8):      # the free service throttles bursts (no audio): back off and try again
                 try: asyncio.run(edge_tts.Communicate(text, voice[5:]).save(str(aif))); break
-                except edge_tts.exceptions.NoAudioReceived:
-                    if k == 3: raise
-                    __import__("time").sleep(2)
+                except Exception:      # no audio, or the connection refused while it throttles
+                    if k == 7: raise
+                    __import__("time").sleep(min(30, 2 * 2 ** k))
         else: subprocess.run(["say", "-v", voice, "-r", str(rate), "-o", str(aif), text], check=True, timeout=900)
         subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(aif), "-ar", "24000", "-ac", "1", str(wav)], check=True, timeout=900)
         with wave.open(str(wav)) as w: d = w.getnframes() / w.getframerate()

@@ -108,6 +108,7 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     log(f"[REP THEORY CADENCE] {ST.develop(scenes)} phrases added where a scene would hold 3 s with nothing new")
     log(f"[REP THEORY GATE] {G.thicken_pictures(scenes)} picture shot(s) with one thing on them got their key phrase")
     log(f"[REP THEORY GATE] {G.fill_empty_openings(scenes)} picture shot(s) that opened with an empty side got their first words")
+    log(f"[REP THEORY GATE] {G.keep_csv_words(scenes)} app phrase(s) folded so the CSV's on_screen words hold for their row")
     from . import meters as MT
     log(f"[REP THEORY METERS] {MT.plan(scenes)} load meter / effort bar overlay(s)")      # meters.py      # plan-only (gate.py)
     from . import tricks as TR
@@ -120,6 +121,9 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     from . import assets as AS
     log(f"[REP THEORY ASSETS] {AS.plan(scenes)} picture scene(s) use a library asset (made once through Flow, reused)")      # assets.py
     log(f"[REP THEORY BLUEPRINT] {BP.apply(scenes)} | " + " | ".join(BP.report(scenes)))      # Full Guide: next-unit teasers, test lock, safety chip (reptheory/blueprint.py)
+    if T.THEME == "survival":      # Survival: the number card, item strip, progress dots, #1 tracker and one-rule note, each on the word that says it (reptheory/survival.py)
+        from . import survival as SV
+        log(f"[SURVIVAL CARDS] {SV.plan(scenes)}")
     prog(0.03, "3D body clips")
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
         from . import clip3d as C3
@@ -199,5 +203,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     rep = {"ok": True, "out": str(out_path), "quality": quality, "size": [W, H], "fps": T.FPS, "frames": n_frames, "end_card": bool(card), "plan": plan_info, "cadence": C.metrics(scenes, n_narr / T.FPS), "seconds": round(time.time() - t0, 2), "video_seconds": round(n_frames / T.FPS, 2),
            "scenes": [{k: v for k, v in sc.items() if k not in ("words",)} for sc in scenes], "kind_counts": counts, "art_used": sorted({sc["art"] for sc in scenes if sc["art"]}), "art_source": {a: (L.find(a) or {}).get("source") for a in {sc["art"] for sc in scenes if sc["art"]}},
            "not_implemented": NOT_IMPLEMENTED}
+    if T.THEME == "survival" and write_report:      # YouTube chapters, title ideas and a thumbnail next to the video (survival_package.py), from the video's own plan
+        from . import survival_package as SP
+        rep["package"] = SP.write(scenes, str(out_path), title=title, log=log)
     if write_report: Path(str(out_path) + ".rep_theory.json").write_text(json.dumps(rep, indent=1, default=str), encoding="utf-8")
     prog(1.0, "done"); return rep

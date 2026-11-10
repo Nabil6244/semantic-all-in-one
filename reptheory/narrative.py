@@ -161,7 +161,7 @@ def key_phrase(text: str, n: int = 3) -> Tuple[str, int]:
     toks = re.findall(r"[A-Za-z][A-Za-z'-]*", text); runs: List[Tuple[int, List[str], bool]] = []; cur: List[str] = []; start = 0; after_det = False; det_flag = False
     for i, t in enumerate(toks + ["."]):
         low = t.lower()
-        if low in STOP or t == ".":
+        if low in STOP or t == "." or low in ("not", "never", "no") or low.endswith("n't"):      # a negation breaks the run: "WOODS WEREN'T LOST" lifted out of "...weren't lost on the way out" says the opposite
             if cur: runs.append((start, cur, det_flag)); cur = []
             det_flag = low in ("the", "your", "an", "a", "this", "these", "our", "my")
         elif not cur: start = i; cur = [t]

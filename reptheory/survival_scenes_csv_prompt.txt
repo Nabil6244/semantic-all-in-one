@@ -34,7 +34,7 @@ LOOKS (use a card look ONLY when the sentence has its shape; never force one)
   flow = a drawn picture made for this sentence (describe it in prompt). The default for any sentence about people, an action, an object, a place, a moment in history or a mental picture.
   stat = a stated number in a ring ("about 97% of the heat", "98 degrees", "3 days").
   bars = two or more stated numbers of one unit ("$120 versus $4"), or a stated share ("9 in 10 people").
-  slots = a spoken count fills slots one by one: "Your hands only need help with seven jobs."
+  slots = a spoken count fills slots one by one: "Here are three of their tricks.", "Seven tools that matter."
   steps = a spoken sequence ("first ... then ... finally", "soak ..., drain ..., rinse ...").
   checklist = a spoken list of three or more short items ("glass, metal, varnish and wool").
   versus = two things compared ("a flashlight versus a headlamp", "a bare oak versus a thick pine").
@@ -44,7 +44,7 @@ LOOKS (use a card look ONLY when the sentence has its shape; never force one)
   formula = "X is not Y", "X means Y", "X is like Y" ("Cover only works if it stays at the temperature of its surroundings.").
   timeline = what happens at two or more time marks ("by the first night ... by day three ...").
   study = a study or test with its count or year, only when the script names it.
-  promise = the teased ending ("And number one is ...", "There's a way to hide from one for about $20.").
+  promise = only "I'll show you ..." / "at the end I'll tell you ..." lines. A tease of the ending ("And number one is ...", "Remember that thing ...") is a flow row: the app adds the #1 lock on its own words.
   question = a question to the viewer, including the forced-choice question at the end.
   engage = the subscribe tease and the subscribe joke as their screen.
   takeaway = the sentence itself as big words: only for the single final line, if at all.
@@ -68,7 +68,7 @@ RHYTHM RULES
 2. In a countdown or ranking, the row that says the number ("That's number 22.") gets the chapter "Number 22 · <item>", on_screen "#22", section unit, and a flow picture of the item.
 3. Direct about half the rows (the hook, each new item, every number, comparison, rule, step list, the teased ending, every question and call to action and the last line); leave the others blank.
 4. Never more than 3 card rows in a row; never more than 4 flow rows in a row; never the same card look on two rows in a row.
-5. Every one rule is a warning, mistake or formula row (whichever shape it has); every belief knocked down is a myth row; every reminder of the teased ending is a promise row.
+5. Every one rule is a warning, mistake or formula row (whichever shape it has); every belief knocked down is a myth row; every tease or reminder of the ending is a flow row (the app shows the #1 lock on it).
 6. Every subscribe line is an engage row; the forced-choice question is a question row.
 7. The last row calls back to row 1: look flow, row 1's prompt written out again, camera close, plus an on_screen phrase from the last sentence.
 
