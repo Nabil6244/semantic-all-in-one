@@ -92,7 +92,7 @@ def look_of(sc: dict) -> str:
     lk = sc.get("look") or sc["kind"]; lk = sc["kind"] if lk == "stock" else lk
     if lk == "flow":      # a Flow picture is drawn for its own sentence: two scripts' openings never show the same one
         from . import beat_art as BA
-        return "flow:" + BA.art_id(BA.own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else BA.prompt_for(sc.get("text", ""), hook=bool(sc.get("hook"))))
+        return "flow:" + BA.art_id(BA.own_prompt(sc["flow_prompt"]) if sc.get("flow_prompt") else BA.prompt_for(sc.get("text", ""), hook=bool(sc.get("hook")), ctx=sc.get("_bible")))
     return f"pose:{sc['art']}" if lk == "pose" else lk      # 30 pose pictures (Step 5): a squat and a sleeping figure are different pictures
 
 def plan(text: str) -> tuple:

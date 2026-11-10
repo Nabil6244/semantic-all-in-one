@@ -76,29 +76,52 @@ def _refs_for(prompts: list, make_one, log) -> list:
 def _jung_prompt(desc: str, about_him: bool) -> str:
     return (f"{A.JUNG_SHEET}. {desc}. {A.JUNG_STYLE}." if about_him else f"{desc}. No real or famous person, no Carl Jung. {A.JUNG_STYLE}.")
 
-def prompt_for(text: str, hook: bool = False) -> str:
-    """Flow prompt for one beat: what the narration says at this moment, drawn in the reference style (ink, one side empty, the named part in red, the rival when there is an opponent)."""
+def _bible_prompt(text: str, hook: bool, ctx: dict) -> str:
+    """A beat's picture with the whole script behind it (bible.py): the script's own cast, the exercise being taught, the study a number belongs to, what its named moves mean."""
+    lead = ("The opening image of a fitness explainer, one striking picture of this promise" if hook else "A single scene from a fitness explainer video, illustrating this narration")
+    out = f"{lead}: \"{text}\"."
+    if ctx.get("context"): out += f" Context from the video: {ctx['context']}."
+    for m in ctx.get("means", []): out += f" In this video {m}."
+    if ctx.get("kind") == "study" and not ctx.get("people"):
+        return out + (f" Show the experiment or the finding clearly: the people tested, what they did, what changed, as a clean ink illustration.{_red_part(text)} {A.SCENE_STYLE}.")
+    if ctx.get("people"):
+        who = "; ".join(ctx["people"])
+        return out + (f" Show these people from the script: {who}. The contrast between them obvious at a glance, a dramatic moment caught mid-action." if hook else
+                      f" Show these people from the script: {who}, doing what is described.") + f"{_red_part(text)} {A.SCENE_STYLE}."
+    who = f"{A.CHARACTER}" + (f", facing {ctx.get('opponent') or A.RIVAL}" if RIVAL_RX.search(text) else "")
+    return out + (f" Show {who}, doing or demonstrating what is described, with every named object or equipment drawn clearly, the whole action visible.{_red_part(text)} {A.SCENE_STYLE}.")
+
+def prompt_for(text: str, hook: bool = False, ctx: Optional[dict] = None) -> str:
+    """Flow prompt for one beat: what the narration says at this moment, drawn in the reference style (ink, one side empty, the named part in red, the rival when there is an opponent).
+    ctx: the scene's script-bible entry (bible.py). Without one the prompt is word for word what it always was, so pictures made before are reused."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if _elder(): return _elder_prompt(text, hook)
     if _cat(): return f"A single scene from a cat behaviour explainer video, illustrating exactly this narration: \"{text}\". {A.CAT_STYLE}."
     if _jung(): return _jung_prompt(f"A single scene from a psychology documentary, illustrating exactly this narration: \"{text}\"", bool(JUNG_RX.search(text)))
+    if ctx and (ctx.get("context") or ctx.get("means") or ctx.get("people") or ctx.get("kind") == "study") and (ctx.get("people") or ctx.get("means") or ctx.get("mode") in ("setup", "study")
+               or not TISSUE_RX.search(text) or re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I)):      # a tissue line on its own keeps the anatomy picture
+        return _bible_prompt(text, hook, ctx)
     if TISSUE_RX.search(text) and not re.search(r"\b(hold|hang|pinch|squeeze|stand|lift|push|pull|squat|plank|rotate|wrestl\w*|curl|sit)\b", text, re.I):      # tissue: the realistic anatomy picture we always had, word for word, so pictures made before are reused
         return (f"A clear anatomical illustration that shows what this sentence of a fitness explainer is about: \"{text}\". Show the relevant muscles, tendons or bones of the body part concerned, "
                 f"{A.REAL_STYLE}.")
     who = (f"{A.TRADESMAN}" + (f", with {A.CHARACTER} as the person he meets" if re.search(r"\b(?:you|your)\b", text, re.I) else "")) if WORKER_RX.search(text) and not RIVAL_RX.search(re.sub(r"\bbigger than\b", "", text)) \
-        else f"{A.CHARACTER}" + (f", facing {A.RIVAL}" if RIVAL_RX.search(text) else "")      # the workers the line is about, not our trainee or the bodybuilder
+        else f"{A.CHARACTER}" + (f", facing {(ctx or {}).get('opponent') or A.RIVAL}" if RIVAL_RX.search(text) else "")      # the workers the line is about, not our trainee or the bodybuilder
     if hook: return (f"The opening image of a fitness explainer, one striking picture of this promise: \"{text}\". Show {who}, the contrast between them obvious at a glance, a dramatic "
                      f"moment caught mid-action.{_red_part(text)} {A.SCENE_STYLE}.")
     return (f"A single scene from a fitness explainer video, illustrating exactly this narration: \"{text}\". Show {who}, doing or demonstrating what is described, with any named object or "
             f"equipment drawn clearly, the whole action visible.{_red_part(text)} {A.SCENE_STYLE}.")
 
-def own_prompt(text: str) -> str:
-    """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video."""
+def own_prompt(text: str, cast: Optional[list] = None) -> str:
+    """The scenes CSV's own picture description, in the same style and with the same trainee (and rival) as every other picture of the video.
+    cast: the script bible's people (bible.py); a CSV picture that names one of them ("the gym bro", "the construction worker") gets that person's look, not our fixed rival."""
     text = re.sub(r"\s+", " ", text).strip().rstrip(".")
     if _elder(): return f"{text}. {_elder_style_for(text)}."      # the CSV prompt says when it is an organ
     if _cat(): return f"{text}. {A.CAT_STYLE}."      # the cat niche: no trainee cast, white background
     if _jung(): return _jung_prompt(text, bool(re.search(r"\b(?:jung|carl)\b", text, re.I)))      # the CSV prompt names Jung when he is in the picture
     if TISSUE_RX.search(text) and not re.search(r"\b(trainee|man|woman|person|athlete|he|she|rival|guy)\b", text, re.I): return f"{text}. {A.INK_ANATOMY}." if re.search(r"\b(ink|sketch|manga)\b", text, re.I) else f"{text}, {A.REAL_STYLE}."      # as before, unless the CSV asks for an ink drawing
+    from . import bible as BB
+    named = [c for c in (cast or []) if BB.names_rx(c).search(text)]
+    if named: return f"{text}." + "".join(f" The {c['label']} is {c['desc']}." for c in named) + f" If the trainee is shown, he is {A.CHARACTER}. {A.SCENE_STYLE}."
     cast = f" If the trainee is shown, he is {A.CHARACTER}." + (f" The rival / big guy is {A.RIVAL}." if re.search(r"\b(rival|big guy|bigger guy|opponent|big man)\b", text, re.I) else "") + \
            (f" The tradesman is {A.TRADESMAN}." if re.search(r"\btradesm[ae]n\b|\bworker\b", text, re.I) else "")
     return f"{text}.{cast} {A.SCENE_STYLE}."
@@ -144,6 +167,26 @@ def eligible(sc: dict) -> bool:
 
 def _same(a, b) -> bool: return " ".join(str(a or "").split()).lower() == " ".join(str(b or "").split()).lower()
 
+def script_bible(scenes: List[dict], log=print) -> Optional[dict]:
+    """The whole script read once (bible.py) for the fitness pictures; the other themes keep their own planners. Stored on each scene as sc["_bible"]."""
+    if _elder() or _cat() or _jung(): return None
+    from . import bible as BB
+    try: bb = BB.build(scenes)
+    except Exception as e: log(f"[REP THEORY ART] script bible skipped: {e}"); return None
+    if bb: log(f"[REP THEORY ART] script bible: cast {', '.join(c['phrase'] + (' (' + c['role'] + ')' if c['role'] else '') for c in bb['cast']) or 'none'}; "
+               f"moves {', '.join(x['name'] for x in bb['sections']) or 'none'}")
+    return bb
+
+def bible_names(text: str, bible: Optional[dict]) -> bool:
+    from . import bible as BB
+    return bool(bible) and any(BB.names_rx(c).search(text or "") for c in bible["cast"])
+
+def scene_prompt(sc: dict, bible: Optional[dict] = None, fp: Optional[str] = None) -> str:
+    """The picture prompt of one scene: the CSV's own description, else the beat's narration with the script bible's context."""
+    fp = sc.get("flow_prompt") if fp is None else fp
+    if fp: return own_prompt(fp, (bible or {}).get("cast"))
+    return prompt_for(sc["text"], hook=bool(sc.get("hook")), ctx=sc.get("_bible") if bible else None)
+
 def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print, settings: Optional[dict] = None, generate_missing: bool = True, directed: bool = False,
             collect: Optional[list] = None, chosen: Optional[Dict[int, dict]] = None) -> Dict[str, int]:
     """Gives every eligible scene its picture: kind becomes "illus", art the cached id. A scene whose picture could not be had keeps its previous treatment (and says so in `decisions`).
@@ -154,6 +197,7 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
     if _elder():      # Elder Health Theory: one main person for the whole video and a shot for every scene, before any prompt is made (elder_art.py; rules only, no Gemini)
         from . import elder_art as EA
         ehost = EA.plan(scenes); log(f"[ELDER ART] main person: {EA.person(ehost)['name']}{' (new for this video)' if EA.per_video() else ''} ({'their own reference picture' if EA.user_ref(ehost) else 'reference made once by the app' if EA.host_refs(ehost) else 'reference to be made once by the app'})")
+    bible = script_bible(scenes, log)
     for sc in scenes:
         asked = bool(sc.get("directed_look"))      # the scenes CSV chose this scene's look: a picture only where it asked for one
         board = board_wants_picture(sc)      # Elder Health Theory: the whiteboard carries its own picture (the organ or the older person the list is about); the scene stays a board
@@ -169,11 +213,11 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
             fp = sc.get("flow_prompt") or ""
             if fp and not sc.get("same_picture") and _same(fp, prev_fp) and not _same(sc.get("text"), prev_text):      # the same picture for a different line (render 054: "steel cables" got the "rubber bands" picture)
                 sc["decisions"].append("CSV picture repeats the previous row's for a different line: drawn from its own narration"); fp = ""
-            elif fp and WORKER_RX.search(sc.get("text", "")) and not WORKER_RX.search(fp) and not re.search(r"\btradesm[ae]n\b|\bworker\b", fp, re.I):      # the line is about mechanics / farmers, the CSV drew our cast
+            elif fp and WORKER_RX.search(sc.get("text", "")) and not WORKER_RX.search(fp) and not re.search(r"\btradesm[ae]n\b|\bworker\b", fp, re.I) and not bible_names(fp, bible):      # the line is about mechanics / farmers, the CSV drew our cast
                 sc["decisions"].append("the line is about the workers it names; the CSV picture shows the trainee or the rival: drawn from the narration"); fp = ""
             prev_fp, prev_text = sc.get("flow_prompt") or "", sc.get("text")
             if ehost: p = EA.own_prompt(fp, ehost) if fp else EA.prompt(sc)      # Elder: the directed scene with the host, or the organ / disease leaflet
-            else: p = own_prompt(fp) if fp else prompt_for(sc["text"], hook=bool(sc.get("hook")))
+            else: p = scene_prompt(sc, bible, fp)
             i = art_id(p)
         sc["_illus"] = (i, p)
         if collect is not None: collect.append({"no": sc["no"], "text": sc["text"], "prompt": p, "cached": (L.find(i) or {}).get("path"), "refs": bool(wants_refs(p)), "qc": bool(ehost)}); continue
