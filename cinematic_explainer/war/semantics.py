@@ -392,6 +392,9 @@ def words_value(text: str) -> Optional[int]:
     return total + cur if seen else None
 
 
+_DURATION = re.compile(r"(?:seconds?|minutes?|hours?|days?|nights?|weeks?|months?|years?|decades?)\b", re.IGNORECASE)
+
+
 def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tuple[int, Tuple[int, int]]]]:
     numbers: List[Number] = []
     years: List[Tuple[int, Tuple[int, int]]] = []
@@ -408,18 +411,26 @@ def find_numbers(sentence: str, offset: int = 0) -> Tuple[List[Number], List[Tup
             continue
         if not is_pct and not mult and _is_day_of_month(sentence, m.start(), m.end(), val):
             continue                      # 'October 26' / '26 October' / '26th' is a date, never a statistic
+        if m.start() >= 2 and sentence[m.start() - 1] == "-" and sentence[m.start() - 2].isalpha():
+            continue                      # 'S-400', 'Kh-59', 'Su-34': a model name, not a figure (render 050 chip '400 battery moved')
         unit = "%" if is_pct else ""
         ref, period = _referent(sentence, m.end())
         if not unit:
             unit = ref
+        if not is_pct and _DURATION.match(unit or ""):
+            continue                      # 'two weeks', 'nine days': a span of time, not a figure to show big
         n = Number(value=val, raw=raw.strip(), unit=unit, span=span, period=period, complete=bool(unit or period))
         numbers.append(n)
     for m in _WORDRUN.finditer(sentence):   # a whole spoken number: 'one hundred eighty' is 180, 'five hundred' 500, 'twenty seven' 27
         val = words_value(m.group(0))
         if val is None:
             continue
+        if m.group(0).strip().lower() == "one" or any(n.span[0] <= offset + m.start() < n.span[1] for n in numbers):
+            continue                      # 'this one matters', or the 'million' of '21 million' already read
         end = m.end()
         ref, period = _referent(sentence, end)
+        if ref and _DURATION.match(ref):
+            continue
         if ref:
             numbers.append(Number(value=float(val), raw=sentence[m.start():end], unit=ref, span=(offset + m.start(), offset + end),
                                   period=period, complete=True))

@@ -48,6 +48,7 @@ CSV_ROWS = [
     ("chart", "Russia launched 1,200 drones in January, 1,500 in February and 2,100 in March.", "kit_chart"),
     ("article", "According to Reuters, officials said that the depot was destroyed.", "lay_document"),
     ("flyover", "Russia launched dozens of Shahed drones at Kyiv overnight.", "kit_flyover"),
+    ("facility", "Kirishi is run by Surgutneftegas. It is Russia's second largest refinery.", "lay_equipment_hero"),
     ("front line", "In February 2024, Russian forces captured Avdiivka after months of fighting.", "tac_map"),
     ("locator", "The strike hit Odesa's port at dawn.", "map_inset"),
     ("label", "Russia fired 44 Iskander-M missiles overnight.", "bc_label"),

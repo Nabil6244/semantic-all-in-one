@@ -308,7 +308,10 @@ def split_by_geography(run: List[Dict[str, Any]], cat: Any) -> List[List[Dict[st
 
 def _beats(run: Sequence[Dict[str, Any]], cat: Any) -> List[Dict[str, Any]]:
     """Per sentence of the run: absolute times, the places and countries it names, its card, strike/drone/motion cues."""
+    from .direction import dated_strike
+
     beats = []
+    month, campaign = "", False
     for r in run:
         A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
         for sent in A.sentences:
@@ -318,8 +321,16 @@ def _beats(run: Sequence[Dict[str, Any]], cat: Any) -> List[Dict[str, Any]]:
             route = None
             if mo is not None and mo[0].kind == "place" and mo[1].kind == "place" and mo[0].name != mo[1].name and not (mo[0].country or mo[1].country):
                 route = (mo[0].name, mo[1].name)
+            ds = dated_strike(sent.text, month)
+            strike = bool(_STRIKE.search(sent.text))
+            if ds:
+                month = ds["month"]
+                strike = strike or campaign       # 'On the thirty-first, the Novoil refinery in Ufa': the next target of the campaign just narrated
+                campaign = campaign or strike
+            elif sent.text.strip():
+                campaign = campaign and len(sent.text.split()) <= 8     # a short aside ('That fire burned for several days') keeps it going
             beats.append({"a": a, "b": b, "text": sent.text, "places": _place_names(sent), "countries": _country_names(sent),
-                          "card": card_for(sent.text), "strike": bool(_STRIKE.search(sent.text)), "drones": bool(_DRONES.search(sent.text)),
+                          "card": card_for(sent.text), "strike": strike, "drones": bool(_DRONES.search(sent.text)),
                           "route": route, "no": r["_no"]})
     return beats
 

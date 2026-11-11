@@ -405,7 +405,8 @@ def _camera(views: List[MP.View], t: float, dur: float, times: Optional[Sequence
         sd = dur / n if dur > 0 else 1.0
         i = min(n - 1, max(0, int(t / sd)))
         local = t - i * sd
-    push = lambda f: 1.0 - 0.04 * max(0.0, min(1.0, f))                   # noqa: E731  gentle push-in, 4 % per step
+    amt = max(0.04, min(0.14, 0.015 * sd))       # 2026-11-12 owner ('a long continuous map'): a long hold creeps in ~1.5 %/s, never a frozen frame
+    push = lambda f: 1.0 - amt * max(0.0, min(1.0, f))                    # noqa: E731  gentle push-in
     if i > 0:
         mv = min(1.6, 0.55 * sd)
         if local < mv:

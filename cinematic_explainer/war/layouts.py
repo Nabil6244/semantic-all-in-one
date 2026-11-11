@@ -796,7 +796,7 @@ def lay_stat_split(t: float, dur: float, p: dict) -> Optional[Image.Image]:
 
 def lay_timeline(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     p = _initial_state(p)
-    items = [q for q in (p.get("items") or []) if isinstance(q, dict) and str(q.get("date") or "").strip()][:6]
+    items = [q for q in (p.get("items") or []) if isinstance(q, dict) and str(q.get("date") or "").strip()][:8]
     if len(items) < 2:
         return None
     n = len(items)
@@ -845,7 +845,11 @@ def lay_timeline(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         cap = str(it.get("text") or "").strip()
         if cap:
             cf = T.font("bold", 26)
-            cl = _text_el(_wrap(cap, cf, colw, 0.0, 4), cf, T.CREAM, 0.0, 34, True, "center")
+            for sz in (26, 23, 20, 18):            # a long single word (Novokuybyshevsk) never runs into the next column
+                cf = T.font("bold", sz)
+                if max(cf.getlength(w) for w in cap.split()) <= colw:
+                    break
+            cl = _text_el(_wrap(cap, cf, colw, 0.0, 4), cf, T.CREAM, 0.0, int(cf.size * 1.3), True, "center")
             _put(img, cl, min(max(cx - cl.width // 2, MX - PAD), W - MX + PAD - cl.width), ly + 38 - PAD, M.ramp(t, times[i] + 0.15, 0.3), dy=10 * (1 - a))
     return _finish(img, t, dur)
 

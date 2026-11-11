@@ -219,3 +219,45 @@ Fixed vs B.2: Putin-Kushner -> real Ryazan refinery clip; St Petersburg protest,
 Lost: Saratov (B.2's clip was a Sept 2026 upload mislabelled exact; the time rule now refuses it). Still wrong: 18 (place-only Abu Dhabi
 clip with no event words passes on a LOCATION-type line: the event rule only bites EVENT/MOVEMENT lines); 24 (talking head without text
 needs face detection, not available). Below the 80 % target. Stage C not started.
+
+## Production slice 6:43-9:44 (2026-11-12, uncommitted) — `slice3_production/` (clone; render 050 untouched)
+Rendered `final/slice_6m43_9m44.mp4` (180.8 s, 1080p); first attempt kept in `final_v1/`. Review: `review2/compare_1.jpg`, `compare_2.jpg`
+(render 050 | new, every 2 s), `review2/checks.json`.
+Code (War only): keyword cards only for real lists; `semantics.find_numbers` drops model numbers (S-400), durations (two weeks, nine days),
+'one'; `direction._campaign_timeline` + `dated_strike` (a summary line after 3+ dated strike lines in one section); map_build strike
+markers for dated list lines; `_strike_maps` place only from the line before (same section); `_grounded_fill` + `gap_flags`;
+`_text_layers_clear`; dossier enters with its title; lay_timeline up to 8 items, captions shrink to fit. Tests: test_war_slice_production.py
+(10); test_war_planner density bound and test_war_render048 'the port' updated to the approved rules (reasons in the tests).
+Production choices on the clone (not engine changes): 92/93/96/97/98 picks dropped as unrelated (Starlink road, grass field, presenter,
+Siemens office, Google Maps screenshot); 78/79 restored from the B.3 full-film run (slice-only context loses the story period).
+Remaining defects seen: Ryazan line shows labels on a dark field (Kanal13 Ryazan clip not on screen); '2026' date card on the ISW line;
+kinetic fragments ('ON THE SECOND', 'THE', 'THE COUNTRY'); dossier title cut 'FOR RUSSIA, DEFEN'; Kirishi lines 7:50-7:53 near-empty dark
+frames; same words twice (FALLING DEBRIS dossier then kinetic); 6 dossier cards in 3 min; Ust-Luga pin tiny on a Europe-wide map;
+footage only ~4 clips (Samara inset, Afipsky aerial, Moscow refinery fire x2 lines). Checker 'framing' 54 s = maps misread as pillarbox.
+
+## Pictures pass (2026-11-12, uncommitted) — `slice4_pictures/` (clone)
+Owner: final videos need video + images. Code (War only): `library.fallback` (a row the live search left empty takes a library clip of its
+kind, illustrative, each clip once per film; setting `war_library_fallback`); `direction.facility_facts` + CSV graphic `facility` (Iskander-
+style photo + facts card from the narration's own words; picture from the CSV `images` column, credit 'AI illustration · Google Flow',
+ILLUSTRATIVE chip); CSV `subject` column read; `flow_pictures.make` (attaches to the app's running Flow engine, app's image settings/accounts,
+labelled, no real-person likeness); any ai_generated record is labelled AI. Tests: test_war_pictures.py (6); test_war_library / test_war_wiring
+updated (no keyword graphic; facility row). Run: unlimited search budget; 8 Flow pictures made; Wikimedia unreachable (DNS REFUSED on this
+network). Slice now: euronews Ufa, Reuters Samara, Moscow refinery fire, chemical-plant aerial, AI refinery/industry clips, Flow debris house,
+3 facility cards (Kirishi, Morozov, Ust-Luga). Production choices on the clone: dropped 073 (Bakhmut drone view), 091, 096 (presenter, picked
+again despite the project blocklist: open defect). Render 050 mp4 in baseline_050/final and final/ was deleted 02:08 by someone else; the
+3-min reference is kept in slice3_production/review2/r050_same_3min.mp4.
+
+## Flash + picture-floor fixes (2026-11-12, uncommitted, not re-rendered at the owner's request)
+Owner: "there are many flashes", "16 sec flash and then a long continuous map", full-screen pictures >= 30 %. Measured on the 30 % render:
+two flash kinds at card hand-offs - a 0.1-0.3 s glimpse of the clip underneath (7.1, 24.4, 152.3 s) and a blank-plate blink between two
+cards (88.6, 97.5, 163.1, 169.9, 176.4 s); a 7 s text card + empty map at 15-24 s; one map frame held ~10 s (77-89 s).
+Root causes: library AI montages cut every 0.3-1.6 s, so harden_measured's _absorb_short_pieces covered each piece with a NEW card fading in
+over the clip; cards back to back each fade out then in; the map camera pushed 4 % per step however long the step; the fallback counted
+records of scenes outside the script as uses; harden undid the picture floor (30 % planned -> 17 % rendered).
+Fixes (War only): direction._handoffs (a full-frame layer followed within 0.35 s stays until the next has faded in, last step of
+harden_measured); _absorb_short_pieces gives a short clip piece back the seconds it lacks from the map/card before it (same clip only) and
+continues a cover only for slivers < 1.2 s; _picture_floor also at render time, undoing any change that would reveal a short piece;
+maps_tactical._camera push scales with the hold (~1.5 %/s, 4-14 %); library.steady + fallback only clips whose uncut runs are all >= 3 s;
+fallback counts only scenes of the current script. Plan check on slice4 (hardened): short pieces 0, slivers 0, card gaps 0, bare 0;
+picture share 25 % (27 % planned; target 30 % not reached - 2 floor changes undone, remaining lines have no steady clip). Tests: 397 pass in
+the affected War files; test_war_pictures.py 8.

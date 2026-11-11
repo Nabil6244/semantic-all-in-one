@@ -120,7 +120,7 @@ def read_scenes_csv(path: str) -> List[dict]:
         sc: Dict[str, Any] = {"text": text}
         no = (r.get(no_col) or "").strip() if no_col else ""
         sc["scene_no"] = int(no) if no.isdigit() else len(out) + 1
-        for key in ("asset_type", "prompt", "footage", "graphic", "images", "stock"):
+        for key in ("asset_type", "prompt", "footage", "graphic", "images", "stock", "subject"):
             if key in cols and (r.get(cols[key]) or "").strip():
                 sc[key] = r[cols[key]].strip()
         if start_col and end_col and (r.get(start_col) or "").strip() and (r.get(end_col) or "").strip():
@@ -481,6 +481,16 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
                 listed(rows)           # the Visuals tab re-reads every row: director clips, and the scenes handed to graphics with their reason
             except Exception:  # noqa: BLE001
                 pass
+    if fetch and lib_dir is not None:
+        try:                    # 2026-11-12: a row the live search left empty takes a library clip of its kind before it becomes graphics
+            LIB.fallback(scenes, [r for r in rows if r.asset_type in FETCH_TYPES and str(r.scene_number) not in over], Path(images_dir),
+                         lib_dir, log=log, settings=getattr(manager, "settings", None))
+        except Exception as exc:  # noqa: BLE001 - a fallback problem leaves those rows to the War graphics
+            log(f"War library fallback skipped: {type(exc).__name__}: {exc}")
+    try:
+        lib_nos = set(lib_nos) | LIB.library_nos(Path(images_dir), rows)      # library clips (incl. fallbacks) are never overruled by a graphics decision
+    except Exception:  # noqa: BLE001
+        pass
     man = AssetManifest(Path(images_dir)) if Path(images_dir).is_dir() else None
     out: List[dict] = []
     got = 0
@@ -496,7 +506,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             meta = integration.footage_meta_for(rec, sc.get("footage_meta"), scene_file=Path(foot).name)
             if rec.get("user_override") or rec.get("source") == "manual":
                 meta["user_supplied"] = True       # picked in the Visuals tab: never swapped for another clip
-            elif at in AI_TYPES or (rec.get("selection_method") == LIB.METHOD and rec.get("ai_generated")):
+            elif at in AI_TYPES or rec.get("ai_generated") is True or str(rec.get("ai_generated")).lower() == "true":     # incl. War Flow pictures
                 meta["ai_generated"] = True        # labelled "AI-generated illustration", never presented as footage of the event
             meta["csv_pick"] = True                # the CSV's own search, shown in the Visuals tab before Render: only a clear contradiction drops it
             sc["footage_meta"] = meta

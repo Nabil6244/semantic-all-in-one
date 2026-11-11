@@ -959,13 +959,7 @@ def _motion_options(sent: Any, h: str) -> List[Tuple[str, Dict[str, Any]]]:
         out.append(("kit_radar", {"label": h}))
     if len(text) <= 220:      # any sentence can be a page in the file; one that names a report, plan or decision most of all
         out.append(("kit_dossier", {"title": h, "body": text if text.upper() != h.upper() else "", "mark": _key_words(text, 1)}))
-    items = _items(text)
-    if not items:
-        names = []
-        for e in sent.entities:
-            if e.name.lower() not in [x.lower() for x in names]:
-                names.append(e.name)
-        items = names if 2 <= len(names) <= 4 else []
+    items = _items(text)       # a keyword card only for a real list in the sentence (render 050: 'WITHDREW / RUSSIAN / COUNTRY' from names)
     if items:
         out.append(("kit_keywords", {"items": [i[:1].upper() + i[1:] for i in items], "title": h if len(h.split()) <= 6 else ""}))
     q = _quote_of(sent)
@@ -1083,7 +1077,7 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
 # automatic choice and the plan log says why.
 CSV_GRAPHIC = {"map": "map", "number": "number", "stat": "number", "figure": "number", "compare": "compare", "versus": "compare",
                "equipment": "equipment", "weapon": "equipment", "speaker": "speaker", "person": "speaker", "quote": "quote",
-               "timeline": "timeline", "dates": "timeline", "date": "date", "list": "list", "icons": "icons", "kinetic": "kinetic",
+               "timeline": "timeline", "dates": "timeline", "facility": "facility", "site": "facility", "date": "date", "list": "list", "icons": "icons", "kinetic": "kinetic",
                "text": "kinetic", "dossier": "dossier", "document": "dossier", "radar": "radar", "keywords": "keywords", "title": "title",
                "chapter": "chapter", "bignum": "number", "big number": "number", "institution": "institution", "organisation": "institution",
                "organization": "institution", "supply": "supply", "supply chain": "supply", "logistics": "supply", "sticker": "sticker",
@@ -1145,6 +1139,62 @@ def _still_of(r: Dict[str, Any]) -> str:
 TITLE_WHOLE_W = 10
 
 
+# ------------------------------------------------------------------------------------------------ facility card (2026-11-12) ----------
+# Owner: "the Iskander card is very good" + "we need images too". A refinery / plant / port the narration describes gets the same photo + facts
+# card (lay_equipment_hero). Every fact row is the narration's own words (operator, owner, capacity, what it makes, its rank); the picture is
+# the row's own image (a Flow illustration, credited and chipped ILLUSTRATIVE) or the card keeps its labelled silhouette.
+_FAC_ROLE = [(r"\brefiner", "Oil refinery"), (r"\b(port|terminal)", "Oil export port"), (r"\bpumping station", "Oil pumping station"),
+             (r"\b(plant|factory)\b", "Industrial plant"), (r"\bdepot", "Fuel depot")]
+
+
+def facility_facts(text: str, name: str = "") -> Optional[Dict[str, Any]]:
+    """{name, role, operator, specs} from the line's own words, or None when it names no facility and no fact about one."""
+    t = " ".join(str(text or "").split())
+    low = t.lower()
+    role = next((lab for rx, lab in _FAC_ROLE if re.search(rx, low + " " + name.lower())), "")
+    if re.search(r"\b(explosives?|rocket fuel|propellant|defen[cs]e)\b", low) and role in ("", "Industrial plant"):
+        role = "Defence plant"
+    nm = name.strip()
+    if not nm:
+        m = re.search(r"\b(?:the\s+)?([A-Z][\w-]+(?:\s+(?:plant|refinery|port))?)\s+(?:is run by|belongs to|is owned by)", t) or \
+            re.search(r"\bport zone of\s+([A-Z][\w-]+)", t) or re.search(r"\b(?:the\s+)?([A-Z][\w-]+)\s+(?:oil\s+)?(?:refinery|plant|port)\b", t)
+        nm = m.group(1) if m else ""
+    specs: List[Dict[str, str]] = []
+    m = re.search(r"\b(?:is run by|is owned by|owned by|run by)\s+([A-Z][\w-]+(?:\s+[A-Z][\w-]+)?)", t)
+    if m:
+        specs.append({"label": "Operator", "value": m.group(1)})
+    m = re.search(r"\bbelongs to\s+([A-Z][\w-]+)", t)
+    if m:
+        specs.append({"label": "Owner", "value": m.group(1)})
+    m = re.search(r"capacity of (?:up to )?([\d.,]+ (?:million|billion)?\s*tonnes)", t)
+    if m:
+        specs.append({"label": "Capacity", "value": m.group(1) + " a year" if "a year" in low else m.group(1)})
+    m = re.search(r"\b(?:it is|is)\s+(Russia's [a-z-]+ largest [a-z]+)", t)
+    if m:
+        specs.append({"label": "Rank", "value": m.group(1)[0].upper() + m.group(1)[1:]})
+    m = re.search(r"\bmakes ([a-z ,]+?)(?:,|\.|$| including)", t)
+    if m:
+        specs.append({"label": "Makes", "value": m.group(1).strip()})
+    m = re.search(r"\bone of Russia's key ([a-z ]+?)(?:\.|,|$)", t)
+    if m:
+        specs.append({"label": "Role", "value": "Key " + re.sub(r"s$", "", m.group(1).strip())})
+    if not nm or not (role or specs):
+        return None
+    if role and role.split()[-1].lower() not in nm.lower() and not nm.lower().endswith(("plant", "refinery", "port")):
+        nm = f"{nm} {role.split()[-1].lower()}"
+    return {"name": nm, "role": role, "operator": "Russia", "specs": specs[:4]}
+
+
+def _facility_layer(r: Dict[str, Any], full: Callable[[str, Dict[str, Any]], Layer]) -> Tuple[Optional[Layer], str]:
+    f = facility_facts(str(r.get("text") or ""), str(r.get("subject") or ""))
+    if f is None:
+        return None, "the line names no facility and no fact about one"
+    img = next((x.strip() for x in str(r.get("images") or "").split("|") if x.strip() and Path(x.strip()).is_file()), "")
+    p = dict(f, class_label=f["role"] or "Facility", role="", image=img or None, image_credit=("AI illustration · Google Flow" if img else ""), confidence="stated",
+             status="illustrative" if img else "attributed", source="the narration", icon="")
+    return full("lay_equipment_hero", p), ""
+
+
 def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> Tuple[Optional[Layer], str]:
     text = str(r.get("text") or "")
     A = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
@@ -1152,6 +1202,8 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
     seed = int(r["_no"]) if str(r["_no"]).isdigit() else 0
     h = _phrase_or_lead(sents[0].text) if sents else ""
     full = lambda k, p: Layer(k, r["_start"], r["_end"], dict(p, seed=seed), dim=(k in DIM))   # noqa: E731
+    if kind == "facility":
+        return _facility_layer(r, full)
     if kind in LIGHT_ASKS:
         # The owner (2026-11-10): the rich panels must show up every time the narration supports one. A light text ask (kinetic words, a
         # big word, a caption ...) on a sentence that carries a stat, a comparison, a weapon type, a person, dates or a cited source gets
@@ -1424,8 +1476,7 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
         if k in opts:
             return full(k, opts[k]), ""
         if k == "kit_keywords":
-            kw = _key_words(text, 3)
-            return (full(k, {"items": [w[:1].upper() + w[1:] for w in kw], "title": h if len(h.split()) <= 6 else ""}), "") if len(kw) >= 2 else (None, "no key words")
+            return None, "no list in the narration: no keyword card from loose words"       # the line keeps its footage / map / other card
         return None, "no words"
     return None, f"unknown graphic '{kind}'"
 
@@ -1558,12 +1609,19 @@ def _light(ly: Any) -> bool:
 
 def _strike_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int]) -> None:
     earned = [(r["_start"], r["_end"]) for r in earned_rows(rows)]
+    from .narration_read import section_break
+
     last = -999.0
     recent, recent_at = None, -999.0              # the place the narration named last ('the port' further on means it)
+    recent_line, line_i = -9, -1                  # B.2 rule for strike maps too: only the line just before, in the same section
     for r in rows:
         text = str(r.get("text") or "")
         dec = log_by_no.get(str(r["_no"]))
-        if r["_start"] - recent_at > BACK_REF_S:
+        if text.strip():
+            line_i += 1
+            if section_break(text):
+                recent = None
+        if r["_start"] - recent_at > BACK_REF_S or line_i - recent_line > 1:
             recent = None
         if dec is None or not _STRIKE_V.search(text):
             if text.strip():
@@ -1571,7 +1629,7 @@ def _strike_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
                 for s0 in A0.sentences:
                     own = _places(s0)
                     if own:
-                        recent, recent_at = own[-1], r["_start"]
+                        recent, recent_at, recent_line = own[-1], r["_start"], line_i
             continue
         # a checked clip keeps its scene: the strike map is then the one short insert such a scene may have (EARNED_INSERT_S)
         on_earned = any(a < r["_end"] - 0.05 and b > r["_start"] + 0.05 for a, b in earned)
@@ -1580,11 +1638,11 @@ def _strike_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
             if not _STRIKE_V.search(sent.text):
                 own = _places(sent)
                 if own:
-                    recent, recent_at = own[-1], r["_start"]
+                    recent, recent_at, recent_line = own[-1], r["_start"], line_i
                 continue
             pl = _places(sent)
             if pl:
-                recent, recent_at = pl[-1], r["_start"]
+                recent, recent_at, recent_line = pl[-1], r["_start"], line_i
             elif recent is not None and _BACK_REF.search(sent.text):
                 pl = [recent]                         # 'a major combined attack against the port': the port the story just named
             if not pl:
@@ -1688,6 +1746,115 @@ def _point_bare_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, counts
         q["close_steps"] = [False, True]
         ly.params = q
         counts["maps_pointed"] = counts.get("maps_pointed", 0) + 1
+
+
+# ------------------------------------------------------------------------------------------------ campaign timeline (render 050 repair) ---
+# Render 050 6:48-7:41: seven dated strikes ('On the thirtieth of October, drones hit Rosneft's Novokuybyshevsk refinery' ... 'On the night of
+# the sixth to the seventh of November, the Saratov refinery') then 'That is seven targets in nine days', which the CSV marked 'timeline'. The
+# planner reads one line at a time, so the timeline never fired (an institution card took the line). Here the summary line gets ONE timeline
+# of the dated strike lines just before it in the same section, each row in the narration's own words. Nothing is forced: no summary
+# line, fewer than 3 dated strike lines, or a section break between them -> no timeline.
+_ORD = {"first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6, "seventh": 7, "eighth": 8, "ninth": 9, "tenth": 10,
+        "eleventh": 11, "twelfth": 12, "thirteenth": 13, "fourteenth": 14, "fifteenth": 15, "sixteenth": 16, "seventeenth": 17,
+        "eighteenth": 18, "nineteenth": 19, "twentieth": 20, "thirtieth": 30}
+_MON = "January|February|March|April|May|June|July|August|September|October|November|December"
+_DAY_RX = re.compile(r"\b(?:on|and on|overnight into|on the night of)?\s*the\s+((?:twenty|thirty)-?\s?(?:first|second|third|fourth|fifth|sixth|seventh|"
+                     r"eighth|ninth)|(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|thirteenth|fourteenth|"
+                     r"fifteenth|sixteenth|seventeenth|eighteenth|nineteenth|twentieth|thirtieth))(?:\s+to\s+the\s+(\w+))?(?:\s+of\s+(" + _MON + r"))?",
+                     re.IGNORECASE)
+_SITE_RX = re.compile(r"((?:[A-Z][\w'’-]*\s+){0,3}(?:oil\s+)?(?:refinery|pumping station|plant|port zone|port|depot|terminal|airfield|air base))"
+                      r"(?:\s+(?:in|at|near)\s+(?:the\s+)?([A-Z][\w-]+(?:\s+[A-Z][\w-]+)?))?")
+_SUMMARY_RX = re.compile(r"\b(\w+|\d+)\s+(?:targets|strikes|attacks|refineries|sites)\s+in\s+(\w+|\d+)\s+days\b", re.IGNORECASE)
+
+
+def _ordinal(w: str) -> Optional[int]:
+    w = re.sub(r"[\s-]+", " ", w.lower()).strip()
+    if w in _ORD:
+        return _ORD[w]
+    parts = w.split()
+    if len(parts) == 2 and parts[0] in ("twenty", "thirty") and parts[1] in _ORD:
+        return (20 if parts[0] == "twenty" else 30) + _ORD[parts[1]]
+    return None
+
+
+def dated_strike(text: str, month: str) -> Optional[Dict[str, str]]:
+    """{date, text, month} for a line that dates one strike target ('On the thirty-first, the Novoil refinery in Ufa'), else None."""
+    m = _DAY_RX.search(text)
+    if not m or m.start() > 40:
+        return None
+    d1 = _ordinal(m.group(1))
+    if d1 is None:
+        return None
+    mon = (m.group(3) or month or "").strip()
+    if not mon:
+        return None
+    d2 = _ordinal(m.group(2)) if m.group(2) else None
+    site = _SITE_RX.search(text[m.end():])
+    if not site:
+        return None
+    name = re.sub(r"^(?:the|a|an)\s+", "", site.group(1).strip(), flags=re.IGNORECASE)
+    name = re.sub(r"^\w+['’]s\s+", "", name)                    # "Rosneft's Novokuybyshevsk refinery" -> "Novokuybyshevsk refinery"
+    name = re.sub(r"^([A-Z]\w+)\s+oil\s+(pumping station|terminal|depot)", r"\2", name)   # "Transneft oil pumping station" -> "pumping station"
+    name = name[:1].upper() + name[1:]
+    if site.group(2) and site.group(2).lower() not in name.lower():
+        name = f"{name}, {site.group(2)}"
+    day = f"{d1}-{d2}" if d2 else str(d1)
+    return {"date": f"{day} {mon[:3].upper()}", "text": name, "month": mon}
+
+
+def _campaign_timeline(plan: Any, rows: Sequence[Dict[str, Any]], counts: Dict[str, int]) -> None:
+    from .narration_read import section_break
+
+    spoken = [r for r in rows if str(r.get("text") or "").strip()]
+    for i, r in enumerate(spoken):
+        text = str(r.get("text") or "")
+        asked = str(r.get("graphic") or "").strip().lower() in ("timeline", "dates")
+        if not (asked or _SUMMARY_RX.search(text)):
+            continue
+        items: List[Tuple[Dict[str, str], Dict[str, Any]]] = []
+        undated = 0
+        j = i - 1
+        while j >= 0 and not section_break(str(spoken[j].get("text") or "")):
+            items_text = str(spoken[j].get("text") or "")
+            items.append(({}, spoken[j]))           # placeholder, resolved in order below
+            if not _DAY_RX.search(items_text[:60]):
+                undated += 1
+                if undated > 3:
+                    break
+            j -= 1
+        run = [x[1] for x in reversed(items)]
+        found: List[Tuple[Dict[str, str], Dict[str, Any]]] = []
+        month = ""
+        for rr in run:
+            ds = dated_strike(str(rr.get("text") or ""), month)
+            if ds:
+                month = ds["month"]
+                found.append((ds, rr))
+        if len(found) < 3:
+            counts["timeline_skip_few_dates"] = counts.get("timeline_skip_few_dates", 0) + 1
+            continue
+        found = found[-8:]
+        a, b = r["_start"], max(r["_end"], r["_start"] + 6.0)
+        nxt = next((x for x in spoken[i + 1:i + 2]), None)
+        if nxt is not None and b > nxt["_start"] and nxt["_start"] - r["_start"] < 6.0:
+            b = min(b, nxt["_end"])
+        n = len(found)
+        times = [round(0.4 + i_ * min(0.55, max(0.3, (b - a - 2.0) / max(1, n))), 2) for i_ in range(n)]
+        lay = Layer("lay_timeline", fr(a), fr(b), {"title": "The strike campaign", "items": [{"date": d["date"], "text": d["text"]} for d, _r in found],
+                                                    "times": times, "status": "attributed", "csv_graphic": asked, "campaign": True}, dim=False)
+        keep = []
+        for ly in plan.layers:
+            if ly.start < b - 0.05 and ly.end > a + 0.05 and ly.kind != "kit_field":
+                if ly.start < a - 1.5:
+                    ly.end = fr(a)
+                    keep.append(ly)
+                elif ly.end > b + 1.5:
+                    ly.start = fr(b)
+                    keep.append(ly)
+                continue                            # everything else in these seconds gives way to the timeline
+            keep.append(ly)
+        plan.layers[:] = keep + [lay]
+        counts["campaign_timelines"] = counts.get("campaign_timelines", 0) + 1
 
 
 def _floor_options(sent: Any, has_footage: bool, layouts: bool) -> List[Tuple[str, Dict[str, Any], float]]:
@@ -2443,6 +2610,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         _broll_returns(plan, rows, log_by_no, meta_by_start, counts, earned=earned_paths)
     _no_empty_stretch(plan, rows, cat, log_by_no, counts, gap_notes, motion=bool(cfg.get("motion_fill", True)))
     _csv_wins(plan, counts)
+    if cfg.get("campaign_timeline", True):        # dated strike lines summed up ('seven targets in nine days'): one timeline of them
+        _campaign_timeline(plan, rows, counts)
     if cfg.get("strike_maps", True):              # a strike on a named place: the missile flies to it on the map (the most engaging card)
         _strike_maps(plan, rows, cat, log_by_no, counts)
     if cfg.get("point_maps", True):               # a bare country map points at the place the story is about (pin, ring, push-in)
@@ -2546,12 +2715,16 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 counts["engagement_fixed"] = n_fix
     _treat_shots(plan, meta_by_start, hard, full_spans, counts, film=bool(cfg.get("film_grade", True)),
                  dissolves=bool(cfg.get("dissolves", False)))   # hard cuts like the reference: a cross-fade shows two clips at once
+    if cfg.get("text_clear", True):               # one text layer at a time on screen (before coverage: any gap it opens is filled or flagged)
+        _text_layers_clear(plan, counts)
     _final_coverage(plan, max((r["_end"] for r in rows), default=0.0), counts, float((st_stats.get("hook") or {}).get("window") or 0.0))
     _cover_plate(plan, rows, cat, log_by_no, counts, max((r["_end"] for r in rows), default=0.0))
     if cfg.get("harden", True):
         _harden(plan, rows, cat, log_by_no, counts, max((r["_end"] for r in rows), default=0.0), float((st_stats.get("hook") or {}).get("window") or 0.0), cfg)
     if cfg.get("protect_earned", True):
         protect_earned(plan, rows, counts, log_by_no)
+    if cfg.get("picture_floor", True):            # at least PICTURE_FLOOR of the film is full-screen video or pictures (owner 2026-11-12)
+        _picture_floor(plan, max((r["_end"] for r in rows), default=0.0), counts, float(cfg.get("picture_floor_share", PICTURE_FLOOR)))
     if cfg.get("no_flash", True):                 # last word: nothing seen for a split second (a cut inside a clip, a glimpse between cards)
         no_flash(plan, counts)
     counts["empty_stretches"] = len(gap_notes)
@@ -3036,15 +3209,200 @@ def _cover_plate(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
                         if ly.start < b - 0.05 and ly.end > a + 0.05 and ly.kind not in LIGHT_OVER)
             if not fg and not asked and b - a >= 2.0:          # a CSV-asked card keeps its own words on a quiet field, not under more words
                 made = _motion_over(rows, cat, log_by_no, a, b, plan.layers)
+            if made is None and not fg and not asked and b - a >= 2.0:
+                made = _grounded_fill(rows, cat, a, b)            # the sentence's own map / chart / document / icons: never a neighbour's picture
             if made is None:
                 row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), rows[0] if rows else None)
                 seed = int(row["_no"]) if row is not None and str(row.get("_no", "")).isdigit() else int(a)
                 made = Layer(BACKING_KIND, fr(a), fr(b), {"seed": seed}, dim=False)
                 counts["plate_backed"] = counts.get("plate_backed", 0) + 1
+                if not fg and b - a >= 1.0:
+                    # nothing relevant for these seconds: flagged for the owner, never filled with an unrelated visual
+                    flags = getattr(plan, "gap_flags", None)
+                    if flags is None:
+                        flags = []
+                        try:
+                            setattr(plan, "gap_flags", flags)
+                        except Exception:  # noqa: BLE001
+                            pass
+                    flags.append({"start": fr(a), "end": fr(b), "line": str((row or {}).get("text") or "")[:120]})
+                    counts["plate_flagged"] = counts.get("plate_flagged", 0) + 1
                 plan.layers.insert(0, made)                       # first in the list = drawn first: the card's own words stay on top
             else:
                 counts["plate_motion"] = counts.get("plate_motion", 0) + 1
                 plan.layers.insert(0, made)                       # under any corner mark that is on the span
+
+
+def _grounded_fill(rows: Sequence[Dict[str, Any]], cat: Any, a: float, b: float) -> Optional[Layer]:
+    """A full-frame visual built from the sentence spoken in [a, b] itself (its places on a map, its figures as a chart, its cited report,
+    the things it names as icons), or None."""
+    row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), None)
+    if row is None:
+        return None
+    try:
+        A2 = S.analyze_scene(str(row.get("text") or ""), cat, row.get("words"), row["_start"], row["_end"])
+        for sent in A2.sentences:
+            for kind, params, _sec in _floor_options(sent, False, False):
+                if kind in ("kit_chart", "lay_document", "tac_map", "kit_icons", "kit_recap"):
+                    return Layer(kind, fr(a), fr(b), dict(params, grounded_fill=True), dim=False)
+    except Exception:  # noqa: BLE001 - nothing grounded: the gap is flagged
+        return None
+    return None
+
+
+TEXT_FULL = {"kit_kinetic", "kit_dossier", "kit_keywords", "kit_title", "kit_datecard", "kit_quote", "kit_bignum", "kit_recap", "kit_chart",
+             "lay_document", "kit_icons", "lay_timeline", "lay_stat_split", "lay_figure_hero", "lay_equipment_hero", "lay_claim", "kit_versus"}
+TEXT_CORNER = {"kit_tag", "kit_stamp", "kit_chips", "kit_ribbon", "status_chip", "shot_headline", "bc_caption", "bc_bigword", "bc_label"}
+
+
+def _text_layers_clear(plan: Any, counts: Dict[str, int]) -> None:
+    """One text layer at a time (render 050: a sticker over a list, a headline over a headline, a panel over an interview caption). Two full-frame
+    text cards never overlap: the later one starts when the earlier ends (or goes, under 1.5 s left; a CSV-asked card wins). A corner text mark
+    under a full-frame text card goes."""
+    fulls = sorted([ly for ly in plan.layers if ly.kind in TEXT_FULL], key=lambda x: (x.start, x.end))
+    drop = set()
+    for i, a in enumerate(fulls):
+        if id(a) in drop:
+            continue
+        for b in fulls[i + 1:]:
+            if id(b) in drop or b.start >= a.end - 0.05:
+                continue
+            keep_b = (b.params or {}).get("csv_graphic") and not (a.params or {}).get("csv_graphic")
+            first, second = (b, a) if keep_b else (a, b)
+            if second.end - first.end >= 1.5 and second.start >= first.start:
+                second.start = fr(first.end)
+            elif first.start - second.start >= 1.5 and second.start < first.start:
+                second.end = fr(first.start)
+            else:
+                drop.add(id(second))
+            counts["text_overlap_fixed"] = counts.get("text_overlap_fixed", 0) + 1
+    fulls = [ly for ly in fulls if id(ly) not in drop]
+    for ly in plan.layers:
+        if ly.kind in TEXT_CORNER and any(f.start < ly.end - 0.3 and f.end > ly.start + 0.3 for f in fulls):
+            drop.add(id(ly))
+            counts["text_corner_dropped"] = counts.get("text_corner_dropped", 0) + 1
+    plan.layers[:] = [ly for ly in plan.layers if id(ly) not in drop]
+
+
+# ------------------------------------------------------------------------------------------------ picture floor (2026-11-12) ----------
+# Owner: "Full-screen video or pictures clips should be at least 30%". The render 050 slice showed full-screen pictures 16 % of the time although
+# 14 clips / stills were planned: maps and text cards were drawn over them (illustrative clips are not 'earned', so nothing protected them).
+# When a film is under PICTURE_FLOOR, cards that cover a line's own picture give way, least valuable first. A card the CSV asked for, the
+# timeline, a photo / document card is never removed; nothing is uncovered where no clip plays (no bare plate).
+PICTURE_FLOOR = 0.30
+_GIVE_WAY = [("kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords", "kit_icons", "kit_recap"), ("map_card", "tac_route"), ("tac_map",)]
+_NEVER_GIVE = {"lay_timeline", "lay_equipment_hero", "lay_document", "lay_figure_hero", "lay_satellite", "kit_chapter", "kit_title", "kit_chart"}
+
+
+def _picture_spans(plan: Any) -> List[Tuple[float, float]]:
+    return _spans_union([(s.start, s.end) for s in plan.shots if s.path and "backdrop" not in str(s.path)])
+
+
+def picture_share(plan: Any, total: float) -> float:
+    """Share of the film where a clip or still plays full-screen with no opaque card over it."""
+    if total <= 0:
+        return 0.0
+    pics = _picture_spans(plan)
+    cover = _spans_union([(ly.start, ly.end) for ly in plan.layers if _opaque(ly)])
+    shown = 0.0
+    for a, b in pics:
+        cut = sum(max(0.0, min(b, y) - max(a, x)) for x, y in cover)
+        shown += max(0.0, (b - a) - cut)
+    return shown / total
+
+
+def _covered_by(spans: Sequence[Tuple[float, float]], a: float, b: float) -> bool:
+    """[a, b] lies inside the union of spans (a clip plays the whole time: uncovering it leaves no bare plate)."""
+    cur = a
+    for x, y in sorted(spans):
+        if x <= cur + 0.05 and y > cur:
+            cur = y
+        if cur >= b - 0.05:
+            return True
+    return cur >= b - 0.05
+
+
+def _picture_floor(plan: Any, total: float, counts: Dict[str, int], floor: float = PICTURE_FLOOR, short_pieces=None) -> None:
+    """See the block comment. A change that would reveal a clip piece the render-time check rejects (short_footage_pieces: under MIN_SHOT_S of
+    real, uncut footage) is undone: that check would cover it again with a new card fading in over the clip (2026-11-12 slice, 7.1 s: map,
+    a split second of clip, radar card)."""
+    if total <= 0 or picture_share(plan, total) >= floor:
+        return
+    before = [(ly, ly.start, ly.end) for ly in plan.layers]
+    _picture_floor_pass(plan, total, counts, floor)
+    try:
+        bad = (short_pieces or short_footage_pieces)(plan, total)
+    except Exception:  # noqa: BLE001 - unmeasurable: keep the changes
+        bad = []
+    if not bad:
+        return
+    now = {id(ly) for ly in plan.layers}
+    for ly, a0, b0 in before:
+        changed = id(ly) not in now or abs(ly.start - a0) > 1e-6 or abs(ly.end - b0) > 1e-6
+        if not changed:
+            continue
+        freed = [(a0, ly.start)] if ly.start > a0 + 1e-6 else []
+        freed += [(ly.end, b0)] if ly.end < b0 - 1e-6 else []
+        if id(ly) not in now:
+            freed = [(a0, b0)]
+        if any(min(b, y) - max(a, x) > 0.05 for a, b in freed for x, y, *_ in bad):
+            ly.start, ly.end = a0, b0
+            if id(ly) not in now:
+                plan.layers.append(ly)
+                now.add(id(ly))
+            counts["picture_floor_undone"] = counts.get("picture_floor_undone", 0) + 1
+    counts["picture_share_pct"] = int(round(100 * picture_share(plan, total)))
+
+
+def _picture_floor_pass(plan: Any, total: float, counts: Dict[str, int], floor: float) -> None:
+    pics = _picture_spans(plan)
+    for kinds in _GIVE_WAY:
+        cands = [ly for ly in plan.layers if ly.kind in kinds and _opaque(ly) and not (ly.params or {}).get("csv_graphic")
+                 and ly.kind not in _NEVER_GIVE]
+        cands.sort(key=lambda ly: -sum(max(0.0, min(ly.end, y) - max(ly.start, x)) for x, y in pics))
+        for ly in cands:
+            if picture_share(plan, total) >= floor:
+                return
+            under = sum(max(0.0, min(ly.end, y) - max(ly.start, x)) for x, y in pics)
+            span = ly.end - ly.start
+            if span <= 0 or under < 0.5:
+                continue
+            if _covered_by(pics, ly.start, ly.end):
+                plan.layers.remove(ly)                       # a clip plays under all of it: the clip is shown instead
+                counts["picture_floor_removed"] = counts.get("picture_floor_removed", 0) + 1
+                continue
+            # a clip under its start or end only: the card keeps the part with no clip under it (>= 2 s), the clip shows the rest
+            head = next(((x, y) for x, y in pics if x <= ly.start + 0.05 < y), None)
+            tail = next(((x, y) for x, y in pics if x < ly.end - 0.05 <= y), None)
+            if head is not None and ly.end - head[1] >= 2.0:
+                ly.start = fr(head[1])
+                counts["picture_floor_trimmed"] = counts.get("picture_floor_trimmed", 0) + 1
+            elif tail is not None and tail[0] - ly.start >= 2.0:
+                ly.end = fr(tail[0])
+                counts["picture_floor_trimmed"] = counts.get("picture_floor_trimmed", 0) + 1
+    # still under the floor: a map or text card the CSV asked for, over a line that has its own picture, stays as a short insert at the
+    # line's start (CSV_INSERT_S) and the picture plays after it (the map is seen, the picture is not lost under it)
+    for ly in sorted([ly for ly in plan.layers if (ly.params or {}).get("csv_graphic") and _opaque(ly)
+                      and ly.kind in ("tac_map", "tac_route", "map_card", "kit_kinetic", "kit_dossier", "kit_radar", "kit_recap")],
+                     key=lambda ly: -(ly.end - ly.start)):
+        if picture_share(plan, total) >= floor:
+            break
+        under = sum(max(0.0, min(ly.end, y) - max(ly.start, x)) for x, y in pics)
+        if ly.end - ly.start > CSV_INSERT_S + 1.0 and _covered_by(pics, ly.start + CSV_INSERT_S, ly.end):
+            ly.end = fr(ly.start + CSV_INSERT_S)
+            counts["picture_floor_csv_insert"] = counts.get("picture_floor_csv_insert", 0) + 1
+    for ly in [ly for ly in plan.layers if ly.kind == "lay_document" and _opaque(ly)]:       # last: a document page holds DOC_MIN_S, then the clip
+        if picture_share(plan, total) >= floor:
+            break
+        under = sum(max(0.0, min(ly.end, y) - max(ly.start, x)) for x, y in pics)
+        if ly.end - ly.start > DOC_MIN_S + 0.5 and _covered_by(pics, ly.start + DOC_MIN_S, ly.end):
+            ly.end = fr(ly.start + DOC_MIN_S)
+            counts["picture_floor_doc_trim"] = counts.get("picture_floor_doc_trim", 0) + 1
+    counts["picture_share_pct"] = int(round(100 * picture_share(plan, total)))
+
+
+CSV_INSERT_S = 2.0
+DOC_MIN_S = 4.0
 
 
 def _motion_over(rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], a: float, b: float, plan_layers: Sequence[Layer] = ()) -> Optional[Layer]:
@@ -3363,6 +3721,18 @@ def _absorb_short_pieces(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, lo
                 lid.dim = False
                 counts["short_pieces_absorbed"] = counts.get("short_pieces_absorbed", 0) + 1
                 continue
+            need = MIN_SHOT_S - (b - a) + 0.05
+            same_clip = any(sh.start <= a - need + 0.02 and sh.end >= b - 0.02 for sh in plan.shots if sh.path and "backdrop" not in str(sh.path))
+            if prv is not None and b - a >= 1.2 and need > 0 and (prv.end - prv.start) - need >= 2.5 and same_clip \
+                    and prv.kind in ({"tac_map", "tac_route", "map_card"} | MOTION_KINDS):
+                prv.end = fr(prv.end - need)    # the map / card before gives back the seconds the clip lacks: the clip plays, nothing new fades in
+                counts["short_pieces_given_back"] = counts.get("short_pieces_given_back", 0) + 1
+                continue
+            if prv is not None and prv.kind in ({"tac_map", "tac_route", "map_card"} | MOTION_KINDS | LAYOUT_KINDS) and b - a < 1.2:
+                prv.params = dict(prv.params or {}, short_cover=True)
+                prv.end = fr(b)                 # the map / card that ends here carries on: no new card fading in over a split second of clip
+                counts["short_pieces_continued"] = counts.get("short_pieces_continued", 0) + 1
+                continue
             cur = a
             while b - cur > 0.04:
                 made = _motion_over(rows, cat, log_by_no, cur, b, plan.layers)
@@ -3526,6 +3896,29 @@ def _harden(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict
         _prune_marks(plan, counts)                       # a clip now hidden by a card carries no footage mark
 
 
+# ------------------------------------------------------------------------------------------------ hand-offs (2026-11-12) ------------
+# Owner: "there are many flashes in the video". Slice render: map -> 0.1-0.3 s of the clip underneath -> radar card (7.1 s, 24.4 s, 152.3 s),
+# and card -> 0.2 s of bare background -> next card (88.6, 97.5, 163.1, 169.9, 176.4 s). Each full-frame card fades itself in and out, so two
+# cards back to back pass through whatever lies under them. A full-frame layer followed by another within HANDOFF_GAP_S now stays (under it:
+# the later start is drawn on top) until the next one has faded in: one direct cross-fade, never a glimpse or a blink.
+HANDOFF_GAP_S = 0.35
+HANDOFF_S = 0.6
+
+
+def _handoffs(plan: Any, counts: Dict[str, int]) -> None:
+    covers = sorted([ly for ly in plan.layers if _covers(ly) and ly.kind != BACKING_KIND and ly.kind not in CORNER_KINDS],
+                    key=lambda ly: (ly.start, ly.end))
+    for i, a in enumerate(covers):
+        nxt = min((b for b in covers[i + 1:] if b is not a and b.start >= a.start + 0.3 and -0.05 <= b.start - a.end <= HANDOFF_GAP_S),
+                  key=lambda b: b.start, default=None)
+        if nxt is None:
+            continue
+        want = fr(min(nxt.end, nxt.start + HANDOFF_S))
+        if want > a.end:
+            a.end = want
+            counts["handoffs"] = counts.get("handoffs", 0) + 1
+
+
 def harden_measured(plan: Any, scenes: Sequence[Dict[str, Any]], plate_path: Optional[str] = None, hook_end: float = 0.0, cat: Any = None) -> Dict[str, int]:
     """Render-time pass (integration.run_war_documentary, once the plate exists): every self-backed layer is MEASURED against the plate as the
     compositor draws it; thin ones are repaired (dark map -> coloured political look -> lighter context land -> motion card), then the short visible
@@ -3559,5 +3952,8 @@ def harden_measured(plan: Any, scenes: Sequence[Dict[str, Any]], plate_path: Opt
     protect_earned(plan, rows, counts)
     no_flash(plan, counts)
     _prune_marks(plan, counts)
+    if total > 0:                             # the render-time repairs above must not undo the picture floor (slice: 30 % planned, 17 % rendered)
+        _picture_floor(plan, total, counts)
+    _handoffs(plan, counts)                   # last: two full-frame cards in a row cross-fade directly (no clip glimpse, no blank blink)
     plan.layers.sort(key=draw_order)          # the planner's own order: the later start is drawn on top
     return counts

@@ -310,8 +310,11 @@ class Density(unittest.TestCase):
                   sc(2, "The T-72 carries a 125 mm gun and was widely deployed.", 12, 18)]
         p = P.plan(scenes)
         cs = sorted(cards(p), key=lambda ly: ly.start)
+        self.assertTrue(cs)
+        # an 18 s film plans with SHORT_PROFILE (min_gap 2 s). Until 2026-11-12 'T-72' was read as the figure 72, so scene 2 got no card
+        # and this pair check never ran; now '125 mm gun' is carded and the profile's own gap is what must hold.
         for a, b in zip(cs, cs[1:]):
-            self.assertGreaterEqual(b.start - a.end, 7.0 - 1e-6)
+            self.assertGreaterEqual(b.start - a.end, P.SHORT_PROFILE["min_gap"] - 1e-6)
 
     def test_clean_footage_floor_over_a_long_video(self):
         texts = ["According to the General Staff, %d drones a day were launched." % (40 + i) for i in range(12)]

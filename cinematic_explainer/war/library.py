@@ -506,6 +506,115 @@ def apply(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Pat
     return got
 
 
+# ------------------------------------------------------------------------------------------------ fallback before graphics -----------
+# 2026-11-12 owner: "for the final videos we need videos and images too" (the render 050 slice was ~90 % graphics). After the live search, a
+# footage row that still has no clip takes a library clip of the KIND of thing its line talks about (a refinery fire for a refinery strike,
+# a missile factory for 'the factories that build the weapons'), shown as illustrative footage, never as footage of that event. Only these
+# subject families, only when the line names that kind of thing; a source video at most MAX_USES times; real clips before AI ones.
+FALLBACK = [
+    (r"\b(refiner\w*|oil|fuel|petrol|diesel|depots?|pumping station|terminals?|port zone|exports?)\b",
+     ["refinery_fire", "oil_pipeline", "ai_refinery_night", "ai_strike_industry"]),
+    (r"\b(explosives?|rocket fuel|propellant|workshops?|factor(?:y|ies)|plants?\b.*\b(?:defen[cs]e|weapons?|military)|build the weapons|production)\b",
+     ["factory_workers", "chemical_plant", "ai_strike_industry"]),
+    (r"\bmissiles?\b.*\b(fires?|fired|launch\w*)\b|\b(launch\w*|fires?)\b.*\bmissiles?\b", ["missile_launch"]),
+    (r"\b(air defen[cs]es?|shot down|intercept\w*|pantsir|s-400)\b", ["air_defence"]),
+]
+FALLBACK_SETTING = "war_library_fallback"
+
+
+STEADY_RUN_S = 3.0
+CHOPPY_RUN_S = 3.0          # the War shot minimum (direction.MIN_SHOT_S): a fallback clip never needs covering for its own edits
+
+
+def steady(path: Path) -> bool:
+    """Every uncut stretch of the clip is at least CHOPPY_RUN_S (direction.source_cuts): its own edits never make a short shot."""
+    try:
+        from .direction import _clip_seconds, source_cuts
+
+        n = float(_clip_seconds(str(path)) or 0.0)
+        cs = sorted(c for c in (source_cuts(str(path)) or []) if 0.0 < c < n)
+    except Exception:  # noqa: BLE001 - unmeasurable: allowed (the render-time checks still apply)
+        return True
+    if n <= 0:
+        return True                             # unmeasurable here: the render-time checks still judge it
+    runs = [b - a for a, b in zip([0.0] + cs, cs + [n])]
+    return max(runs) >= STEADY_RUN_S and min(runs) >= CHOPPY_RUN_S
+
+
+def fallback_subjects(text: str) -> List[str]:
+    """Library subjects whose kind of picture the line talks about, most specific first."""
+    low = (text or "").lower()
+    out: List[str] = []
+    for rx, subs in FALLBACK:
+        if re.search(rx, low):
+            out += [x for x in subs if x not in out]
+    return out
+
+
+def fallback(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path, lib: Optional[Path] = None,
+             log: Callable[[str], None] = lambda m: None, settings: Optional[Dict[str, Any]] = None) -> List[str]:
+    """Rows still without a clip get a library clip of their line's kind (illustrative). Returns the scene numbers filled."""
+    from asset_manager import AssetManifest
+
+    if not (settings or {}).get(FALLBACK_SETTING, True):
+        return []
+    lib = Path(lib) if lib else root(settings)
+    clips = usable_clips(load(lib), lib, log=log)
+    if not clips:
+        return []
+    images_dir = Path(images_dir)
+    man = AssetManifest(images_dir)
+    by_no = {str(sc.get("scene_no")): sc for sc in scenes}
+    uses: Dict[str, int] = {}
+    last_at: Dict[str, float] = {}
+    for no, rec in (man.all() or {}).items():
+        if not (by_no.get(no) or by_no.get(no.lstrip("0"))):
+            continue                            # a record of a scene this script no longer has is not a use in this film
+        if rec.get("selection_method") == METHOD and str(rec.get("status")).lower() == "complete":
+            key = _video_id(str(rec.get("source_url") or "")) or str(rec.get("library_file") or "")
+            uses[key] = uses.get(key, 0) + 1
+            last_at[str(rec.get("library_file"))] = float((by_no.get(no) or by_no.get(no.lstrip("0")) or {}).get("start") or 0.0)
+    filled: List[str] = []
+    for r in rows:
+        no = str(r.scene_number)
+        rec = man.get(no) or {}
+        if str(rec.get("status") or "").lower() == "complete" and Path(str(rec.get("local_path") or "")).is_file():
+            continue
+        if rec.get("user_override") or rec.get("source") == "manual":
+            continue
+        sc = by_no.get(no) or {}
+        subs = fallback_subjects(str(sc.get("text") or getattr(r, "script_segment", "")))
+        if not subs:
+            continue
+        t = float(sc.get("start") or 0.0)
+        pick = None
+        for sub in subs:
+            for c in sorted((c for c in clips if c.get("subject") == sub), key=lambda c: (bool(c.get("ai_generated")), str(c["file"]))):
+                key = source_key(c)
+                if uses.get(key, 0) >= MAX_USES or str(c["file"]) in last_at:
+                    continue                    # a fallback clip is shown once per film (a repeated filler reads as a loop)
+                if not steady(lib / str(c["file"])):
+                    continue                    # a choppy montage (cuts under 1 s, no 3 s stretch) would be covered by cards anyway: flashes
+                pick = c
+                break
+            if pick:
+                break
+        if pick is None:
+            continue
+        dest = images_dir / (f"{int(no):03d}.mp4" if no.isdigit() else f"{no}.mp4")
+        tmp = dest.with_suffix(".lib.tmp")
+        shutil.copyfile(lib / str(pick["file"]), tmp)
+        tmp.replace(dest)
+        man.set(no, dict(record_for(pick, r, dest), match_level="illustrative", library_fallback=True,
+                                                               fallback_note=f"the line's kind of picture ({pick.get('subject')}), not footage of the event"))
+        uses[source_key(pick)] = uses.get(source_key(pick), 0) + 1
+        last_at[str(pick["file"])] = t
+        filled.append(no)
+    if filled:
+        log(f"War library fallback: {len(filled)} scene(s) without a clip get an illustrative library clip of their kind: {', '.join(filled)}")
+    return filled
+
+
 def summary(got: Dict[str, Dict[str, Any]], by_no: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     by_no = by_no or {}
     need: Dict[str, List[int]] = {}

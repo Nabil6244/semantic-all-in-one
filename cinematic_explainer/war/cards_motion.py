@@ -239,7 +239,8 @@ def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     # still typing 'creates another opportun' a moment before it went)
     sc = min(1.0, (DOSSIER_TYPED * dur) / (0.45 + d_title + 0.2 + d_body)) if dur > 0 else 1.0
     d_title, d_body = d_title * sc, d_body * sc
-    typed = int(n_title * _k(t, 0.45 * sc, d_title))
+    typed = n_title                          # the card enters with its title on it (render 050: a blank paper for the first half second)
+    d_title = 0.0
     y, left = 70, typed
     for ln in tl:
         part = ln[:max(0, left)]
@@ -249,7 +250,7 @@ def kit_dossier(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         y += 60
     d.rectangle([50, y + 4, pw - 50, y + 7], fill=KRED)
     y += 30
-    t_body = (0.45 + 0.2) * sc + d_title
+    t_body = 0.15
     if body:
         bl = _wrap(body, fb, pw - 100, 0.01, 6)
         n_body = sum(len(x) for x in bl)

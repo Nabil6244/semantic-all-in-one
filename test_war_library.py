@@ -196,7 +196,7 @@ class TestApply(unittest.TestCase):
         self.assertEqual([a[0] for a in mgr.asked], ["3"])                    # only the row the library has nothing for is searched
         self.assertTrue(out[0]["footage"].endswith("001.mp4"))
         self.assertTrue(out[1].get("no_footage") and not out[1].get("footage"))  # subject used (gap): War graphics, no search
-        self.assertTrue(out[1].get("graphic"))
+        self.assertNotEqual(out[1].get("graphic"), "keywords")             # 2026-11-12 owner: never a keyword card from loose words; War graphics choose
         self.assertEqual(out[3]["footage"], str(mine))
         self.assertEqual(out[4]["footage"], str(earlier))
         self.assertTrue(out[5]["footage_meta"].get("ai_generated"))

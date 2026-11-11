@@ -64,9 +64,14 @@ class StrikeMaps(unittest.TestCase):
                          else m[0].params["routes"][0]["to"], "Novorossiysk")
 
     def test_the_port_further_on_means_the_place_just_named(self):
-        p, _sc = plan_rows([("", "Russia moved its warships to Novorossiysk."), ("", "Calm returned for a while."),
+        p, _sc = plan_rows([("", "Russia moved its warships to Novorossiysk."),
                             ("", "Then Ukraine launched a major combined attack against the port.")], step=6.0)
         self.assertTrue(any(ly.kind == "tac_map" and (ly.params or {}).get("strike_map") for ly in p.layers))
+        # 2026-11-12 owner (render 050 slice): only the line just before; two lines back is another subject (Kirishi pinned for Ust-Luga)
+        p, _sc = plan_rows([("", "Russia moved its warships to Novorossiysk."), ("", "Calm returned for a while."),
+                            ("", "Then Ukraine launched a major combined attack against the port.")], step=6.0)
+        self.assertFalse(any(ly.kind == "tac_map" and (ly.params or {}).get("strike_map") and "Novorossiysk" in str(ly.params.get("places"))
+                             for ly in p.layers))
 
     def test_no_strike_is_drawn_when_who_fires_is_not_stated(self):
         p, _sc = plan_rows([("", "For years Moscow believed attacks on its capital were impossible.")], step=7.0)

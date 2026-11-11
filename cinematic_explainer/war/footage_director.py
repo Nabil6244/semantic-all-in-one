@@ -17,6 +17,8 @@ graphic that fits the sentence (graphic_for). A clip the user picked in the Visu
 
 from __future__ import annotations
 
+import re
+
 import datetime as _dt
 import json
 import time
@@ -125,7 +127,9 @@ def graphic_for(r: N.Reading) -> str:
         return "source" if r.outlet else "claim"
     if "SUBJECT" in t and r.equipment:
         return "equipment"
-    return "keywords"
+    if re.search(r",.+,.+\band\b", r.text):
+        return "list"                   # a real list ('refineries, depots and factories'): its items, never loose words
+    return ""                           # nothing specific: the War graphics choose from the sentence (no keyword card of loose words)
 
 
 def widen_to_section(readings: Dict[str, Any]) -> int:
