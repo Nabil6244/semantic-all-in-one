@@ -1,0 +1,556 @@
+{
+ "total_s": 1476.5,
+ "footage_s": 371.5,
+ "footage_share": 0.252,
+ "backdrop_only_s": 125.2,
+ "backdrop_only": [
+  [
+   37.3,
+   45.4
+  ],
+  [
+   113.9,
+   119.8
+  ],
+  [
+   124.2,
+   126.6
+  ],
+  [
+   130.2,
+   134.8
+  ],
+  [
+   140.3,
+   156.2
+  ],
+  [
+   224.5,
+   228.5
+  ],
+  [
+   393.9,
+   396.0
+  ],
+  [
+   454.7,
+   460.5
+  ],
+  [
+   500.3,
+   508.4
+  ],
+  [
+   517.5,
+   526.7
+  ],
+  [
+   569.0,
+   572.9
+  ],
+  [
+   599.8,
+   607.2
+  ],
+  [
+   834.2,
+   839.3
+  ],
+  [
+   849.8,
+   854.8
+  ],
+  [
+   903.2,
+   910.6
+  ],
+  [
+   1182.5,
+   1186.5
+  ],
+  [
+   1317.6,
+   1324.6
+  ],
+  [
+   1383.1,
+   1386.9
+  ],
+  [
+   1440.1,
+   1450.7
+  ],
+  [
+   1471.6,
+   1476.5
+  ]
+ ],
+ "reuse": {
+  "Q_0p0HMD9i8": [
+   22.5,
+   94.1,
+   185.4
+  ],
+  "EgtVGTb38fk": [
+   208.4,
+   295.4,
+   431.2,
+   942.3
+  ],
+  "qgmJrvcKtVI": [
+   258.2,
+   980.5,
+   1261.8,
+   1432.0
+  ],
+  "uQYu8H_g6mY": [
+   336.6,
+   513.0,
+   576.8
+  ],
+  "Jyxv7oHWjOE": [
+   342.6,
+   545.6,
+   1302.2
+  ],
+  "ByNVRBNp2ls": [
+   348.7,
+   586.8,
+   1309.4
+  ],
+  "ib2sPyfz_lA": [
+   364.3,
+   828.6,
+   1386.9
+  ],
+  "YgCFILFqaBM": [
+   379.0,
+   993.7,
+   1083.0,
+   1186.5,
+   1234.0,
+   1407.6
+  ],
+  "2schDqoNZeY": [
+   389.8,
+   984.4,
+   1047.1
+  ],
+  "9DjKl-GC9tk": [
+   596.6,
+   713.2,
+   1070.6
+  ],
+  "https://archive.org/details/mo-d-russia-october-18th-2024": [
+   666.4,
+   708.1,
+   1238.7
+  ]
+ },
+ "keyword_cards": 72,
+ "kinetic": 26,
+ "kinetic_fragments": [
+  {
+   "t": 241.5,
+   "text": "if a ceasefire is signed"
+  },
+  {
+   "t": 265.7,
+   "text": "Instead, according to the Institute"
+  },
+  {
+   "t": 273.6,
+   "text": "Not a negotiation about Ukraine"
+  },
+  {
+   "t": 288.8,
+   "text": "The institute also pointed"
+  },
+  {
+   "t": 341.2,
+   "text": "To understand why refineries"
+  },
+  {
+   "t": 375.2,
+   "text": "processing units are hard to protect"
+  },
+  {
+   "t": 411.6,
+   "text": "On the thirtieth of October"
+  },
+  {
+   "t": 424.9,
+   "text": "On the second of November"
+  },
+  {
+   "t": 467.8,
+   "text": "not far from Saint Petersburg"
+  },
+  {
+   "t": 596.6,
+   "text": "Russia has tried nets"
+  },
+  {
+   "t": 794.8,
+   "text": "After many attacks"
+  },
+  {
+   "t": 988.5,
+   "text": "Small teams of two or three"
+  },
+  {
+   "t": 1009.9,
+   "text": "fighting also continues around Lyman"
+  },
+  {
+   "t": 1126.0,
+   "text": "A pro-Russian frontline report"
+  },
+  {
+   "t": 1142.1,
+   "text": "Orikhiv matters because it guards"
+  },
+  {
+   "t": 1214.6,
+   "text": "According to the Institute"
+  },
+  {
+   "t": 1269.8,
+   "text": "And on the sixth of November"
+  },
+  {
+   "t": 1367.7,
+   "text": "the front line"
+  },
+  {
+   "t": 1375.3,
+   "text": "In the south, both sides"
+  },
+  {
+   "t": 1421.9,
+   "text": "fuel shortages inside Russia could grow"
+  }
+ ],
+ "number_cards_bad": [
+  {
+   "t": 37.4,
+   "kind": "kit_bignum",
+   "value": "two",
+   "label": "WEEKS WHERE"
+  },
+  {
+   "t": 114.0,
+   "kind": "kit_bignum",
+   "value": "four",
+   "label": "YEARS AFTER"
+  },
+  {
+   "t": 130.2,
+   "kind": "kit_bignum",
+   "value": "three",
+   "label": "-WAY TALKS"
+  },
+  {
+   "t": 140.3,
+   "kind": "kit_bignum",
+   "value": "one",
+   "label": "CONCRETE RESULT"
+  },
+  {
+   "t": 225.5,
+   "kind": "kit_bignum",
+   "value": "three",
+   "label": "POSITIONS DO"
+  },
+  {
+   "t": 520.2,
+   "kind": "kit_bignum",
+   "value": "one",
+   "label": "MATTERS EVEN"
+  },
+  {
+   "t": 569.0,
+   "kind": "kit_bignum",
+   "value": "three",
+   "label": "WORKERS"
+  },
+  {
+   "t": 602.6,
+   "kind": "kit_bignum",
+   "value": "two",
+   "label": "WEEKS SHOW"
+  },
+  {
+   "t": 849.8,
+   "kind": "kit_bignum",
+   "value": "one",
+   "label": "SECTOR"
+  },
+  {
+   "t": 903.3,
+   "kind": "kit_bignum",
+   "value": "one",
+   "label": "STRIKE"
+  },
+  {
+   "t": 1286.6,
+   "kind": "lay_stat_split",
+   "value": "100",
+   "label": "dollars can"
+  },
+  {
+   "t": 1445.5,
+   "kind": "kit_bignum",
+   "value": "four",
+   "label": "YEARS THIS"
+  }
+ ],
+ "map_foreign_places": [
+  {
+   "t": 64.5,
+   "place": "Kyiv"
+  },
+  {
+   "t": 71.4,
+   "place": "Kyiv"
+  },
+  {
+   "t": 98.3,
+   "place": "Moscow"
+  },
+  {
+   "t": 98.3,
+   "place": "Kyiv"
+  },
+  {
+   "t": 111.9,
+   "place": "Washington"
+  },
+  {
+   "t": 111.9,
+   "place": "Moscow"
+  },
+  {
+   "t": 111.9,
+   "place": "Kyiv"
+  },
+  {
+   "t": 126.6,
+   "place": "Washington"
+  },
+  {
+   "t": 156.2,
+   "place": "Washington"
+  },
+  {
+   "t": 156.2,
+   "place": "Moscow"
+  },
+  {
+   "t": 156.2,
+   "place": "Kyiv"
+  },
+  {
+   "t": 233.0,
+   "place": "Donetsk"
+  },
+  {
+   "t": 244.8,
+   "place": "Donetsk"
+  },
+  {
+   "t": 255.2,
+   "place": "Donetsk"
+  },
+  {
+   "t": 278.1,
+   "place": "Moscow"
+  },
+  {
+   "t": 298.5,
+   "place": "Kyiv"
+  },
+  {
+   "t": 298.5,
+   "place": "Washington"
+  },
+  {
+   "t": 309.4,
+   "place": "Kyiv"
+  },
+  {
+   "t": 309.4,
+   "place": "Washington"
+  },
+  {
+   "t": 361.3,
+   "place": "Washington"
+  },
+  {
+   "t": 382.1,
+   "place": "Washington"
+  },
+  {
+   "t": 396.0,
+   "place": "Washington"
+  },
+  {
+   "t": 450.3,
+   "place": "Saratov"
+  },
+  {
+   "t": 490.8,
+   "place": "Kirishi"
+  },
+  {
+   "t": 526.7,
+   "place": "Kirishi"
+  },
+  {
+   "t": 566.0,
+   "place": "Kirishi"
+  },
+  {
+   "t": 590.4,
+   "place": "Kirishi"
+  },
+  {
+   "t": 638.8,
+   "place": "Kyiv"
+  },
+  {
+   "t": 688.6,
+   "place": "Dnipro"
+  },
+  {
+   "t": 704.3,
+   "place": "Dnipro"
+  },
+  {
+   "t": 725.7,
+   "place": "Dnipro"
+  },
+  {
+   "t": 725.7,
+   "place": "Cherkasy"
+  },
+  {
+   "t": 740.4,
+   "place": "Kyiv"
+  },
+  {
+   "t": 740.4,
+   "place": "Dnipro"
+  },
+  {
+   "t": 740.4,
+   "place": "Cherkasy"
+  },
+  {
+   "t": 751.0,
+   "place": "Kyiv"
+  },
+  {
+   "t": 751.0,
+   "place": "Dnipro"
+  },
+  {
+   "t": 751.0,
+   "place": "Cherkasy"
+  },
+  {
+   "t": 776.4,
+   "place": "Kyiv"
+  },
+  {
+   "t": 776.4,
+   "place": "Dnipro"
+  },
+  {
+   "t": 776.4,
+   "place": "Cherkasy"
+  },
+  {
+   "t": 807.0,
+   "place": "Vinnytsia"
+  },
+  {
+   "t": 826.2,
+   "place": "Vinnytsia"
+  },
+  {
+   "t": 844.3,
+   "place": "Pokrovsk"
+  },
+  {
+   "t": 844.3,
+   "place": "Donetsk"
+  },
+  {
+   "t": 886.6,
+   "place": "Kostiantynivka"
+  },
+  {
+   "t": 900.3,
+   "place": "Pokrovsk"
+  },
+  {
+   "t": 900.3,
+   "place": "Kostiantynivka"
+  },
+  {
+   "t": 910.6,
+   "place": "Pokrovsk"
+  },
+  {
+   "t": 910.6,
+   "place": "Kostiantynivka"
+  },
+  {
+   "t": 1050.8,
+   "place": "Lyman"
+  },
+  {
+   "t": 1223.4,
+   "place": "Orikhiv"
+  }
+ ],
+ "layers": {
+  "tac_map": 82,
+  "kit_keywords": 72,
+  "kit_field": 53,
+  "status_chip": 46,
+  "map_inset": 34,
+  "kit_kinetic": 26,
+  "kicker": 23,
+  "kit_badge": 18,
+  "bc_source": 17,
+  "kit_bignum": 12,
+  "lay_stat_split": 12,
+  "kit_dossier": 11,
+  "shot_headline": 10,
+  "kit_sticker": 10,
+  "kit_radar": 9,
+  "lay_equipment_hero": 8,
+  "kit_chapter": 7,
+  "lay_document": 7,
+  "kit_recap": 5,
+  "kit_flyover": 5,
+  "kit_stamp": 4,
+  "kit_datecard": 3,
+  "kit_flag": 3,
+  "kit_title": 3,
+  "bc_label": 2,
+  "lay_inset": 2,
+  "lay_claim": 2,
+  "kit_chips": 1,
+  "lay_figure_hero": 1,
+  "lay_logistics": 1,
+  "institution_card": 1,
+  "kit_tag": 1,
+  "kit_ribbon": 1,
+  "fx_flash": 1,
+  "figure_card": 1,
+  "kit_speaker": 1
+ }
+}

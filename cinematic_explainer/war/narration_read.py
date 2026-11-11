@@ -126,6 +126,8 @@ class Reading:
     names: List[str] = field(default_factory=list)            # people / organisations no catalogue knows (Prigozhin, Wagner Group, Congress)
     context_places: List[str] = field(default_factory=list)   # the story's place carried from earlier sentences ("the city")
     date_source: str = ""                  # stated (the sentence names it) | carried (an earlier sentence did) | relative ("a month later")
+    section_terms: List[str] = field(default_factory=list)   # what this part of the film is about: the line's own subject, else the latest
+    subject_from: str = ""                 # 'line' | 'section' | '' (read_scenes; render 050: lines without a place got no footage at all)
 
     @property
     def primary(self) -> str:
@@ -508,14 +510,68 @@ def shift_date(text: str, days: int) -> str:
     return f"{d.strftime('%B')} {d.year}"
 
 
+SECTION_NEAR = 4                  # a line without its own subject is about the latest concrete line at most this many lines back, else the part's topic
+_SECTION = re.compile(r"^\s*(?:part|chapter|section)\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b", re.I)
+
+
+def section_break(text: str) -> bool:
+    """A line that opens a new part of the film ('Part two. The oil war.')."""
+    return bool(_SECTION.search(text or ""))
+
+
+def _demonyms() -> set:
+    out = {"european", "american", "western", "eastern", "soviet", "british", "nato"}
+    for c in COUNTRIES:
+        w = c.lower()
+        out |= {w, w + "n", w + "ns", w[:-1] + "an", w[:-1] + "ans", w + "ian", w[:-1] + "ian", w[:-1] + "ians"}
+    return out | {"russian", "russians", "ukrainian", "ukrainians", "belarusian", "polish", "turkish", "finnish", "german", "french", "chinese",
+                  "iranian", "israeli", "syrian", "georgian"}
+
+
+_DEMONYMS = _demonyms()
+
+
+def own_subject(r: Reading) -> List[str]:
+    """What the line itself names that a camera can film: specific places, weapon systems, people, organisations and facilities
+    ('Kirishi', 'Iskander-M', 'Zelensky', 'Rostec', 'refinery'). Countries, nationality words, broken tokens ('Russia-') and generic
+    nouns ('attack', 'positions', 'fire') are not a subject: [] then, and the line takes its section's subject (read_scenes)."""
+    places = {p.name for p in r.places if p.kind != "region" or p.site_type}
+    out: List[str] = []
+    for x in list(r.key_terms) + list(r.equipment) + list(r.figures) + list(r.names) + list(r.facilities):
+        x = str(x or "").strip()
+        if not x or x in out or x in (r.context_places or []) or x.endswith("-") or len(x) < 3:
+            continue
+        low = x.lower()
+        if low in _DEMONYMS or x in COUNTRIES or low in MONTHS or low in {"world war", "north", "south", "east", "west"}:
+            continue
+        concrete = x[:1].isupper() or x in r.facilities or x in r.equipment or x in places
+        if concrete:
+            out.append(x)
+    return out
+
+
 def read_scenes(scenes: Sequence[Dict[str, Any]]) -> Dict[str, Reading]:
     """{scene_no: Reading} for a War scene list, each reading the one before it (pronouns: 'They made no confirmed advances')."""
     out: Dict[str, Reading] = {}
     prev = None
     last_date = ""
     last_places: List[str] = []
-    for sc in scenes:
+    anchor: List[str] = []          # the part's topic: its heading's subject, else its first concrete line
+    recent: List[Tuple[int, List[str]]] = []   # (line index, subject) of concrete lines in this part
+    for i_sc, sc in enumerate(scenes):
         r = read(str(sc.get("text") or ""), prev)
+        if section_break(r.text):
+            anchor, recent = [], []                # "Part three. The war on Ukraine's cities.": a new subject starts here
+        own = own_subject(r)
+        if own:
+            anchor = anchor or own
+            recent.append((i_sc, own))
+            r.subject_from = "line"
+            r.section_terms = list(own)
+        else:
+            near = [s for j, s in recent if i_sc - j <= SECTION_NEAR]
+            r.section_terms = list(near[-1] if near else anchor)
+            r.subject_from = "section" if r.section_terms else ""
         if r.date:
             r.date_source = "stated"
         rel = next((d for k, d in _REL_DATE.items() if re.search(rf"\b{k}\b", r.text, re.I)), None)

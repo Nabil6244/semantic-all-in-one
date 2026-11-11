@@ -38,7 +38,7 @@ LIVE_SETTING = "war_live_searches"   # rows per video that may still go to YouTu
 LIVE_DEFAULT = 10
 REPORT = "war_library_report.json"
 METHOD = "war_library"
-MAX_USES = 3              # one clip in one video
+MAX_USES = 2              # one source video in one film (render 050: one road clip on 3 unrelated lines, one Kremlin clip on 5)
 REUSE_GAP_S = 60.0        # seconds before the same clip may come back
 REUSE_GAP_SCENES = 10     # the same, for scenes that carry no times yet
 MIN_CLIP_S = 3.0          # direction.MIN_SHOT_S: a shorter cut-free stretch is never shown
@@ -180,6 +180,37 @@ def score(alt: Dict[str, Any], view: Dict[str, Any], subject_key: str = "", rela
     return pts, alt["tokens"].index(core[0])
 
 
+_PLAIN = {"one", "two", "three", "side", "sides", "way", "time", "thing", "getting", "still", "very", "much", "more", "most", "every", "each",
+          "this", "that", "these", "those", "their", "there", "where", "what", "which", "while", "will", "would", "could", "have", "has", "been",
+          "also", "only", "even", "just", "first", "last", "next", "new", "now", "again", "into", "than", "then", "when", "about", "against", "ai"}
+
+
+def line_terms(text: str, section_terms: Sequence[str] = ()) -> set:
+    """The words a clip must share with what is said: the line's content words (stemmed, 'front line' also as 'frontline') and its
+    section's subject (narration_read section_terms)."""
+    toks = [t for t in _tokens(text) if t not in _STOP and t not in _PLAIN and len(t) >= 3]
+    out = set(toks) | {a + b for a, b in zip(toks, toks[1:])}
+    for s in section_terms:
+        out |= {t for t in _tokens(s) if t not in _STOP and len(t) >= 3}
+        out.add("".join(_tokens(s)))
+    return out
+
+
+def line_fits(view: Dict[str, Any], terms: set) -> bool:
+    """Does the clip show what the LINE is about (not only what its CSV prompt says)? Its subject (minus side / action / 'ai' words) shares a
+    word with the line or its section, or - for a clip whose subject is only an action ('strike_aftermath') - two of its words do."""
+    core = [t for t in view["subject"] if t not in _ACTIONS and t not in _SIDES and t not in _PLAIN]
+    if core and any(t in terms for t in core):
+        return True
+    shared = {w for w in view["words"] if w in terms and w not in _SIDES and w not in _PLAIN}
+    return len(shared - _ACTIONS) >= 1 and len(shared) >= 2
+
+
+def source_key(clip: Dict[str, Any]) -> str:
+    """The video a library clip was cut from (several clips of one upload are one source)."""
+    return _video_id(clip.get("url", "")) or str(clip.get("url") or clip.get("file") or "")
+
+
 def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Sequence[Dict[str, Any]]] = None,
                relax: bool = False) -> List[Tuple[int, int, int]]:
     """[(score, position, clip index)] of the clips that fit the prompt, best first; ties in file order."""
@@ -197,14 +228,24 @@ def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Seq
     return sorted(out, key=lambda x: (-x[0], x[1], x[2]))
 
 
+def _fitting(r: Any, clips: Sequence[Dict[str, Any]], views: Sequence[Dict[str, Any]], terms: Optional[set], relax: bool = False) -> List[Tuple[int, int, int]]:
+    """candidates() of the row's prompt that also show what the row's LINE is about (terms None: prompt only, the old behaviour for callers
+    without the narration)."""
+    got = candidates(_query(r), clips, views, relax=relax)
+    return got if terms is None else [x for x in got if line_fits(views[x[2]], terms)]
+
+
 def live_rows(rows: Sequence[Any], clips: Sequence[Dict[str, Any]], views: Sequence[Dict[str, Any]], cap: Optional[int],
-              held: Dict[str, str]) -> set:
-    """The rows the library has nothing for that may be searched live: every different search once, in scene order, then second rows of the
-    same searches, ... until `cap` rows (None: all of them)."""
+              held: Dict[str, str], terms_of: Optional[Dict[str, set]] = None, priority: Optional[Dict[str, int]] = None) -> set:
+    """The rows the library has nothing for that may be searched live: every different search once, then second rows of the same searches,
+    ... until `cap` rows (None: all of them). Most specific lines first (priority: a line that names its own event before one that borrows
+    its section's subject), then scene order: render 050 spent its slots in script order on lines the director then turned into cards."""
     groups: Dict[str, List[str]] = {}
-    for r in rows:
+    order = sorted(range(len(rows)), key=lambda i: ((priority or {}).get(str(rows[i].scene_number), 0), i))
+    for i in order:
+        r = rows[i]
         no = str(r.scene_number)
-        if no not in held and not candidates(_query(r), clips, views):
+        if no not in held and not _fitting(r, clips, views, (terms_of or {}).get(no) if terms_of is not None else None):
             groups.setdefault(_query(r).split("||")[0].strip().lower(), []).append(no)
     if cap is None:
         return {no for g in groups.values() for no in g}
@@ -223,9 +264,10 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
     this many rows go live (live_rows); the others take a clip of the same kind of thing (relaxed match) or the War graphics."""
     held = held or {}
     views = [_clip_view(c) for c in clips]
-    live = live_rows(rows, clips, views, cap, held)
+    terms_of, priority = narration_terms(scenes, rows)
+    live = live_rows(rows, clips, views, cap, held, terms_of, priority)
     by_no = {str(sc.get("scene_no")): (i, sc) for i, sc in enumerate(scenes)}
-    uses: Dict[int, List[Tuple[float, int]]] = {}
+    uses: Dict[str, List[Tuple[float, int]]] = {}       # per SOURCE video: two clips cut from one upload are one source
     out: Dict[str, Dict[str, Any]] = {}
     for r in rows:
         no = str(r.scene_number)
@@ -236,15 +278,17 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
             t = float(sc.get("start"))
         except (TypeError, ValueError):
             t = None
-        cands = candidates(_query(r), clips, views)
+        terms = terms_of.get(no)
+        cands = _fitting(r, clips, views, terms)
         relaxed = False
         if not cands and no in live:
             out[no] = {"source": "live"}
             continue
         if not cands:
-            cands, relaxed = candidates(_query(r), clips, views, relax=True), True
+            cands, relaxed = _fitting(r, clips, views, terms, relax=True), True
         if not cands:
-            out[no] = {"source": "graphics", "subject": "", "why": "over the live-search limit and nothing like it in the library: War graphics"}
+            out[no] = {"source": "graphics", "subject": "", "why": "nothing in the library shows what this line is about, and it is over the "
+                                                                  "live-search limit: War graphics"}
             continue
         said = set(_tokens(f"{getattr(r, 'script_segment', '')} {_query(r)}")) - _STOP
 
@@ -254,7 +298,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
             for s, pos, i in pool:
                 if window and s < top - 1:
                     break                       # only clips about as fitting as the best one take turns
-                u = uses.get(i) or []
+                u = uses.get(source_key(clips[i])) or []
                 if len(u) >= MAX_USES:
                     continue
                 if u and ((t is not None and u[-1][0] is not None and t - u[-1][0] < REUSE_GAP_S) or
@@ -271,7 +315,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
         if not free:          # the best clips are used up: another clip that still fits, before the row loses its footage (render 048's last 3 min)
             free = free_of(cands, False)
         if not free and not relaxed:
-            more = candidates(_query(r), clips, views, relax=True)
+            more = _fitting(r, clips, views, terms, relax=True)
             free = free_of(more, False)
             if free:
                 cands, relaxed = more, True
@@ -280,9 +324,33 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], clips: Sequence[
             out[no] = {"source": "graphics", "subject": subj, "why": f"library subject '{subj}' has no unused clip left for this scene"}
             continue
         i = sorted(free)[0][-1]
-        uses.setdefault(i, []).append((t, idx))
+        uses.setdefault(source_key(clips[i]), []).append((t, idx))
         out[no] = {"source": "library", "clip": clips[i], "score": next(s for s, _p, j in cands if j == i), "relaxed": relaxed}
     return out
+
+
+def narration_terms(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any]) -> Tuple[Dict[str, set], Dict[str, int]]:
+    """({scene no: line_terms}, {scene no: priority}) from the narration (narration_read.read_scenes). Priority 0: the line shows its own
+    event / place / subject; 1: it names a subject but is not an event; 2: it borrows its section's subject; 3: nothing to show."""
+    from . import narration_read as N
+
+    by_no = {str(sc.get("scene_no")): sc for sc in scenes}
+    try:
+        readings = N.read_scenes(scenes)
+    except Exception:  # noqa: BLE001 - without a reading the row text alone decides
+        readings = {}
+    terms: Dict[str, set] = {}
+    prio: Dict[str, int] = {}
+    for r in rows:
+        no = str(r.scene_number)
+        sc = by_no.get(no) or (by_no.get(str(int(no))) if no.isdigit() else None) or {}
+        rd = readings.get(str(sc.get("scene_no", no)))
+        text = str(getattr(r, "script_segment", "") or sc.get("text") or "")
+        sec = list(getattr(rd, "section_terms", None) or [])
+        terms[no] = line_terms(text, sec)
+        frm = getattr(rd, "subject_from", "") if rd is not None else ""
+        prio[no] = 0 if (frm == "line" and rd.footage_wanted) else 1 if frm == "line" else 2 if frm == "section" else 3
+    return terms, prio
 
 
 def _query(r: Any) -> str:
@@ -318,6 +386,77 @@ def _same_file(a: Path, b: Path) -> bool:
         return False
 
 
+USABILITY = ".usability.json"     # per-clip result of the visual check, keyed by file size + mtime (re-checked when a file changes)
+
+
+def picture_problem(path: Path) -> str:
+    """Why a library clip's own frames are unusable ('' = clean): text over the picture (subtitles, a lower third, a ticker, an infographic)
+    or mostly graphics / studio / dark frames. The same checks the Footage Director gives a captured clip (director_capture / frames)."""
+    from . import director_capture as C
+    from . import director_frames as F
+
+    frames = C.frames_of(str(path), w=C.TEXT_W, h=C.TEXT_H)
+    if not frames:
+        return "no frames"
+    why = C.text_on_frames(frames)
+    if why:
+        return why
+    bad = 0
+    prev = None
+    for f in frames:
+        k, _d, _fl = F.classify(f, prev)
+        bad += k in LIBRARY_BAD
+        prev = f
+    return f"picture: {bad} of {len(frames)} frames are a presenter or a text screen" if bad > 0.3 * len(frames) else ""
+
+
+# what disqualifies a REVIEWED library clip: a presenter or a text screen. Night, fog and furnace glow read as 'dark' / 'graphic' to the
+# tile classifier and are legitimate footage (2026-11-11: counting them refused 33 good clips); the old pale-area 'text_screen' rule reads a
+# bright sky or a white background as a text card (5 good clips), so text is judged by the line-shape check (text_on_frames) alone
+LIBRARY_BAD = ("studio",)
+
+
+def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Path], str] = picture_problem,
+                 log: Callable[[str], None] = lambda m: None) -> List[Dict[str, Any]]:
+    """The clips whose frames pass the visual check (render 050 review: the reviewed library still held the Moskva infographic, subtitled
+    interviews and watermarked clips). Results are cached in <library>/.usability.json; a changed file is checked again."""
+    p = Path(lib) / USABILITY
+    try:
+        cache = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    out: List[Dict[str, Any]] = []
+    changed = False
+    dropped = []
+    for c in clips:
+        f = Path(lib) / str(c["file"])
+        try:
+            st = f.stat()
+            sig = f"{st.st_size}:{int(st.st_mtime)}"
+        except OSError:
+            continue
+        hit = cache.get(str(c["file"]))
+        if not hit or hit.get("sig") != sig:
+            try:
+                why = check(f)
+            except Exception as exc:  # noqa: BLE001 - an unreadable clip is not used
+                why = f"check failed: {exc}"
+            cache[str(c["file"])] = hit = {"sig": sig, "why": why}
+            changed = True
+        if hit.get("why"):
+            dropped.append(f"{c['file']} ({hit['why'][:60]})")
+        else:
+            out.append(c)
+    if changed:
+        try:
+            p.write_text(json.dumps(cache, indent=1), encoding="utf-8")
+        except OSError:
+            pass
+    if dropped:
+        log(f"War library: {len(dropped)} clips not used (their frames fail the visual check): {'; '.join(dropped[:6])}")
+    return out
+
+
 def apply(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path, state_dir: Path, lib: Optional[Path] = None,
           log: Callable[[str], None] = lambda m: None, settings: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
     """Library clips are filed as the scenes' finished assets (the Visuals tab shows them like any fetched clip). Returns plan(): the caller
@@ -328,6 +467,7 @@ def apply(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Pat
     clips = load(lib)
     if not clips:
         return {}
+    clips = usable_clips(clips, lib, log=log)
     images_dir = Path(images_dir)
     images_dir.mkdir(parents=True, exist_ok=True)
     man = AssetManifest(images_dir)

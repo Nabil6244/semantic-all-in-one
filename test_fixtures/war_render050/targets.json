@@ -1,0 +1,11 @@
+{
+  "_doc": "Integrated-validation targets for the render-050 script (plan_audit on the re-planned film). Baseline values in baseline_audit.json. These are outcome checks, not quotas: a rich panel is never added to satisfy a count.",
+  "number_cards_bad": {"max": 0, "baseline": 12},
+  "kinetic_fragments": {"max": 0, "baseline": 20},
+  "map_foreign_places": {"max": 0, "baseline": 52},
+  "backdrop_only_s": {"max": 2.0, "baseline": 125.2},
+  "reuse_sources_over_2": {"max": 0, "baseline": 11},
+  "keyword_cards_random": {"max": 0, "baseline": 72, "note": "kit_keywords only from a list the line itself states"},
+  "visual_usability_frames": {"must_reject": ["a001", "a042", "a084", "a098", "a120", "a156", "a168", "a176"],
+                               "must_accept": ["a004", "a011", "a037", "a038", "a046", "a089"], "baseline_rejected": 0}
+}

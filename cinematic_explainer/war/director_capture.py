@@ -81,7 +81,27 @@ def verify(frames: Sequence[np.ndarray], tiles: Sequence[F.Tile], start: float, 
             "checked_against_storyboard": bool(near), **({"colour": colour} if colour else {})}
 
 
-FAST_CHANGE = 25.0          # median mean-abs change (0-255) between frames 0.5 s apart above which the picture is a moving camera
+TEXT_W, TEXT_H = 320, 180   # the captured file is read for overlaid text at the storyboard's size (at 160x90 a subtitle is unreadable)
+TEXT_SHARE = 0.15           # subtitles come and go: a clip with text on more than this share of its frames is refused
+
+
+def text_on_frames(frames: Sequence[np.ndarray]) -> str:
+    """The reason a captured clip is unusable because of laid-over text ('' = clean): subtitles, a lower third, a ticker, an end screen or a
+    text panel on more than TEXT_SHARE of its frames (judged on the actual captured frames, not the storyboard)."""
+    if not frames:
+        return ""
+    kinds: Dict[str, int] = {}
+    for f in frames:
+        k = F.text_kind(f)
+        if k:
+            kinds[k] = kinds.get(k, 0) + 1
+    n = sum(kinds.values())
+    if n > TEXT_SHARE * len(frames):
+        return f"picture: text over the footage ({', '.join(f'{k} {v}' for k, v in sorted(kinds.items()))} of {len(frames)} frames)"
+    return ""
+
+
+FAST_CHANGE = 25.0         # median mean-abs change (0-255) between frames 0.5 s apart above which the picture is a moving camera
 COLOUR_MIN = 0.7            # palette overlap with the chosen stretch: the right moment ~0.82, another video ~0.33-0.52 (measured, Moskva 045)
 
 
@@ -206,6 +226,10 @@ def capture(video_id: str, start: float, seconds: float, dest: Path, tiles: Sequ
         usable = _usable_run(tmp)
         if usable is not None and usable < F.MIN_S:
             v["ok"], v["reasons"] = False, [f"picture: longest stretch without a cut is {usable:.1f} s (under {F.MIN_S:g} s)"]
+    if v["ok"]:
+        why = text_on_frames(frames_of(str(tmp), w=TEXT_W, h=TEXT_H))
+        if why:
+            v["ok"], v["reasons"] = False, [why]
     if not v["ok"]:
         tmp.unlink(missing_ok=True)
         return {"ok": False, "path": "", "reasons": v["reasons"], "verify": v, "seconds": round(time.time() - t0, 1)}

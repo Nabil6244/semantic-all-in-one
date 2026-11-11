@@ -1,0 +1,7 @@
+{
+ "_doc": "Stage B addendum; labels.json (Stage A) is kept unchanged as evidence. Window = both frames of a clip (t1, t3), the way clips are judged.",
+ "a037": {"window_usable": false, "frames": {"t1": "footage", "t3": "overlay_text"},
+          "why": "the t3 frame carries the burnt subtitle 'An important event happened yesterday.' seen at 3:24 / 10:51 of render 050; Stage A labelled the clip from t1 only"},
+ "a042": {"window_usable": true, "stage": "video_relevance",
+          "why": "a seated speaker with no text over the picture cannot be told from footage by pixels alone (no face model). It is refused by the relevance stage: a speech / address / interview video is used only for a line about that speaker"}
+}

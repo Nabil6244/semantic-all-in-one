@@ -184,16 +184,70 @@ class Searcher:
     title, channel, duration (and optionally description / channel_is_verified / view_count); `info` fetches full metadata for an id."""
 
     def __init__(self, cache_dir: Path, backend: Any = None, info: Optional[Callable[[str], Dict[str, Any]]] = None,
-                 pause: float = 1.2, log: Callable[[str], None] = lambda m: None):
+                 pause: float = 1.2, log: Callable[[str], None] = lambda m: None,
+                 captions: Optional[Callable[[str, str], str]] = None):
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._backend = backend
         self._info = info
+        self._captions = captions          # (url, ext) -> caption file text; tests pass a fake, the app fetches it
         self.pause = pause
         self.log = log
         self._lock = threading.Lock()
         self._last = 0.0
-        self.calls = {"search": 0, "details": 0}
+        self.calls = {"search": 0, "details": 0, "transcript": 0}
+
+    # ---- transcripts (moment relevance: the cut must sit where the video talks about the line's subject) ----
+    def _caption_text(self, url: str, ext: str) -> str:
+        if self._captions is not None:
+            return self._captions(url, ext)
+        import requests
+
+        r = requests.get(url, timeout=20)
+        r.raise_for_status()
+        return r.text
+
+    def _segments_from_info(self, info: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+        """[{start, duration, text}] from the English captions (uploaded, else automatic) of a yt-dlp info dict; None = the video has none."""
+        track = None
+        for key in ("subtitles", "automatic_captions"):
+            tracks = info.get(key) or {}
+            for lang in ("en", "en-US", "en-GB", "en-orig"):
+                if tracks.get(lang):
+                    track = tracks[lang]
+                    break
+            if track:
+                break
+        if not track:
+            return None
+        entry = next((e for e in track if e.get("ext") == "json3"), None) or next((e for e in track if e.get("ext") == "vtt"), None)
+        if not entry or not entry.get("url"):
+            return None
+        from providers.youtube.ytdlp_backend import parse_json3, parse_vtt
+
+        text = self._caption_text(entry["url"], entry["ext"])
+        segs = parse_json3(json.loads(text)) if entry["ext"] == "json3" else parse_vtt(text)
+        return [{"start": float(s.start), "duration": float(s.duration), "text": s.text} for s in segs]
+
+    def transcript(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
+        """The video's timed English transcript, cached per video ([] cached = the video has none). One metadata call + one caption file."""
+        p = self._cache("t", video_id)
+        hit = self._read(p)
+        if hit is not None:
+            return hit.get("segments")
+        self._wait()
+        self.calls["transcript"] += 1
+        segs: Optional[List[Dict[str, Any]]] = None
+        try:
+            segs = self._segments_from_info(self._fetch_info(video_id) or {})
+        except Exception as exc:  # noqa: BLE001 - no transcript: the moment cannot be checked, the caller decides
+            self.log(f"transcript failed for {video_id}: {str(exc)[:160]}")
+            return None
+        try:
+            p.write_text(json.dumps({"segments": segs}), encoding="utf-8")
+        except OSError:
+            pass
+        return segs
 
     # ---- backends (lazy: importing yt-dlp only when a real search runs) ----
     def backend(self) -> Any:

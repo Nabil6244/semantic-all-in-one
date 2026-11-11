@@ -1,0 +1,17 @@
+{
+ "_doc": "Real frames from render 050 clips (t1 = 1 s, t3 = 3 s into the cut). usable = clean footage a documentary may show; reject = the visual-usability stage must refuse it. Relevance is judged elsewhere.",
+ "a001": {"usable": false, "kind": "studio_graphic", "why": "news panel: portrait + text box + headline lower-third"},
+ "a004": {"usable": true, "kind": "footage", "why": "road with smoke; small channel bug only"},
+ "a011": {"usable": true, "kind": "footage", "why": "burning armoured vehicle"},
+ "a037": {"usable": true, "kind": "footage", "why": "post office interior (relevance is a separate stage)"},
+ "a038": {"usable": true, "kind": "footage", "why": "Kremlin meeting hall"},
+ "a042": {"usable": false, "kind": "talking_head", "why": "seated speaker addressing camera (only for a line quoting him)"},
+ "a046": {"usable": true, "kind": "footage", "why": "people in a truck cab"},
+ "a084": {"usable": false, "kind": "end_screen", "why": "presenter + SUBSCRIBE FOR MORE + social handles"},
+ "a089": {"usable": true, "kind": "footage", "why": "damaged building; burnt place label (relevance stage must read it)"},
+ "a098": {"usable": false, "kind": "lower_third", "why": "street interview with a headline lower-third"},
+ "a120": {"usable": false, "kind": "talking_head", "why": "interview with burnt subtitles"},
+ "a156": {"usable": false, "kind": "talking_head", "why": "interview with name lower-third and burnt subtitles"},
+ "a168": {"usable": false, "kind": "ticker", "why": "news ticker about another war across the bottom"},
+ "a176": {"usable": false, "kind": "channel_graphic", "why": "another channel's map graphic with a big figure"}
+}

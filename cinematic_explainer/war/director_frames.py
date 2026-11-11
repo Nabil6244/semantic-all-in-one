@@ -31,7 +31,13 @@ CUT_DIFF = 38.0           # ... and mean abs pixel change (0-255): hand-held mot
 MIN_S = 3.0               # the shortest usable stretch (a documentary shot is 3-6 s; problem 12)
 STATIC_DIFF = 2.5         # mean abs change (0-255) below which two neighbouring tiles are the same picture
 FOOTAGE = "footage"
-BAD = ("pillarbox", "text_screen", "graphic", "studio", "dark")
+BAD = ("pillarbox", "text_screen", "graphic", "studio", "dark", "overlay_text", "text_graphic")
+TEXT_MIN_W = 240          # text lines are only read on pictures this wide (storyboard sb0 320x180; capture checks at 320x180): at 160x90 a
+                          # subtitle is 1-2 px tall and cannot be told from texture
+LOWER_Y = 0.62            # a text line whose centre is below this share of the height is an overlay: subtitles, a lower third, a ticker
+LOWER_W = 0.25            # ... when it runs across at least this share of the width (a channel bug or a small place label does not)
+PANEL_W = 0.15            # two or more lines at least this wide inside the picture: a text panel, an end screen, another channel's graphic
+TOP_Y = 0.12              # lines above this (logos, burnt dates at the top edge) never count as a panel
 
 
 @dataclass
@@ -133,6 +139,70 @@ def _same_size(a: np.ndarray, b: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return a[:h, :w], b[:h, :w]
 
 
+def text_lines(img: np.ndarray, edge: float = 40.0, dens: int = 3, min_w: float = 0.12, max_h: float = 0.12) -> List[Dict[str, float]]:
+    """Lines of text laid over a picture, by their shape: a row band where character strokes (sharp horizontal light/dark changes, at least
+    `dens` in a window of ~3 % of the width) run unbroken across at least `min_w` of the width, at most `max_h` of the height tall, with
+    clearly fewer such runs just above and below it (natural texture - foliage, rubble, crowds - runs on for many rows or nowhere).
+    Returns [{y, h, x0, x1, w}] as shares of the picture size. numpy only."""
+    g = img.astype(np.float32).mean(axis=2) if img.ndim == 3 else img.astype(np.float32)
+    H, W = g.shape
+    if H < 20 or W < 40:
+        return []
+    win = max(3, int(round(W * 0.028)))
+    e = (np.abs(np.diff(g, axis=1)) > edge).astype(np.int32)
+    c = np.cumsum(np.pad(e, ((0, 0), (1, 0))), axis=1)
+    dense = (c[:, win:] - c[:, :-win]) >= dens
+    half = win // 2              # close the short dips between characters, so one line is one run (a morphological closing along the row)
+    dc = np.cumsum(np.pad(dense.astype(np.int32), ((0, 0), (half + 1, half))), axis=1)
+    dense = (dc[:, 2 * half + 1:] - dc[:, :-2 * half - 1]) > 0
+    runs: List[Tuple[int, int, int]] = []
+    for r in range(H):
+        idx = np.flatnonzero(np.diff(np.concatenate(([0], dense[r].astype(np.int8), [0]))))
+        best = (0, 0, 0)
+        for a, b in zip(idx[::2], idx[1::2]):
+            if b - a > best[0]:
+                best = (int(b - a), int(a), int(b))
+        runs.append(best)
+    L = np.array([x[0] for x in runs])
+    long_ = L >= min_w * W
+    blocks: List[List[int]] = []                      # [first row, end row) of runs of long rows; lines 1-2 rows apart are one stacked block
+    r = 0
+    while r < H:
+        if not long_[r]:
+            r += 1
+            continue
+        r0 = r
+        while r < H and long_[r]:
+            r += 1
+        if blocks and r0 - blocks[-1][1] <= 2:
+            blocks[-1][1] = r
+        else:
+            blocks.append([r0, r])
+    out: List[Dict[str, float]] = []
+    for r0, r in blocks:
+        h = r - r0
+        rows = [i for i in range(r0, r) if long_[i]]
+        around = max(L[max(0, r0 - 3):r0].max() if r0 > 0 else 0, L[r:min(H, r + 3)].max() if r < H else 0)
+        if 2 <= h <= max_h * H and around < 0.6 * float(L[rows].mean()):
+            x0 = float(np.median([runs[i][1] for i in rows]))
+            x1 = float(np.median([runs[i][2] for i in rows]))
+            out.append({"y": (r0 + r) / 2 / H, "h": h / H, "x0": x0 / W, "x1": x1 / W, "w": (x1 - x0) / W})
+    return out
+
+
+def text_kind(img: np.ndarray) -> str:
+    """'overlay_text' (subtitles, a lower third, a ticker across the bottom), 'text_graphic' (a panel, an end screen, another channel's
+    graphic: two or more text lines inside the picture) or '' (no text that spoils the picture, or a picture too small to read)."""
+    if img.shape[1] < TEXT_MIN_W:
+        return ""
+    lines = text_lines(img)
+    if any(ln["y"] >= LOWER_Y and ln["w"] >= LOWER_W for ln in lines):
+        return "overlay_text"
+    if sum(1 for ln in lines if ln["y"] >= TOP_Y and ln["w"] >= PANEL_W) >= 2:
+        return "text_graphic"
+    return ""
+
+
 def classify(img: np.ndarray, prev: Optional[np.ndarray] = None) -> Tuple[str, float, List[str]]:
     """(kind, detail, extra flags) of one tile."""
     a = img.astype(np.float32)
@@ -168,6 +238,9 @@ def classify(img: np.ndarray, prev: Optional[np.ndarray] = None) -> Tuple[str, f
         flags.append("caption")                               # a burnt-in caption box: usable, but a clean stretch is preferred
     if flat8 > 0.82 and float(top[0]) / keys.size > 0.35:
         return "graphic", detail, flags
+    tk = text_kind(img)                 # render 050: a studio panel, an end screen, a ticker and subtitled interviews all passed as footage
+    if tk:
+        return tk, detail, flags
     if prev is not None:
         x, y = _same_size(a, prev.astype(np.float32))
         change = float(np.abs(x - y).mean())

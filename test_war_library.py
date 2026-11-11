@@ -36,11 +36,23 @@ def make_library(clips=CLIPS, ai=()) -> Path:
         index.append({"file": f, "subject": subject, "words": words, "usable_s": 6.0, "url": f"https://www.youtube.com/watch?v={subject[:11]:x<11}",
                       "title": subject, "channel": "test", "ai_generated": f in ai})
     (lib / "index.json").write_text(json.dumps({"version": 1, "clips": index}), encoding="utf-8")
+    cache = {}                       # the fake files are bytes, not videos: their visual check is recorded as already passed
+    for f in clips:
+        st = (lib / f).stat()
+        cache[f] = {"sig": f"{st.st_size}:{int(st.st_mtime)}", "why": ""}
+    (lib / L.USABILITY).write_text(json.dumps(cache), encoding="utf-8")
     return lib
 
 
+def _line(prompt):
+    """A narration line about what its prompt asks for (render 050 rule: a library clip must fit the LINE, not only the CSV prompt; a real
+    CSV's prompt is written from its line, so a line says what its prompt searches for)."""
+    words = [w for w in prompt.split() if w.lower() not in ("footage", "video")]
+    return "The story here is the " + " ".join(words) + "."
+
+
 def scenes_for(prompts, step=20.0, asset_type="youtube_video"):
-    return [{"scene_no": i + 1, "text": f"Sentence {i + 1}.", "start": i * step, "end": (i + 1) * step, "asset_type": asset_type,
+    return [{"scene_no": i + 1, "text": _line(p), "start": i * step, "end": (i + 1) * step, "asset_type": asset_type,
              "prompt": p} for i, p in enumerate(prompts)]
 
 
@@ -125,10 +137,11 @@ class TestPlan(unittest.TestCase):
         clips = L.load(make_library({"refinery_fire/refinery_fire_001.mp4": ("refinery_fire", "refinery fire black smoke")}))
         sc = scenes_for(["refinery fire footage"] * 8, step=20.0)
         got = L.plan(sc, rows_for(sc), clips)
+        # MAX_USES is 2 per source video since render 050 (one road clip on 3 unrelated lines, one Kremlin clip on 5)
         self.assertEqual([got[str(i)]["source"] for i in range(1, 9)],
-                         ["library", "graphics", "graphics", "library", "graphics", "graphics", "library", "graphics"])
+                         ["library", "graphics", "graphics", "library", "graphics", "graphics", "graphics", "graphics"])
         rep = L.summary(got)
-        self.assertEqual(rep["need_more"], [{"subject": "refinery_fire", "rows": 8, "short": 5}])
+        self.assertEqual(rep["need_more"], [{"subject": "refinery_fire", "rows": 8, "short": 6}])
 
     def test_same_csv_and_library_give_the_same_plan_and_unmatched_rows_go_live(self):
         clips = L.load(make_library())

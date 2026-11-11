@@ -26,6 +26,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 from . import director_authenticity as A
 from . import director_capture as C
 from . import director_frames as F
+from . import director_moment as M
 from . import director_rules as R
 from . import director_search as S
 from . import narration_read as N
@@ -125,6 +126,68 @@ def graphic_for(r: N.Reading) -> str:
     if "SUBJECT" in t and r.equipment:
         return "equipment"
     return "keywords"
+
+
+def widen_to_section(readings: Dict[str, Any]) -> int:
+    """A line that names nothing filmable of its own still gets footage of its section's subject (narration_read.read_scenes section_terms):
+    'The core issue is security guarantees' inside the Abu Dhabi part searches for the Abu Dhabi talks. Render 050: such lines were read as
+    ANALYSIS / STATISTIC and never searched, so whole minutes (the talks, the grid) had no footage. Part headings and outro lines stay
+    graphics. Returns how many lines were widened."""
+    n = 0
+    for rd in readings.values():
+        if rd.footage_wanted or not getattr(rd, "section_terms", None):
+            continue
+        if N.section_break(rd.text) or N._OUTRO.search(rd.text or ""):
+            continue
+        rd.footage_wanted = True
+        rd.widened = True                  # picks after the lines that show their own event (run(): most specific first)
+        rd.key_terms = list(rd.section_terms) + [k for k in rd.key_terms if k not in rd.section_terms]
+        rd.reasons = list(rd.reasons) + ["FOOTAGE: the section's subject (" + ", ".join(rd.section_terms[:3]) + ")"]
+        n += 1
+    return n
+
+
+def revalidate(rec: Dict[str, Any], reading: Any, searcher: Any, film_date: Optional[_dt.date] = None, story: Any = None,
+               frames_of: Callable[..., Any] = C.frames_of) -> List[str]:
+    """Why a clip an earlier run chose may no longer be used ([] = it passes today's checks). The same three checks a new pick gets:
+    visual usability (its own frames: text over the picture, graphics, studio), video relevance (director_rules.reject on its title and
+    description) and moment relevance (a long programme's cut must sit where its transcript names the line's subject)."""
+    why: List[str] = []
+    path = str(rec.get("local_path") or "")
+    if not path or not Path(path).is_file():
+        return ["file: the kept clip is missing"]
+    frames = frames_of(path, w=C.TEXT_W, h=C.TEXT_H)
+    if not frames:
+        return ["file: the kept clip has no frames"]
+    txt = C.text_on_frames(frames)
+    if txt:
+        why.append(txt)
+    kinds: Dict[str, int] = {}
+    prev = None
+    for f in frames:
+        k, _d, _fl = F.classify(f, prev)
+        if k in F.BAD and k not in ("overlay_text", "text_graphic"):
+            kinds[k] = kinds.get(k, 0) + 1
+        prev = f
+    if sum(kinds.values()) > 0.3 * len(frames):
+        why.append("picture: " + ", ".join(f"{k} {v}" for k, v in kinds.items()) + f" of {len(frames)} frames")
+    c = S.Candidate(video_id=str(rec.get("video_id") or ""), title=str(rec.get("video_title") or rec.get("title") or ""),
+                    channel=str(rec.get("channel") or rec.get("author") or ""), description=str(rec.get("description") or ""))
+    if searcher is not None and c.video_id:
+        try:
+            searcher.details(c)
+        except Exception:  # noqa: BLE001 - judged on what the record holds
+            pass
+    why += [f"relevance: {x}" for x in R.reject(c, reading, film_date, story)]
+    if c.duration and c.duration > M.LONG_S:
+        segs = searcher.transcript(c.video_id) if searcher is not None else None
+        ok, hint, w = M.check(c.duration, segs, reading)
+        if not ok:
+            why.append(w)
+        elif not M.inside(float(rec.get("clip_start") or 0.0), hint):
+            why.append(f"moment: the kept cut at {float(rec.get('clip_start') or 0):.0f} s is not where the programme talks about "
+                       f"{', '.join(M.terms_of(reading)[:2])} ({hint:.0f} s)")
+    return why
 
 
 def _clip_dict(rec: Dict[str, Any]) -> Dict[str, Any]:
@@ -227,6 +290,9 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
     fetch_sheet = fetch_sheet or F._fetch
     readings = N.read_scenes(scenes)
     _prompt_subjects(readings, scenes, rows)
+    widened = widen_to_section(readings)
+    if widened:
+        log(f"Footage Director: {widened} lines without a subject of their own search for their section's subject")
     topic = S.topic_of(list(readings.values()))
     story = R.story_period(list(readings.values()))
     man = AssetManifest(images_dir)
@@ -237,14 +303,24 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
     report_scenes: List[Dict[str, Any]] = []
     decisions: Dict[str, Dict[str, Any]] = {}
 
-    # clips already decided (the user's own picks, or an earlier director run) keep their place and block repeats
+    # clips already decided: the user's own picks keep their place; an earlier director run's pick is kept only when it passes today's checks
+    # (render 050: a studio panel picked by the first run was 'kept' by the second without any check). Both block repeats.
+    stale: Dict[str, List[str]] = {}
     for r in yt_rows:
-        rec = man.get(str(r.scene_number)) or {}
-        if str(rec.get("status") or "").lower() == "complete" and rec.get("video_id") and \
-                (rec.get("user_override") or rec.get("source") == "manual" or rec.get("selection_method") == "war_director"):
-            if Path(str(rec.get("local_path") or "")).is_file():
-                used.add(str(r.scene_number), rec["video_id"], float(rec.get("clip_start") or 0), float(rec.get("timestamp_end") or 0),
-                         rec.get("tile_hashes") or [])
+        no_ = str(r.scene_number)
+        rec = man.get(no_) or {}
+        if str(rec.get("status") or "").lower() != "complete" or not rec.get("video_id") or not Path(str(rec.get("local_path") or "")).is_file():
+            continue
+        mine = rec.get("selection_method") == "war_director" and not (rec.get("user_override") or rec.get("source") == "manual")
+        if mine:
+            sc_ = by_no.get(no_) or (by_no.get(str(int(no_))) if no_.isdigit() else None) or {}
+            rd_ = readings.get(str(sc_.get("scene_no", no_))) or N.read(r.script_segment)
+            bad_ = revalidate(rec, rd_, searcher, film_date, story)
+            if bad_:
+                stale[no_] = bad_
+                continue
+        if mine or rec.get("user_override") or rec.get("source") == "manual":
+            used.add(no_, rec["video_id"], float(rec.get("clip_start") or 0), float(rec.get("timestamp_end") or 0), rec.get("tile_hashes") or [])
 
     t_start = time.time()
     timing = {"prefetch_s": 0.0, "capture_ok_s": 0.0, "capture_fail_s": 0.0, "captures_ok": 0, "captures_failed": 0}
@@ -285,7 +361,14 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
         list(ex.map(lambda r: (None if cancel() else discover(r)), yt_rows))
     timing["prefetch_s"] = round(time.time() - t0, 1)
 
-    for r in yt_rows:
+    def _widened(r: Any) -> bool:
+        no_ = str(r.scene_number)
+        sc_ = by_no.get(no_) or (by_no.get(str(int(no_))) if no_.isdigit() else None) or {}
+        return bool(getattr(readings.get(str(sc_.get("scene_no", no_))), "widened", False))
+
+    # most specific first: a line that shows its own event picks before a line that only borrows its section's subject (a claim about
+    # refineries must not take the one clip of the strike the next line narrates)
+    for r in sorted(yt_rows, key=lambda r_: (_widened(r_), yt_rows.index(r_))):
         if cancel():
             log("Footage Director stopped")
             break
@@ -302,9 +385,14 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
             report_scenes.append(entry)
             decisions[no] = {"decision": "footage", "graphic": ""}
             continue
-        if rec.get("selection_method") == "war_director" and str(rec.get("status")).lower() == "complete" and \
+        if no in stale:
+            entry["revalidation"] = stale[no]
+            log(f"scene {no}: the clip an earlier run chose fails today's checks ({'; '.join(stale[no])[:160]}): searching again")
+            _mark_graphics(man, no, rec, "failed re-validation: " + "; ".join(stale[no])[:200])
+            rec = {}
+        elif rec.get("selection_method") == "war_director" and str(rec.get("status")).lower() == "complete" and \
                 Path(str(rec.get("local_path") or "")).is_file():
-            entry.update(decision="footage", clip=_clip_dict(rec), note="chosen by an earlier run: kept")
+            entry.update(decision="footage", clip=_clip_dict(rec), note="chosen by an earlier run: re-validated and kept")
             report_scenes.append(entry)
             decisions[no] = {"decision": "footage", "graphic": ""}
             continue
@@ -348,20 +436,31 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
                 continue
             level = R.match_level(c, reading)
             cand["level"] = level
+            # moment relevance: a long programme is cut only near the passage that talks about the line's subject (director_moment)
+            segs = searcher.transcript(c.video_id) if c.duration and c.duration > M.LONG_S else None
+            ok_m, hint, why_m = M.check(c.duration, segs, reading)
+            if not ok_m:
+                cand["why"] = [why_m]
+                entry["candidates"].append(cand)
+                continue
+            if hint is not None:
+                cand["moment"] = round(hint, 1)
+            fits = M.near(hint)
             sb = d.get("storyboard") or {}
+            ok_win = lambda a, b, h, vid=c.video_id: not used.conflict(vid, a, b, h) and fits(a, b)  # noqa: E731
             if c.video_id in tiles_of:
                 tiles, _has_sb = tiles_of[c.video_id]
-                win = (F.choose_window(tiles, c.duration, usable=lambda a, b, h, vid=c.video_id: not used.conflict(vid, a, b, h)) if sb else
-                       F.window_from_thumbnails(tiles, c.duration, usable=lambda a, b, h, vid=c.video_id: not used.conflict(vid, a, b, h)))
+                win = (F.choose_window(tiles, c.duration, usable=ok_win, hint=hint) if sb else
+                       F.window_from_thumbnails(tiles, c.duration, usable=ok_win))
                 if not sb:
                     cand["inspection"] = "thumbnails" + (" (metadata needs sign-in)" if c.blocked else "")
             elif sb:
                 tiles = F.inspect(F.tiles_from_storyboard(sb, fetch=fetch_sheet))
-                win = F.choose_window(tiles, c.duration, usable=lambda a, b, h, vid=c.video_id: not used.conflict(vid, a, b, h))
+                win = F.choose_window(tiles, c.duration, usable=ok_win, hint=hint)
             else:
                 # no storyboard (age-restricted / sign-in): preview from YouTube's thumbnails, capture is then judged on its own frames
                 tiles = F.inspect(F.tiles_from_thumbnails(c.video_id, c.duration, fetch=fetch_sheet))
-                win = F.window_from_thumbnails(tiles, c.duration, usable=lambda a, b, h, vid=c.video_id: not used.conflict(vid, a, b, h))
+                win = F.window_from_thumbnails(tiles, c.duration, usable=ok_win)
                 cand["inspection"] = "thumbnails" + (" (metadata needs sign-in)" if c.blocked else "")
                 if c.content_warning:
                     cand["content_warning"] = c.content_warning
@@ -414,6 +513,8 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
             log(f"scene {no}: {why} ({len(pool)} found, {len(bad)} rejected by the rules)")
         report_scenes.append(entry)
 
+    order = {str(getattr(r, "scene_number", "")): i for i, r in enumerate(yt_rows)}
+    report_scenes.sort(key=lambda x: order.get(str(int(x["scene"])) if str(x.get("scene", "")).isdigit() else str(x.get("scene")), 0))
     levels = {k: sum(1 for x in report_scenes if x.get("decision") == "footage" and x.get("match_level") == k)
               for k in ("exact", "contextual", "atmospheric")}
     report = {"version": 1, "render": render_id, "film_date": str(film_date), "topic": topic, "seconds": round(time.time() - t_start, 1),

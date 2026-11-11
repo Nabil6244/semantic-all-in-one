@@ -87,6 +87,16 @@ class FootageReturns(unittest.TestCase):
     def rows(self, n, dur=5.0):
         return [{"_no": i + 1, "_start": i * dur, "_end": (i + 1) * dur, "text": "x"} for i in range(n)]
 
+    def subject_rows(self, n, dur=5.0):
+        """Lines about the Ryazan refinery fire; the film's clips carry what they show (render 050 rule: a clip returns only to a line about
+        its subject - before, rows with no text took any clip of the film)."""
+        meta = {"a.mp4": "Ryazan oil refinery on fire after drone attack", "b.mp4": "Ryazan refinery fire drone strike night",
+                "c.mp4": "Ryazan refinery burning drone attack"}
+        rows = [{"_no": i + 1, "_start": i * dur, "_end": (i + 1) * dur, "text": "Drones set the Ryazan refinery on fire."} for i in range(n)]
+        for r, (path, title) in zip(rows, meta.items()):
+            r["footage"], r["footage_meta"] = path, {"title": title, "provider": "youtube", "kind": "youtube"}
+        return rows
+
     def test_gap_takes_the_videos_own_footage_not_the_neighbour(self):
         from cinematic_explainer.render import Shot
         from cinematic_explainer.war import direction as D
@@ -94,7 +104,7 @@ class FootageReturns(unittest.TestCase):
         plan = _plan([Shot("a.mp4", 0, 5), Shot("b.mp4", 5, 10), Shot("c.mp4", 20, 25)])
         log = {str(i): SimpleNamespace(flags=[]) for i in range(1, 6)}
         counts = {}
-        D._broll_returns(plan, self.rows(5), log, {}, counts, probe=lambda p: 12.0)
+        D._broll_returns(plan, self.subject_rows(5), log, {}, counts, probe=lambda p: 12.0)
         fill = [s for s in plan.shots if 10 <= s.start < 20]
         self.assertTrue(fill)
         self.assertAlmostEqual(sum(s.end - s.start for s in fill), 10.0, places=1)       # the gap is covered
@@ -104,6 +114,26 @@ class FootageReturns(unittest.TestCase):
         self.assertTrue(all(s.seek >= 5.0 - 1e-6 for s in a_fill))                        # a moment of the clip not shown yet
         self.assertIn("kit_badge", [ly.kind for ly in plan.layers])                        # labelled as illustration
         self.assertIn("dir:broll_return", log["3"].flags)
+
+    def test_a_clip_never_returns_to_a_line_about_something_else(self):
+        """Render 050: a 2018 'Putin drives a truck' clip returned on four unrelated lines. The gap stays for the graphics."""
+        from cinematic_explainer.render import Shot
+        from cinematic_explainer.war import direction as D
+
+        rows = self.subject_rows(5)
+        for r in rows[2:4]:
+            r["text"] = "The talks in Geneva ended without a deal."
+        plan = _plan([Shot("a.mp4", 0, 5), Shot("b.mp4", 5, 10), Shot("c.mp4", 20, 25)])
+        D._broll_returns(plan, rows, {}, {}, {}, probe=lambda p: 12.0)
+        self.assertFalse([s for s in plan.shots if 10 <= s.start < 20])
+
+    def test_a_line_with_no_text_takes_no_return(self):
+        from cinematic_explainer.render import Shot
+        from cinematic_explainer.war import direction as D
+
+        plan = _plan([Shot("a.mp4", 0, 5), Shot("b.mp4", 5, 10), Shot("c.mp4", 20, 25)])
+        D._broll_returns(plan, self.rows(5), {}, {}, {}, probe=lambda p: 12.0)
+        self.assertEqual(len(plan.shots), 3)
 
     def test_full_frame_cards_and_maps_are_not_covered(self):
         from cinematic_explainer.render import Layer, Shot

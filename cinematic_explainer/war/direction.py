@@ -402,39 +402,42 @@ def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[st
             return None
         spans = sorted(used.get(path, []))
         cur_ = 0.0
-        best = None if pool else (0.0, min(need, n))     # nothing unused left: the clip's start again (a return, not a new moment) - never for earned clips
-        for a, b in spans + [(n, n)]:
+        for a, b in spans + [(n, n)]:          # only seconds not shown yet: the same seconds again read as a glitch (render 050)
             if a - cur_ >= min(need, BROLL_MIN_S + 0.3):
                 return cur_, min(need, a - cur_)
             cur_ = max(cur_, b)
-        return best
+        return None
 
     meta_of = {r.get("footage"): (r.get("footage_meta") or {}) for r in rows if r.get("footage")}
 
     def same_subject(path: str, t_: float) -> bool:
-        if not pool:
-            return True
+        """The clip is about what is said here (render 050: with no earned clips any clip returned anywhere - a 2018 'Putin drives a truck'
+        clip on four unrelated lines). A line with no text, or a clip that cannot be scored, takes no return."""
         row = next((r for r in rows if r["_start"] - 0.01 <= t_ < r["_end"]), None)
         if row is None or not str(row.get("text") or "").strip():
-            return True
+            return False
         try:
             from . import footage_match as FM
 
             return float(FM.score_clip(FM.narration_profile(str(row["text"])), meta_of.get(path) or {}, path).get("score") or 0.0) >= SUBJECT_MIN
-        except Exception:  # noqa: BLE001 - an unscorable clip is not a reason to leave a gap
-            return True
+        except Exception:  # noqa: BLE001 - an unscorable clip is not shown as if it belonged here
+            return False
 
-    # first every clip at most BROLL_USES times; when the video has too few clips for that, a clip may return more often (a repeat beats
-    # an empty backdrop), still never the one just shown
-    for limit in (BROLL_USES, BROLL_USES * 4):
+    def source_of(path: str) -> str:
+        m = meta_of.get(path) or {}
+        return str(m.get("provider_asset_id") or m.get("video_id") or m.get("source_url") or m.get("library_file") or path)
+
+    # every SOURCE video at most BROLL_USES returns, only over a line about its subject, never the one just shown. A gap nothing fits stays
+    # open for the graphics (render 050: a second pass let a clip return 8 times, so one Kremlin clip played on five unrelated lines)
+    for limit in (BROLL_USES,):
         for g0, g1 in open_gaps():
             t = g0
             while g1 - t >= BROLL_MIN_S - 1e-6:
                 before = max((x for x in plan.shots if x.end <= t + 0.05), key=lambda x: x.end, default=None)
                 after = min((x for x in plan.shots if x.start >= t), key=lambda x: x.start, default=None)
                 avoid = {getattr(before, "path", None), getattr(after, "path", None)} if len(owners) > 2 else set()
-                cands = sorted((x for x in owners.values() if x.path not in avoid and returns.get(x.path, 0) < limit
-                                and (not pool or (x.path in pool and same_subject(x.path, t)))),
+                cands = sorted((x for x in owners.values() if x.path not in avoid and returns.get(source_of(x.path), 0) < limit
+                                and (not pool or x.path in pool) and same_subject(x.path, t)),
                                key=lambda x: (min(abs(x.start - t), abs(x.end - t)), x.start))
                 pick = None
                 for c in cands:
@@ -453,7 +456,7 @@ def _broll_returns(plan: Any, rows: Sequence[Dict[str, Any]], log_by_no: Dict[st
                 if b - a >= 2.0:                              # the clip belongs to another sentence: shown as illustration, never as this one's event
                     plan.layers.append(Layer("kit_badge", fr(a + 0.2), fr(b - 0.1), {"kind": "illustrative"}, dim=False))
                 used.setdefault(c.path, []).append((seek, seek + (b - a)))
-                returns[c.path] = returns.get(c.path, 0) + 1
+                returns[source_of(c.path)] = returns.get(source_of(c.path), 0) + 1
                 src = meta_by_start.get(fr(c.start)) or {}
                 meta_by_start[a] = dict(src, reused=True)
                 row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), None)
@@ -977,6 +980,26 @@ def _motion_options(sent: Any, h: str) -> List[Tuple[str, Dict[str, Any]]]:
     return out
 
 
+def _side_card(kind: str) -> bool:
+    """A card that sits beside a clip (not full frame, not a corner badge): on the bare plate it leaves most of the screen empty."""
+    return kind not in FULL_KINDS and kind not in CORNER_KINDS and kind not in ("kit_field", "kit_badge", "shot_headline", "fx_flash")
+
+
+def _give_way(plan: Any, full: Layer) -> None:
+    """Side cards under a full-frame graphic placed on the plate are trimmed to the time outside it, or dropped when under 2 s remain."""
+    keep = []
+    for x in plan.layers:
+        if _side_card(x.kind) and x.start < full.end and x.end > full.start:
+            if full.start - x.start >= 2.0:
+                x.end = fr(full.start)
+            elif x.end - full.end >= 2.0:
+                x.start = fr(full.end)
+            else:
+                continue
+        keep.append(x)
+    plan.layers[:] = keep
+
+
 def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int], notes: List[str],
                       motion: bool = True) -> None:
     """Rule 11: wherever no footage is on screen, the plain backdrop is never what the viewer sees. Since 2026-11-07 (the owner: "we can use
@@ -997,10 +1020,14 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
     last = ""
     flip = 0
     need = 2.0 if motion else 3.6
+    side = tuple(sorted({k for _s, _e, k in busy.items if _side_card(k)}))
     for g0, g1 in plate:
         t = g0
         while g1 - t >= need:
-            slot = busy.free(t, g1, need, margin=0.0, ignore=("shot_headline",))
+            # a side card (an institution, a figure, a number box) on the bare plate is not a screen: the full-frame graphic made from the
+            # same line takes the stretch and the side card gives way (render 050 review: cards on an empty field). Before Stage B a clip of
+            # anything played under such a card; arbitrary returns are gone (_broll_returns), so the stretch is composed here.
+            slot = busy.free(t, g1, need, margin=0.0, ignore=("shot_headline",) + (side if motion else ()))
             if slot is None:
                 break
             w0 = slot[0]
@@ -1035,6 +1062,8 @@ def _no_empty_stretch(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
                 ly = Layer("kit_tag", a, fr(a + 3.2), {"text": h, "pos": "top-left" if flip % 2 == 0 else "lower-left", "style": "hook"}, dim=False)
                 flip += 1
                 why, rule = "no footage here, the narration's own words as a tag", "fallback_tags"
+            if motion:
+                _give_way(plan, ly)
             plan.layers.append(ly)
             busy.add(ly.start, ly.end, ly.kind)
             dec.flags.append("dir:" + ("motion_fill" if motion else "fallback_tag"))

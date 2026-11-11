@@ -1,0 +1,210 @@
+{
+ "1": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "2": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "3": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "STATISTIC sentence: shown with War graphics, not footage"
+ },
+ "5": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "10": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "11": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "14": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "15": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "16": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "26": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "STATISTIC sentence: shown with War graphics, not footage"
+ },
+ "28": {
+  "decision": "graphics",
+  "graphic": "claim",
+  "why": "CLAIM sentence: shown with War graphics, not footage"
+ },
+ "44": {
+  "decision": "graphics",
+  "graphic": "claim",
+  "why": "CLAIM sentence: shown with War graphics, not footage"
+ },
+ "49": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "53": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "76": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "79": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "80": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "84": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "86": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "87": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "no candidate passed the checks: shown with War graphics"
+ },
+ "89": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "93": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "98": {
+  "decision": "footage",
+  "graphic": ""
+ },
+ "102": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "105": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "STATISTIC/ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "120": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "123": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "128": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "no candidate passed the checks: shown with War graphics"
+ },
+ "129": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "STATISTIC sentence: shown with War graphics, not footage"
+ },
+ "150": {
+  "decision": "graphics",
+  "graphic": "number",
+  "why": "no candidate passed the checks: shown with War graphics"
+ },
+ "156": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "157": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "164": {
+  "decision": "graphics",
+  "graphic": "map",
+  "why": "no candidate passed the checks: shown with War graphics"
+ },
+ "168": {
+  "decision": "footage",
+  "graphic": "",
+  "label": ""
+ },
+ "171": {
+  "decision": "footage",
+  "graphic": "",
+  "label": "ILLUSTRATIVE FOOTAGE"
+ },
+ "172": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "ANALYSIS sentence: shown with War graphics, not footage"
+ },
+ "176": {
+  "decision": "footage",
+  "graphic": "",
+  "label": "ILLUSTRATIVE FOOTAGE"
+ },
+ "180": {
+  "decision": "footage",
+  "graphic": "",
+  "label": "ILLUSTRATIVE FOOTAGE"
+ },
+ "181": {
+  "decision": "graphics",
+  "graphic": "route",
+  "why": "no candidate passed the checks: shown with War graphics"
+ },
+ "195": {
+  "decision": "footage",
+  "graphic": "",
+  "label": "ILLUSTRATIVE FOOTAGE"
+ },
+ "213": {
+  "decision": "footage",
+  "graphic": "",
+  "label": "ILLUSTRATIVE FOOTAGE"
+ },
+ "217": {
+  "decision": "graphics",
+  "graphic": "keywords",
+  "why": "no candidate passed the checks: shown with War graphics"
+ },
+ "232": {
+  "decision": "footage",
+  "graphic": "",
+  "label": "ILLUSTRATIVE FOOTAGE"
+ }
+}
