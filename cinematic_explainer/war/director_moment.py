@@ -37,18 +37,38 @@ def find(segments: Sequence[Dict[str, Any]], terms: Sequence[str], has: Callable
     return best
 
 
+def chapter_hint(chapters: Optional[Sequence[Dict[str, Any]]], terms: Sequence[str], has: Callable[[str, str], bool]) -> Optional[float]:
+    """Start of the chapter whose title names the most of `terms`, None when no title names any."""
+    from .narration_read import fold
+
+    best: Optional[Tuple[float, int]] = None
+    for ch in chapters or []:
+        title = fold(str(ch.get("title") or "")).lower()
+        n = sum(1 for t in terms if has(title, t))
+        if n and (best is None or n > best[1]):
+            best = (float(ch.get("start") or 0.0), n)
+    return best[0] if best else None
+
+
 def check(duration: Optional[float], segments: Optional[Sequence[Dict[str, Any]]], reading: Any,
-          has: Optional[Callable[[str, str], bool]] = None) -> Tuple[bool, Optional[float], str]:
-    """(may be used, transcript time to cut near or None, reason when not)."""
+          has: Optional[Callable[[str, str], bool]] = None, status: str = "",
+          chapters: Optional[Sequence[Dict[str, Any]]] = None) -> Tuple[bool, Optional[float], str]:
+    """(may be used, transcript time to cut near or None, reason when not). Without a transcript, a chapter title that names the line's
+    subject gives the hint; a rate-limited transcript is reported as unverified, never as a programme about something else."""
     if not duration or float(duration) <= LONG_S:
         return True, None, ""
     terms = terms_of(reading)
     if not terms:
         return False, None, "moment: the line names nothing to find in a long programme"
-    if not segments:
-        return False, None, f"moment: a {float(duration) / 60:.0f}-minute programme without a transcript: the cut cannot be checked"
     if has is None:
         from .director_rules import _has as has
+    if not segments:
+        hint = chapter_hint(chapters, terms, has) if chapters else None
+        if hint is not None:
+            return True, hint, ""
+        if status == "rate_limited":
+            return False, None, "moment: transcript rate-limited (not checked, retried later): the cut cannot be verified"
+        return False, None, f"moment: a {float(duration) / 60:.0f}-minute programme without a transcript: the cut cannot be checked"
     hit = find(segments, terms, has)
     if hit is None:
         return False, None, f"moment: the programme never talks about {', '.join(terms[:3])}"

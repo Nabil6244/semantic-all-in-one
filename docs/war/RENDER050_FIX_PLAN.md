@@ -112,3 +112,110 @@ Root causes added by stage A:
   34 and one Kremlin clip to 38 and 51 because they shared a generic prompt. (The generic prompt came from our own CSV builder; the engine must
   still refuse a clip whose subject the line does not mention.)
 - Planning the 255-scene film takes ~290 s before any rendering (planner + harden_measured) — to be measured and reported in stage F.
+
+## Stage B report — footage integrity (2026-11-11)
+Decision points traced first (each render-050 footage defect -> the line of code that let it through):
+| Defect | Decision point | Fix |
+|---|---|---|
+| Studio panel, end screen, ticker, lower-third, subtitled interviews, another channel's graphic accepted as footage | `director_frames.classify` saw no text (and capture checked frames at 160x90, where a subtitle is 1-2 px) | `text_lines` / `text_kind`: text read by line SHAPE (wide, short, isolated runs of character strokes) at 320x180; kinds `overlay_text`, `text_graphic` added to `BAD`; `director_capture.text_on_frames` refuses a captured clip with text on > 15 % of its frames |
+| Render 050's first clip survived a second run unchecked | `footage_director.run`: "chosen by an earlier run: kept" | `footage_director.revalidate`: every earlier director pick passes the same visual + relevance + moment checks or is searched again (user picks stay untouched) |
+| A 15-min programme cut at a satellite segment for a drones line | `choose_window` got no transcript hint; nothing checked the moment | `director_moment`: programmes > 4 min are cut only within -20/+45 s of a transcript passage that names the line's subject; no transcript -> refused. `director_search.Searcher.transcript` (cached; parsers reused from providers, unchanged) |
+| Lines without a place sent to graphics without any search | `narration_read.read`: no place -> ANALYSIS/STATISTIC -> `footage_wanted` False | `narration_read.read_scenes` gives every line `section_terms` (its own filmable subject, else the latest concrete line within 4 lines, else the part's topic; reset at "Part ..."); `footage_director.widen_to_section` searches those; own-event lines pick first |
+| One library clip on 3-5 unrelated lines | `library.plan` matched the CSV prompt only; MAX_USES 3 per file | `library.line_fits`: a clip's subject must be in the line or its section; MAX_USES 2 per SOURCE video; live slots spent on most specific lines first; `usable_clips` runs the text check on library clips (cached in `<library>/.usability.json`) |
+| Arbitrary b-roll returns (Putin-in-truck x4) | `direction._broll_returns`: with no earned clips any clip returned, second pass up to 8x, same seconds re-shown | returns only over a line about the clip's subject, per source, unused seconds only, no second pass; a stretch nothing fits is composed by `_no_empty_stretch` (a side panel on the bare plate gives way to a full-frame graphic from the same line) |
+
+Tests added: `test_war_footage_integrity.py` (24: real-frame windows, old-size failure shown, synthetic text/texture, capture refusal, subject discovery on the 050 script, moment check incl. the UATV case, re-validation of the 050 first clip, library line relevance / source reuse / cached checks). Changed existing tests (old behaviour the owner overruled): `test_war_library.py` fixtures now use narration that says what the prompt asks for + library check cache, MAX_USES 2 expectation; `test_war_no_garbage.py` return test now uses subject-matched clips, plus 2 new tests (no return to an unrelated line / a line with no text). Full War suite: 751 passed, 1 skipped.
+
+Measured on a clone of render 050 (`stageB_050/`, no live search, no render): library visual check refuses 9 of 157 clips (7 real burnt text, 2 false positives: harbour cranes, circuit-board print); re-validation keeps 9 of 20 director picks and refuses 11 (all 8 bad clips from the review + 3 moment failures); 134 lines now search their section's subject. Plan audit vs baseline: reuse 11 -> 0 sources; footage 25 % -> 11 % (bad clips removed, replacements need a live Generate scenes); backdrop-only 125 -> 126 s; keyword cards 72 -> 82; map pins of unnamed places 52 -> 165 (more footage-free stretches are filled with maps that inherit places: stage E defect, now more visible).
+
+Open after B: burnt place labels inside otherwise clean footage (TVP 'DONETSK REGION' for Kirishi) need OCR - not available; a talking head with no text (Zelensky address) is caught only by title rules / relevance; a 4-min programme without captions is now refused (may cost good footage); `text_screen` (old pale-area rule) still misreads bright skies in the Footage Director's own checks; planning the 255-scene film took 618 s on the clone.
+
+## Stage B.1 audit (2026-11-11) — findings only, nothing implemented
+Measured on `stageB_050/` (clone, offline) vs render 050. New measurement only: `plan_audit.map_view` (pins and camera as maps_tactical renders
+them: a pin appears at its own start time; the raw `map_foreign_places` count is kept unchanged for comparison with Stage A).
+
+1 Maps. The raw 52 -> 165 counted pins the renderer had not drawn yet. Renderer-faithful: pins appearing unspoken 11 -> 17; camera centred on
+  an unspoken place 24 pieces / 116 s -> 23 / 111 s (pre-existing); OLD pins still on screen 25 / 97 s -> 97 / 178 s; longest building map
+  87 s -> 307 s. Decision points: `map_build._runs` makes one map for any run of footage-free scenes (no length or section limit) and
+  `_plan_params` keeps up to 8 pins for the whole map (no pin end time in maps_tactical); the run grew because B removed bad clips with no
+  replacement yet. `map_build._plan_params` `context` fallback and `direction._point_bare_maps` (BACK_REF_S 150 s) put earlier places on maps
+  whose line names none (St Petersburg for Abu Dhabi; Abu Dhabi is not in places.json). Smallest corrections proposed: (a) `_point_bare_maps`
+  takes a place only from the map's own line or the line before it in the same section; (b) drop the `context` fallback; (c) `_runs` breaks at
+  a section heading and after ~90 s, so pins reset. Pin end times in the renderer are a Stage E change.
+2 Coverage (backdrop-only 125 -> 126 s). 050: transparent card on the plate 114 s (mostly the junk word bignums), field only 8.7 s, corner
+  only 2.1 s. B: transparent card 86 s, field only 37.3 s, corner 2.3 s. The new empty time is `map_build.cap_pieces`: every 12 s of map it
+  leaves a 4 s break for `_broll_returns`, which now (correctly) refuses unrelated clips, and `_no_empty_stretch` finds "nothing truthful"
+  (`_phrase_or_lead` returns no phrase). Proposed: reserve a break only when a subject-matched clip exists for that run.
+3 Planning time. Same conditions: 050 ~490 s, B ~497 s (planner 104/88 s + harden_measured 381/406 s); the 288 s / 618 s figures were
+  taken under different machine load (618 s ran beside the full test suite). Stage B's checks run at fetch time, not in planning. ~80 % is
+  `harden_measured` rendering 734-818 map frames: 82-105 mosaic builds, coastline shading ~150 s. Redundant work / caches: mosaic + coast shade
+  per view; card cover per (params, t); `semantics.analyze_scene` 4,000 calls for 255 lines; `source_cuts` ffprobe 187-446 runs; clip decodes
+  in `_fit_earned_shot`. Fetch side: 8 transcript calls (cached per video), library check once (cached), re-validation decodes each kept clip.
+4 Live replacement test (proposal, not run): see the owner report.
+5 Detector reliability: library 157 (reviewed) -> 9 refused, 7 real, 2 false (cranes, circuit board); 38 unreviewed fetched clips -> 23
+  flagged, 23 real (0 false); misses are outside its scope (diagonal handle watermarks 3, a big logo, talking heads, studio split, a map
+  screenshot without text). Old pale-area `text_screen`: 5 / 157 library (all false), 0 / 38 fetched. The pre-existing capture rule
+  (>30 % of frames in BAD incl. dark / graphic) would refuse 36 / 157 clean library clips (night, fog); re-validation reuses it.
+6 Evidence: BASELINE_MANIFEST hashes all OK; Stage A fixtures unchanged since 5509fb5; test changes in 5509fb5 removed no assertion.
+7 Git: 5509fb5 authored and committed by Nabil6244 2026-11-11 23:00:43 +0500 with a Claude co-author line (made from another session);
+  49 files. Uncommitted: direction.py (SIDE_CARDS), plan_audit.py (map_view), this doc.
+
+## Stage B.2 — map corrections + controlled live-fetch slice (2026-11-12)
+Code (War only): `direction._point_bare_maps` takes a place only from the map's own line(s) or the line just before, same section (no
+BACK_REF_S reach-back); `map_build._plan_params` has no `context` fallback (a run naming no geography gets no map); `map_build._runs` breaks at a
+section heading and after MAX_RUN_S 90 s; `map_build.split_by_geography` ends a map earlier when a line names only places > GEO_NEAR_KM 400 km
+from everything on it (or, with no towns, no shared country). Each map's pins start empty. Renderer untouched (pin end times = later stage).
+Side effect fixed: shorter maps carry no routes, so `_strike_maps` fired on a CSV flyover row and cleared it; `_strike_maps` now skips seconds
+holding a CSV graphic. `test_war_plan_guard.ALLOWED` + "no_footage:tac_map@0.0" (94 s map split at the geography changes, same total time).
+Tests: `test_war_map_b2.py` 9 (all fail on HEAD): Abu Dhabi/St Petersburg, Washington on oil-export income, line-before-only, old pins across
+subjects, map across sections, 90 s runs, section break, no context fallback, same-region stays one map. War suite before the side-effect fix:
+760 passed / 2 failed (both above, now pass); touched files after: 118 + 20 pass. Still inheriting: `_strike_maps` _BACK_REF (150 s) — not in scope.
+
+Live slice (clone `stageB2_live/` of baseline_050, scenes 17-32 + 78-90 = 178 s, other rows read but not fetched, war_live_searches 15,
+Generate scenes only). Files: `stageB2_live/slice_lines.json` (per line: decision, clip, queries, rule rejections, candidates and why),
+`slice_contact_sheet.jpg`, `slice_run.log`, `project/discovery_report.json`.
+- 480 s total: library 11 s, director 463 s (search+details+storyboards 181 s, 7 captures ok 145 s, 4 failed 87 s); 23 searches, 15 transcript
+  calls, 7 transcript 429 (rate limit). 346 candidates rejected by rules (prompt 169, format 139, country 31), 47 shortlisted, 20 refused on frames.
+- Footage on 9 of 23 footage rows (050: 7), 9 unique sources (050: 6). Judged on frames:
+  relevant 4 = 26 AP Abu Dhabi talks podium (prisoner line, contextual), 28 NBC Kremlin/officials (contextual), 79 Afipsky aerial (place,
+  illustrative), 80 Kanal13 Saratov smoke (exact, kept); ~26.9 s on screen (050 same lines: ~9.7 s relevant of 31.2 s shown).
+  weak 1 = 24 FRANCE 24 window is a Zelensky selfie address (talking head) for the talks line.
+  wrong 4 (~18.8 s) = 18 Reuters "Abu Dhabi's Growth Plan" business panel; 78 AP Putin-Kushner for "Ryazan refinery"; 86 Reuters St Petersburg
+  protest arrests for fuel supply; 89 TVP 'DONETSK REGION' clip re-validated and kept for Kirishi.
+- Removed correctly, not replaced: 84 UATV end screen, 90 Moscow-refinery clip for Kirishi, 17 Pokrovsk roads for Washington.
+Root causes seen: (1) R.match_level gives "exact" when the title names the place alone (Abu Dhabi, St Petersburg) with no event word;
+(2) `_prompt_subjects` puts the CSV prompt's subject (Putin, Kremlin) ahead of the line's own (Ryazan refinery) — first query was
+"Putin meeting Kremlin"; (3) no OCR, so burnt place labels pass re-validation; (4) transcript 429s turn long programmes into "cannot be
+checked" refusals (84, 87, 90 lost candidates); (5) 4 rows sent to graphics by the library with no search (27, 31, 32, 83).
+Verdict: replacement works (prisoner lines got real footage, 050 had none) but precision ~4/9 — not yet dependable. Stage C not started.
+
+## Stage B.3 — narration-first matching + repeat slice (2026-11-12, uncommitted)
+Code (War only): `director_rules` place / event / subject judged separately (`dimensions`, `events_in`, event families, `stale`); exact =
+the line's event AND its place or subject in the title, not uploaded before the event; a title about another kind of event (protest,
+business, a meeting for a refinery line) is rejected. `footage_director.prompt_conflict`/`queries_for`: a CSV prompt about something
+else (other event family, or none of the line's own places) is only a last search hint, never key terms or a gate. `burnt_label` +
+`_location_verdict`: text lines on >= 2 frames / 20 % = location unverified (never exact); unread label + footage older than a named-place
+event = refused (also in revalidate). `narration_read`: `section_date`; a missing year comes from the latest year reached, not an aside
+('demands made in 2021' had dated every November line 2021). Transcripts (subagent): caption track + chapters cached with details, 429 ->
+4 s / 12 s backoff, 60 s cooldown, never cached; `moment_check` passes status/chapters -> 'rate-limited: not checked', never 'irrelevant'.
+Tests: test_war_footage_b3.py 9 (business panel, Putin-Kushner vs Ryazan, protest vs fuel, place alone not exact, older Kirishi package with
+a label, right video wrong moment + rate-limit wording, year aside, Moskva prompt kept, real label frame) + test_war_transcript_limits.py 7.
+War suite: exit 0.
+
+Repeat slice (`stageB3_live/`, fresh clone, same lines, limit 15; B.2 evidence in `stageB2_live/` untouched). Judged on frames:
+| | B.2 | B.3 |
+|---|---|---|
+| lines with footage | 9 | 6 |
+| relevant | 4 lines / 26.9 s | 4 lines / 25.7 s (26 AP talks podium, 28 NBC Kremlin/officials, 78 Kanal13 Ryazan refinery, 79 Afipsky aerial) |
+| wrong / unusable | 5 / 26.8 s | 2 / 12.7 s (18 Reuters 'Abu Dhabi and IHC' business-market clip; 24 FRANCE 24 Zelensky selfie talking head) |
+| precision | 4/9 = 44 % | 4/6 = 67 % |
+| eligible lines with relevant footage | 4/23 | 4/23 |
+| unique sources | 9 | 6 |
+Levels (judged): exact 0, contextual 3 (26, 28, 78 = Nov 2025 Ryazan strike, honestly labelled contextual), illustrative 1 (79, 2023).
+Engine labels: exact 1 (24), contextual 4, illustrative 1. Time 829 s (B.2 480): search/preview 168 s, 6 captures ok 234 s, 8 failed 209 s,
+other 155 s (backoff waits); 23 searches, 20 transcript calls, 7 rate-limited (now explicit). Rejections: 390 by rules (format 161, prompt
+139, country 44, entity 20, event 11, time 7), 64 shortlisted, 26 refused on frames, 20 on moment.
+Fixed vs B.2: Putin-Kushner -> real Ryazan refinery clip; St Petersburg protest, Abu Dhabi growth-panel, TVP Donetsk-label clips refused.
+Lost: Saratov (B.2's clip was a Sept 2026 upload mislabelled exact; the time rule now refuses it). Still wrong: 18 (place-only Abu Dhabi
+clip with no event words passes on a LOCATION-type line: the event rule only bites EVENT/MOVEMENT lines); 24 (talking head without text
+needs face detection, not available). Below the 80 % target. Stage C not started.

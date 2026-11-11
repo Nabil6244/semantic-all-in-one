@@ -142,6 +142,57 @@ def source_ids(scenes: Sequence[Dict[str, Any]]) -> Dict[str, str]:
     return out
 
 
+def _named(name: str, said_norm: str) -> bool:
+    """Is a place spoken in this narration (transliteration twins and 'St' / 'Saint' count as the same name)?"""
+    from .narration_read import spelling_variants
+
+    base = name.split(" (")[0]
+    forms = {base, base.replace("St ", "Saint "), base.replace("Saint ", "St ")}
+    for f in list(forms):
+        forms |= set(spelling_variants(f))
+    return any(re.search(rf"\b{re.escape(_norm(f))}\b", said_norm) for f in forms if _norm(f))
+
+
+def map_view(plan: Any, scenes: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
+    """What the viewer sees on each map piece, as maps_tactical renders it: a long map split into pieces (t_offset / total_dur) shows a pin only
+    from its own start time, and the camera follows focus / focus_times. Per piece, against the narration spoken over it (+- MAP_SLACK_S):
+      new_unnamed      pins that APPEAR during the piece but are not spoken there (a place shown at the wrong moment)
+      focus_unnamed    the camera is centred on named places none of which is spoken there (the map is about something else)
+      lingering        pins from earlier in the same map, still visible, not spoken now (an old location kept on screen)
+    Seconds are screen time of the pieces concerned."""
+    out = {"pieces": 0, "new_unnamed": [], "focus_unnamed": [], "lingering": [], "focus_unnamed_s": 0.0, "lingering_s": 0.0}
+    for ly in sorted(getattr(plan, "layers", []) or [], key=lambda x: x.start):
+        if ly.kind not in ("tac_map", "tac_route", "map_card"):
+            continue
+        p = ly.params or {}
+        out["pieces"] += 1
+        off = float(p.get("t_offset") or 0.0)
+        a, b = off, off + (ly.end - ly.start)
+        said = _norm(_said(scenes, ly.start - MAP_SLACK_S, ly.end + MAP_SLACK_S))
+        places = [(x.get("name"), float(x.get("start") or 0.0)) for x in (p.get("places") or []) if isinstance(x, dict) and x.get("name")]
+        visible = [(n, s) for n, s in places if s <= b]
+        for n, s in visible:
+            if _named(n, said):
+                continue
+            item = {"t": round(ly.start, 1), "place": n}
+            (out["new_unnamed"] if s >= a - 0.5 else out["lingering"]).append(item)
+        if any(not _named(n, said) and s < a - 0.5 for n, s in visible):
+            out["lingering_s"] += ly.end - ly.start
+        focus, ft = p.get("focus") or [], p.get("focus_times") or []
+        if focus and len(ft) == len(focus):
+            cur = [f for f, t in zip(focus, ft) if t <= (a + b) / 2]
+            cur = cur[-1] if cur else focus[0]
+        else:
+            cur = focus[0] if focus else []
+        names = [f for f in (cur or []) if isinstance(f, str)]
+        if names and not any(_named(n, said) for n in names):
+            out["focus_unnamed"].append({"t": round(ly.start, 1), "focus": names})
+            out["focus_unnamed_s"] += ly.end - ly.start
+    out["focus_unnamed_s"] = round(out["focus_unnamed_s"], 1)
+    out["lingering_s"] = round(out["lingering_s"], 1)
+    return out
+
+
 def audit(plan: Any, scenes: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     total = max([scene_span(s)[1] for s in scenes] + [0.0])
     shots = list(getattr(plan, "shots", []) or [])

@@ -7,7 +7,9 @@ storyboards). Everything is cached per project (state/war/director_cache) so Ret
     build_queries(reading, csv_prompt="") -> [str]           3-5 short entity-first queries, no month words
     Searcher(cache_dir, backend=None, pause=1.2)
         .pool(queries, per_query=10)  -> [Candidate]       every result of every query, merged by video id (hits = queries that found it)
-        .details(candidate)           -> dict              upload_date, description, tags, duration, storyboard (cached)
+        .details(candidate)           -> dict              upload_date, description, tags, duration, storyboard, captions, chapters (cached)
+        .transcript(video_id)         -> [segment] | None  timed English captions; 429 retried with backoff, never cached as a failure
+        .transcript_info(video_id)    -> (segments, status, chapters)   status in ok / none / rate_limited / error
 """
 
 from __future__ import annotations
@@ -18,12 +20,13 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .narration_read import Reading, fold
 
 AGENCY_PREFIXES = ("Reuters", "AP")
 _MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
+RATE_LIMIT_COOLDOWN_S = 60.0   # a video YouTube rate-limited is not asked again for this long (live run: 7 x 429 for 3 videos in seconds)
 _DROP = re.compile(r"\b(" + _MONTHS + r"|\d{1,2}(st|nd|rd|th)?|(19|20)\d\d|footage|video|clip|b-?roll|archival|cinematic|real|authentic)\b", re.I)
 
 
@@ -195,7 +198,11 @@ class Searcher:
         self.log = log
         self._lock = threading.Lock()
         self._last = 0.0
-        self.calls = {"search": 0, "details": 0, "transcript": 0}
+        self.calls = {"search": 0, "details": 0, "transcript": 0, "transcript_rate_limited": 0}
+        self.backoff: Sequence[float] = (4.0, 12.0)       # waits before the 2nd and 3rd try after HTTP 429; tests set (0, 0)
+        self.transcript_status: Dict[str, str] = {}       # video id -> ok / none / rate_limited / error (in memory only)
+        self._rate_limited_at: Dict[str, float] = {}
+        self._details_mem: Dict[str, Dict[str, Any]] = {}
 
     # ---- transcripts (moment relevance: the cut must sit where the video talks about the line's subject) ----
     def _caption_text(self, url: str, ext: str) -> str:
@@ -207,8 +214,10 @@ class Searcher:
         r.raise_for_status()
         return r.text
 
-    def _segments_from_info(self, info: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
-        """[{start, duration, text}] from the English captions (uploaded, else automatic) of a yt-dlp info dict; None = the video has none."""
+    @staticmethod
+    def caption_track(info: Dict[str, Any]) -> Optional[Dict[str, str]]:
+        """The English caption file to read: {ext, url} (uploaded subtitles before automatic captions; en, en-US, en-GB, en-orig; json3
+        before vtt), None when the video has none."""
         track = None
         for key in ("subtitles", "automatic_captions"):
             tracks = info.get(key) or {}
@@ -223,31 +232,102 @@ class Searcher:
         entry = next((e for e in track if e.get("ext") == "json3"), None) or next((e for e in track if e.get("ext") == "vtt"), None)
         if not entry or not entry.get("url"):
             return None
+        return {"ext": str(entry["ext"]), "url": str(entry["url"])}
+
+    def _segments_from_track(self, track: Optional[Dict[str, str]]) -> Optional[List[Dict[str, Any]]]:
+        if not track:
+            return None
         from providers.youtube.ytdlp_backend import parse_json3, parse_vtt
 
-        text = self._caption_text(entry["url"], entry["ext"])
-        segs = parse_json3(json.loads(text)) if entry["ext"] == "json3" else parse_vtt(text)
+        text = self._caption_text(track["url"], track["ext"])
+        segs = parse_json3(json.loads(text)) if track["ext"] == "json3" else parse_vtt(text)
         return [{"start": float(s.start), "duration": float(s.duration), "text": s.text} for s in segs]
 
+    def _segments_from_info(self, info: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+        """[{start, duration, text}] from the English captions (uploaded, else automatic) of a yt-dlp info dict; None = the video has none."""
+        return self._segments_from_track(self.caption_track(info))
+
+    @staticmethod
+    def _http_status(exc: BaseException) -> Optional[int]:
+        """429 / 403 / 404 from a requests HTTPError or a yt-dlp message; None for anything else."""
+        code = getattr(getattr(exc, "response", None), "status_code", None)
+        if code in (429, 403, 404):
+            return int(code)
+        msg = str(exc)
+        if re.search(r"\b429\b|too many requests", msg, re.I):
+            return 429
+        m = re.search(r"\b(403|404)\b", msg)
+        return int(m.group(1)) if m else None
+
+    def _cached_details(self, video_id: str) -> Optional[Dict[str, Any]]:
+        d = self._details_mem.get(video_id)
+        if d is None:
+            d = self._read(self._cache("v", video_id))
+        return d if isinstance(d, dict) else None
+
     def transcript(self, video_id: str) -> Optional[List[Dict[str, Any]]]:
-        """The video's timed English transcript, cached per video ([] cached = the video has none). One metadata call + one caption file."""
+        """The video's timed English transcript, cached per video ([] / null cached = the video has none). Uses the caption track details()
+        already found (no second metadata call). HTTP 429 is retried after self.backoff, then remembered for RATE_LIMIT_COOLDOWN_S;
+        a failure is never written to the disk cache, so a later run asks again."""
         p = self._cache("t", video_id)
         hit = self._read(p)
         if hit is not None:
-            return hit.get("segments")
-        self._wait()
-        self.calls["transcript"] += 1
-        segs: Optional[List[Dict[str, Any]]] = None
-        try:
-            segs = self._segments_from_info(self._fetch_info(video_id) or {})
-        except Exception as exc:  # noqa: BLE001 - no transcript: the moment cannot be checked, the caller decides
-            self.log(f"transcript failed for {video_id}: {str(exc)[:160]}")
+            segs = hit.get("segments")
+            self.transcript_status[video_id] = "ok" if segs else "none"
+            return segs
+        if self.transcript_status.get(video_id) == "rate_limited" and \
+                time.time() - self._rate_limited_at.get(video_id, 0.0) < RATE_LIMIT_COOLDOWN_S:
             return None
+        self.calls["transcript"] += 1
+        d = self._cached_details(video_id)
+        from_details = bool(d and d.get("ok") and "captions" in d)
+        track: Optional[Dict[str, str]] = d.get("captions") if from_details else None
+        have_track = from_details
+        refetched = False
+        delays = list(self.backoff or ())
+        segs: Optional[List[Dict[str, Any]]] = None
+        while True:
+            self._wait()
+            try:
+                if not have_track:
+                    track = self.caption_track(self._fetch_info(video_id) or {})
+                    have_track = True
+                segs = self._segments_from_track(track)
+                break
+            except Exception as exc:  # noqa: BLE001 - no transcript: the moment cannot be checked, the caller decides
+                code = self._http_status(exc)
+                if code == 429 and delays:
+                    wait = delays.pop(0)
+                    self.log(f"transcript for {video_id}: YouTube said 429 Too Many Requests, trying again in {wait:.0f} s")
+                    if wait > 0:
+                        time.sleep(wait)
+                    continue
+                if code == 429:
+                    self.calls["transcript_rate_limited"] += 1
+                    self.transcript_status[video_id] = "rate_limited"
+                    self._rate_limited_at[video_id] = time.time()
+                    self.log(f"transcript rate-limited for {video_id}: not checked, asked again after {RATE_LIMIT_COOLDOWN_S:.0f} s")
+                    return None
+                if code in (403, 404) and from_details and not refetched:
+                    refetched, have_track = True, False   # the cached caption URL expired: ask for fresh metadata once
+                    continue
+                self.transcript_status[video_id] = "error"
+                self.log(f"transcript failed for {video_id}: {str(exc)[:160]}")
+                return None
+        self.transcript_status[video_id] = "ok" if segs else "none"
+        self._rate_limited_at.pop(video_id, None)
         try:
             p.write_text(json.dumps({"segments": segs}), encoding="utf-8")
         except OSError:
             pass
         return segs
+
+    def transcript_info(self, video_id: str) -> Tuple[Optional[List[Dict[str, Any]]], str, List[Dict[str, Any]]]:
+        """(segments, status, chapters) for director_moment.check(..., status=, chapters=) in one call."""
+        segs = self.transcript(video_id)
+        status = self.transcript_status.get(video_id) or ("ok" if segs else "none")
+        d = self._cached_details(video_id) or {}
+        return segs, status, list(d.get("chapters") or [])
 
     # ---- backends (lazy: importing yt-dlp only when a real search runs) ----
     def backend(self) -> Any:
@@ -335,17 +415,30 @@ class Searcher:
             d = {"upload_date": info.get("upload_date") or "", "description": info.get("description") or "", "tags": info.get("tags") or [],
                  "duration": info.get("duration"), "channel": info.get("channel") or c.channel, "verified": bool(info.get("channel_is_verified")),
                  "is_live": bool(info.get("is_live") or info.get("was_live")), "storyboard": storyboard_of(info), "ok": bool(info),
-                 "error": err[:300], "sign_in": bool(re.search(r"sign in|age|inappropriate|confirm your age|login", err, re.I)) if err else False}
+                 "error": err[:300], "sign_in": bool(re.search(r"sign in|age|inappropriate|confirm your age|login", err, re.I)) if err else False,
+                 "captions": self.caption_track(info), "chapters": chapters_of(info)}
             try:
                 p.write_text(json.dumps(d), encoding="utf-8")
             except OSError:
                 pass
         c.details = d
+        self._details_mem[c.video_id] = d
         if d.get("description") and len(d["description"]) > len(c.description or ""):
             c.description = d["description"]
         if d.get("duration") and not c.duration:
             c.duration = float(d["duration"])
         return d
+
+
+def chapters_of(info: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """[{start, title}] from yt-dlp's chapter list ([] when the uploader set none)."""
+    out: List[Dict[str, Any]] = []
+    for ch in info.get("chapters") or []:
+        try:
+            out.append({"start": float(ch.get("start_time") or 0.0), "title": str(ch.get("title") or "")})
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return out
 
 
 def storyboard_of(info: Dict[str, Any]) -> Dict[str, Any]:

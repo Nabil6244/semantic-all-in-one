@@ -185,16 +185,99 @@ def _names_context(c: Any, r: Reading) -> bool:
     return any(_has(hay, k) for k in (r.context_places or []) + [p.name for p in r.places])
 
 
+# Stage B.3 (live slice 2026-11-12: an Abu Dhabi business panel for the talks, Putin meeting Kushner for the Ryazan refinery, St Petersburg
+# protest arrests for its fuel supply): a place name alone never makes a clip footage of the line's event. Place, event and subject are
+# judged separately; exact = the line's event AND its place or subject in the title, filmed no earlier than the event.
+EVENT_CLASSES = {
+    "talks": r"\b(talks?|negotiat\w*|peace|summit|trilateral|three-way|delegations?|diplomac\w*|diplomats?|ceasefire|envoys?|mediat\w*|"
+             r"deal|meets?|meeting|met with)\b",
+    "prisoners": r"\b(prisoners?|pows?|captiv\w*|swaps?|exchang\w*|released|freed)\b",
+    "strike": r"\b(strikes?|struck|attack\w*|drones?|missiles?|explosions?|blasts?|shell(?:ing|ed)|bomb\w*|debris|hit|hits|shot down)\b",
+    "fire": r"\b(fires?|blaze|burn\w*|smoke|flames?|ablaze)\b",
+    "oil": r"\b(refiner\w*|oil|fuel|petrol|gasoline|diesel|jet fuel|depots?|pipelines?|tankers?|pumping station)\b",
+    "combat": r"\b(front ?lines?|soldiers|troops|trench\w*|counter-?offensive|offensive|invasion|fighting|battles?|assault\w*)\b",
+    "protest": r"\b(protest\w*|protesters|demonstrat\w*|rall(?:y|ies)|arrest\w*|detain\w*|riot\w*)\b",
+    "economy": r"\b(growth|investment|investors?|economy|business|forum|partnerships?|startups?|real estate|tourism)\b",
+}
+_EVENT_RX = {k: re.compile(v, re.I) for k, v in EVENT_CLASSES.items()}
+EVENT_FAMILY = {"talks": "diplomacy", "prisoners": "diplomacy", "strike": "attack", "fire": "attack", "oil": "attack", "combat": "attack",
+                "protest": "protest", "economy": "economy"}
+
+
+_EXCLUSIVE = {"protest", "economy"}     # a title about one of these is about that, whatever else it mentions ('protest against the invasion')
+
+
+def events_in(text: str) -> set:
+    """The event classes a text names ('talks', 'strike', 'oil', ...)."""
+    t = fold(text or "")
+    return {k for k, rx in _EVENT_RX.items() if rx.search(t)}
+
+
+def _families(ev: set) -> set:
+    return {EVENT_FAMILY[e] for e in ev}
+
+
+def _title_hay(c: Any) -> str:
+    d = getattr(c, "details", None) or {}
+    return fold(f"{c.title} {' '.join(d.get('tags') or [])}").lower()
+
+
+def line_places(r: Reading) -> List[str]:
+    """The places the line is about: specific places (not whole regions) it does not name only as a reference point ('south-east of Moscow')."""
+    from .narration_read import reference_only
+
+    return [p.name for p in r.places if (p.kind != "region" or p.site_type) and not reference_only(r.text, p.name)]
+
+
+def stale(c: Any, r: Reading) -> bool:
+    """Uploaded before the event the line narrates (its own stated date, else its section's latest stated date): an earlier event."""
+    up = _upload(c)
+    anchor = getattr(r, "date", "") if getattr(r, "date_source", "") == "stated" else ""
+    anchor = anchor or getattr(r, "section_date", "")
+    if not up or not anchor:
+        return False
+    from .narration_read import parse_date
+
+    d = parse_date(anchor if re.search(r"\b(19|20)\d\d\b", anchor) else "")
+    if not d:
+        return False
+    try:
+        start = _dt.date(d[0], d[1] or 1, d[2] if len(d) > 2 and d[2] and d[3] == "day" else 1)
+    except (ValueError, TypeError, IndexError):
+        return False
+    return up < start - _dt.timedelta(days=2)
+
+
+def dimensions(c: Any, r: Reading) -> Dict[str, Any]:
+    """Place, event and subject judged separately on the clip's title (strong) and description (weak)."""
+    hay_t, hay = _title_hay(c), _hay(c)
+    places = line_places(r)
+    subj = [k for k in r.key_terms if k[:1].isupper() and k not in places and k not in (r.context_places or [])
+            and not any(fold(k).lower() == fold(p).lower() for p in [x.name for x in r.places])]
+    line_ev = events_in(r.text)
+    t_ev, d_ev = events_in(c.title or ""), events_in(hay)
+    return {"place_title": any(_has(hay_t, p) for p in places), "place": any(_has(hay, p) for p in places),
+            "context": _names_context(c, r),
+            "subject_title": any(_has(hay_t, k) for k in subj), "subject": any(_has(hay, k) for k in subj),
+            "line_events": sorted(line_ev), "title_events": sorted(t_ev),
+            "event_title": bool(line_ev & t_ev), "event_family": bool(_families(line_ev) & _families(d_ev)),
+            "event_conflict": bool(line_ev and t_ev and (not (_families(line_ev) & _families(t_ev))
+                                                         or (_families(t_ev) & _EXCLUSIVE) - _families(line_ev))),
+            "stale": stale(c, r)}
+
+
 def match_level(c: Any, r: Reading) -> str:
-    """exact: names what THIS sentence names (its place, person, unit, system) and nothing makes it earlier than the event;
-    contextual: footage of the story's place / battle around that time; atmospheric: anything else (stock, illustrative)."""
-    hay = _hay(c)
-    own = [k for k in r.key_terms if k not in (r.context_places or [])]
+    """exact: the title names the line's event AND its place or subject, and the clip was not uploaded before the event;
+    contextual: the line's place / subject / story place with an event of the same family (or a line that names no event), or an exact
+    match filmed earlier; atmospheric (= illustrative): anything else. A place name alone is never exact (Stage B.3)."""
     if getattr(c, "level_hint", "") == "contextual":
         return "contextual"
-    if own and any(_has(hay, k) for k in own):
+    dm = dimensions(c, r)
+    anchored = dm["place_title"] or dm["subject_title"]
+    if dm["line_events"] and dm["event_title"] and anchored and not dm["stale"]:
         return "exact"
-    if _names_context(c, r):
+    where = dm["place"] or dm["subject"] or dm["context"]
+    if where and (dm["event_family"] or not dm["line_events"]):
         return "contextual"
     return "atmospheric"
 
@@ -287,6 +370,13 @@ def reject(c: Any, r: Reading, film_date: Optional[_dt.date] = None, story: Opti
     if re.search(r"\brepair", low) and re.search(r"\b(explosion|explodes|blast|flies off|erupts|hit|strike|struck|attack)\b", title, re.I) \
             and not re.search(r"repair", title, re.I):
         why.append("subject: an attack, the narration is about repairs")
+    # event (Stage B.3): the title is about another kind of event (a business forum, a protest, a meeting) than the line, or an event
+    # line's clip names its place / subject but nothing of its event
+    dm = dimensions(c, r)
+    if dm["event_conflict"]:
+        why.append(f"event: the title is about {'/'.join(dm['title_events'])}, the line about {'/'.join(dm['line_events'])}")
+    elif dm["line_events"] and ({"EVENT", "MOVEMENT"} & set(r.types)) and not dm["event_family"] and (dm["place"] or dm["subject"]):
+        why.append(f"event: names the place or subject but nothing of the {'/'.join(dm['line_events'])}")
     # time (event date = what the sentence says; upload date = when the clip appeared; film date = when this documentary is made)
     up = _upload(c)
     parts_ = [p_ for p_ in (getattr(r, "prompt_parts", None) or []) if p_.get("names") or p_.get("words")]

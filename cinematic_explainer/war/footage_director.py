@@ -147,6 +147,51 @@ def widen_to_section(readings: Dict[str, Any]) -> int:
     return n
 
 
+LABEL_FRAMES = 2          # Stage B.3: text lines on at least this many frames ...
+LABEL_SHARE = 0.2         # ... and this share of them: the clip carries an on-screen caption (a place label, a source credit) we cannot read
+
+
+def burnt_label(frames: Sequence[Any]) -> bool:
+    """The clip shows short lines of text on several frames (a place caption like 'DONETSK REGION, UKRAINE', a source credit). Without OCR
+    the place it names cannot be read, so where the picture was filmed is not established (render 050 scene 89)."""
+    if not frames:
+        return False
+    n = sum(1 for f in frames if F.text_lines(f))
+    return n >= LABEL_FRAMES and n >= LABEL_SHARE * len(frames)
+
+
+def _location_verdict(label: bool, c: Any, reading: Any) -> Dict[str, Any]:
+    """{'unverified': bool, 'refuse': reason}. A label we cannot read on footage uploaded before the line's event, for a line about an event
+    at a named place, is refused: it may show another place (a compilation of an earlier strike). Otherwise the clip is only unverified."""
+    if not label:
+        return {}
+    place_bound = bool(R.line_places(reading)) and bool({"EVENT", "MOVEMENT"} & set(getattr(reading, "types", []) or []))
+    if place_bound and R.stale(c, reading):
+        return {"unverified": True, "refuse": "location: an on-screen label the engine cannot read, on footage uploaded before this event: "
+                                              "it may show another place"}
+    return {"unverified": True}
+
+
+def location_check(path: str, c: Any, reading: Any) -> Dict[str, Any]:
+    try:
+        frames = C.frames_of(str(path), w=C.TEXT_W, h=C.TEXT_H)
+    except Exception:  # noqa: BLE001 - unreadable here: the capture's own checks already passed
+        return {}
+    return _location_verdict(burnt_label(frames), c, reading)
+
+
+def moment_check(searcher: Any, c: Any, reading: Any) -> Any:
+    """director_moment.check with the transcript's status and the video's chapters (a rate-limited transcript is 'not checked', never
+    'irrelevant'; chapters can place the moment without it)."""
+    if not (c.duration and c.duration > M.LONG_S) or searcher is None:
+        return M.check(c.duration, None, reading)
+    info = getattr(searcher, "transcript_info", None)
+    if info is None:
+        return M.check(c.duration, searcher.transcript(c.video_id), reading)
+    segs, status, chapters = info(c.video_id)
+    return M.check(c.duration, segs, reading, status=status, chapters=chapters)
+
+
 def revalidate(rec: Dict[str, Any], reading: Any, searcher: Any, film_date: Optional[_dt.date] = None, story: Any = None,
                frames_of: Callable[..., Any] = C.frames_of) -> List[str]:
     """Why a clip an earlier run chose may no longer be used ([] = it passes today's checks). The same three checks a new pick gets:
@@ -162,6 +207,7 @@ def revalidate(rec: Dict[str, Any], reading: Any, searcher: Any, film_date: Opti
     txt = C.text_on_frames(frames)
     if txt:
         why.append(txt)
+    label = burnt_label(frames)
     kinds: Dict[str, int] = {}
     prev = None
     for f in frames:
@@ -179,9 +225,13 @@ def revalidate(rec: Dict[str, Any], reading: Any, searcher: Any, film_date: Opti
         except Exception:  # noqa: BLE001 - judged on what the record holds
             pass
     why += [f"relevance: {x}" for x in R.reject(c, reading, film_date, story)]
+    if rec.get("upload_date") and not (getattr(c, "details", None) or {}).get("upload_date"):
+        c.details = dict(getattr(c, "details", None) or {}, upload_date=str(rec.get("upload_date")))
+    loc = _location_verdict(label, c, reading)
+    if loc.get("refuse"):
+        why.append(loc["refuse"])
     if c.duration and c.duration > M.LONG_S:
-        segs = searcher.transcript(c.video_id) if searcher is not None else None
-        ok, hint, w = M.check(c.duration, segs, reading)
+        ok, hint, w = moment_check(searcher, c, reading)
         if not ok:
             why.append(w)
         elif not M.inside(float(rec.get("clip_start") or 0.0), hint):
@@ -234,6 +284,34 @@ def _prompt_part(part: str, skip: set) -> Dict[str, List[str]]:
     return {"names": names, "words": words}
 
 
+def prompt_conflict(rd: Any, prompt: str) -> str:
+    """Why the CSV prompt is about something other than the line ('' = it agrees). The line names its own place / site (not only as a
+    reference point) and the prompt names none of them, or the prompt's events and the line's belong to different families (frontline
+    soldiers for 'Diplomacy is back on the table'). A line that names no subject of its own ('the flagship ... sank') takes the prompt's."""
+    from . import director_rules as R
+
+    hay = N.fold(prompt or "").lower()
+    le, pe = R.events_in(rd.text), R.events_in(prompt)
+    if le and pe and not (R._families(le) & R._families(pe)):
+        return f"the prompt is about {'/'.join(sorted(pe))}, the line about {'/'.join(sorted(le))}"
+    if le and pe:
+        return ""                                  # same kind of event ('talks' for talks between Washington, Moscow and Kyiv): it agrees
+    own = [p_ for p_ in R.line_places(rd) if p_.split()[-1].lower() not in _AREA_TAILS]   # a sea or region is no subject of its own
+    if own and not any(R._has(hay, p_) for p_ in own) and not any(R._has(hay, k) for k in (rd.equipment or []) + (rd.facilities or [])
+                                                                    if k[:1].isupper()):
+        return f"the prompt names none of {', '.join(own[:3])}"
+    return ""
+
+
+def queries_for(rd: Any, prompt: str, topic: Any = None) -> List[str]:
+    """Search queries: the narration's own first when the prompt conflicts with it, the prompt then only as the last hint."""
+    if getattr(rd, "prompt_conflict", ""):
+        qs = S.build_queries(rd, "", topic=topic)[:4]
+        hint = next((x.strip() for x in str(prompt or "").split("||") if x.strip()), "")
+        return qs + ([hint] if hint and hint.lower() not in [q.lower() for q in qs] else [])
+    return S.build_queries(rd, prompt, topic=topic)
+
+
 def _prompt_subjects(readings: Dict[str, Any], scenes: Sequence[Dict[str, Any]], rows: Sequence[Any]) -> None:
     """The names in a row's CSV prompt (its first search) are what the writer wants shown: they lead the reading's key terms. Moskva
     2026-11-09: 'On April 14, 2022, the flagship of Russia's Black Sea Fleet sank' named no ship, so Al Jazeera's 'sinking of Russia's
@@ -252,6 +330,13 @@ def _prompt_subjects(readings: Dict[str, Any], scenes: Sequence[Dict[str, Any]],
         if rd is None or not prompt.strip():
             continue
         rd.prompt_parts = [_prompt_part(x, skip) for x in full.split("||") if x.strip()]
+        why_c = prompt_conflict(rd, full)
+        if why_c:
+            # Stage B.3: the narration decides the subject. A prompt about something else (render 050 'Putin meeting Kremlin' on 'the Ryazan
+            # refinery') is only a late search hint: it neither leads the key terms nor gates the clips.
+            rd.prompt_conflict = why_c
+            rd.prompt_parts = []
+            continue
         names: List[str] = []
         for run_ in _re.findall(r"\b[A-Z][\w-]+(?:\s+[A-Z][\w-]+)*", prompt):     # 'Snake Island' stays one name; a lone 'Island' is no subject
             words = [w for w in run_.split() if w.lower() not in skip and not _re.match(r"(?:Russian|Ukrainian)s?$", w)]
@@ -340,7 +425,7 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
         rec_ = man.get(no_) or {}
         if not rd.footage_wanted or rec_.get("user_override") or rec_.get("source") == "manual":
             return
-        qs = S.build_queries(rd, getattr(r, "prompt", "") or "", topic=topic)
+        qs = queries_for(rd, getattr(r, "prompt", "") or "", topic=topic)
         pl = searcher.pool(qs, cancel=cancel)
         ok_, _bad = R.rank([c for c in pl if not blocked_for(blocklist, c.video_id, rd.text)], rd, film_date, story)
         for _s, c in ok_[:SHORTLIST + 2]:
@@ -404,7 +489,7 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
             decisions[no] = {"decision": "graphics", "graphic": entry["graphic_intent"], "why": why}
             report_scenes.append(entry)
             continue
-        queries, pool = pre_scene.get(no) or (S.build_queries(reading, getattr(r, "prompt", "") or "", topic=topic), None)
+        queries, pool = pre_scene.get(no) or (queries_for(reading, getattr(r, "prompt", "") or "", topic=topic), None)
         entry["queries"] = queries
         if pool is None:
             pool = searcher.pool(queries, cancel=cancel)
@@ -437,8 +522,7 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
             level = R.match_level(c, reading)
             cand["level"] = level
             # moment relevance: a long programme is cut only near the passage that talks about the line's subject (director_moment)
-            segs = searcher.transcript(c.video_id) if c.duration and c.duration > M.LONG_S else None
-            ok_m, hint, why_m = M.check(c.duration, segs, reading)
+            ok_m, hint, why_m = moment_check(searcher, c, reading)
             if not ok_m:
                 cand["why"] = [why_m]
                 entry["candidates"].append(cand)
@@ -494,9 +578,19 @@ def run(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Path,
                 _remember_failure(state_dir, c.video_id, win["start"], got["reasons"])
                 blocklist = load_blocklist(state_dir)
                 continue
+            loc = location_check(got["path"], c, reading)
+            if loc.get("refuse"):
+                cand["why"] = [loc["refuse"]]
+                log(f"scene {no}: {c.title[:50]} not used: {loc['refuse']}")
+                continue
+            if loc.get("unverified") and level == "exact":
+                level = "contextual"           # a location label the engine cannot read: never claimed as exact footage of the event
+                cand["level"] = level
+            cand["location"] = "unverified: on-screen label not read" if loc.get("unverified") else "from title"
             picked = {"candidate": c, "window": win, "path": got["path"], "verify": got.get("verify"), "authenticity": cls,
                       "authenticity_reasons": why_cls, "score": score, "tier": cand["tier"], "queries": queries, "level": level,
-                      "frame_flags": sorted({fl for t in tiles if win["start"] <= t.t < win["end"] for fl in t.flags})}
+                      "frame_flags": sorted({fl for t in tiles if win["start"] <= t.t < win["end"] for fl in t.flags}
+                                            | ({"location_label_unread"} if loc.get("unverified") else set()))}
             break
         if picked:
             rec = C.write_record(man, no, getattr(r, "script_segment", ""), getattr(r, "prompt", ""), picked)

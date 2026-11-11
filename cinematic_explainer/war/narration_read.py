@@ -126,6 +126,8 @@ class Reading:
     names: List[str] = field(default_factory=list)            # people / organisations no catalogue knows (Prigozhin, Wagner Group, Congress)
     context_places: List[str] = field(default_factory=list)   # the story's place carried from earlier sentences ("the city")
     date_source: str = ""                  # stated (the sentence names it) | carried (an earlier sentence did) | relative ("a month later")
+    prompt_conflict: str = ""              # Stage B.3: why the CSV prompt is about something else (then it is only a late search hint)
+    section_date: str = ""                 # Stage B.3: the line's own stated date, else the latest stated one in its section (event freshness)
     section_terms: List[str] = field(default_factory=list)   # what this part of the film is about: the line's own subject, else the latest
     subject_from: str = ""                 # 'line' | 'section' | '' (read_scenes; render 050: lines without a place got no footage at all)
 
@@ -556,12 +558,16 @@ def read_scenes(scenes: Sequence[Dict[str, Any]]) -> Dict[str, Reading]:
     prev = None
     last_date = ""
     last_places: List[str] = []
+    sec_date = ""                   # latest STATED date in this part (Stage B.3)
+    max_year = 0                    # the latest year the narration has reached
+    last_month_date = ""            # latest stated date with a month (years of bare asides like 'in 2021' are not carried)
     anchor: List[str] = []          # the part's topic: its heading's subject, else its first concrete line
     recent: List[Tuple[int, List[str]]] = []   # (line index, subject) of concrete lines in this part
     for i_sc, sc in enumerate(scenes):
         r = read(str(sc.get("text") or ""), prev)
         if section_break(r.text):
             anchor, recent = [], []                # "Part three. The war on Ukraine's cities.": a new subject starts here
+            sec_date = ""
         own = own_subject(r)
         if own:
             anchor = anchor or own
@@ -580,8 +586,10 @@ def read_scenes(scenes: Sequence[Dict[str, Any]]) -> Dict[str, Reading]:
             if shifted:
                 r.date = shifted                   # "The next day" after December 20, 2022 -> December 21, 2022
                 r.date_source = "relative"         # an estimate: never used to reject footage
-        if r.date_source == "stated" and not re.search(r"\b(19|20)\d\d\b", r.date) and last_date:
-            ref = parse_date(last_date)
+        if r.date_source == "stated" and not re.search(r"\b(19|20)\d\d\b", r.date) and (last_month_date or last_date):
+            ref = parse_date(last_month_date or last_date)
+            if ref and max_year and max_year > ref[0]:
+                ref = (max_year,) + tuple(ref[1:])     # Stage B.3: the story's latest year, not an aside ('demands made in 2021')
             mine = parse_date(r.date + " 2000")
             if ref and mine:
                 year = ref[0] - 1 if (re.match(r"\s*since\b", r.date, re.I) and mine[1] > ref[1]) else ref[0]
@@ -597,6 +605,12 @@ def read_scenes(scenes: Sequence[Dict[str, Any]]) -> Dict[str, Reading]:
             r.date_source = "carried"
         if r.date and re.search(r"\b(19|20)\d\d\b", r.date):
             last_date = r.date
+            if r.date_source == "stated" and re.search(r"[a-z]", r.date, re.I) and any(m in r.date.lower() for m in MONTHS):
+                last_month_date = r.date
+            max_year = max([max_year] + [int(y) for y in re.findall(r"\b((?:19|20)\d\d)\b", r.date)])
+        if r.date and r.date_source == "stated":
+            sec_date = r.date
+        r.section_date = sec_date
         out[str(sc.get("scene_no"))] = r
         prev = r if r.actor else (prev or r)
     return out

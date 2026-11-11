@@ -980,9 +980,12 @@ def _motion_options(sent: Any, h: str) -> List[Tuple[str, Dict[str, Any]]]:
     return out
 
 
+SIDE_CARDS = {"institution_card", "figure_card", "equipment_card", "stat_number"}   # panels drawn beside a clip (cards.py)
+
+
 def _side_card(kind: str) -> bool:
-    """A card that sits beside a clip (not full frame, not a corner badge): on the bare plate it leaves most of the screen empty."""
-    return kind not in FULL_KINDS and kind not in CORNER_KINDS and kind not in ("kit_field", "kit_badge", "shot_headline", "fx_flash")
+    """A panel drawn to sit beside a clip: on the bare plate it leaves most of the screen empty. Labels (chapter, kicker, tags) are not."""
+    return kind in SIDE_CARDS
 
 
 def _give_way(plan: Any, full: Layer) -> None:
@@ -1614,6 +1617,9 @@ def _strike_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
             if any(ly.start < b - 0.3 and ly.end > a + 0.3 and ly.kind in FULL_KINDS and not _light(ly) for ly in plan.layers):
                 counts["strike_map_skip_busy"] = counts.get("strike_map_skip_busy", 0) + 1
                 continue                              # a rich panel, quote, date or moving map already holds these seconds
+            if any(ly.start < b - 0.3 and ly.end > a + 0.3 and (ly.params or {}).get("csv_graphic") for ly in plan.layers):
+                counts["strike_map_skip_csv"] = counts.get("strike_map_skip_csv", 0) + 1
+                continue                              # the CSV's own graphic for these seconds (a flyover) is never cleared for a strike map
             keep = []
             for ly in plan.layers:
                 if _light(ly) and ly.start < b and ly.end > a:
@@ -1636,30 +1642,42 @@ def _strike_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
 
 
 # The owner (2026-11-10): "we also had map animation and many types of maps pointing areas". In render 048, 43 of 66 maps were the same
-# Russia-red / Ukraine-blue country frame with nothing pinned. A map with no place of its own now points at the place the story named
-# last (within BACK_REF_S): the pin lands, a ring pulses on it and the camera pushes in from the countries to it. Never a place the
-# narration has not named.
+# Russia-red / Ukraine-blue country frame with nothing pinned. A map with no place of its own points at a place the narration names: the pin
+# lands, a ring pulses on it and the camera pushes in from the countries to it. Stage B.2 (render 050: St Petersburg on the Abu Dhabi talks,
+# Washington on oil-export income): the place comes only from the map's own line(s) or the line just before, in the same section. Nothing
+# older and nothing from an earlier part; no such place -> the map stays as it was.
 def _point_bare_maps(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, counts: Dict[str, int]) -> None:
-    named: List[Tuple[float, str]] = []
-    for r in rows:
+    from .narration_read import section_break
+
+    spoken = [r for r in rows if str(r.get("text") or "").strip()]
+    sec: List[int] = []
+    named: List[List[Tuple[float, str]]] = []
+    k = 0
+    for r in spoken:
         text = str(r.get("text") or "")
-        if not text.strip():
-            continue
+        if section_break(text):
+            k += 1
+        sec.append(k)
         A = S.analyze_scene(text, cat, r.get("words"), r["_start"], r["_end"])
-        for sent in A.sentences:
-            for e in _places(sent):
-                named.append((A.time_at(sent.span[0] + max(0, sent.text.find(e.name))), e.name))
-    if not named:
+        named.append([(A.time_at(sent.span[0] + max(0, sent.text.find(e.name))), e.name) for sent in A.sentences for e in _places(sent)])
+    if not any(named):
         return
-    named.sort()
     for ly in plan.layers:
         p = ly.params or {}
         if ly.kind != "tac_map" or p.get("places") or p.get("routes") or p.get("control") or p.get("frontline"):
             continue
-        before = [nm for t, nm in named if ly.start - BACK_REF_S <= t <= ly.end]
-        if not before:
+        own = [i for i, r in enumerate(spoken) if r["_start"] < ly.end - 0.05 and r["_end"] > ly.start + 0.05]
+        if not own:
             continue
-        nm = before[-1]
+        first = own[0]
+        allowed = [i for i in own if sec[i] == sec[first]]
+        if first > 0 and sec[first - 1] == sec[first]:
+            allowed.insert(0, first - 1)               # the line just before, same section
+        before = sorted((t, nm) for i in allowed for t, nm in named[i] if t <= ly.end)
+        if not before:
+            counts["maps_pointed_skip_no_place"] = counts.get("maps_pointed_skip_no_place", 0) + 1
+            continue
+        nm = before[-1][1]
         q = dict(p)
         q["theme"] = "tactical"
         q["places"] = [{"name": nm, "start": 0.5}]

@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parent
 FIXTURE = ROOT / "test_fixtures" / "war_plan_guard.json"
 SCENES = ROOT / "test_fixtures" / "war_guard_scenes.csv"
 ALLOWED: dict = {          # {"variant:kind@start": "why it changed"}
+    "no_footage:tac_map@0.0": "2026-11-11 Stage B.2 owner: one 94 s map split where the geography changes (Kyiv/north 0-42, south/east "
+                              "42-83.2, Zaporizhzhia NPP 83.2-93.92); same total time, pins reset per map",
     "csv:kit_title@0.0": "2026-11-08 owner: too much text on the dark plate; CSV title / date / kinetic cards hold at most 4.5 s",
     "csv:tac_map@6.8": "2026-11-08 the map now starts when the shorter title card ends (same end time)",
     "all_footage:kit_tag@83.2": "2026-11-09 owner: pictures follow the narration; 'A report by the Institute for the Study of War found' is now "

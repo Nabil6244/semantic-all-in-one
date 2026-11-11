@@ -12,8 +12,9 @@ build(plan, rows, cat, log_by_no, counts, notes)   called by direction.apply (co
   - each sentence adds one card to the stack on the right (dark for a date, red for an attack or loss, blue for allies and defence, white for
     a figure), its words taken from the narration; the stack clears after three cards;
   - nothing on screen sits unchanged for more than MAX_STILL_S: a pulse on the place in view is added where the narration gives nothing new.
-  A run that names no place keeps the last map's countries and camera (the story's own map), and its cards. A video that names no place at
-  all is left exactly as before. The map is split around the planner's own full-frame cards (one map in pieces, never restarted).
+  A run that names no geography of its own gets no map (Stage B.2: no places carried from an earlier topic). Runs end at a section heading,
+  after about MAX_RUN_S, and where the geography changes (split_by_geography); each new map starts with no pins. A video that names no
+  place at all is left exactly as before. The map is split around the planner's own full-frame cards (one map in pieces, never restarted).
   The direction pass's short maps, tags and stickers inside the run are replaced by the long map; stamps, numbers and layouts are kept.
 """
 
@@ -228,13 +229,25 @@ def _country_names(sent: Any) -> List[str]:
     return [e.name for e in _countries(sent, as_place=True)]
 
 
+MAX_RUN_S = 90.0         # Stage B.2 (render 050: one map grew to 307 s and kept every earlier pin): a building map ends after about this long
+GEO_NEAR_KM = 400.0      # ... or earlier, when a line names only places this far from everything on the current map (a new geographical subject)
+
+
 def _runs(rows: Sequence[Dict[str, Any]], log_by_no: Dict[str, Any]) -> List[List[Dict[str, Any]]]:
+    """Runs of consecutive footage-free lines. A run never crosses a section heading ('Part two. The oil war.') and ends once it is about
+    MAX_RUN_S long, so a new map starts with no pins from the topic before (render 050: St Petersburg on the Abu Dhabi talks)."""
+    from .narration_read import section_break
+
     out: List[List[Dict[str, Any]]] = []
     cur: List[Dict[str, Any]] = []
     for r in rows:
         dec = log_by_no.get(str(r["_no"]))
-        if dec is not None and "no_footage" in dec.flags and str(r.get("text") or "").strip():
-            if cur and r["_start"] - cur[-1]["_end"] > 0.6:
+        text = str(r.get("text") or "")
+        if section_break(text) and cur:
+            out.append(cur)
+            cur = []
+        if dec is not None and "no_footage" in dec.flags and text.strip():
+            if cur and (r["_start"] - cur[-1]["_end"] > 0.6 or r["_end"] - cur[0]["_start"] > MAX_RUN_S):
                 out.append(cur)
                 cur = []
             cur.append(r)
@@ -242,6 +255,52 @@ def _runs(rows: Sequence[Dict[str, Any]], log_by_no: Dict[str, Any]) -> List[Lis
             if cur:
                 out.append(cur)
             cur = []
+    if cur:
+        out.append(cur)
+    return out
+
+
+def _km(a: Dict[str, Any], b: Dict[str, Any]) -> float:
+    import math
+
+    la1, lo1, la2, lo2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 6371.0 * 2 * math.asin(min(1.0, math.sqrt(h)))
+
+
+def _geo_of(beats: Sequence[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], set]:
+    """(resolved places, countries other than the war's two sides) the beats name."""
+    from . import maps_tactical as MT
+
+    pts, cos = [], set()
+    for bt in beats:
+        for nm in bt["places"]:
+            p, _why = MT.resolve_place(nm)
+            if p is not None:
+                pts.append(p)
+        cos |= {c.lower() for c in bt["countries"] if c.lower() not in ("russia", "ukraine")}
+    return pts, cos
+
+
+def split_by_geography(run: List[Dict[str, Any]], cat: Any) -> List[List[Dict[str, Any]]]:
+    """A run splits where a line names only geography unrelated to the map so far (no place within GEO_NEAR_KM; or, with no towns, no shared country):
+    the new subject gets its own map and the old pins go (never a 90 s map forced across two subjects)."""
+    out: List[List[Dict[str, Any]]] = []
+    cur: List[Dict[str, Any]] = []
+    pts: List[Dict[str, Any]] = []
+    cos: set = set()
+    for r in run:
+        rp, rc = _geo_of(_beats([r], cat))
+        if cur and ((rp and pts) or (rc and cos and not rp and not pts)):
+            # points against points (Kirishi -> Zaporizhzhia), or countries against countries when neither names a town; a town against a
+            # country ('Vilnius' then 'Poland and Lithuania') is never read as a change: nothing here knows which country a town is in
+            near = any(_km(a, b) <= GEO_NEAR_KM for a in rp for b in pts) if (rp and pts) else bool(rc & cos)
+            if not near:
+                out.append(cur)
+                cur, pts, cos = [], [], set()
+        cur.append(r)
+        pts += rp
+        cos |= rc
     if cur:
         out.append(cur)
     return out
@@ -265,8 +324,9 @@ def _beats(run: Sequence[Dict[str, Any]], cat: Any) -> List[Dict[str, Any]]:
     return beats
 
 
-def _plan_params(beats: List[Dict[str, Any]], t0: float, roles: Dict[str, str], context: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """tac_map params for one run (times relative to t0), or None when neither the run nor an earlier map gives any geography."""
+def _plan_params(beats: List[Dict[str, Any]], t0: float, roles: Dict[str, str]) -> Optional[Dict[str, Any]]:
+    """tac_map params for one run (times relative to t0), or None when the run names no geography of its own. (Stage B.2: an earlier map's
+    places are never carried onto a run that names none; render 050 put St Petersburg on the Abu Dhabi talks that way.)"""
     from . import maps_tactical as MT
 
     rel = lambda t: _fr(max(0.0, t - t0))                                   # noqa: E731
@@ -316,26 +376,21 @@ def _plan_params(beats: List[Dict[str, Any]], t0: float, roles: Dict[str, str], 
             focus.append(step)
             focus_t.append(rel(bt["a"]))
     if not places and not named_c and not routes:
-        if not context:
-            return None
-        fills = [dict(f, start=0.0) for f in context.get("fills", [])]
-        focus, focus_t = ([context["focus"][-1]], [0.0]) if context.get("focus") else ([], [])
-        places = [dict(p, start=0.3) for p in context.get("places", [])[-3:]]
-    else:
-        fills = []
-        iso_t: Dict[str, float] = {}
-        for c, a in named_c:
-            f = MT.G.find_country(c)
-            if f is not None:
-                iso_t.setdefault(f.iso, a)
-        for iso, role in roles.items():
-            name_t = iso_t.get(iso)
-            if iso in ("RUS", "UKR"):
-                fills.append({"iso3": iso, "role": role, "start": 0.0})     # the war's two sides stay in their colours on every map
-            elif name_t is not None:
-                fills.append({"iso3": iso, "role": role, "start": rel(name_t) if rel(name_t) > 0.4 else 0.0})
-        if focus_t:
-            focus_t[0] = 0.0
+        return None
+    fills = []
+    iso_t: Dict[str, float] = {}
+    for c, a in named_c:
+        f = MT.G.find_country(c)
+        if f is not None:
+            iso_t.setdefault(f.iso, a)
+    for iso, role in roles.items():
+        name_t = iso_t.get(iso)
+        if iso in ("RUS", "UKR"):
+            fills.append({"iso3": iso, "role": role, "start": 0.0})     # the war's two sides stay in their colours on every map
+        elif name_t is not None:
+            fills.append({"iso3": iso, "role": role, "start": rel(name_t) if rel(name_t) > 0.4 else 0.0})
+    if focus_t:
+        focus_t[0] = 0.0
     chips: List[Dict[str, Any]] = []
     for bt in beats:
         if bt["card"] and (not chips or rel(bt["a"]) - chips[-1]["start"] >= 1.6):
@@ -391,8 +446,7 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
           full_kinds: Sequence[str], broll: bool = False) -> None:
     """broll: the video has clips of its own to cut back to, so long maps are broken up (cap_pieces); without any, maps stay as long as needed."""
     roles: Dict[str, str] = {}
-    context: Optional[Dict[str, Any]] = None
-    runs = _runs(rows, log_by_no)
+    runs = [part for run in _runs(rows, log_by_no) for part in split_by_geography(run, cat)]
     every = " ".join(str(r.get("text") or "") for r in rows)
     from . import maps_tactical as MT
 
@@ -414,7 +468,7 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
         if t1 - t0 < MIN_RUN_S:
             continue
         beats = _beats(run, cat)
-        params = _plan_params(beats, t0, roles, context)
+        params = _plan_params(beats, t0, roles)
         if params is None:
             continue
         total = _fr(t1 - t0)
@@ -454,5 +508,3 @@ def build(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[s
             counts["map_build_s"] = round(counts.get("map_build_s", 0) + sum(b - a for a, b in pieces), 2)
             counts["map_build_replaced"] = counts.get("map_build_replaced", 0) + len(merged)
             counts["map_build_pulses"] = counts.get("map_build_pulses", 0) + stills
-            if params.get("places") or params.get("fills"):
-                context = params
