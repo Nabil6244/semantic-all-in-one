@@ -7736,6 +7736,12 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _export_progress(self, fraction, message: str = "") -> None:
         """A style's progress, for the Export page (main thread; every style's progress_cb calls it)."""
+        try:      # a step that moves is activity: the stall watchdog and the "still working" line see it (Carl Jung's 40-min frame draw logged nothing and got false "No progress" reports, 2026-11-11)
+            step = f"{int(float(fraction) * 100)}%  {message}".strip() if message else ""
+            if step and step != getattr(self, "_last_progress_step", None):      # the same step repeated is not progress
+                self._last_progress_step = step; self._last_real_log_at = time.monotonic(); self._last_log_line = step
+        except Exception:
+            pass
         job = getattr(self, "_export_job", None)
         if job is not None and job.running:
             job.progress(fraction, message)

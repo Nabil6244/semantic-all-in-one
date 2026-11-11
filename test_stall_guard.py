@@ -160,6 +160,24 @@ class AppWiring(unittest.TestCase):
         spec = Path(__file__).with_name("VideoGenerator.spec").read_text(encoding="utf-8")
         self.assertIn('"stall_guard", "psutil"', spec)
 
+    def test_progress_bar_steps_count_as_activity(self):
+        """A long frame draw (Rep Theory / Carl Jung) reports only through progress_cb: each new step must reset the watchdog's
+        quiet clock and name the step; the same step repeated must not."""
+        import ast, time as _t
+        src = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        fn = next(n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef) and n.name == "_export_progress")
+        ns: dict = {"time": _t}; exec(compile(ast.Module(body=[fn], type_ignores=[]), "app.py", "exec"), ns)
+        app = NS(_export_job=None, _last_real_log_at=0.0, _last_log_line="[REP THEORY SOUND] loudness -13.8 -> -14.0 LUFS")
+        ns["_export_progress"](app, 0.42, "drawing scene 120/282 (illus)")
+        self.assertGreater(app._last_real_log_at, 0.0)
+        self.assertEqual(app._last_log_line, "42%  drawing scene 120/282 (illus)")
+        app._last_real_log_at = 0.0
+        ns["_export_progress"](app, 0.42, "drawing scene 120/282 (illus)")      # no change: not progress
+        self.assertEqual(app._last_real_log_at, 0.0)
+        ns["_export_progress"](app, None, "x")      # a bad fraction never breaks the progress bar
+        dog_quiet = _t.monotonic() - app._last_real_log_at
+        self.assertGreater(dog_quiet, 0)
+
     def test_install_for_app_reads_the_app_flags(self):
         app = NS(_RUN_FLAGS=("_running",), _running=False, _workspace=None, _append_log=lambda m: None, _last_log_at=0.0)
         dog = stall_guard.install_for_app(app)

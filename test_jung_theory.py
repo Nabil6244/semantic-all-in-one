@@ -40,5 +40,22 @@ class JungTheory(unittest.TestCase):
         self.assertIn("Carl Jung Theory", txt); self.assertTrue(txt.rstrip().endswith("My script."))
 
 
+class FilmFinishSpeed(unittest.TestCase):
+    def test_fast_grain_matches_the_float_version(self):
+        """A 23-min Jung video is ~34,000 frames: the finish must stay cheap and look the same as the original float maths (within one level)."""
+        import math
+        import numpy as np
+        from PIL import Image, ImageChops
+        from reptheory import film as FM
+        img = Image.fromarray(np.random.default_rng(1).integers(0, 256, (90, 160, 3), dtype=np.uint8))
+        for f in (0, 5, 11):
+            t = f / 24; flick = 1.0 + 0.010 * math.sin(t * 7.1) + 0.006 * math.sin(t * 17.3 + 1.3)
+            old = np.clip(np.asarray(img, dtype=np.float32) * flick + FM._grains(160, 90)[(f // 2) % FM.GRAIN_FRAMES], 0, 255).astype("uint8").astype(int)
+            up, down = FM._grain_images(160, 90)[(f // 2) % FM.GRAIN_FRAMES]
+            new = np.asarray(ImageChops.subtract(ImageChops.add(img.point([min(255, int(v * flick)) for v in range(256)] * 3), up), down)).astype(int)
+            self.assertLessEqual(int(np.abs(old - new).max()), 1)
+        self.assertEqual(FM.finish(img, 3).size, img.size)
+
+
 if __name__ == "__main__":
     unittest.main()

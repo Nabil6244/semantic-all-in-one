@@ -5,12 +5,13 @@ import math
 from typing import Dict
 
 import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 GRAIN_FRAMES, GRAIN_SIGMA = 6, 5.0
 DUST_N = 22
 _grain: Dict[tuple, list] = {}
 _ink: Dict[tuple, np.ndarray] = {}
+_grain_img: Dict[tuple, list] = {}
 
 
 def _grains(w: int, h: int) -> list:
@@ -20,12 +21,25 @@ def _grains(w: int, h: int) -> list:
     return _grain[(w, h)]
 
 
+def _grain_images(w: int, h: int) -> list:
+    """The same grain as _grains, as (lighter, darker) RGB images: a pixel is either lifted or darkened, never both, so the two
+    saturating adds in C give the float maths' result (within one level) at about a tenth of the cost (34 ms -> ~4 ms a 1080p frame)."""
+    if (w, h) not in _grain_img:
+        out = []
+        for g in _grains(w, h):
+            q = np.rint(g[..., 0]).astype(np.int16)
+            up = Image.fromarray(np.clip(q, 0, 255).astype("uint8"), "L"); down = Image.fromarray(np.clip(-q, 0, 255).astype("uint8"), "L")
+            out.append((Image.merge("RGB", (up, up, up)), Image.merge("RGB", (down, down, down))))
+        _grain_img[(w, h)] = out
+    return _grain_img[(w, h)]
+
+
 def finish(img: Image.Image, frame: int, fps: int = 24) -> Image.Image:
     """Grain (a new pattern every other frame), a lamp flicker of about 1.5 %, and dust motes drifting up and across, each fading in and out."""
     w, h = img.size; t = frame / fps
     flick = 1.0 + 0.010 * math.sin(t * 7.1) + 0.006 * math.sin(t * 17.3 + 1.3)
-    a = np.asarray(img.convert("RGB"), dtype=np.float32) * flick + _grains(w, h)[(frame // 2) % GRAIN_FRAMES]
-    out = Image.fromarray(np.clip(a, 0, 255).astype("uint8"), "RGB")
+    up, down = _grain_images(w, h)[(frame // 2) % GRAIN_FRAMES]      # a 23-min video is ~34,000 frames: the float version alone took 20 min of it
+    out = ImageChops.subtract(ImageChops.add(img.convert("RGB").point([min(255, int(v * flick)) for v in range(256)] * 3), up), down)
     d = ImageDraw.Draw(out, "RGBA"); s = w / 1920
     for i in range(DUST_N):      # each mote: its own slow path, size and life; positions are pure functions of time (identical on every render)
         sp = 0.012 + 0.010 * ((i * 37) % 11) / 11; ph = (i * 0.618) % 1.0

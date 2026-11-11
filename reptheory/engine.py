@@ -35,6 +35,27 @@ def end_card_config(cfg: Optional[dict], title: str, log: Callable[[str], None] 
     if not (ttl or url or img): log("end card: enabled but no title, URL or picture was given: no end card"); return None
     return {"title": ttl, "url": url, "image": img}
 
+def scene_at(starts: List[int], f: int, n: int) -> int:
+    """The scene on screen at frame f (starts: each scene's first frame, then the end)."""
+    import bisect
+    return max(0, min(n - 1, bisect.bisect_right(starts, f, 0, n) - 1))
+
+def draw_frame(f: int, scenes: List[dict], starts: List[int], n_narr: int, ctx, card: Optional[dict]) -> Image.Image:
+    """Frame f of the video, from the plan alone (no state from earlier frames), so any process can draw any stretch of frames (parallel_draw.py)."""
+    cur = scene_at(starts, f, len(scenes)); sc = scenes[cur]; t = f / T.FPS - sc["start"]; changed = bool(cur) and scenes[cur - 1]["section"] != sc["section"]
+    if f >= n_narr:      # the optional end card: the last scene's final state pushes out into it
+        tc = (f - n_narr) / T.FPS; cv = ctx.backdrop(); D.ghost_word(cv, ctx, sc.get("topic", ""), t); D.end_card(cv, ctx, card["title"], card["url"], card["image"], tc)
+        if tc < TRANSITION_S: cv = S.transition(S.frame(ctx, sc, t, tag=False), cv, tc / TRANSITION_S, ctx)
+        return cv
+    img = S.frame(ctx, sc, t, tag=False)
+    dur_tr = (JUNG_DISSOLVE_S if T.THEME == "jung" else TRANSITION_S) if changed else CUT_S      # a new chapter gets the focus pull; every other scene change is a clean cut (a 3-frame dissolve) so each shot is sharp from its start
+    if cur and t < dur_tr:      # the section tag is drawn once, over both
+        outgoing = S.frame(ctx, scenes[cur - 1], scenes[cur - 1]["end"] - scenes[cur - 1]["start"] + t, tag=False)
+        img = (FM.ink_dissolve(outgoing, img, t / dur_tr) if T.THEME == "jung" else S.transition(outgoing, img, t / dur_tr, ctx)) if changed else Image.blend(outgoing, img, t / dur_tr)
+    D.section_tag(img, ctx, sc["section"], t if (changed or not cur) else 9.0, scenes[cur - 1]["section"] if changed else None, 0.0)
+    if T.THEME == "jung": img = FM.finish(img, f, T.FPS)      # Carl Jung Theory: grain, dust in the light, lamp flicker (film.py)
+    return img
+
 def timeline(sentences: List[dict], total_s: float) -> List[dict]:
     ss = sorted((dict(s) for s in sentences), key=lambda s: float(s["start"]))
     for i, s in enumerate(ss):
@@ -166,33 +187,26 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
         for n in notes: log(f"[REP THEORY SOUND] {n}")
     if voiceover_path: cmd += ["-i", audio, "-map", "0:v:0", "-map", "1:a:0", "-c:a", "aac", "-b:a", "192k", "-af", "apad", "-t", f"{n_frames / T.FPS:.3f}"]
     cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p", "-movflags", "+faststart", "-f", "mp4", str(tmp)]
-    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE); err: List[bytes] = []
-    th = threading.Thread(target=lambda: err.append(proc.stderr.read()), daemon=True); th.start()
-    starts = [round(sc["start"] * T.FPS) for sc in scenes] + [n_frames]; cur = 0; counts = {}
+    starts = [round(sc["start"] * T.FPS) for sc in scenes] + [n_frames]; counts = {}
+    from . import parallel_draw as PD      # every CPU core draws its own stretch of frames (parallel_draw.py); False = one core is enough here / the pool could not start -> one process, as before
     try:
-        for f in range(n_frames):
-            if cancelled(): raise Cancelled("cancelled")
-            while cur + 1 < len(scenes) and f >= starts[cur + 1]: cur += 1
-            sc = scenes[cur]; t = f / T.FPS - sc["start"]; changed = bool(cur) and scenes[cur - 1]["section"] != sc["section"]
-            if f >= n_narr:      # the optional end card: the last scene's final state pushes out into it
-                tc = (f - n_narr) / T.FPS; cv = ctx.backdrop(); D.ghost_word(cv, ctx, sc.get("topic", ""), t); D.end_card(cv, ctx, card["title"], card["url"], card["image"], tc)
-                if tc < TRANSITION_S: cv = S.transition(S.frame(ctx, sc, t, tag=False), cv, tc / TRANSITION_S, ctx)
-                proc.stdin.write(cv.tobytes()); continue
-            img = S.frame(ctx, sc, t, tag=False)
-            dur_tr = (JUNG_DISSOLVE_S if T.THEME == "jung" else TRANSITION_S) if changed else CUT_S      # a new chapter gets the focus pull; every other scene change is a clean cut (a 3-frame dissolve) so each shot is sharp from its start
-            if cur and t < dur_tr:      # the section tag is drawn once, over both
-                outgoing = S.frame(ctx, scenes[cur - 1], scenes[cur - 1]["end"] - scenes[cur - 1]["start"] + t, tag=False)
-                img = (FM.ink_dissolve(outgoing, img, t / dur_tr) if T.THEME == "jung" else S.transition(outgoing, img, t / dur_tr, ctx)) if changed else Image.blend(outgoing, img, t / dur_tr)
-            D.section_tag(img, ctx, sc["section"], t if (changed or not cur) else 9.0, scenes[cur - 1]["section"] if changed else None, 0.0)
-            if T.THEME == "jung": img = FM.finish(img, f, T.FPS)      # Carl Jung Theory: grain, dust in the light, lamp flicker (film.py)
-            proc.stdin.write(img.tobytes())
-            if f % 24 == 0: prog(0.10 + 0.88 * f / n_frames, f"drawing scene {sc['no']}/{len(scenes)} ({sc['kind']})")
-        prog(0.98, "finishing the video file"); proc.stdin.close(); rc = proc.wait(timeout=7200); th.join(5); proc.stderr.close()
-        if rc != 0: raise RuntimeError("ffmpeg failed: " + (err[0].decode(errors="replace")[-400:] if err else str(rc)))
-        os.replace(tmp, out_path)
+        if PD.render(scenes, starts, n_narr, n_frames, card, W, H, audio if voiceover_path else None, tmp, cancelled, prog, log, _ff()): os.replace(tmp, out_path)
+        else:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE); err: List[bytes] = []
+            th = threading.Thread(target=lambda: err.append(proc.stderr.read()), daemon=True); th.start()
+            try:
+                for f in range(n_frames):
+                    if cancelled(): raise Cancelled("cancelled")
+                    proc.stdin.write(draw_frame(f, scenes, starts, n_narr, ctx, card).tobytes())
+                    if f % 24 == 0: sc = scenes[scene_at(starts, f, len(scenes))]; prog(0.10 + 0.88 * f / n_frames, f"drawing scene {sc['no']}/{len(scenes)} ({sc['kind']})")
+                prog(0.98, "finishing the video file"); proc.stdin.close(); rc = proc.wait(timeout=7200); th.join(5); proc.stderr.close()
+                if rc != 0: raise RuntimeError("ffmpeg failed: " + (err[0].decode(errors="replace")[-400:] if err else str(rc)))
+                os.replace(tmp, out_path)
+            except BaseException:
+                try: proc.kill(); proc.wait(5); th.join(5); proc.stderr.close()
+                except Exception: pass
+                raise
     except BaseException:
-        try: proc.kill(); proc.wait(5); th.join(5); proc.stderr.close()
-        except Exception: pass
         try: tmp.unlink(missing_ok=True)
         except OSError: pass
         raise
