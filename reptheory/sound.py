@@ -20,7 +20,22 @@ KIND_SFX.update({"slot fills": "marker_pop", "race part": "fast_whoosh", "formul
 MAJOR = ("deep_thud", "fast_whoosh")
 SAME_SOUND_GAP_S, MIN_GAP_S, MAX_PER_WINDOW, WINDOW_S = 0.6, 0.4, 8, 10.0      # What If's restraint: up to ~48 a minute, never stacked
 MUSIC_GAIN = 0.27      # the first try only: the bed is then set from the voice's own loudness (music_gain)
-MUSIC_UNDER_VOICE_LU, MUSIC_GAIN_RANGE = 12.0, (0.02, 0.6)      # 18 was too quiet (owner, 2026-11-02); explainer beds sit ~10-14 LU under      # the music bed, at its loudest (in the voice's pauses), this far under the narration
+MUSIC_UNDER_VOICE_LU, MUSIC_GAIN_RANGE = 15.0, (0.02, 0.6)      # 12 -> 15 (owner, 2026-11-11: background sounds irritating)      # 18 was too quiet (owner, 2026-11-02); explainer beds sit ~10-14 LU under      # the music bed, at its loudest (in the voice's pauses), this far under the narration
+
+TRANSITION_SFX = ("fast_whoosh", "soft_transition", "deep_thud")      # the transition / hit sounds
+TRANSITION_SCALE, SFX_SCALE, AMBIENCE_SCALE = 0.5, 0.7, 0.5      # owner, 2026-11-11: transition and background sounds too loud (-6 dB, other effects -3 dB, scene beds -6 dB)
+QUIET_PREFIX = "rtq_"
+
+def _quiet(sound_id: str, kind: str = "sfx") -> str:
+    """A quieter copy of a pakMap sound for these styles only (the shared vocabulary in pakmap/sounds.py is untouched). Returns its id."""
+    import dataclasses
+    from pakmap.sounds import SOUNDS
+    s = SOUNDS.get(sound_id)
+    if s is None or s.kind == "composite": return sound_id
+    scale = AMBIENCE_SCALE if kind == "ambience" else TRANSITION_SCALE if sound_id in TRANSITION_SFX else SFX_SCALE
+    qid = QUIET_PREFIX + sound_id
+    if qid not in SOUNDS: SOUNDS[qid] = dataclasses.replace(s, id=qid, volume=s.volume * scale)
+    return qid
 
 def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str, ffmpeg: str = "ffmpeg", log: Callable[[str], None] = lambda m: None):
     """The music volume that puts the bed MUSIC_UNDER_VOICE_LU under this voiceover (2026-11-02: a fixed volume left the music as loud as a quiet voice in every
@@ -71,7 +86,9 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
         amb = []
         if T.THEME == "survival":      # Survival: a quiet scene bed that follows what the narration is about (survival_sound.py)
             from . import survival_sound as SS; amb = SS.beds(scenes); notes.append(f"scene sounds: {', '.join(a['ambience'] for a in amb) or 'none'}")
-        plan = resolve_assets(plan_audio({"duration": duration}, {"cues": cs, "ambience": amb}, duration=duration))
+        q_cs = [dict(c, sfx=_quiet(c["sfx"])) for c in cs]
+        q_amb = [dict(a, ambience=a["ambience"] if a["ambience"] == "none" else _quiet(a["ambience"], "ambience")) for a in amb]
+        plan = resolve_assets(plan_audio({"duration": duration}, {"cues": q_cs, "ambience": q_amb}, duration=duration))
         notes += [f"missing sound {sid}: {what}" for sid, what in sorted(plan.missing.items())]
         path = str(mix_pakmap_audio(plan, voiceover, work / "rt_audio_sfx.wav", duration=duration).path); notes.append(f"{len(cs)} sounds on screen events ({60 * len(cs) / max(duration, 1):.0f} a minute)")
     except Exception as ex: notes.append(f"event sounds skipped ({type(ex).__name__}: {ex})")
