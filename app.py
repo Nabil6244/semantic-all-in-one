@@ -7715,7 +7715,7 @@ class VideoGeneratorApp(ctk.CTk):
             from learning.events import note_render_outcome as _lrn
             from licensing.generation_tracking import categorize_error as _cat
             _lrn(self, run, outcome, category or (_cat(message) if outcome == "failed" else None))
-            if outcome == "completed":
+            if outcome == "completed" and output_path:   # a real export, not the "scenes fetched/ready" asset step
                 from learning.rating_ui import schedule_prompt as _sched
                 _sched(self, output_path)
         except Exception:

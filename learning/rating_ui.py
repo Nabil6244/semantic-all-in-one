@@ -25,7 +25,8 @@ def maybe_prompt(app: Any, output_path: Any = None) -> None:
         if getattr(app, "_running", False):
             return app.after(5000, lambda: maybe_prompt(app, output_path))
         ws = getattr(app, "_workspace", None)
-        if ws is None or (output_path and not Path(str(output_path)).is_file()):
+        # only a finished, exported video: the "Generate scenes" step also ends as completed, but with no output file
+        if ws is None or not output_path or not Path(str(output_path)).is_file():
             return
         h = rf.pending_prompt_target(ws.project_id)
         if h and not rf._ledger.default_ledger().get_meta("rating_prompted:" + h["render_key"]):

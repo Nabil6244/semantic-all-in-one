@@ -197,6 +197,7 @@ class RenderToRatingChainTests(Base):
             shown = []
             with mock.patch.object(ui, "RatingDialog", side_effect=lambda app, h, **k: shown.append(h["render_key"])):
                 ui.maybe_prompt(fake, str(self.dir / "missing.mp4"))                       # output not there -> nothing
+                ui.maybe_prompt(fake, None)                                                # asset step ("scenes ready") -> nothing
                 self.assertEqual(shown, [])
                 ui.maybe_prompt(fake, str(out))
                 ui.maybe_prompt(fake, str(out))                                            # validation update re-trigger -> no duplicate
