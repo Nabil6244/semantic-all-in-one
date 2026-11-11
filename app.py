@@ -16088,6 +16088,13 @@ class VideoGeneratorApp(ctk.CTk):
                 if self._story_motion_picked():
                     raise RuntimeError(f"Story Motion could not be built, so the render was stopped instead of making a video without motion: {exc}") from exc
                 print(f"[STORY] skipped ({exc})")
+            if config.get("enoch_template"):  # fast final join: only clips around a soft transition are re-encoded, the rest stream-copied
+                try:
+                    from ancient_texts import fast_mux as _enoch_fast_mux
+
+                    _hybrid_stack.enter_context(_enoch_fast_mux.applied(vg))
+                except Exception as exc:
+                    print(f"[ENOCH TEMPLATE] Fast join skipped ({exc})")
             _render_job = ledger.create("render", reuse_active=False)
             ledger.start(_render_job.id)
             vg.render_video(
