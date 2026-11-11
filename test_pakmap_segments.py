@@ -91,3 +91,56 @@ class TestSegmentedRender(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCrashRetryRunsAlone(unittest.TestCase):
+    """Shahriyar's 16 GB MacBook (2026-11-12): 3 map browsers at once, every one crashed (Target crashed, memory free)."""
+
+    def test_a_16gb_mac_with_many_cores_runs_two_renderers(self):
+        from unittest import mock
+
+        from pakmap import engine_runner as er
+
+        for perf_cores, want in (("8", 2), ("4", 2)):
+            with mock.patch("hardware.governor._ram_bytes", return_value=(16 * 2 ** 30, 8 * 2 ** 30)), \
+                 mock.patch.object(er.sys, "platform", "darwin"), \
+                 mock.patch.object(er.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, stdout=perf_cores)), \
+                 mock.patch.dict(er.os.environ, {"PAKMAP_RENDER_PARTS": ""}):
+                self.assertEqual(er.render_parts({"width": 1920, "height": 1080}), want, perf_cores)
+
+    def test_a_crashed_renderer_draws_again_only_after_the_others_finish(self):
+        import threading
+        import time
+        from unittest import mock
+
+        from pakmap import engine_runner as er
+
+        log, lock, crashed = [], threading.Lock(), set()
+
+        def fake_engine(job, on_event=None, cancel_check=None, timeout_s=0, on_cancel=None, extra_env=None):
+            if job.get("plan_only"):
+                on_event({"event": "segments", "segments": [{"key": f"k{i}", "from": i * 10, "to": i * 10 + 10, "cost": 1} for i in range(2)]})
+                return {}, None, 0, ""
+            name = pathlib.Path(job["output"]).name
+            with lock:
+                log.append(("start", name))
+            if name == "renderer0.mp4" and name not in crashed:
+                crashed.add(name)
+                return None, "page.evaluate: Target crashed", 1, ""
+            time.sleep(0.3)
+            for seg in job["segments"]:
+                pathlib.Path(seg["output"]).write_bytes(b"x")
+                on_event({"event": "segment", "output": seg["output"], "tiles_failed": 0})
+            with lock:
+                log.append(("end", name))
+            return {}, None, 0, ""
+
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(er, "_run_engine", fake_engine):
+            try:
+                er._render_in_segments({"fps": 30}, pathlib.Path(d) / "v.mp4", progress=None, cancel_check=None, log=lambda m: None,
+                                       timeout_s=60, parts=2)
+            except Exception:
+                pass   # the fake pieces are not video: only the order of the draws is checked here
+        self.assertEqual(log.count(("start", "renderer0.mp4")), 2, log)
+        retry = len(log) - 1 - log[::-1].index(("start", "renderer0.mp4"))
+        self.assertLess(log.index(("end", "renderer1.mp4")), retry, log)

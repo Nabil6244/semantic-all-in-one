@@ -38,6 +38,7 @@ class RenderOutcome:
 
 
 CRASH_RETRIES = 3
+RENDERER_GB = 4   # memory one map renderer (browser + GPU process + encoder) is counted at, at 1080p
 _CRASH_MARKERS = ("target crashed", "target closed", "page crashed", "browser has been closed", "browser closed", "session closed")
 
 
@@ -106,8 +107,9 @@ class _OnePiece(Exception):
 
 def render_parts(spec: dict) -> int:
     """Renderers drawing at the same time: PAKMAP_RENDER_PARTS when set, else by performance cores and memory (a renderer is a
-    browser, its GPU process and an encoder, about 3 GB at 1080p; 6 GB left for the app). On a 4-core M2, 2 renderers measured
-    1.7x and 4 were slower than 2 (the CPU was full), so it is at most 2 there."""
+    browser, its GPU process and an encoder; 6 GB left for the app). On a 4-core M2, 2 renderers measured 1.7x and 4 were slower
+    than 2 (the CPU was full), so it is at most 2 there. A renderer is counted at 4 GB at 1080p: at 3 GB a 16 GB Mac with 6+
+    performance cores ran 3 browsers, and on a 40-minute plan every one of them crashed (Target crashed, memory still free)."""
     env = os.environ.get("PAKMAP_RENDER_PARTS", "").strip()
     if env.isdigit():
         return max(1, int(env))
@@ -125,7 +127,7 @@ def render_parts(spec: dict) -> int:
             pass
     by_cores = 2 if cores <= 5 else 3 if cores <= 9 else 4
     scale = (int(spec.get("width", 1920)) * int(spec.get("height", 1080)) * float(spec.get("pixel_scale") or 1) ** 2) / (1920 * 1080)
-    return max(1, min(by_cores, int((mem_gb - 6) // (3 * max(1.0, scale)))))
+    return max(1, min(by_cores, int((mem_gb - 6) // (RENDERER_GB * max(1.0, scale)))))
 
 
 def _base_job(spec: dict, imagery: bool) -> dict:
@@ -358,8 +360,21 @@ def _render_in_segments(job: dict, output: Path, *, progress, cancel_check, log,
     if progress is not None and base_done:
         progress(base_done, total)
     stopped = lambda: stop.is_set() or bool(cancel_check is not None and cancel_check())  # noqa: E731
+    # A crashed renderer draws its rest again only once no first-try renderer is still drawing, and then one at a time: retried
+    # next to the browsers that squeezed it out, it crashed again on every try (3 renderers on a 16 GB Mac, 40-minute plan).
+    first_try = [len(groups)]
+    calm = threading.Condition()
+    alone = threading.Lock()
+
+    def leave_first_try(k_state: dict) -> None:
+        with calm:
+            if not k_state["left"]:
+                k_state["left"] = True
+                first_try[0] -= 1
+                calm.notify_all()
 
     def run(k: int, group: list) -> None:
+        k_state = {"left": False}
         by_out = {}
         for s in group:
             by_out[str(store / f".{s['key']}.partial.mp4")] = s
@@ -415,21 +430,34 @@ def _render_in_segments(job: dict, output: Path, *, progress, cancel_check, log,
                 wjob = dict(job, output=str(work / f"renderer{k}.mp4"),
                             segments=[{"from": s["from"], "to": s["to"], "output": out} for out, s in todo])
                 # the second try is the same; from the third the browser draws with software GL (slower, but no graphics-card memory to run out of)
-                done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s, on_cancel=drop,
-                                                        extra_env={"PAKMAP_GL": "software"} if attempt >= 2 else None)
+                extra_env = {"PAKMAP_GL": "software"} if attempt >= 2 else None
+                if attempt == 0:
+                    done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s, on_cancel=drop,
+                                                            extra_env=extra_env)
+                else:
+                    leave_first_try(k_state)
+                    with calm:
+                        while first_try[0] > 0 and not stopped():
+                            calm.wait(1.0)
+                    with alone:
+                        done, error, code, stderr = _run_engine(wjob, on_event=on_event, cancel_check=stopped, timeout_s=timeout_s,
+                                                                on_cancel=drop, extra_env=extra_env)
                 if done is not None and code == 0:
                     break
                 why = f"{error or stderr or f'exit code {code}'}"
                 if attempt < CRASH_RETRIES and not stopped() and _is_browser_crash(why):
                     for out, _s in todo:
                         Path(out).unlink(missing_ok=True)
-                    log(f"[pakMap] renderer {k + 1}: the browser stopped ({why[:80]}); drawing the remaining pieces again in a fresh one" + (" with software graphics" if attempt >= 1 else ""))
+                    log(f"[pakMap] renderer {k + 1}: the browser stopped ({why[:80]}); drawing the remaining pieces again in a fresh one"
+                        + (" with software graphics" if attempt >= 1 else "") + ", alone, once the other renderers finish")
                     continue
                 drop()
                 raise PakmapRenderError(f"pakMap render failed: {why}")
         except Exception as exc:  # noqa: BLE001
             errors.append(exc)
             stop.set()                                   # one renderer failed: the others stop
+        finally:
+            leave_first_try(k_state)
 
     try:
         threads = [threading.Thread(target=run, args=(k, g), daemon=True) for k, g in enumerate(groups)]
