@@ -185,6 +185,9 @@ window.renderFrame = (t) => {
   else el.badge.style.display = 'none';
   // Captions.
   const line = plan.lines.find((l) => t >= l.t0 && t < l.t1 + 0.25);
+  // Urdu / Arabic / Hebrew lines run right to left; each word is its own box, so the line direction must be set.
+  const rtl = line && /[֐-ࣿיִ-﷿ﹰ-﻿]/.test(line.words.map((w) => w.text).join(' ')) ? 'rtl' : 'ltr';
+  if (el.cap.dir !== rtl) el.cap.dir = rtl;
   setHtml('cap', el.cap, line ? line.words.map((w) => `<span class="w${t >= w.t0 && t < w.t1 + 0.12 ? ' on' : ''}">${w.text}</span>`).join('') : '');
   return { t, open: +s.open.toFixed(2), gesture: s.gesture };
 };
