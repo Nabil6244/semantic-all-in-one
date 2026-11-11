@@ -17186,6 +17186,9 @@ def main() -> None:
         app._stall_watchdog = _install_stall_watchdog(app)
     except Exception:
         pass
+    if os.environ.get("SYT_AUTORUN"):   # make_video.py: a job file (style, voiceover, script, CSV) run through the app's own buttons (autorun/driver.py)
+        from autorun.driver import attach as _autorun_attach
+        _autorun_attach(app, os.environ["SYT_AUTORUN"])
     app.mainloop()
 
 
