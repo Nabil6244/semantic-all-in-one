@@ -120,6 +120,12 @@ def clear_under_boards(spec: Dict[str, Any], work: Any, log: Callable[[str], Non
             bake_spec(spec, work, log)
         except Exception as exc:
             log(f"[Explainer] boards are laid on after the render as before ({str(exc)[:100]})")
+        try:                       # the other pictures too, and a quick in-between encode: the map page draws only the map (explainer/bake.py)
+            from .bake import bake_stills, fast_intermediate
+            bake_stills(spec, work, log)
+            fast_intermediate(spec)
+        except Exception:
+            pass
         import json
         details = json.loads(rr.read_text(encoding="utf-8"))["report"].get("beat_details") or {}
         wins = [(float(i["board_overlay"]["start"]), float(i["board_overlay"]["end"])) for i in details.values() if (i or {}).get("board_overlay")]

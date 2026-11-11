@@ -55,12 +55,16 @@ def _frames(picture: str, n: int, fps: float):
         yield src.resize((W, H), Image.BILINEAR, box=box).tobytes()
 
 
-def bake_one(picture: str, mov: str, n: int, out: Path, fps: float = FPS) -> bool:
-    """One clip: `n` frames of the picture with its push-in and the board `mov` laid on from frame 0. Drawn under a temporary name, renamed when complete."""
+def bake_one(picture: str, mov: Optional[str], n: int, out: Path, fps: float = FPS) -> bool:
+    """One clip: `n` frames of the picture with its push-in and the board `mov` laid on from frame 0 (no board: the picture alone).
+    Drawn under a temporary name, renamed when complete."""
     from . import hwenc as HW
     part = out.with_name(out.stem + ".part" + out.suffix)
-    cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", f"{fps:g}", "-i", "-", "-i", str(mov),
-           "-filter_complex", f"[0:v]format=yuv420p[b];[1:v]scale={W}:{H},format=yuva420p[o];[b][o]overlay=0:0:eof_action=pass[v]", "-map", "[v]", "-frames:v", str(n), "-an",
+    if mov:
+        layers = ["-i", str(mov), "-filter_complex", f"[0:v]format=yuv420p[b];[1:v]scale={W}:{H},format=yuva420p[o];[b][o]overlay=0:0:eof_action=pass[v]", "-map", "[v]"]
+    else:
+        layers = []
+    cmd = ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", f"{fps:g}", "-i", "-", *layers, "-frames:v", str(n), "-an",
            *HW.h264_args(["-c:v", "libx264", "-crf", "14", "-preset", "veryfast"]), "-pix_fmt", "yuv420p", "-r", f"{fps:g}", "-movflags", "+faststart", str(part)]
     p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
@@ -80,9 +84,11 @@ def bake_one(picture: str, mov: str, n: int, out: Path, fps: float = FPS) -> boo
     return False
 
 
-def _key(picture: str, mov: str, n: int) -> str:
-    st_p, st_m = os.stat(picture), os.stat(mov)
-    raw = json.dumps([str(picture), st_p.st_size, int(st_p.st_mtime), str(mov), st_m.st_size, int(st_m.st_mtime), n, KENBURNS_ZOOM, W, H], sort_keys=True)
+def _key(picture: str, mov: Optional[str], n: int) -> str:
+    st_p = os.stat(picture)
+    st_m = os.stat(mov) if mov else None
+    raw = json.dumps([str(picture), st_p.st_size, int(st_p.st_mtime), str(mov or ""), st_m.st_size if st_m else 0, int(st_m.st_mtime) if st_m else 0, n, KENBURNS_ZOOM, W, H],
+                     sort_keys=True)
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
@@ -131,6 +137,61 @@ def bake_spec(spec: Dict[str, Any], work: Any, log: Callable[[str], None] = lamb
     _write_list(work, baked)
     log(f"[Explainer] {len(baked)} board(s) baked onto their pictures" + (f"; {left} laid on after the render as before" if left else ""))
     return len(baked)
+
+
+def plan_stills(spec: Dict[str, Any], work: Any) -> List[Dict[str, Any]]:
+    """[{event, picture, n, out}] for each full-screen picture still drawn by the map page with the default push-in (no board on it)."""
+    rr = _report(work)
+    if rr is None:
+        return []
+    out: List[Dict[str, Any]] = []
+    for e in spec.get("events") or []:
+        pic = str(e.get("media", ""))
+        if e.get("type") != "media_full" or not pic.lower().endswith(IMAGE_EXT) or e.get("kenburns") not in (True, "auto"):
+            continue
+        if e.get("kenburns_zoom") not in (None, KENBURNS_ZOOM) or not Path(pic).is_file():
+            continue                                    # a push-in this file does not reproduce: the page draws it as before
+        n = max(1, round((float(e["t_out"]) - float(e["t_in"])) * FPS))
+        out.append({"event": e, "picture": pic, "n": n, "out": rr.parent / f"still_{_key(pic, None, n)}.mp4"})
+    return out
+
+
+def bake_stills(spec: Dict[str, Any], work: Any, log: Callable[[str], None] = lambda m: None) -> int:
+    """Each full-screen picture still becomes a clip with the engine's push-in in it (cached by key), so the map page never draws a picture: the render's fast path
+    copies the clip frames and the browser draws only where the map shows. Changes the spec in place; returns how many. Never raises."""
+    try:
+        jobs = plan_stills(spec, work)
+        if not jobs:
+            return 0
+        from . import hwenc as HW
+        from .board.jobs import clip_ok
+        todo = [j for j in jobs if not clip_ok(j["out"])]
+        workers = max(1, min(6, (os.cpu_count() or 4) - 1)) if HW.h264_ok() else max(1, min(8, (os.cpu_count() or 4) - 1))
+        if todo:
+            log(f"[Explainer] turning {len(todo)} picture(s) into clips so the map is drawn only where it shows…")
+            with ThreadPoolExecutor(workers) as ex:
+                list(ex.map(lambda j: bake_one(j["picture"], None, j["n"], j["out"]), todo))
+        done = 0
+        for j in jobs:
+            if clip_ok(j["out"]):
+                j["event"]["media"] = str(j["out"])
+                j["event"]["kenburns"] = False          # the push-in is in the clip
+                done += 1
+        if done < len(jobs):
+            log(f"[Explainer] {len(jobs) - done} picture(s) are drawn by the map page as before")
+        return done
+    except Exception as exc:
+        log(f"[Explainer] pictures are drawn by the map page as before ({str(exc)[:100]})")
+        return 0
+
+
+INTERMEDIATE_X264 = {"x264_preset": "ultrafast", "crf": 15}   # the map render's own file is encoded again later (post_render, final export): cheap to write
+
+
+def fast_intermediate(spec: Dict[str, Any]) -> None:
+    """The map render writes its in-between file quickly: x264 'faster' was what kept the cores busy (about 50 frames a second at 1080p, picture frames included)."""
+    for k, v in INTERMEDIATE_X264.items():
+        spec.setdefault(k, v)
 
 
 def _write_list(work: Any, baked: Dict[str, str]) -> None:

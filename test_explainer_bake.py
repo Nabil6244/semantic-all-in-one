@@ -80,6 +80,43 @@ class BakeTest(unittest.TestCase):
             self.assertEqual(spec["events"][1]["media"], str(pic))              # a picture with no board stays a still
             self.assertIn(str(mov), B.baked_movs(Path(d) / "explainer"))
 
+    def test_plain_pictures_become_clips_so_the_page_draws_only_the_map(self):
+        with tempfile.TemporaryDirectory() as d:
+            work = Path(d) / "_work"
+            (Path(d) / "explainer").mkdir(parents=True)
+            work.mkdir()
+            pic = work / "007.png"
+            _gradient(pic)
+            (Path(d) / "explainer" / "render_report.json").write_text(json.dumps({"report": {"beat_details": {}}}), encoding="utf-8")
+            spec = {"events": [{"id": "a", "type": "media_full", "media": str(pic), "kenburns": True, "t_in": 1.0, "t_out": 2.0},
+                               {"id": "b", "type": "media_full", "media": str(pic), "kenburns": "auto", "t_in": 3.0, "t_out": 3.5},
+                               {"id": "c", "type": "media_full", "media": str(pic), "kenburns": True, "kenburns_zoom": 0.2, "t_in": 5.0, "t_out": 6.0},
+                               {"id": "d", "type": "pip", "media": str(pic), "t_in": 7.0, "t_out": 8.0}]}
+            self.assertEqual(B.bake_stills(spec, work), 2)
+            a, b, c, pip = spec["events"]
+            for e, n in ((a, 30), (b, 15)):
+                self.assertTrue(e["media"].endswith(".mp4"))
+                self.assertFalse(e["kenburns"])
+                got = subprocess.run(["ffprobe", "-v", "error", "-count_frames", "-select_streams", "v:0", "-show_entries", "stream=nb_read_frames,width,height",
+                                      "-of", "csv=p=0", e["media"]], capture_output=True, text=True).stdout.strip()
+                self.assertEqual(got, f"1920,1080,{n}")
+            self.assertEqual(c["media"], str(pic))                              # a push-in the bake does not reproduce stays with the page
+            self.assertEqual(pip["media"], str(pic))
+            f0 = _frame(Path(a["media"]), 0)
+            want = np.asarray(Image.open(pic).convert("RGB").resize((1920, 1080), Image.BILINEAR, box=B._cover(1376, 768)), int)
+            self.assertLess(np.abs(f0 - want).mean(), 4)                        # frame 0 is the page's own first frame
+            spec2 = {"events": [dict(e, media=str(pic), kenburns=True) for e in (a,)]}
+            self.assertEqual(B.bake_stills(spec2, work), 1)                     # cached: the same clip again
+            self.assertEqual(spec2["events"][0]["media"], a["media"])
+
+    def test_the_in_between_file_is_quick_to_write_unless_set(self):
+        spec = {}
+        B.fast_intermediate(spec)
+        self.assertEqual(spec, {"x264_preset": "ultrafast", "crf": 15})
+        spec = {"x264_preset": "medium", "crf": 20}
+        B.fast_intermediate(spec)
+        self.assertEqual(spec, {"x264_preset": "medium", "crf": 20})
+
     def test_nothing_to_bake_leaves_the_spec_and_clears_an_old_list(self):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "explainer").mkdir()
