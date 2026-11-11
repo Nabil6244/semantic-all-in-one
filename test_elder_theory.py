@@ -180,6 +180,28 @@ class ElderTheoryTheme(unittest.TestCase):
         self.assertIn("Elder Health Theory", txt); self.assertTrue(txt.rstrip().endswith("My script.")); self.assertNotIn("<<<PASTE", txt)
         self.assertEqual(DR.norm_look("board"), "checklist")
 
+    def test_pictures_carry_and_explain(self):      # 1-minute render 2026-11-11: 2 pictures in 14 scenes, and pictures that did not show what was said
+        from reptheory import beats as B, elder_art as EA, engine as EN, variety as V
+        T.set_theme("elder")
+        texts = ["After sixty your muscles quietly shrink every single year.", "Doctors call it sarcopenia and it is the hidden reason so many seniors fall.",
+                 "One in four adults over 65 falls each year and a broken hip can change everything.", "Your muscles still listen to you at any age.",
+                 "Stand up from a chair ten times slowly without using your hands.", "Eat protein at every meal, eggs, Greek yogurt, beans and fish.",
+                 "Walk for twenty minutes a day and add a few steps uphill.", "Drink water even when you are not thirsty because older bodies feel thirst late.",
+                 "If you feel dizzy when you stand, tell your doctor.", "Some blood pressure pills can cause it.", "Strong legs mean fewer falls and more years at home."]
+        sents, t = [], 0.0
+        for x in texts:
+            ws = x.split(); sents.append({"text": x, "start": t, "end": t + len(ws) * 0.38, "words": [{"w": w, "t0": t + i * 0.38, "t1": t + i * 0.38 + 0.3} for i, w in enumerate(ws)]}); t += len(ws) * 0.38
+        scenes = B.plan(EN.timeline(sents, t), per_beat=True)["scenes"]; looks = V.direct(scenes, total_s=t, three_d=False)["looks"]
+        self.assertGreaterEqual(looks.get("flow", 0) / len(scenes), 0.55); self.assertNotIn("stock", looks)
+        EA.plan(scenes); by = {sc["text"][:12]: sc for sc in scenes}
+        self.assertIn("sarcopenia", EA.organ_prompt("Doctors call it sarcopenia and it is the reason seniors fall.").lower())   # a named disease beats the daily word "doctor"
+        dizzy = EA.prompt({"text": "If you feel dizzy when you stand, tell your doctor.", "elder_host": EA.pick_host(["x"]), "elder_shot": "wide"})
+        self.assertIn("dizzy", dizzy.split("The moment")[0]); self.assertNotIn("content and relaxed", dizzy); self.assertIn("explains this sentence", dizzy)
+        self.assertIn("arms crossed", EA.prompt({"text": "Stand up from a chair ten times without using your hands.", "elder_host": EA.pick_host(["x"]), "elder_shot": "wide"}))
+        self.assertIn("fallen", EA.scene_of("A broken hip can change everything.")["action"])
+        self.assertNotIn("going about the day", EA.scene_of("Your muscles still listen to you.")["action"])
+        T.set_theme("")
+
 
 if __name__ == "__main__":
     unittest.main()

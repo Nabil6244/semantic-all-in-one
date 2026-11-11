@@ -434,6 +434,7 @@ def _takeaway(sc: dict, text: str, last: bool, role: str) -> Optional[dict]:
     if not (last or role in ("hook", "claim", "cta", "mistake")): return None
     return {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]}
 
+ELDER_FLOW_BOOST = 0.9      # Elder Health Theory: a picture beats any card unless the last two scenes were pictures (about two pictures to every card)
 FLOW_BASE = 0.82      # a picture drawn for this sentence: a card with a real shape in the words (0.85-0.95) still wins, a bare headline never does
 POSE_BASE = 0.8      # a pose shows the sentence's action: as strong as a card, rotated with them by the director
 LATE_CARD_S = 3.0
@@ -816,6 +817,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         elif "flow" in ev and (i == 0 or roles.get(i, "") not in ("claim", "hook") or sc.get("section") in keyline_parts or not 3 <= len(sc.get("words") or []) <= 10 or sc["end"] - sc["start"] > 4.0):      # with pictures on, words alone
             ev.pop("takeaway", None)      # only as one short key line a chapter (never the opening, never long enough to sit still); without Flow the takeaway card stays as it was
         ev["stock"] = (0.1 if stale else 0.75 if k == "trainee" and sc.get("glows") else 0.3, None); scored = []
+        if _elder() and "flow" in ev: ev.pop("stock")      # Elder: the plain figure never takes a scene a picture can show (its novelty bonus beat the picture)
         if any(lk in DG.KINDS and len((v[1] or {}).get("marks", [])) >= 3 for lk, v in ev.items()): ev.pop("stock", None)      # a sentence that acts out a whole diagram (3+ parts) never shows the plain figure instead (1-minute render: the plan clipboard lost to the figure with "wrist" lit)
         part = section_kind(sc)
         if part:      # the part of the video decides what kind of graphic suits it (docs/rep_theory/HOW_THE_CHANNEL_EDITS.md section 2): a small nudge, never a ban
@@ -826,7 +828,9 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         for look, (base, payload) in ev.items():
             if look == "flow":      # a new picture each time, so a run of them is allowed, but it is one look in the rotation: a pose for the action, the figure with the part lit,
                 # the plate and the cards still win where the words support them and were not just used (render final 2 lost them all to pictures)
-                score = base + (0.3 if "flow" not in hist[-2:] else 0.05) - (0.25 if hist[-3:] == ["flow"] * 3 else 0.0) + jit(i, look); scored.append((score, -list(ev).index(look), look, payload)); continue
+                score = base + (0.3 if "flow" not in hist[-2:] else 0.05) - (0.25 if hist[-3:] == ["flow"] * 3 else 0.0) + jit(i, look)
+                if _elder() and hist[-2:] != ["flow", "flow"]: score += ELDER_FLOW_BOOST      # Elder: pictures carry the video, a card only after two pictures (1-minute render 2026-11-11: 2 pictures in 14 scenes)
+                scored.append((score, -list(ev).index(look), look, payload)); continue
             if hist[-2:] == [look, look] or (look == "sketch" and hist[-1:] == ["sketch"]): continue      # never a third in a row; a line figure never twice running
             score = base + (0.5 if look not in hist[-3:] else 0.0) + (0.2 if look not in hist[-6:] else 0.0) - (0.8 if hist[-1:] == [look] else 0.0) + jit(i, look) - RECENT_W * sum(1 for op in (recent or []) if i < len(op) and op[i] == look); scored.append((score, -list(ev).index(look), look, payload))
         if not scored: scored = [(0, 0, "stock", None)]

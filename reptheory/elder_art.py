@@ -203,7 +203,11 @@ def wants_refs(prompt: str) -> Optional[str]:
 # ---------------------------------------------------------------- 2. the scene director: place, action, objects, shots
 
 # (words, place, action, shots it suits)
-RULES = [
+RULES = [      # the problem moments first: a sentence about a fall or dizziness shows it happening (it explains), not the advice scene beside it (it only decorates)
+    (r"\b(?:broken|break\w*|fractur\w*) (?:a |your |the )?hips?\b|\bhip fractures?\b|\bfalls? (?:each|every) year\b|\b(?:seniors?|adults?|people) (?:who )?fall\b|\bfall(?:s|ing)? (?:down|over)\b", "a living room floor beside a loose rug", "has just slipped and fallen, sitting on the floor holding the hip, a worried family member kneeling to help", ("wide", "medium")),
+    (r"\b(dizz\w*|light-?headed\w*|faint\w*|room spins?)\b", "a bedroom beside the bed", "standing up too fast, one hand on the forehead and the other gripping the bedside table, a little dizzy", ("medium", "wide")),
+    (r"\b(?:stand(?:ing)? up from (?:a|the|your) chair|chair stands?|sit-to-stand|without using (?:your|the) hands)\b", "a kitchen with a sturdy wooden chair", "standing up from the chair with arms crossed over the chest, not using the hands", ("wide", "medium")),
+    (r"\b(protein)\b", "a dining table by a window", "eating a protein-rich meal", ("still", "close", "medium")),
     (r"\b(doctor|check-?ups?|blood test|test results?|screening|appointment|clinic|nurse)\b", "a bright, friendly doctor's office", "talking with a kind doctor who is explaining a result", ("together", "medium")),
     (r"\b(blood pressure|cuff)\b", "a calm kitchen table", "checking their own blood pressure with a home cuff on the upper arm", ("close", "medium")),
     (r"\b(blood sugar|glucose|finger prick|meter)\b", "a calm kitchen table", "checking blood sugar with a small glucose meter", ("close", "medium")),
@@ -234,7 +238,7 @@ RULES = [
     (r"\b(pain|aches?|stiff\w*|sore\w*|joints?|knees?|back|hips?)\b", "a bright living room", "gently rubbing a stiff knee while sitting on the sofa", ("medium", "close")),
 ]
 RULES = [(re.compile(rx, re.I), place, action, shots) for rx, place, action, shots in RULES]
-WORRY_RX = re.compile(r"\b(worr\w*|danger\w*|risk\w*|warning|harm\w*|damag\w*|silent\w*|problem|mistake|never|don'?t|stop|avoid|pain|hurts?|sick|ill)\b", re.I)
+WORRY_RX = re.compile(r"\b(worr\w*|danger\w*|risk\w*|warning|harm\w*|damag\w*|silent\w*|problem|mistake|never|don'?t|stop|avoid|pain|hurts?|sick|ill|dizz\w*|light-?headed|faint\w*|fall(?:s|en|ing)?|broken|fractur\w*|shrink\w*|weak\w*)\b", re.I)
 SHOT_TEXT = {
     "wide": "Wide shot: the whole setting visible, the person shown full length",
     "medium": "Medium shot from the waist up",
@@ -256,7 +260,7 @@ def _objects(text: str) -> List[str]:
 def scene_of(text: str) -> dict:
     """place, action, objects, the shots that suit it, mood."""
     rule = next((r for r in RULES if r[0].search(text)), None)
-    place, action, shots = (rule[1], rule[2], rule[3]) if rule else ("a bright, tidy living room", "going about the day, calm and well", ("medium", "wide"))
+    place, action, shots = (rule[1], rule[2], rule[3]) if rule else ("a setting that fits the sentence", "acting out exactly what the sentence describes", ("medium", "wide"))
     objs = _objects(text)
     if objs and not rule: place, action, shots = "a dining table by a window", "about to enjoy " + objs[0], ("still", "medium", "close")
     mood = "with a thoughtful, slightly concerned expression" if WORRY_RX.search(text) else "looking content and relaxed"
@@ -318,20 +322,19 @@ DISEASES = {
 PROBLEM_WORDS = {      # the problem said without the disease's name -> the disease picture that shows it
     "dz_heart_disease": r"plaque|clog\w*|narrow(?:ed|ing|s)? arter\w*|harden\w* arter\w*", "dz_osteoporosis": r"brittle|thin(?:ning|ner)? bones?|bones? (?:get|grow|become) (?:thin|weak)\w*",
     "dz_osteoarthritis": r"cartilage (?:wears|thins|breaks)\w*|worn(?:-| )out (?:knee|joint)s?", "dz_fatty_liver": r"fat (?:in|builds up in|around) (?:your|the) liver",
-    "dz_cataracts": r"cloudy lens|lens (?:clouds|gets cloudy)", "dz_sarcopenia": r"(?:lose|losing|lost) muscle|muscles? (?:shrink|weaken)\w*",
+    "dz_cataracts": r"cloudy lens|lens (?:clouds|gets cloudy)", "dz_sarcopenia": r"(?:lose|losing|lost) muscle|muscles? (?:\w+ly )?(?:shrink|weaken|waste)\w*|muscle loss",
     "dz_gum": r"bleeding gums|gums? (?:bleed|recede|swell)\w*", "dz_dvt": r"clots? in (?:your|the) legs?"}
 PROBLEM_WORDS = {k: re.compile(r"\b(?:" + v + r")\b", re.I) for k, v in PROBLEM_WORDS.items()}
 
 def organ_prompt(text: str) -> Optional[str]:
     """A leaflet picture for a sentence about the inside of the body: the named disease as healthy-versus-affected, else the named organ, exactly. None for daily life."""
     from . import health_lib as HL
-    if DAILY_RX.search(text): return None
     for tid, (organ, affected) in DISEASES.items():
         if HL.TOPICS[tid]["rx"].search(text) or (tid in PROBLEM_WORDS and PROBLEM_WORDS[tid].search(text)):
             return (f"A side-by-side medical comparison for an elder health explainer: on the left {ORGANS[organ]}, and on the right the same view "
                     f"with {HL.TOPICS[tid]['label'].lower()}: {affected}. Clean, friendly, accurate, the difference obvious at a glance. {ORGAN_STYLE}.")
     m = ORGAN_RX.search(text)
-    if not m: return None
+    if not m or DAILY_RX.search(text): return None      # a daily-life sentence that only names a body part stays a scene of the person
     organ = ORGAN_WORDS[m.group(1).lower()]
     return f"A clear medical illustration for an elder health explainer: {ORGANS[organ]}. Clean, friendly and accurate, like a patient leaflet. {ORGAN_STYLE}."
 
@@ -364,7 +367,7 @@ def prompt(sc: dict) -> str:
         things = ", ".join(s["objects"]) or "the objects of this moment"
         return f"{lead}: {SHOT_TEXT['still']}: {things}, on a small patch of clean table drawn as a soft vignette on the white. The moment: \"{text}\". {STYLE}."
     framing = SHOT_TEXT[shot].format(companion=comp)
-    return (f"{lead}. {framing}. The person is {who}, {s['action']}, {s['mood']}. Setting: {s['place']}, drawn as a soft vignette that fades into the plain white background.{objs} The moment it shows: \"{text}\". "
+    return (f"{lead}. {framing}. The person is {who}, {s['action']}, {s['mood']}. Setting: {s['place']}, drawn as a soft vignette that fades into the plain white background.{objs} The moment it shows: \"{text}\". The picture explains this sentence, it does not just decorate it: every action and thing the sentence names is clearly visible. "
             f"Healthy, dignified and active, never frail. {STYLE}.")
 
 def own_prompt(text: str, host: Optional[str]) -> str:
