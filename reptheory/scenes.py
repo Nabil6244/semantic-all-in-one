@@ -189,7 +189,7 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
     if sc.get("stopwatch"): K2.stopwatch(cv, ctx, sc["stopwatch"], sc["start"] + t)
     if sc.get("meter") or sc.get("effort"):      # load meter / effort bar overlays (meters.py)
         from . import meters as M
-        if sc.get("meter"): M.draw_meter(cv, ctx, sc["meter"], sc["start"] + t, sc["start"])
+        if M.load_meter(sc): M.draw_meter(cv, ctx, sc["meter"], sc["start"] + t, sc["start"])
         if sc.get("effort"): M.draw_effort(cv, ctx, sc["effort"], sc["start"] + t)      # a timed hold the viewer is doing (states.stopwatch)
     if any(sc.get(k) for k in ("strike", "bubble", "aside", "measure", "hazard", "cta", "band")):      # on-picture tricks (tricks.py)
         from . import tricks as TR; TR.draw(cv, ctx, sc, sc["start"] + t)

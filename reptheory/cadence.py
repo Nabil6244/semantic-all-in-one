@@ -60,7 +60,8 @@ def events(scenes: List[dict]) -> List[dict]:
         if sc["kind"] in ("lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow") and sc.get(sc["kind"]): ev += [{"t": float(x), "type": "secondary", "what": f"{sc['kind']} part", "scene": n, "meaningful": True} for x in sc[sc["kind"]]["marks"]]      # diagrams.py
         from .tricks import marks as _tricks
         ev += [{"t": float(x), "type": "secondary", "what": "picture trick", "scene": n, "meaningful": True} for x in _tricks(sc)]      # tricks.py
-        if sc.get("meter"): ev += [{"t": float(x["at"]), "type": "secondary", "what": "load meter", "scene": n, "meaningful": True} for x in sc["meter"]["steps"]]
+        from .meters import load_meter
+        if load_meter(sc): ev += [{"t": float(x["at"]), "type": "secondary", "what": "load meter", "scene": n, "meaningful": True} for x in sc["meter"]["steps"]]
         if sc.get("effort"): ev.append({"t": float(sc["effort"]["at"]), "type": "secondary", "what": "effort bar", "scene": n, "meaningful": True})
         if sc.get("qlist"): ev += [{"t": float(sc["qlist"]["at"]) + 0.25 + 0.22 * i, "type": "secondary", "what": "question listed", "scene": n, "meaningful": True} for i in range(min(6, len(sc["qlist"]["items"])))]
         if (sc.get("qtrack") or {}).get("new"): ev.append({"t": float(sc["qtrack"]["at"]), "type": "secondary", "what": "next question", "scene": n, "meaningful": True})      # qa.py

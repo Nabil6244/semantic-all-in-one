@@ -56,7 +56,7 @@ def plan(scenes: List[dict]) -> int:
     level = 0.45; n = 0
     for sc in scenes:
         if sc["kind"] in ("slots", "race", "formula", "mechanism", "promise", "checklist", "steps", "versus", "mistake", "myth", "question", "timeline", "calendar", "result", "warning", "takeaway", "tier", "engage", "lever", "seesaw", "gap", "split", "panels", "tearoff", "battery", "clipboard", "road", "silrow"): continue
-        st = meter_steps(sc)
+        st = meter_steps(sc) if sc["kind"] != "meter" else []      # the Elder meter card already holds sc["meter"]
         if st:
             lv = []
             for s in st: level = min(0.95, max(0.1, level + 0.25 * s["dir"])); lv.append({"at": s["at"], "level": level})
@@ -91,6 +91,12 @@ def draw_share(cv: Image.Image, ctx: D.Ctx, sh: dict, t: float) -> None:
     f = ctx.font(T.HEAD_FONT, 110); txt = f"{v:.0f} %"; w = D._text_w(d, txt, f, 0); D.text_spaced(d, (cx - w / 2, cy + ctx.px(20)), txt, f, T.ORANGE + (255,), 0)
     f2 = ctx.font(T.BODY_FONT, 30); lab = "OF YOUR WEIGHT"; lw = D._text_w(d, lab, f2, ctx.px(3)); D.text_spaced(d, (cx - lw / 2, cy + ctx.px(150)), lab, f2, T.GREY + (int(255 * a),), ctx.px(3))
     for x, lab in ((cx - r, "0"), (cx + r - ctx.px(40), "ALL")): D.text_spaced(d, (x, cy + ctx.px(20)), lab, ctx.font(T.BODY_FONT, 24), T.GREY + (int(255 * a),), ctx.px(2))
+
+def load_meter(sc: dict):
+    """The load meter overlay of a scene, or None. sc["meter"] is also where Elder Health Theory's "meter" health card keeps its payload (variety: sc[look] = payload):
+    only the overlay's own shape counts (5-minute Elder render 2026-11-11 crashed on KeyError 'start', its sounds on 'steps')."""
+    m = sc.get("meter")
+    return m if isinstance(m, dict) and "steps" in m and "start" in m else None
 
 def draw_meter(cv: Image.Image, ctx: D.Ctx, mt: dict, t_abs: float, start: float) -> None:
     """A small LOAD meter at the right edge: its level moves to each step on the word that says the load goes up or down; red above two thirds."""

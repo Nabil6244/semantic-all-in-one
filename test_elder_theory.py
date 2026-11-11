@@ -202,6 +202,13 @@ class ElderTheoryTheme(unittest.TestCase):
         self.assertNotIn("going about the day", EA.scene_of("Your muscles still listen to you.")["action"])
         T.set_theme("")
 
+    def test_meter_card_is_not_the_load_meter(self):      # 5-minute render 2026-11-11: the Elder meter card in sc["meter"] crashed the load-meter overlay (KeyError 'start') and the sounds ('steps')
+        from reptheory import meters as M
+        card = {"kind": "meter", "meter": {"topic": "bone_density", "at": 1.0}, "text": "Ask for a bone density scan, it gets heavier to carry.", "start": 0.0, "end": 4.0, "words": []}
+        self.assertIsNone(M.load_meter(card))
+        M.plan([card]); self.assertEqual(card["meter"]["topic"], "bone_density")      # the overlay never overwrites the card
+        self.assertIsNotNone(M.load_meter({"meter": {"start": 0.4, "steps": [{"at": 1.0, "level": 0.6}]}}))
+
 
 if __name__ == "__main__":
     unittest.main()
