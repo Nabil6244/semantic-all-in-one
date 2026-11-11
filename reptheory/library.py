@@ -34,18 +34,36 @@ def _load_one(r: Path) -> List[dict]:
     try: return json.loads((r / "index.json").read_text(encoding="utf-8"))
     except (OSError, ValueError): return []
 
+_memo: Dict[str, object] = {"key": None, "entries": [], "by_id": {}}      # the library read once, kept until an index.json changes (render 2026-11-12: re-reading 1,083 entries cost ~10 ms a lookup, every picture frame)
+
+def _stamp() -> tuple:
+    """What the cached library was read from: each root and its index.json's identity (a register() replaces the file, so inode / time / size change)."""
+    out = []
+    for r in roots():
+        try: st = (r / "index.json").stat(); out.append((str(r), st.st_ino, st.st_mtime_ns, st.st_size))
+        except OSError: out.append((str(r), None))
+    return tuple(out)
+
+def _entries() -> List[dict]:
+    key = _stamp()
+    if _memo["key"] != key:
+        out, seen = [], set()
+        for r in roots():
+            for e in _load_one(r):
+                if e.get("id") in seen or not (r / e.get("file", "")).is_file(): continue
+                seen.add(e["id"]); out.append(dict(e, dir=str(r)))
+        _memo.update(key=key, entries=out, by_id={e["id"]: e for e in out})
+    return _memo["entries"]
+
+def _forget() -> None: _memo["key"] = None
+
 def load() -> List[dict]:
     """Every entry whose picture file exists, user library first; an id in both places is the user's. Each entry carries `dir` (where its file is)."""
-    out, seen = [], set()
-    for r in roots():
-        for e in _load_one(r):
-            if e.get("id") in seen or not (r / e.get("file", "")).is_file(): continue
-            seen.add(e["id"]); out.append(dict(e, dir=str(r)))
-    return out
+    return [dict(e) for e in _entries()]
 
 def _save(entries: List[dict]) -> None:
     entries = [{k: v for k, v in e.items() if k != "dir"} for e in entries]
-    root().mkdir(parents=True, exist_ok=True); tmp = _index_path().with_suffix(".tmp"); tmp.write_text(json.dumps(entries, indent=1, ensure_ascii=False), encoding="utf-8"); tmp.replace(_index_path())
+    root().mkdir(parents=True, exist_ok=True); tmp = _index_path().with_suffix(".tmp"); tmp.write_text(json.dumps(entries, indent=1, ensure_ascii=False), encoding="utf-8"); tmp.replace(_index_path()); _forget()
 
 def sha256(path) -> str:
     h = hashlib.sha256()
@@ -54,9 +72,14 @@ def sha256(path) -> str:
     return h.hexdigest()
 
 def find(ref: str) -> Optional[dict]:
-    for e in load():
-        if e["id"] == ref: return dict(e, path=str(Path(e["dir"]) / e["file"]))
-    return None
+    _entries(); e = _memo["by_id"].get(ref)
+    if e is None: return None
+    path = Path(e["dir"]) / e["file"]
+    if not path.is_file():      # its file went away since the library was read: read it again (a copy elsewhere may now win)
+        _forget(); _entries(); e = _memo["by_id"].get(ref)
+        if e is None: return None
+        path = Path(e["dir"]) / e["file"]
+    return dict(e, path=str(path))
 
 def where() -> str:
     """For error messages: every place a picture is looked for."""

@@ -407,16 +407,17 @@ def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
 
 _feathers: Dict[tuple, Image.Image] = {}
 
-_sinks: Dict[tuple, np.ndarray] = {}
+_sinks: Dict[tuple, tuple] = {}
 
 def _sink_edges(shot: Image.Image) -> Image.Image:
     """Carl Jung Theory: an oval vignette that takes the painting's edges down to the canvas colour, so its (often lighter brown) background never shows as a box."""
-    w, h = shot.size; k = (w, h)
-    if k not in _sinks:
+    w, h = shot.size; k = (w, h, tuple(T.BG_BOT))
+    if k not in _sinks:      # the oval mask and the canvas plate, made once per size; each frame is one C-level blend (~19 ms of float maths a 1080p frame before, 2026-11-12)
         xx, yy = np.meshgrid(np.linspace(-1, 1, w), np.linspace(-1, 1, h)); r = np.sqrt(xx ** 2 * 0.85 + yy ** 2)
-        _sinks[k] = np.clip(1.25 - 0.62 * r ** 2.2, 0.0, 1.0)[..., None].astype(np.float32)
-    v = _sinks[k]; a = np.asarray(shot.convert("RGB"), dtype=np.float32)
-    return Image.fromarray((a * v + np.array(T.BG_BOT, dtype=np.float32) * (1 - v)).astype("uint8"), "RGB")
+        v = np.clip(1.25 - 0.62 * r ** 2.2, 0.0, 1.0)
+        _sinks[k] = (Image.fromarray(np.round(v * 255).astype("uint8"), "L"), Image.new("RGB", (w, h), tuple(T.BG_BOT)))
+    mask, plate = _sinks[k]
+    return Image.composite(shot.convert("RGB"), plate, mask)
 
 def _feather(w: int, h: int, side: str, vertical: bool = True) -> Image.Image:
     """The picture area's mask: opaque in the middle, soft on every edge (wider on the words' side), so the picture melts into the black canvas without a box."""
