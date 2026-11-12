@@ -157,7 +157,7 @@ def render(scenes: List[dict], starts: List[int], n_narr: int, n_frames: int, ca
                 time.sleep(1.0)
             for fu, j in futs.items():
                 try:
-                    fu.result()
+                    fu.result(timeout=5.0)   # every worker is already done here (the loop above waited for them)
                 except Exception as e:
                     failed.append(j); log(f"[REP THEORY SPEED] frames {j['a']}-{j['b']} failed in a worker ({type(e).__name__}: {str(e)[:160]}); drawing them again here")
         finally:

@@ -91,7 +91,8 @@ def fast_final_mux(vg, original: Callable, *, concat_list_path, audio_path, outp
                                    [transitions[i - 1] for i in g[1:]], seg_dir / f"seg_{k:05d}.mp4", rate, timescale)
                     for k, g in jobs}
             for k, f in futs.items():
-                segments[k] = f.result()
+                # the encode's own ffmpeg is time-limited; this bound only keeps a stuck thread from holding the join forever
+                segments[k] = f.result(timeout=max(600.0, 90.0 * sum(durs[i] for i in groups[k])))
         seg_list = work / "concat_fast.txt"
         vg.write_ffmpeg_concat_list(segments, seg_list)
     except Exception as exc:

@@ -296,6 +296,11 @@ class IsolationTests(unittest.TestCase):
                 continue
             if p.name == "app.py":
                 continue   # the one lazy, additive style-picker hook (checked by test_war_app_section.py)
+            if p.name == "make_video.py":   # names the War CSV prompt file by its path; never imports the package
+                text = p.read_text(encoding="utf-8", errors="ignore")
+                self.assertNotIn("import cinematic_explainer", text)
+                self.assertNotIn("from cinematic_explainer", text)
+                continue
             if "cinematic_explainer" in p.read_text(encoding="utf-8", errors="ignore"):
                 offenders.append(p.name)
         self.assertEqual(offenders, [])

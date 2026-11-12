@@ -137,6 +137,11 @@ class IsolationTests(unittest.TestCase):
                 self.assertNotIn("\nimport cinematic_explainer", text)
                 self.assertNotIn("\nfrom cinematic_explainer", text)
                 continue
+            if p.name == "make_video.py":   # names the War CSV prompt file by its path; never imports the pack
+                text = p.read_text(encoding="utf-8", errors="ignore")
+                self.assertNotIn("import cinematic_explainer", text)
+                self.assertNotIn("from cinematic_explainer", text)
+                continue
             if "cinematic_explainer" in p.read_text(encoding="utf-8", errors="ignore"):
                 offenders.append(p.name)
         self.assertEqual(offenders, [])
