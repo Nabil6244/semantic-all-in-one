@@ -1,0 +1,41 @@
+{
+ "note": "Aircraft types. A variant alias (787-10, A350-1000) maps to its family entry; a separate entry exists only when the variant is a distinct story (A321XLR, 777X, 737 MAX). seats = typical 2-3 class, range_km = typical. body: narrow | wide | jumbo | regional | supersonic | concept. glb: 3D model key (step N10).",
+ "entries": [
+  {"id": "a220", "name": "Airbus A220", "maker": "Airbus", "aliases": ["A220", "A220-100", "A220-300", "CSeries", "C Series"], "body": "narrow", "seats": 130, "range_km": 6300, "engines": 2, "glb": "narrow"},
+  {"id": "a319", "name": "Airbus A319", "aliases": ["A319", "A319neo", "A319ceo"], "maker": "Airbus", "body": "narrow", "seats": 140, "range_km": 6900, "engines": 2, "glb": "narrow"},
+  {"id": "a320", "name": "Airbus A320", "aliases": ["A320", "A320neo", "A320ceo", "A320 family"], "maker": "Airbus", "body": "narrow", "seats": 180, "range_km": 6300, "engines": 2, "glb": "narrow"},
+  {"id": "a321", "name": "Airbus A321", "aliases": ["A321", "A321neo", "A321ceo", "A321LR"], "maker": "Airbus", "body": "narrow", "seats": 210, "range_km": 7400, "engines": 2, "glb": "narrow"},
+  {"id": "a321xlr", "name": "Airbus A321XLR", "aliases": ["A321XLR"], "maker": "Airbus", "body": "narrow", "seats": 200, "range_km": 8700, "engines": 2, "glb": "narrow"},
+  {"id": "a300", "name": "Airbus A300", "aliases": ["A300", "A310"], "maker": "Airbus", "body": "wide", "seats": 250, "range_km": 7500, "engines": 2, "glb": "wide"},
+  {"id": "a330", "name": "Airbus A330", "aliases": ["A330", "A330neo", "A330-200", "A330-300", "A330-800", "A330-900"], "maker": "Airbus", "body": "wide", "seats": 290, "range_km": 13300, "engines": 2, "glb": "wide"},
+  {"id": "a340", "name": "Airbus A340", "aliases": ["A340", "A340-300", "A340-500", "A340-600"], "maker": "Airbus", "body": "wide", "seats": 300, "range_km": 13500, "engines": 4, "glb": "wide4"},
+  {"id": "a350", "name": "Airbus A350", "aliases": ["A350", "A350-900", "A350-1000", "A350-1000ULR", "A350ULR", "A350F", "A350 XWB"], "maker": "Airbus", "body": "wide", "seats": 325, "range_km": 15000, "engines": 2, "glb": "wide"},
+  {"id": "a380", "name": "Airbus A380", "aliases": ["A380", "A380plus", "superjumbo"], "maker": "Airbus", "body": "jumbo", "seats": 500, "range_km": 15000, "engines": 4, "glb": "jumbo"},
+  {"id": "b707", "name": "Boeing 707", "aliases": ["707", "Boeing 707", "707-320"], "maker": "Boeing", "body": "narrow", "seats": 150, "range_km": 9300, "engines": 4, "glb": "narrow4"},
+  {"id": "b727", "name": "Boeing 727", "aliases": ["727", "Boeing 727"], "maker": "Boeing", "body": "narrow", "seats": 150, "range_km": 4400, "engines": 3, "glb": "narrow"},
+  {"id": "b737", "name": "Boeing 737", "aliases": ["737", "Boeing 737", "737-800", "737-700", "737-900", "737NG", "737 Next Generation"], "maker": "Boeing", "body": "narrow", "seats": 170, "range_km": 5400, "engines": 2, "glb": "narrow"},
+  {"id": "b737max", "name": "Boeing 737 MAX", "aliases": ["737 MAX", "737 MAX 8", "737 MAX 9", "737 MAX 10", "737-8", "737-9", "737-10", "MAX 8", "MAX 10"], "maker": "Boeing", "body": "narrow", "seats": 175, "range_km": 6500, "engines": 2, "glb": "narrow"},
+  {"id": "b747", "name": "Boeing 747", "aliases": ["747", "Boeing 747", "747-400", "747-8", "747SP", "747-200", "747-300", "jumbo jet"], "maker": "Boeing", "body": "jumbo", "seats": 410, "range_km": 13400, "engines": 4, "glb": "jumbo"},
+  {"id": "b757", "name": "Boeing 757", "aliases": ["757", "Boeing 757", "757-200"], "maker": "Boeing", "body": "narrow", "seats": 200, "range_km": 7200, "engines": 2, "glb": "narrow"},
+  {"id": "b767", "name": "Boeing 767", "aliases": ["767", "Boeing 767", "767-300", "767-300ER"], "maker": "Boeing", "body": "wide", "seats": 260, "range_km": 11000, "engines": 2, "glb": "wide"},
+  {"id": "b777", "name": "Boeing 777", "aliases": ["777", "Boeing 777", "777-200", "777-200ER", "777-200LR", "777-300", "777-300ER", "777F", "Triple Seven"], "maker": "Boeing", "body": "wide", "seats": 350, "range_km": 13600, "engines": 2, "glb": "wide"},
+  {"id": "b777x", "name": "Boeing 777X", "aliases": ["777X", "777-9", "777-8", "777-8F"], "maker": "Boeing", "body": "wide", "seats": 410, "range_km": 13500, "engines": 2, "glb": "wide"},
+  {"id": "b787", "name": "Boeing 787", "aliases": ["787", "Boeing 787", "Dreamliner", "787-8", "787-9", "787-10"], "maker": "Boeing", "body": "wide", "seats": 290, "range_km": 14000, "engines": 2, "glb": "wide"},
+  {"id": "md11", "name": "McDonnell Douglas MD-11", "aliases": ["MD-11", "MD11", "DC-10", "DC10"], "maker": "McDonnell Douglas", "body": "wide", "seats": 290, "range_km": 12600, "engines": 3, "glb": "wide"},
+  {"id": "e_jet", "name": "Embraer E-Jet", "aliases": ["E-Jet", "E-Jets", "E175", "E190", "E195", "E190-E2", "E195-E2", "E2"], "maker": "Embraer", "body": "regional", "seats": 110, "range_km": 4800, "engines": 2, "glb": "regional"},
+  {"id": "crj", "name": "Bombardier CRJ", "aliases": ["CRJ", "CRJ900", "CRJ700", "CRJ200"], "maker": "Bombardier", "body": "regional", "seats": 76, "range_km": 2900, "engines": 2, "glb": "regional"},
+  {"id": "atr", "name": "ATR 72", "aliases": ["ATR", "ATR 72", "ATR72", "ATR 42"], "maker": "ATR", "body": "regional", "seats": 70, "range_km": 1500, "engines": 2, "glb": "turboprop"},
+  {"id": "dash8", "name": "De Havilland Dash 8", "aliases": ["Dash 8", "Q400", "Dash-8"], "maker": "De Havilland Canada", "body": "regional", "seats": 78, "range_km": 2000, "engines": 2, "glb": "turboprop"},
+  {"id": "concorde", "name": "Concorde", "aliases": ["Concorde"], "maker": "Aerospatiale / BAC", "body": "supersonic", "seats": 100, "range_km": 7200, "engines": 4, "glb": "supersonic"},
+  {"id": "overture", "name": "Boom Overture", "aliases": ["Overture", "Boom Overture"], "maker": "Boom Supersonic", "body": "supersonic", "seats": 64, "range_km": 7900, "engines": 4, "glb": "supersonic"},
+  {"id": "jetzero", "name": "JetZero Z4", "aliases": ["JetZero", "Jet Zero", "Z4", "blended wing body", "blended wing"], "maker": "JetZero", "body": "concept", "seats": 250, "range_km": 9000, "engines": 2, "glb": "bwb"},
+  {"id": "c919", "name": "COMAC C919", "aliases": ["C919", "COMAC C919"], "maker": "COMAC", "body": "narrow", "seats": 160, "range_km": 5500, "engines": 2, "glb": "narrow"}
+ ],
+ "generic": {
+  "widebody": ["widebody", "widebodies", "wide-body", "wide-bodies", "twin-aisle", "twin aisle"],
+  "narrowbody": ["narrowbody", "narrowbodies", "narrow-body", "narrow-bodies", "single-aisle", "single aisle"],
+  "regional": ["regional jet", "regional jets", "turboprop", "turboprops"],
+  "freighter": ["freighter", "freighters", "cargo jet"],
+  "airliner": ["airliner", "airliners", "jet", "jets", "plane", "planes", "aircraft", "airplane", "aeroplane"]
+ }
+}
