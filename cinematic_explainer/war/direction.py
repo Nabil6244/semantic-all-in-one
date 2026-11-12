@@ -3565,6 +3565,15 @@ def source_cuts(path: str) -> List[float]:
         return []
     key = (path, int(st.st_size), int(st.st_mtime))
     if key not in _CUTS:
+        disk = _cuts_disk(key)
+        if disk is not None and disk.is_file():          # 2026-11-12 speed pass: one decode per clip file, ever (not per run)
+            try:
+                import json as _json
+
+                _CUTS[key] = [float(x) for x in _json.loads(disk.read_text(encoding="utf-8"))]
+                return _CUTS[key]
+            except Exception:  # noqa: BLE001
+                pass
         cuts: List[float] = []
         try:
             n = _clip_seconds(path)
@@ -3576,7 +3585,30 @@ def source_cuts(path: str) -> List[float]:
         except Exception:  # noqa: BLE001
             cuts = []
         _CUTS[key] = cuts
+        if disk is not None:
+            try:
+                import json as _json
+
+                disk.write_text(_json.dumps(cuts), encoding="utf-8")
+            except OSError:
+                pass
     return _CUTS[key]
+
+
+def _cuts_disk(key: Tuple[str, int, int]) -> Optional[Path]:
+    import hashlib
+
+    try:
+        from map_scene.render import cache_dir
+
+        d = Path(cache_dir()) / "war_cuts"
+    except Exception:  # noqa: BLE001
+        d = Path.home() / ".semantic_yt_studio" / "war_cuts"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return None
+    return d / (hashlib.sha1(repr(key).encode("utf-8")).hexdigest() + ".json")
 
 
 def visible_footage_pieces(plan: Any, total: float, picture=None, cuts=None, hook_end: float = 0.0, thin: Optional[Sequence[Any]] = None) -> List[Tuple[float, float, str]]:

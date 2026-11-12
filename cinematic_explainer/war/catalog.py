@@ -118,7 +118,23 @@ def _span_map(text: str) -> Tuple[str, List[int]]:
     return "".join(out_chars), idx
 
 
+_FIND_CACHE: Dict[Tuple[Any, ...], List[Match]] = {}
+_FIND_MAX = 50000
+
+
 def _find(kind: str, text: str) -> List[Match]:
+    """Cached per (kind, text) (2026-11-12 speed pass: ~26,000 lookups of the same few hundred lines per film, 30 s of planning)."""
+    key = (kind, id(_compiled(kind)), str(text or ""))       # a reloaded catalogue (new compiled list) never reuses old results
+    hit = _FIND_CACHE.get(key)
+    if hit is None:
+        hit = _find_uncached(kind, key[2])
+        if len(_FIND_CACHE) >= _FIND_MAX:
+            _FIND_CACHE.clear()
+        _FIND_CACHE[key] = hit
+    return list(hit)
+
+
+def _find_uncached(kind: str, text: str) -> List[Match]:
     text = str(text or "")
     if not text.strip():
         return []
@@ -168,6 +184,17 @@ def find_equipment(text: str) -> List[Match]:
 
 
 def _generic_equipment(text: str) -> List[Match]:
+    key = ("__generic__", id(_equipment()), str(text or ""))
+    hit = _FIND_CACHE.get(key)
+    if hit is None:
+        hit = _generic_equipment_uncached(key[2])
+        if len(_FIND_CACHE) >= _FIND_MAX:
+            _FIND_CACHE.clear()
+        _FIND_CACHE[key] = hit
+    return list(hit)
+
+
+def _generic_equipment_uncached(text: str) -> List[Match]:
     text = str(text or "")
     if not text.strip():
         return []

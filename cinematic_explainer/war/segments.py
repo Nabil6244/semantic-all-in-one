@@ -526,15 +526,35 @@ def segment_key(piece: Piece, layers: Sequence[Layer], spans_local: Sequence[Tup
 
 
 # --------------------------------------------------------------------------- rendering
+WORKER_MB = 700          # 2026-11-12 owner ("use more render workers when the Mac is free"): about this much free memory per War render worker
+MAX_WORKERS = 6
+
+
+def _free_mb() -> float:
+    try:
+        from hardware.governor import _ram_bytes
+
+        _total, avail = _ram_bytes()
+        return float(avail) / (1024 * 1024)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
 def _workers(requested: Optional[int]) -> int:
     if requested:
         return max(1, int(requested))
+    base = 0
     try:
         from hardware.governor import get_governor
 
-        return max(1, int(get_governor().recommend_ffmpeg_workers()))
-    except Exception:
-        return max(1, min(4, (os.cpu_count() or 2) // 2))
+        base = max(1, int(get_governor().recommend_ffmpeg_workers()))
+    except Exception:  # noqa: BLE001
+        base = max(1, min(4, (os.cpu_count() or 2) // 2))
+    # War pieces are drawn in Python threads and piped to ffmpeg: with the machine free, more pieces run at once (never fewer than the
+    # app-wide governor gives, never more than the CPUs minus two or the free memory allows)
+    free = _free_mb()
+    extra = min(MAX_WORKERS, max(1, (os.cpu_count() or 2) - 2), int(free // WORKER_MB)) if free > 0 else base
+    return max(base, extra)
 
 
 def _encoder_args(codec: str) -> List[str]:
@@ -770,12 +790,19 @@ def _concat_path_text(p: Path) -> str:
     return text.replace("\\", "\\\\").replace("'", r"'\''")
 
 
-def _join(parts: Sequence[Path], out_path: Path) -> None:
+def _join(parts: Sequence[Path], out_path: Path, audio: Optional[str] = None, duration: Optional[float] = None) -> None:
+    """Pieces joined with the concat demuxer (video copied). With `audio`, the sound is attached in the same pass (AAC, padded or cut to
+    `duration`): one write of the film, never a silent copy plus a muxed copy (_mux_audio's settings)."""
     lst = out_path.with_suffix(".list.txt")
     lst.write_text("".join(f"file '{_concat_path_text(p)}'\n" for p in parts), encoding="utf-8")
+    if audio:
+        cmd = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-i", str(audio), "-map", "0:v:0", "-map", "1:a:0",
+               "-c:v", "copy", "-af", "apad", "-c:a", "aac", "-b:a", "192k"] + (["-t", f"{float(duration):.4f}"] if duration else []) + \
+              ["-movflags", "+faststart", str(out_path)]
+    else:
+        cmd = ["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out_path)]
     try:
-        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy", str(out_path)],
-                           capture_output=True, text=True, timeout=900)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=900 if not audio else 1800)
     except subprocess.TimeoutExpired:
         lst.unlink(missing_ok=True); raise RenderError("join timed out")
     lst.unlink(missing_ok=True)
@@ -982,21 +1009,18 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
                     for pr in list(procs):
                         _kill(pr)
                 raise
-        joined = work / f"joined.{ext}"
-        _join(outs, joined)
         duration = total_frames / FPS
         final = Path(out_path)
         final.parent.mkdir(parents=True, exist_ok=True)
         part = final.with_name(final.stem + ".part" + final.suffix)
-        if audio_path:
-            _mux_audio(joined, audio_path, part, duration)
-        else:
-            shutil.copy2(joined, part)
+        # 2026-11-12 (27.7-min Novorossiysk render: 'No space left on device' at the last step): the pieces are joined and the sound
+        # attached in ONE ffmpeg pass straight into the final file, so the film is never on disk twice (joined copy + muxed copy)
+        _join(outs, part, audio=audio_path, duration=duration)
         if audio_path and audio_fallback and audio_fallback != audio_path:
             frames_chk, v_chk, a_chk, vs_chk, as_chk = _probe_sync(part)
             if not a_chk or abs(a_chk - v_chk) > 1.0 / FPS or abs(vs_chk) > 1e-3 or abs(as_chk) > 1e-3:
                 log.warning("mixed sound out of step with the picture; using the plain voiceover")
-                _mux_audio(joined, audio_fallback, part, duration)
+                _join(outs, part, audio=audio_fallback, duration=duration)
                 audio_path = audio_fallback
         got = _probe_duration(part)
         if got and abs(got - duration) > 2.5 / FPS:

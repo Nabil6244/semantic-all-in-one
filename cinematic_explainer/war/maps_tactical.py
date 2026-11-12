@@ -38,6 +38,10 @@ Honesty: no frontline, unit position or event is ever drawn from nothing; the ba
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import os
+
 import logging
 import math
 from collections import OrderedDict
@@ -429,7 +433,7 @@ HALO = (8, 10, 14, 255)
 
 # ---------------------------------------------------------------------------------------------------------------- base map (one mosaic per card, cropped per frame)
 _BASE: "OrderedDict[tuple, Tuple[Image.Image, tuple]]" = OrderedDict()
-_BASE_MAX = 4
+_BASE_MAX = 16          # 2026-11-12: 4 thrashed (82 rebuilds for 734 map frames of one film; 186 s of planning)
 _MOSAIC_MAX_W = 4800
 
 
@@ -541,6 +545,79 @@ def _build_mosaic(mv: MP.View, theme: str, fills: List[dict], grid: bool, look: 
     return FX.shade_coast(img, SEA_P if pol else SEA_T, look)
 
 
+# ---- on-disk mosaic cache (2026-11-12 owner: faster renders) ----------------------------------------------------------------------
+# A map base (countries, lakes, rivers, graticule, coast shading) is the same picture every time for the same view and colours; planning,
+# rendering and every later re-render reuse it. The key includes a fingerprint of the drawing code, so a change to the look rebuilds.
+MOSAIC_DISK_MAX = 600
+
+
+def _code_print() -> str:
+    global _CODE_PRINT
+    if _CODE_PRINT is None:
+        import hashlib
+        import inspect
+
+        try:
+            src = inspect.getsource(_build_mosaic) + inspect.getsource(FX.shade_coast) + repr(sorted(FX._PAL.items())) + repr(POL_FILL)
+        except Exception:  # noqa: BLE001
+            src = "unknown"
+        _CODE_PRINT = hashlib.sha1(src.encode("utf-8")).hexdigest()[:12]
+    return _CODE_PRINT
+
+
+_CODE_PRINT: Optional[str] = None
+
+
+def _disk_dir() -> Optional[Path]:
+    try:
+        from map_scene.render import cache_dir
+
+        d = Path(cache_dir()) / "war_mosaics"
+    except Exception:  # noqa: BLE001
+        d = Path.home() / ".semantic_yt_studio" / "war_mosaics"
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+    except OSError:
+        return None
+
+
+def _disk_path(key: Any) -> Optional[Path]:
+    import hashlib
+
+    d = _disk_dir()
+    if d is None:
+        return None
+    return d / (hashlib.sha1((repr(key) + _code_print()).encode("utf-8")).hexdigest() + ".png")
+
+
+def _disk_read(p: Optional[Path], size: Tuple[int, int]) -> Optional[Image.Image]:
+    if p is None or not p.is_file():
+        return None
+    try:
+        im = Image.open(p)
+        im.load()
+        if im.size != tuple(size):
+            return None
+        return im.convert("RGB")
+    except Exception:  # noqa: BLE001 - a broken cache file is rebuilt
+        return None
+
+
+def _disk_write(p: Optional[Path], img: Image.Image) -> None:
+    if p is None:
+        return
+    try:
+        tmp = p.with_suffix(f".{os.getpid()}.tmp")
+        img.save(tmp, format="PNG", compress_level=1)
+        os.replace(tmp, p)
+        files = sorted(p.parent.glob("*.png"), key=lambda f: f.stat().st_mtime)
+        for f in files[:-MOSAIC_DISK_MAX]:
+            f.unlink(missing_ok=True)
+    except Exception:  # noqa: BLE001 - the cache is an optimisation only
+        pass
+
+
 def _mosaic(views: List[MP.View], theme: str, fills: List[dict], grid: bool, look: str = "night", ctx_fill: bool = False) -> Tuple[Image.Image, MP.View]:
     mv = _mosaic_view(views)
     key = (mv.key(), theme, tuple((str(f.get("iso3") or f.get("name")), f.get("role")) for f in fills), grid, look, bool(ctx_fill))
@@ -548,7 +625,11 @@ def _mosaic(views: List[MP.View], theme: str, fills: List[dict], grid: bool, loo
     if hit is not None:
         _BASE.move_to_end(key)
         return hit
-    img = _build_mosaic(mv, theme, fills, grid, look, ctx_fill)
+    disk = _disk_path(key)
+    img = _disk_read(disk, (mv.w, mv.h))
+    if img is None:
+        img = _build_mosaic(mv, theme, fills, grid, look, ctx_fill)
+        _disk_write(disk, img)
     _BASE[key] = (img, mv)
     while len(_BASE) > _BASE_MAX:
         _BASE.popitem(last=False)
