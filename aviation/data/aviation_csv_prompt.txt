@@ -1,38 +1,44 @@
 You are preparing the visual plan for an aviation documentary: airline business stories, aircraft explainers and flight-incident reconstructions. Read the SCRIPT at the end and write ONE CSV, one row per scene, in the script's order. Output only the CSV inside one ```csv block, nothing else.
 
 HEADER (exactly this):
-scene_number,script_segment,asset_type,prompt,graphic,mode,airline,aircraft,from,to,time,fuel,altitude,article,radio
+scene_number,script_segment,asset_type,prompt,graphic,mode,airline,aircraft,from,to,time,fuel,altitude,article,radio,url
 
 COLUMNS
 - scene_number: 1, 2, 3 ...
 - script_segment: the scene's narration copied EXACTLY from the script, every word in order. One scene = one sentence, or two short ones about the same thing. Never reword, shorten or merge across a change of topic. Every word of the script must appear in exactly one row.
 - asset_type: one of
-    youtube_video   real news / press / airline / plane-spotting footage of THIS airline, aircraft or event
-    stock_video     generic footage (an airport terminal, a cabin, clouds, a city) when no specific footage would exist
-    flow_video      an AI shot for something nobody filmed (an old cockpit, a boardroom at night). Never for a named real event. Use sparingly
+    youtube_video   real footage of THIS airline, aircraft, airport or event: news, press, airline and plane-spotting videos
+    flow_video      an AI-made 8-second shot in a flight-simulator documentary look, for what nobody filmed: the airline's aircraft taking off, climbing, flying through cloud, on approach in rain; the cockpit with two pilots; the cabin; a storm over an airport. Never for a named real event or a real person
+    flow_image      an AI-made still for a card or a moment that needs a picture but no motion (an old aircraft type, a hub at night, a fuel gauge). Never a named real event or person
+    stock_video     generic footage (an airport terminal, a city, clouds) when nothing specific exists
     local           I will attach the file myself (leave prompt empty)
     none            no footage: the scene is a map, a flight sequence, a number, an article card or a report page
-- prompt: for youtube_video / stock_video, 2 search phrases separated by " || ", most specific first. Name the real airline, aircraft type, airport and year the sentence names: "Air France Joon launch 2017 || Joon A321 takeoff". For a flight scene name the type and phase: "Vistara A320 takeoff Srinagar || A320 climbing above clouds".
+- prompt:
+    youtube_video: 2 search phrases separated by " || ", most specific first, naming the real airline, aircraft type, airport and year the sentence names: "Air France Joon launch 2017 || Joon A321 takeoff". Never add the word "footage".
+    flow_video / flow_image: one sentence describing the shot: the aircraft type and the airline's livery, the phase of flight, the place and weather, and the camera ("chase camera behind the wing", "cockpit over the captain's shoulder", "low tower view of the runway", "cabin aisle looking forward"). Example: "Vistara Airbus A320 in purple and gold livery climbing out of Srinagar over snow-capped mountains, chase camera from behind the left wing, afternoon light".
 - graphic: leave empty unless a specific graphic is needed: "counters", "weather", "place_title", "briefing_sheet", "altitude", "collage", "end_card".
 - mode: the look of the scene, one of
     news      business / corporate / dated events (launches, orders, strikes, deals, collapses): real clips cut fast + article cards
-    flight    what the aircraft and crew are doing (take-off, climb, hold, divert, approach, landing): the dark flight map with the route
+    flight    what the aircraft and crew are doing (take-off, climb, hold, divert, approach, landing): the dark flight map with the route, between aircraft shots
     weather   storms, monsoon, gusts, visibility: the flight map with storm clouds and weather icons
     fleet     aircraft types, seats, cabins, range, engines: slow beauty shots of that type
     numbers   money, percentages, profit and loss: number and chart cards
     evidence  investigation, report findings, courts, regulators: report pages with the key line highlighted
     people    captain, first officer, crew numbers, named executives: name cards and crew counters
 - airline: the airline the scene is about (its usual name), else empty
-- aircraft: the aircraft type the scene names (A320, 737 MAX, 777X, A350 ...), else empty
+- aircraft: the aircraft type the scene names or flies (A320, 737 MAX, 777X, A350 ...), else empty
 - from, to: airport codes or city names for a flight leg the scene describes (SXR, Jammu), else empty
 - time: the clock time the scene states (1:38 PM), else empty
 - fuel: fuel on board the scene states, in kg (4220), else empty
 - altitude: altitude the scene states, in feet (4100, or FL210), else empty
-- article: for a news scene that reports what an outlet wrote: "Outlet | Headline | Date" using the outlet's real headline when the script gives it, else empty. Never invent a headline.
+- article: for a news scene that reports what an outlet wrote: "Outlet | Headline | Date" using the outlet's real headline when you know it, else empty. Never invent a headline.
 - radio: radio calls the scene quotes, as "SPEAKER: words || SPEAKER: words" (FIRST OFFICER, CAPTAIN, JAMMU ATC, TOWER ...), else empty
+- url: the web address of the real article or report the scene cites (the page is shown in the video), only an address you are sure exists; else empty. Never invent or guess an address.
 
 RULES
-- Only facts that are in the script. Leave a column empty rather than guess a time, fuel figure, altitude, airline or headline.
+- Only facts that are in the script. Leave a column empty rather than guess a time, fuel figure, altitude, airline, headline or address.
+- A named real event or person gets youtube_video (or none), never flow_video / flow_image.
+- In a flight sequence, alternate: a flow_video (or youtube_video) aircraft shot every 2-3 rows between rows with asset_type none (the map).
 - Keep commas inside a cell by quoting the cell with double quotes.
 - A flight story keeps its numbers consistent: fuel goes down over time, times go forward.
 

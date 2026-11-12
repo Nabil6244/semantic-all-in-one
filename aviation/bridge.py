@@ -29,7 +29,7 @@ def card_table() -> Dict[str, Any]:
     if not _TABLE:
         from cinematic_explainer.war.graphics_lib import lay_document
 
-        from . import cards, flightmap, gfx, hud
+        from . import cards, flightmap, gfx, gfx_air, hud
         _TABLE.update({
             "flightmap.lay_flight_map": flightmap.lay_flight_map,
             "hud.lay_hud": hud.lay_hud, "hud.lay_radio": hud.lay_radio,
@@ -37,6 +37,11 @@ def card_table() -> Dict[str, Any]:
             "gfx.lay_counters": gfx.lay_counters, "gfx.lay_weather": gfx.lay_weather, "gfx.lay_place_title": gfx.lay_place_title,
             "gfx.lay_sheet": gfx.lay_sheet, "gfx.lay_altitude": gfx.lay_altitude, "gfx.lay_end_card": gfx.lay_end_card,
             "war.lay_document": lay_document,
+            "gfx_air.lay_fleet": gfx_air.lay_fleet, "gfx_air.lay_network": gfx_air.lay_network, "gfx_air.lay_seats": gfx_air.lay_seats,
+            "gfx_air.lay_change": gfx_air.lay_change, "gfx_air.lay_big_number": gfx_air.lay_big_number,
+            "gfx_air.lay_timeline": gfx_air.lay_timeline, "gfx_air.lay_crew": gfx_air.lay_crew, "gfx_air.lay_gauge": gfx_air.lay_gauge,
+            "gfx_air.lay_runway": gfx_air.lay_runway, "gfx_air.lay_approach": gfx_air.lay_approach,
+            "gfx_air.lay_descent": gfx_air.lay_descent, "gfx_air.lay_title": gfx_air.lay_title,
         })
     return _TABLE
 
@@ -95,6 +100,11 @@ def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Calla
             params.update(map_extra)
         ly = Layer(s["layer"], a, b, params)
         layers.append(ly)
+        if params.get("image_from") == "footage":
+            own = pick_clip({"kind": "footage", "scene": s.get("scene"), "start": a, "end": b, "mode": s.get("mode"), "queries": []})
+            if own:                                    # the card shows its own sentence's clip, not whatever clip is nearest
+                params["video"] = own["path"]
+                params["at"] = float(own.get("seek", 0.0)) + 0.5
         if s.get("full_frame"):
             base.append((a, b, None))
         if params.get("image_from") == "footage":
@@ -114,14 +124,13 @@ def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Calla
     # pictures for cards: a frame of the nearest clip in time
     clips = sorted(((a, b, c) for a, b, c in base if c), key=lambda x: x[0])
     for ly in pending_cards:
-        mid = (ly.start + ly.end) / 2
-        near = min(clips, key=lambda x: min(abs(x[0] - mid), abs(x[1] - mid)), default=None)
+        if ly.params.get("video"):
+            ly.params.pop("image_from", None)
+            ly.params.pop("_fallback", None)
+            continue
+        # no clip of its own: no picture at all (a picture borrowed from another scene showed an engraving and a meal tray under
+        # Emirates' profit figures). A fact becomes the clean text card; an article keeps its typeset page.
         ly.params.pop("image_from", None)
-        if near:
-            ly.params["video"] = near[2]["path"]
-            ly.params["at"] = float(near[2].get("seek", 0.0)) + min(1.0, (near[1] - near[0]) / 2)
-        elif ly.params.get("fact") and not ly.params.get("headline"):
-            ly.params["headline"] = ly.params.pop("fact")            # no picture anywhere: the plain typeset page
         ly.params.pop("_fallback", None)
 
     # contiguous base shots, holes filled with black

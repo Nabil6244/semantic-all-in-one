@@ -107,6 +107,7 @@ from ui import product_trailer_section as _pt_section
 from ui import roblox_cinema_section as _rc_section   # Roblox Cinema (ui/roblox_cinema_section.py, roblox-cinema-engine/)
 from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_section.py, voxelmap-engine/)
 from ui import city_timelapse_section as _ct_section   # City Timelapse (ui/city_timelapse_section.py, citygrow-engine/)
+from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import kids_learn_section as _kl_section   # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/)
 from ui import rules_horror_section as _rh_section   # Rules Horror (ui/rules_horror_section.py, rules_horror/)
 import editorial_timeline_edit as _tl_edit
@@ -3229,6 +3230,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Voxel Map"
         if getattr(self, "_ct_active", False):   # City Timelapse (ui/city_timelapse_section.py): opt-in, per session
             return "City Timelapse"
+        if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
+            return "Aviation"
         if getattr(self, "_rc_active", False):   # Roblox Cinema (ui/roblox_cinema_section.py): opt-in, per session
             return "Roblox Cinema"
         if getattr(self, "_pt_active", False):   # Product Trailer (ui/product_trailer_section.py): opt-in, per session
@@ -3300,6 +3303,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_av_running", False):   # Aviation
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         if getattr(self, "_kl_running", False):   # Kids Learn
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
@@ -3345,6 +3352,12 @@ class VideoGeneratorApp(ctk.CTk):
             _ct_section.deactivate(self)
         if choice == "City Timelapse":   # its own page (ui/city_timelapse_section.py); nothing runs until Generate
             _ct_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Aviation":
+            _av_section.deactivate(self)
+        if choice == "Aviation":   # its own page (ui/aviation_section.py); nothing runs until Generate scenes
+            _av_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Kids Learn":
@@ -3509,6 +3522,9 @@ class VideoGeneratorApp(ctk.CTk):
         ct_block = getattr(self, "_ct_block", None)
         if ct_block is not None:
             ct_block.grid() if active == "City Timelapse" else ct_block.grid_remove()
+        av_block = getattr(self, "_av_block", None)
+        if av_block is not None:
+            av_block.grid() if active == "Aviation" else av_block.grid_remove()
         kl_block = getattr(self, "_kl_block", None)
         if kl_block is not None:
             kl_block.grid() if active == "Kids Learn" else kl_block.grid_remove()
@@ -7453,6 +7469,8 @@ class VideoGeneratorApp(ctk.CTk):
             _vm_section.cta(self, action)
         elif action in ("ct_generate", "ct_render", "ct_cancel"):
             _ct_section.cta(self, action)
+        elif action in ("av_generate", "av_render", "av_cancel"):
+            _av_section.cta(self, action)
         elif action in ("kl_generate", "kl_render", "kl_cancel"):
             _kl_section.cta(self, action)
         elif action in ("rh_generate", "rh_render", "rh_cancel"):
@@ -8252,6 +8270,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _vm_section.sync_cta(self)
         if getattr(self, "_ct_active", False) and getattr(self, "_ct_block", None) is not None:   # City Timelapse owns the button while its page is up
             return _ct_section.sync_cta(self)
+        if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
+            return _av_section.sync_cta(self)
         if getattr(self, "_rc_active", False) and getattr(self, "_rc_block", None) is not None:   # Roblox Cinema owns the button while its page is up
             return _rc_section.sync_cta(self)
         pt_on = getattr(self, "_pt_active", False) and getattr(self, "_pt_block", None) is not None
@@ -9093,10 +9113,12 @@ class VideoGeneratorApp(ctk.CTk):
         _rc_section.deactivate(self)   # Roblox Cinema likewise
         _vm_section.deactivate(self, remember=False)   # Voxel Map likewise, until resume_on_open below
         _ct_section.deactivate(self, remember=False)   # City Timelapse likewise, until resume_on_open below
+        _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _kl_section.deactivate(self)   # Kids Learn likewise
         _rh_section.deactivate(self)   # Rules Horror likewise
         _vm_section.resume_on_open(self)   # a project left on the Voxel Map page opens on it again; nothing runs until Generate
         _ct_section.resume_on_open(self)   # a project left on the City Timelapse page opens on it again; nothing runs until Generate
+        _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16965,6 +16987,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_rc_running",)   # Roblox Cinema likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_vm_running",)   # Voxel Map likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_ct_running",)   # City Timelapse likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_av_running",)   # Aviation likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_rh_running",)   # Rules Horror likewise
 

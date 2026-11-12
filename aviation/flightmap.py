@@ -121,10 +121,39 @@ def _dotted(d: ImageDraw.ImageDraw, a: Tuple[float, float], b: Tuple[float, floa
         d.ellipse([x - r, y - r, x + r, y + r], fill=fill)
 
 
-def _plane_mark(d: ImageDraw.ImageDraw, p: Tuple[float, float], q: Tuple[float, float]) -> None:
+# a top-down airliner, nose along +x, in units of its length (1.0)
+_AIRLINER = [(0.50, 0.00), (0.44, 0.035), (0.10, 0.045), (0.02, 0.42), (-0.06, 0.42), (-0.06, 0.05), (-0.36, 0.045), (-0.44, 0.17),
+             (-0.50, 0.17), (-0.47, 0.03), (-0.50, 0.0)]
+_AIRLINER = _AIRLINER + [(x, -y) for x, y in reversed(_AIRLINER[1:-1])]
+
+
+def _plane_mark(d: ImageDraw.ImageDraw, p: Tuple[float, float], q: Tuple[float, float], size: float = 40.0) -> None:
+    """A white top-down airliner at q pointing from p to q (the reference's aircraft icon on the route)."""
     ang = math.atan2(q[1] - p[1], q[0] - p[0])
-    pts = [(9, 0), (-6, -6), (-3, 0), (-6, 6)]
-    d.polygon([(q[0] + x * math.cos(ang) - y * math.sin(ang), q[1] + x * math.sin(ang) + y * math.cos(ang)) for x, y in pts], fill=GOLD)
+    pts = [(q[0] + size * (x * math.cos(ang) - y * math.sin(ang)), q[1] + size * (x * math.sin(ang) + y * math.cos(ang))) for x, y in _AIRLINER]
+    d.polygon([(x + 2, y + 3) for x, y in pts], fill=(0, 0, 0, 120))
+    d.polygon(pts, fill=(250, 250, 252, 255), outline=(40, 40, 46, 255))
+
+
+def leg_curve(a: Tuple[float, float], b: Tuple[float, float], bend: float = 0.12, n: int = 48) -> List[Tuple[float, float]]:
+    """A gently curved leg (quadratic Bezier bowed sideways by `bend` of its length), like the reference's route lines."""
+    mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L = math.hypot(dx, dy) or 1.0
+    cx, cy = mx - dy / L * L * bend * 2, my + dx / L * L * bend * 2
+    return [((1 - u) ** 2 * a[0] + 2 * (1 - u) * u * cx + u * u * b[0], (1 - u) ** 2 * a[1] + 2 * (1 - u) * u * cy + u * u * b[1])
+            for u in (k / n for k in range(n + 1))]
+
+
+def _dotted_path(d: ImageDraw.ImageDraw, pts: Sequence[Tuple[float, float]], gap: float = 11.0, r: float = 2.0, fill=GOLD_SOFT) -> None:
+    acc = 0.0
+    for p0, p1 in zip(pts, pts[1:]):
+        seg = math.hypot(p1[0] - p0[0], p1[1] - p0[1])
+        while acc <= seg:
+            x, y = p0[0] + (p1[0] - p0[0]) * acc / max(seg, 1e-6), p0[1] + (p1[1] - p0[1]) * acc / max(seg, 1e-6)
+            d.ellipse([x - r, y - r, x + r, y + r], fill=fill)
+            acc += gap
+        acc -= seg
 
 
 def _all_points(p: dict) -> List[Tuple[float, float]]:
@@ -145,6 +174,24 @@ def _all_points(p: dict) -> List[Tuple[float, float]]:
     for lap in _holding_points(p.get("holding") or {}):
         pts.extend(lap)
     return pts
+
+
+_TEX: List[Any] = []
+
+
+def _cloud_texture():
+    """A fixed fractal-noise field (0.35..1.0) the storm cells are multiplied by: made once, the same every frame."""
+    if not _TEX:
+        import numpy as _np
+
+        rng = _np.random.default_rng(611)
+        acc = _np.zeros((H, W), dtype=_np.float32)
+        for size, wgt in ((6, 0.45), (14, 0.28), (34, 0.17), (90, 0.10)):
+            small = rng.random((max(2, H * size // W), size)).astype(_np.float32)
+            acc += wgt * _np.asarray(Image.fromarray((small * 255).astype("uint8"), "L").resize((W, H), Image.BICUBIC), dtype=_np.float32) / 255.0
+        acc = (acc - acc.min()) / max(1e-6, acc.max() - acc.min())
+        _TEX.append(0.35 + 0.65 * acc)
+    return _TEX[0]
 
 
 def _storms(img: Image.Image, storms: Sequence[dict], t: float, view, px) -> None:
@@ -169,22 +216,93 @@ def _storms(img: Image.Image, storms: Sequence[dict], t: float, view, px) -> Non
         c = px(at)
         rad = float(s.get("km", 30.0)) / kpp
         rng = random.Random(zlib.crc32(f"{at[0]:.3f},{at[1]:.3f}".encode()))
-        for _ in range(int(s.get("cells", 16))):
-            ang, dist = rng.uniform(0, 2 * math.pi), rad * math.sqrt(rng.random())
-            r = rad * rng.uniform(0.32, 0.58) * (1.0 + 0.06 * math.sin(t * 0.9 + ang))
-            x = c[0] + dist * math.cos(ang) + t * 6.0          # drift east about 6 px/s
-            y = c[1] + dist * math.sin(ang) - t * 1.5
-            d.ellipse([x - r, y - r, x + r, y + r], fill=(222, 226, 234, int(rng.uniform(90, 150) * k)))
+        # several separate cells (the reference's cumulus puffs), each a cluster of soft blobs, not one wall of cloud
+        for _ in range(int(s.get("cells", 5))):
+            ang, dist = rng.uniform(0, 2 * math.pi), rad * (0.35 + 0.75 * rng.random())
+            cx, cy = c[0] + dist * math.cos(ang), c[1] + dist * math.sin(ang)
+            size = rad * rng.uniform(0.16, 0.26)
+            for _ in range(6):
+                a2, d2 = rng.uniform(0, 2 * math.pi), size * 0.8 * math.sqrt(rng.random())
+                r = size * rng.uniform(0.45, 0.8) * (1.0 + 0.06 * math.sin(t * 0.9 + a2))
+                x = cx + d2 * math.cos(a2) + t * 6.0          # drift east about 6 px/s
+                y = cy + d2 * math.sin(a2) - t * 1.5
+                d.ellipse([x - r, y - r, x + r, y + r], fill=(226, 230, 238, int(rng.uniform(110, 170) * k)))
         if s.get("label"):
             labels.append((c[0] + rad * 0.9, c[1] - 12, str(s["label"]).upper(), k))
-    blur = max(5.0, min(28.0, sum(float(s.get("km", 30.0)) for s in storms) / len(storms) / kpp * 0.10))
-    img.alpha_composite(lay.filter(ImageFilter.GaussianBlur(blur)))
+    blur = max(3.0, min(14.0, sum(float(s.get("km", 30.0)) for s in storms) / len(storms) / kpp * 0.05))
+    soft = lay.filter(ImageFilter.GaussianBlur(blur))
+    tex = _cloud_texture()
+    import numpy as _np
+    a = _np.asarray(soft, dtype=_np.float32)
+    a[..., 3] *= tex                                         # cloudy, broken edges and thin patches instead of smooth discs
+    a[..., :3] *= (0.78 + 0.22 * tex)[..., None]             # and some shading inside each cell
+    img.alpha_composite(Image.fromarray(a.clip(0, 255).astype("uint8"), "RGBA"))
     if labels:
         tl = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         td = ImageDraw.Draw(tl)
         for x, y, text, k in labels:
             td.text((x, y), text, font=T.font("bold", 24), fill=(250, 250, 252, int(255 * k)))
         img.alpha_composite(tl)
+
+
+TRANS_S = 1.6                  # how long the camera takes to move from one framing to the next
+CLOSE_KM = 150.0               # a one-airport framing shows about this much ground across
+
+
+def _focus_bbox(p: dict, focus: Sequence[str]):
+    pts = [ll for ll in (_latlon(a) for a in focus) if ll]
+    if not pts:
+        return None
+    if len(pts) == 1:
+        h = p.get("holding") or {}
+        if _latlon(h.get("at")) == pts[0]:
+            for lap in _holding_points(h):
+                pts.extend(lap)
+        return B.fit_bbox(pts, pad=0.25, min_km=CLOSE_KM)
+    return B.fit_bbox(pts, pad=0.35)
+
+
+def _merc_lerp(a, b, k: float):
+    ax0, ay0, ax1, ay1 = B.bbox_merc(a)
+    bx0, by0, bx1, by1 = B.bbox_merc(b)
+    m = [ax0 + (bx0 - ax0) * k, ay0 + (by0 - ay0) * k, ax1 + (bx1 - ax1) * k, ay1 + (by1 - ay1) * k]
+    lon0, lat1 = B.unmerc(m[0], m[1])
+    lon1, lat0 = B.unmerc(m[2], m[3])
+    return lon0, lat0, lon1, lat1
+
+
+def _union(a, b):
+    ax0, ay0, ax1, ay1 = B.bbox_merc(a)
+    bx0, by0, bx1, by1 = B.bbox_merc(b)
+    lon0, lat1 = B.unmerc(min(ax0, bx0), min(ay0, by0))
+    lon1, lat0 = B.unmerc(max(ax1, bx1), max(ay1, by1))
+    return lon0, lat0, lon1, lat1
+
+
+def view_at(p: dict, t: float, dur: float):
+    """(view bbox, source bbox for the terrain) at time t. Without `views`: one framing of everything. With them: each keyframe's framing,
+    the camera easing over TRANS_S from the previous one; always a slow push-in so the map never sits still."""
+    return _camera(p, t, dur)[0]
+
+
+def _camera(p: dict, t: float, dur: float):
+    pts = _all_points(p)
+    whole = tuple(p["bbox"]) if p.get("bbox") else B.fit_bbox(pts, pad=float(p.get("pad", 0.22)))
+    keys = [(float(v.get("start", 0.0)), _focus_bbox(p, v.get("focus") or [])) for v in (p.get("views") or [])]
+    keys = [(st, bb) for st, bb in keys if bb]
+    if not keys:
+        k = M.ease_in_out(M.clamp01(t / max(dur, 0.1)))
+        return B.scale_bbox(whole, 1.0 - 0.05 * k, 0.012 * k, -0.008 * k), whole
+    idx = max([i for i, (st, _) in enumerate(keys) if st <= t + 1e-9] or [0])
+    st, cur = keys[idx]
+    src = cur
+    if idx > 0 and t - st < TRANS_S:
+        prev = keys[idx - 1][1]
+        cur = _merc_lerp(prev, cur, M.ease_in_out(M.clamp01((t - st) / TRANS_S)))
+        src = _union(prev, keys[idx][1])
+    nxt = keys[idx + 1][0] if idx + 1 < len(keys) else max(dur, st + 1.0)
+    k = M.ease_in_out(M.clamp01((t - st) / max(0.5, nxt - st)))
+    return B.scale_bbox(cur, 1.0 - 0.04 * k, 0.008 * k, -0.006 * k), src
 
 
 def lay_flight_map(t: float, dur: float, p: dict) -> Optional[Image.Image]:
@@ -194,13 +312,10 @@ def lay_flight_map(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         return None
     # a map split around a footage break carries on where it was: t0 = time already played, total = the whole map's length
     t, dur = t + float(p.get("t0", 0.0)), float(p.get("total", dur))
-    view0 = tuple(p["bbox"]) if p.get("bbox") else B.fit_bbox(pts, pad=float(p.get("pad", 0.22)))
-    big = B.scale_bbox(view0, MARGIN)
+    view, src = _camera(p, t, dur)
+    big = B.scale_bbox(src, MARGIN)
     bw, bh = int(W * MARGIN), int(H * MARGIN)
     base = B.relief(big, (bw, bh), p.get("fetch_tile"), p.get("cache"))
-    # camera: a slow push-in with a slight drift, so nothing is ever still
-    k = M.ease_in_out(M.clamp01(t / max(dur, 0.1)))
-    view = B.scale_bbox(view0, 1.0 - 0.05 * k, 0.012 * k, -0.008 * k)
     bx0, by0, bx1, by1 = B.bbox_merc(big)
     vx0, vy0, vx1, vy1 = B.bbox_merc(view)
     box = ((vx0 - bx0) / (bx1 - bx0) * bw, (vy0 - by0) / (by1 - by0) * bh, (vx1 - bx0) / (bx1 - bx0) * bw, (vy1 - by0) / (by1 - by0) * bh)
@@ -230,6 +345,31 @@ def lay_flight_map(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     track = [ll for ll in (_latlon(x) for x in (p.get("track") or [])) if ll]
     if a and b and not track:
         track = [a, b]
+    legs = [lg for lg in (p.get("legs") or []) if _latlon(lg.get("from")) and _latlon(lg.get("to"))]
+    if legs:
+        track = []                                     # legs replace the single route: each appears when it is said
+        live = None
+        glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        gdr = ImageDraw.Draw(glow)
+        for n_, lg in enumerate(legs):
+            st = float(lg.get("start", 0.4))
+            if t < st - 0.3:
+                continue
+            pts_ = leg_curve(px(_latlon(lg["from"])), px(_latlon(lg["to"])), bend=0.10 if n_ % 2 == 0 else -0.10)
+            kk = M.ease_out(M.ramp(t, st - 0.3, 0.5))
+            dl = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            _dotted_path(ImageDraw.Draw(dl), pts_)
+            over.alpha_composite(L.fade(dl, kk))
+            f = M.ease_in_out(M.ramp(t, st, float(lg.get("length", 3.0))))
+            if f > 0:
+                flown = _poly_partial(pts_, f)
+                if len(flown) > 1:
+                    gdr.line(flown, fill=(242, 184, 64, 120), width=12, joint="curve")
+                    d.line(flown, fill=GOLD, width=4, joint="curve")
+                    live = (flown[-2], flown[-1])
+        over.alpha_composite(glow.filter(ImageFilter.GaussianBlur(6)), (0, 0))
+        if live and math.hypot(live[1][0] - live[0][0], live[1][1] - live[0][1]) > 0.5:
+            _plane_mark(d, live[0], live[1])
     if len(track) > 1:
         tp = [px(ll) for ll in track]
         for i in range(len(tp) - 1):
@@ -275,11 +415,18 @@ def lay_flight_map(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     crossed = {str(x).upper() for x in (p.get("crossed") or [])}
     glow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     gd = ImageDraw.Draw(glow)
-    fl = T.font("bold", 16)
+    fl = T.font("bold", 21)
+    appear = p.get("appear") or {}
     for aid in p.get("airports") or []:
         ap = _airport(aid)
         if not ap:
             continue
+        pop = M.ease_out(M.ramp(t, float(appear.get(ap["id"], -1.0)) - 0.05, 0.45))
+        if pop <= 0.0:
+            continue                                   # this airport has not been named yet
+        if pop < 1.0:                                  # pops in: drawn on its own layer, faded
+            lay_ = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            d_save, d = d, ImageDraw.Draw(lay_)
         x, y = px((ap["lat"], ap["lon"]))
         if ap["id"] == active:
             breathe = 0.75 + 0.25 * math.sin(t * 2.2)
@@ -291,11 +438,14 @@ def lay_flight_map(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         dim = ap["id"] in crossed
         col = (150, 150, 158, 255) if dim else (250, 250, 252, 255)
         tw = d.textlength(name, font=fl)
-        lx, ly = x - tw - 12, y - 22
+        lx, ly = x - tw - 14, y - 26
         d.text((lx, ly), name, font=fl, fill=col)
-        d.text((lx + tw - d.textlength(ap["id"], font=T.font("regular", 10)), ly + 19), ap["id"], font=T.font("regular", 10), fill=(190, 194, 204, 220))
+        d.text((lx + tw - d.textlength(ap["id"], font=T.font("regular", 12)), ly + 24), ap["id"], font=T.font("regular", 12), fill=(190, 194, 204, 220))
         if dim:
-            d.line([(lx - 3, ly + 10), (lx + tw + 3, ly + 10)], fill=RED, width=3)
+            d.line([(lx - 3, ly + 12), (lx + tw + 3, ly + 12)], fill=RED, width=3)
+        if pop < 1.0:
+            over.alpha_composite(L.fade(lay_, pop))
+            d = d_save
     img.alpha_composite(glow.filter(ImageFilter.GaussianBlur(10)))
     img.alpha_composite(over)
     ImageDraw.Draw(img).text((14, H - 18), B.CREDIT, font=T.font("regular", 10), fill=(150, 154, 164, 160))

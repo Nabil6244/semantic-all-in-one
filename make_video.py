@@ -57,6 +57,7 @@ STYLES = {   # kept in step with autorun/job.py (test_autorun.py checks it): nam
     "weather": ("required", "required", "weather/prompts/forecast_csv_prompt.txt", "Weather"),
     "rules-horror": ("required", "required", "rules_horror/prompt.txt", "Rules Horror"),
     "kids-learn": ("required", "optional", "cartoon3d-engine/samples/chant_lesson.csv", "Kids Learn"),
+    "aviation": ("optional", "required", "aviation/data/aviation_csv_prompt.txt", "Aviation"),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 

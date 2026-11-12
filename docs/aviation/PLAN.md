@@ -133,7 +133,94 @@ a CSV with real headlines adds more), no generic search phrases left.
 Known: elevation tiles download once per area (Kashmir took ~90 s the first time, then cached); prefetch them at Generate in the
 background when the app hookup is built. Fragments from Whisper make some fact cards half-sentences; the app uses the script's sentences.
 
-## 7. Open questions
+## 7. Source plan v2 (2026-11-13, after the first real render)
+
+The first real render took the top YouTube hit per scene without looking at it: 5 of 10 clips were wrong (a studio desk, a channel
+promo, a full-frame French subtitle, an unbranded wing, a cartoon safety video). The user's direction: **YouTube + Flow images +
+Flow videos + website screenshots + cards**, each used where it fits.
+
+### Five sources, chosen per scene
+
+| Source | Used for | Never for |
+|---|---|---|
+| **YouTube** (checked) | named real events (strikes, launches, crashes), the named airline's real aircraft, airports, press conferences of named people | anything its frames fail on |
+| **Website screenshot** | the article or report the line cites: the real page (headline + photo) inside the blue window, the key line highlighted | made-up pages: only a URL from the CSV |
+| **Flow video** | the Vistara simulator look: the aircraft in the airline's livery taking off, climbing, in cloud, on approach in rain; cockpit with two pilots; cabin; storms over an airport | a named real event, a named real person's face |
+| **Flow image** | a picture where no footage is needed or exists: the card window picture, an old aircraft type, an idea (a fuel gauge, a hub map at night) | a named real event or person |
+| **Cards** | numbers, facts, quotes, evidence, the flight map and all its graphics | - |
+
+### By mode
+
+- **news**: 2-3 checked YouTube clips per line (bursts cut between different videos); a website-screenshot card for each cited article; fact cards between.
+- **fleet**: YouTube beauty shots of the named type in the named livery; Flow video of that type and livery when YouTube has none that passes.
+- **flight / weather**: map beats (5-10 s, re-framed per beat: wide for a route, close on the airport for storm / hold / approach) alternating with Flow video shots of the aircraft, cockpit and cabin; YouTube flight-sim clips are a second choice.
+- **people**: unnamed crew -> Flow video (cockpit); named people -> YouTube press clip, else a name card (never an AI face of a real person).
+- **numbers / evidence**: cards; a report line with a URL -> screenshot of the report page with the line highlighted.
+
+### YouTube check (aviation footage director, reusing War's war-neutral parts)
+
+1. Search several videos per scene (the CSV's searches + the sentence's own names), pooled and cached (`director_search.Searcher`).
+2. Title / channel rules: must name the line's airline, aircraft type or event (`footage.clip_ok`); drop promos, trailers, safety videos,
+   compilations, reactions, podcasts, interviews unless the line quotes that person; prefer English.
+3. Storyboard frames before any download (`director_frames`): reject studio, text screens, subtitles / tickers, title cards, cartoons /
+   flat graphics, still, dark; pick a clean uncut 3-8 s window away from the first / last 5 % (no channel intros).
+4. Capture and check the captured seconds against the storyboard (`director_capture`).
+5. Nothing passes -> Flow video (if the mode allows) -> card. Never a wrong clip.
+
+### Website screenshots
+
+CSV column `url` (article / report page). Headless Chromium (Playwright, already installed for Flow) opens the page, hides fixed
+overlays (cookie bars, pop-ups: declined, never accepted), takes the top of the page at 1280 px, and the card shows it in the window with
+the headline / key sentence highlighted (War's document highlight). A page that fails (paywall, block) -> the typeset card.
+
+### Flow credits
+
+Before Generate spends any Flow credits it shows how many Flow videos and images it will make and the credit cost, and asks yes / no
+(like War). No: those scenes use YouTube or cards. All Flow prompts share one look per video (sim-style daylight, the airline's livery
+from the catalog) so the shots match each other.
+
+### CSV changes
+
+`asset_type` adds `flow_video`, `flow_image`, `web_screenshot`; a new column `url`; the prompt file asks for real URLs only (never invented)
+and for Flow prompts that describe livery, phase of flight and camera (chase, wing, cockpit, cabin, tower view).
+
+### Build order
+
+1. YouTube footage director with frame checks (+ 2-3 clips per news line).
+2. Website screenshot capture + screenshot card.
+3. Flow video / image routing with the credit question and one shared look.
+4. Flight beats: map re-framed per beat, alternating with Flow / YouTube aircraft shots.
+5. CSV + prompt update; re-run the same 2-minute film in the real app; clip sheet + side-by-side with the references.
+
+### Status (2026-11-13, all built, uncommitted; waiting for the user's new script before a render)
+
+| Step | Built in | Checked |
+|---|---|---|
+| 1 YouTube footage director | `aviation/director.py` (War's storyboard checks + capture reused) | 25 tests; real YouTube run: AP Archive protest, Joon unveiling, A320 cockpit, Vistara A320 in rain; nothing off-topic |
+| 2 Website screenshots | `aviation/webshot.mjs` + `webshot.py`, `cards.lay_article(page=...)`, CSV `url` | 10 tests incl. a real headless browser on a local page (cookie bar hidden, never accepted) |
+| 3 Flow routing + credit question | `aviation/flow.py`, `ui/aviation_section._make_flow` | 11 tests; one shared sim look; never a named event or person |
+| 4 Flight beats | `planner._map_stretch` (clips cut into one continuous map), `flightmap.view_at` (re-framed per line) | 7 tests + real-terrain still |
+| 5 CSV + prompt | `data/aviation_csv_prompt.txt` (flow_video / flow_image / url) | prompt-button test |
+| 6 Routes | curved legs, glow, top-down airliner icon, legs drawn when said | tests + still |
+| 7 Flight maps | Sentinel-2 cloudless 2016 imagery (CC BY 4.0) lit by the hillshade; missing tiles fall back to relief | tests + real still |
+| 8 Animations | label pop-in when first named, count-up numbers, card exit, camera eases between framings | tests |
+| 9 Graphics | 60 % card window + bigger type; CSV `graphic` column; RIGHT NOW place titles; altitude side view; weather sheet from the line's words; textured storm cells | tests |
+
+Not done: renders are still 1280x720 (the shared renderer's size); 3D aircraft (N10) not built (Flow covers the aircraft shots).
+
+### After the Emirates render (2026-11-13)
+
+Fixed: black gaps (slices now use the clip file's real length), crew counters from '53.2 million passengers', podcast channels and
+passenger-777 clips for freighter lines, the headline crop of page screenshots, pictures borrowed from other scenes (a line without its
+own clip now gets an aviation graphic or a clean text card). Speed: searches and storyboards for all scenes in parallel, 2 capture tries per
+scene, a 2 s clean stretch for news, the search cache shared across projects.
+
+New aviation graphics (`aviation/gfx_air.py`), each triggered by the line's own numbers or words:
+fleet grid, route network from the hub, seat map (load factor), then -> now bars, big number with an aircraft / freighter, timeline;
+and, borrowed from the Green Dot Aviation reference (Eastern 855): crew card, instrument gauge, runway diagram, approach side view
+(glide slope), descent graphic (knots / feet per minute), title card (CSV graphic `title`).
+
+## 8. Open questions
 
 - Style name: "Aviation" (working name).
 - More references: a clean Air France copy plus 6+ more videos would firm up NEWS pacing beyond the first 1:22.

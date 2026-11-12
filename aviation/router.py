@@ -92,7 +92,7 @@ def _intish(v: float):
 
 # ---------------------------------------------------------------------------------------------------------------- values
 
-_COUNT_NOUNS = ("cabin crew", "flight attendants", "passengers", "pilots", "crew", "seats", "aircraft", "jets", "planes",
+_COUNT_NOUNS = ("cabin crew", "flight attendants", "passengers", "pilots", "crew", "seats", "aircraft", "jets", "planes", "freighters",
                 "routes", "destinations", "jobs", "employees", "staff", "flights", "hours", "years", "airports", "engines")
 _MULT = {"trillion": 1e12, "billion": 1e9, "bn": 1e9, "million": 1e6, "m": 1e6, "thousand": 1e3}
 _CUR_SYM = {"$": "USD", "us$": "USD", "€": "EUR", "£": "GBP"}
@@ -101,11 +101,22 @@ _CUR_WORD = {"dollars": "USD", "dollar": "USD", "usd": "USD", "euros": "EUR", "e
 _CODE_EXCLUDE = {"FL", "MD", "DC", "CS", "ER", "LR", "XL", "XW", "Q4", "Z4", "E1", "E2", "MK"}
 
 
+_WORDNUM = {w: i for i, w in enumerate(("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
+                                          "sixteen seventeen eighteen nineteen twenty").split())}
+_WORDNUM.update({"thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90, "hundred": 100})
+_MULTS = r"(?:trillion|billion|bn|million|thousand|percent|per\s+cent|%)"
+
+
+def _digits(low: str) -> str:
+    """Word numbers as digits ('five new freighters' -> '5 new freighters'), for counts and changes only."""
+    return re.sub(r"\b(" + "|".join(_WORDNUM) + r")\b", lambda m: str(_WORDNUM[m.group(1)]), low)
+
+
 def extract_values(text: str) -> Dict[str, Any]:
     t = str(text or "")
     low = t.lower()
     v: Dict[str, Any] = {k: [] for k in ("times", "fuel_kg", "altitude_ft", "distance_km", "speed_kt", "counts", "money",
-                                         "percent", "flights", "dates")}
+                                         "percent", "flights", "dates", "changes")}
 
     for m in re.finditer(r"\b(\d{1,2}):(\d{2})\s*(?:([ap])\.?\s?m\b\.?)?", low):
         h, mi, ap = int(m.group(1)), int(m.group(2)), m.group(3)
@@ -144,8 +155,36 @@ def extract_values(text: str) -> Dict[str, Any]:
         v["speed_kt"].append(_intish(_num(m.group(1))))
 
     nouns = "|".join(re.escape(n) for n in sorted(_COUNT_NOUNS, key=len, reverse=True))
-    for m in re.finditer(_NUM + r"\s+(?:(" + nouns + r")|[a-z\-]+\s+(" + nouns + r"))\b", low):
-        v["counts"].append((_intish(_num(m.group(1))), m.group(2) or m.group(3)))
+    dlow = _digits(low)
+    craft_names = " ".join(a.matched.lower() for a in C.find_aircraft(t))
+    # a number, up to three describing words (a type name like 'Boeing 777' may sit between), then the counted noun. Never across
+    # 'million' / 'billion' / 'percent' ('53.2 million passengers' is not a crew of 53), never a number that is an aircraft type
+    for m in re.finditer(r"(?<![\d.,])" + _NUM + r"((?:\s+(?:[a-z\-]+|\d{3}[a-z]?)){0,3}?)\s+(" + nouns + r")\b", dlow):
+        between = m.group(2) or ""
+        if re.search(_MULTS, between) or re.match(r"\s*" + _MULTS, dlow[m.end(1):]):
+            continue
+        if "." in m.group(1):
+            continue                                           # 3.5 crews is not a count
+        if re.search(r"(?<!\d)" + re.escape(m.group(1)) + r"(?!\d)", craft_names):
+            continue                                           # '777 freighters': 777 is the type, not a number of them
+        v["counts"].append((_intish(_num(m.group(1))), m.group(3)))
+    # vertical speed, runway, runway length, a crew member's age
+    for m in re.finditer(_NUM + r"\s*(?:feet|ft)\s+(?:per|a)\s+minute|" + _NUM + r"\s*fpm\b", low):
+        n = _num(m.group(1) or m.group(2))
+        down = re.search(r"\b(sink\w*|descen\w*|down|drop\w*|fall\w*|plung\w*)\b", low)
+        v.setdefault("vs_fpm", []).append(-int(n) if down else int(n))
+    v["runways"] = [m.group(1).upper() for m in re.finditer(r"\brunway\s+(\d{1,2}[lrc]?)\b", low)]
+    v["length_m"] = [int(_num(m.group(1))) for m in re.finditer(_NUM + r"\s*(?:metres|meters|m)\b(?!\w)", low)]
+    m = re.search(r"\b(?:is|aged|age)\s+(\d{2})\b|\b(\d{2})-year-old\b|\((\d{2})\)", low)
+    v["age"] = int(next(g for g in m.groups() if g)) if m else None
+    # 'from 3.1 billion dollars to one billion': a change, the unit of the first carried to the second
+    for m in re.finditer(r"\bfrom\s+(\$)?" + _NUM + r"\s*(trillion|billion|bn|million|thousand)?\s*(dollars?|euros?|pounds)?\s+to\s+(\$)?"
+                         + _NUM + r"\s*(trillion|billion|bn|million|thousand)?", dlow):
+        m1 = _MULT.get(m.group(3) or "", 1.0)
+        m2 = _MULT.get(m.group(7) or "", m1)
+        cur = "USD" if (m.group(1) or m.group(5) or (m.group(4) or "").startswith("dollar")) else \
+            ("EUR" if (m.group(4) or "").startswith("euro") else ("GBP" if (m.group(4) or "").startswith("pound") else ""))
+        v["changes"].append((cur, round(_num(m.group(2)) * m1, 2), round(_num(m.group(6)) * m2, 2)))
 
     for m in re.finditer(r"(us\$|\$|€|£)\s?" + _NUM + r"(?:\s*(trillion|billion|bn|million|m|thousand)\b)?", low):
         mult = _MULT.get(m.group(3) or "", 1.0)

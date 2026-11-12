@@ -125,3 +125,23 @@ class SourceTagTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CardAnimationTests(unittest.TestCase):
+    def test_numbers_count_up_in_a_fact(self):
+        self.assertEqual(K.count_up("Carried 3 million passengers", 0.0, 0.6), "Carried 0 million passengers")
+        self.assertEqual(K.count_up("Carried 3 million passengers", 5.0, 0.6), "Carried 3 million passengers")
+        self.assertEqual(K.count_up("cut 2,900 jobs", 0.6 + 0.35, 0.6), "cut 1,450 jobs")
+
+    def test_card_leaves_at_the_end(self):
+        import tempfile
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as d:
+            Image.new("RGB", (800, 500), (200, 120, 60)).save(f"{d}/a.png")
+            p = {"image": f"{d}/a.png", "headline": "x"}
+            mid, end = K.lay_article(2.5, 5.0, p), K.lay_article(4.95, 5.0, p)
+            px = lambda im: im.convert("RGB").getpixel((640, 230))
+            self.assertNotEqual(px(mid), px(end))
+
+    def test_card_window_is_reference_size(self):
+        self.assertGreaterEqual(K.WIN_W, 1280 * 0.58)

@@ -19,7 +19,7 @@ from . import catalog as C
 from . import router as R
 
 COLUMNS = ("scene_number", "script_segment", "asset_type", "prompt", "graphic", "mode", "airline", "aircraft", "from", "to", "time",
-           "fuel", "altitude", "article", "radio")
+           "fuel", "altitude", "article", "radio", "url")
 PROMPT_FILE = Path(__file__).resolve().parent / "data" / "aviation_csv_prompt.txt"
 
 
@@ -114,6 +114,7 @@ def read_rows(path: Any) -> List[Dict[str, Any]]:
             "altitude": _int(get(row, "altitude")),
             "article": _article(get(row, "article")),
             "radio": _radio(get(row, "radio")),
+            "url": get(row, "url") if get(row, "url").lower().startswith(("http://", "https://")) else "",
             "cls": cls,
         })
     return rows

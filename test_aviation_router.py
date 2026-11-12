@@ -177,3 +177,16 @@ class RouteTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RenderFixTests(unittest.TestCase):
+    """Emirates render 2026-11-13: '53.2 million passengers' became a crew counter '5 3 PASSENGERS'."""
+
+    def test_millions_are_not_counts_of_people(self):
+        v = R.extract_values("Emirates carried 53.2 million passengers and 21.8 million passengers.")
+        self.assertEqual([c for c in v["counts"] if c[1] == "passengers"], [])
+
+    def test_word_numbers_for_simple_counts(self):
+        v = R.extract_values("Five new Boeing 777 freighters joined the fleet and the profit fell from 3.1 billion dollars to one billion.")
+        self.assertIn((5, "freighters"), v["counts"])
+        self.assertEqual(v["changes"], [("USD", 3.1e9, 1.0e9)])

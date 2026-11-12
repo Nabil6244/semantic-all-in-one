@@ -26,7 +26,9 @@ from PIL import Image, ImageFilter
 
 TILE = 256
 TILE_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
-CREDIT = "Elevation: Terrain Tiles (AWS Open Data / Mapzen Terrarium)"
+SAT_URL = "https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless_3857/default/g/{z}/{y}/{x}.jpg"
+SAT_CREDIT = "Sentinel-2 cloudless 2016 by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016), CC BY 4.0"
+CREDIT = "Elevation: Terrain Tiles (AWS Open Data / Mapzen Terrarium) · Imagery: " + SAT_CREDIT
 _UA = "video-generator-aviation/1.0"
 _MEMO: "OrderedDict[tuple, Image.Image]" = OrderedDict()
 _LOCK = threading.Lock()
@@ -114,6 +116,61 @@ def terrarium_tile(z: int, x: int, y: int) -> np.ndarray:
     return a[..., 0] * 256.0 + a[..., 1] + a[..., 2] / 256.0 - 32768.0
 
 
+def sat_tile(z: int, x: int, y: int) -> np.ndarray:
+    req = urllib.request.Request(SAT_URL.format(z=z, x=x, y=y), headers={"User-Agent": _UA})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return np.asarray(Image.open(io.BytesIO(r.read())).convert("RGB"), dtype=np.uint8)
+
+
+def _sat(z: int, x: int, y: int, fetch: Callable, cache: Path) -> Optional[np.ndarray]:
+    n = 2 ** z
+    x %= n
+    if not 0 <= y < n:
+        return None
+    f = cache / "s2cloudless" / str(z) / str(x) / f"{y}.jpg"
+    if f.exists():
+        try:
+            return np.asarray(Image.open(f).convert("RGB"), dtype=np.uint8)
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        a = np.asarray(fetch(z, x, y), dtype=np.uint8)
+    except Exception:
+        return None
+    try:
+        f.parent.mkdir(parents=True, exist_ok=True)
+        Image.fromarray(a).save(f, quality=90)
+    except OSError:
+        pass
+    return a
+
+
+def imagery(bb: BBox, size: Tuple[int, int], fetch_sat: Callable, cache: Optional[Path] = None) -> Optional[np.ndarray]:
+    """Satellite imagery for the box (h, w, 3) float, or None when no tile could be had."""
+    cache = Path(cache) if cache else default_cache()
+    w, h = size
+    z = min(12, zoom_for(bb, w))                               # the same detail as the frame: 4x fewer tiles than one level finer
+    n = 2 ** z
+    x0, y0, x1, y1 = bbox_merc(bb)
+    tx0, tx1 = int(math.floor(x0 * n)), int(math.floor(x1 * n))
+    ty0, ty1 = int(math.floor(y0 * n)), int(math.floor(y1 * n))
+    mosaic = np.zeros(((ty1 - ty0 + 1) * TILE, (tx1 - tx0 + 1) * TILE, 4), dtype=np.uint8)     # alpha = this tile came
+    got = 0
+    for ty in range(ty0, ty1 + 1):
+        for tx in range(tx0, tx1 + 1):
+            a = _sat(z, tx, ty, fetch_sat, cache)
+            if a is not None and a.shape[:2] == (TILE, TILE):
+                mosaic[(ty - ty0) * TILE:(ty - ty0 + 1) * TILE, (tx - tx0) * TILE:(tx - tx0 + 1) * TILE, :3] = a[..., :3]
+                mosaic[(ty - ty0) * TILE:(ty - ty0 + 1) * TILE, (tx - tx0) * TILE:(tx - tx0 + 1) * TILE, 3] = 255
+                got += 1
+    if not got:
+        return None
+    px0, py0 = (x0 * n - tx0) * TILE, (y0 * n - ty0) * TILE
+    px1, py1 = (x1 * n - tx0) * TILE, (y1 * n - ty0) * TILE
+    im = Image.fromarray(mosaic, "RGBA").transform((w, h), Image.EXTENT, (px0, py0, px1, py1), Image.BILINEAR)
+    return np.asarray(im, dtype=np.float32)                    # (h, w, 4): the 4th channel says where imagery exists
+
+
 def _tile(z: int, x: int, y: int, fetch: Callable, cache: Path) -> Optional[np.ndarray]:
     n = 2 ** z
     x %= n
@@ -172,8 +229,13 @@ def shade(elev: np.ndarray, metres_per_px: float, exaggerate: float = 2.5, azimu
     return np.clip(s, 0.0, 1.0)
 
 
-def relief(bb: BBox, size: Tuple[int, int], fetch_tile: Optional[Callable] = None, cache: Optional[Path] = None) -> Image.Image:
-    key = (tuple(round(v, 5) for v in bb), tuple(size), id(fetch_tile) if fetch_tile else 0, str(cache or ""))
+def relief(bb: BBox, size: Tuple[int, int], fetch_tile: Optional[Callable] = None, cache: Optional[Path] = None,
+           fetch_sat: Optional[Callable] = None) -> Image.Image:
+    """The dark map: hillshade of the elevation, and (when imagery can be had) the satellite picture muted, darkened and lit by that
+    hillshade - the reference's night-satellite look. Imagery is fetched by default only on the real path (no fake elevation given)."""
+    if fetch_sat is None and fetch_tile is None:
+        fetch_sat = sat_tile
+    key = (tuple(round(v, 5) for v in bb), tuple(size), id(fetch_tile) if fetch_tile else 0, str(cache or ""), id(fetch_sat) if fetch_sat else 0)
     with _LOCK:
         if key in _MEMO:
             _MEMO.move_to_end(key)
@@ -188,6 +250,16 @@ def relief(bb: BBox, size: Tuple[int, int], fetch_tile: Optional[Callable] = Non
     v = 20.0 + 105.0 * s ** 2.2 + 70.0 * high * s
     v = np.where(land, v, 14.0)                                # water / no data: near black
     rgb = np.stack([v * 0.90, v * 0.95, v * 1.04 + 4.0], axis=-1)
+    sat = imagery(bb, size, fetch_sat, cache) if fetch_sat is not None else None
+    if sat is not None:
+        cover = (sat[..., 3:4] / 255.0)                         # a tile that did not come leaves the relief there (no dark squares)
+        sat = sat[..., :3]
+        lum = sat.mean(axis=2, keepdims=True)
+        muted = lum + (sat - lum) * 0.35                       # most of the colour out: a blue-grey night satellite
+        lit = muted * (0.45 + 0.85 * s[..., None]) * 0.62      # lit by the hillshade, then darkened
+        lit *= np.array([0.90, 0.96, 1.08], dtype=np.float32)
+        mixed = 0.62 * lit + 0.38 * rgb
+        rgb = np.where(land[..., None], cover * mixed + (1 - cover) * rgb, rgb)
     # a soft vignette keeps the eye in the middle
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     r = np.hypot((xx - w / 2) / (w / 2), (yy - h / 2) / (h / 2))
@@ -195,6 +267,6 @@ def relief(bb: BBox, size: Tuple[int, int], fetch_tile: Optional[Callable] = Non
     img = Image.fromarray(np.clip(rgb, 0, 255).astype(np.uint8), "RGB").filter(ImageFilter.SMOOTH)
     with _LOCK:
         _MEMO[key] = img
-        while len(_MEMO) > 6:
+        while len(_MEMO) > 16:
             _MEMO.popitem(last=False)
     return img

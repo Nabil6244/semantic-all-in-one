@@ -203,3 +203,104 @@ class RadioTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CameraViewTests(unittest.TestCase):
+    P = {"airports": ["SXR", "IXJ", "ATQ"], "views": [{"start": 0.0, "focus": ["SXR", "IXJ"]}, {"start": 4.0, "focus": ["IXJ"]},
+                                                      {"start": 9.0, "focus": ["IXJ", "ATQ"]}]}
+
+    def width_km(self, bb):
+        return B.km_per_px(bb, 1280) * 1280
+
+    def test_close_view_is_much_tighter_than_the_route_view(self):
+        wide = F.view_at(self.P, 2.0, 12.0)
+        close = F.view_at(self.P, 7.0, 12.0)
+        self.assertLess(self.width_km(close), self.width_km(wide) * 0.6)
+
+    def test_the_camera_moves_between_framings_not_jumps(self):
+        a, mid, b = F.view_at(self.P, 3.99, 12.0), F.view_at(self.P, 4.8, 12.0), F.view_at(self.P, 6.5, 12.0)
+        wa, wm, wb = self.width_km(a), self.width_km(mid), self.width_km(b)
+        self.assertTrue(wb < wm < wa, (wa, wm, wb))
+
+    def test_close_view_keeps_its_airport_in_frame(self):
+        v = F.view_at(self.P, 7.0, 12.0)
+        x, y = B.to_px(v, 32.689, 74.837, 1280, 720)
+        self.assertTrue(200 < x < 1080 and 120 < y < 600, (x, y))
+
+    def test_frames_render_with_views(self):
+        with tempfile.TemporaryDirectory() as d:
+            q = dict(self.P, fetch_tile=fake_tile, cache=d)
+            a, b = F.lay_flight_map(2.0, 12.0, q), F.lay_flight_map(7.0, 12.0, q)
+            self.assertGreater(_diff(a, b), 1000)              # fake terrain is nearly flat: the geometry tests above check the framing
+
+
+def fake_sat(z, x, y):
+    """Satellite tile: green-brown land with a blue river band."""
+    n = 256
+    a = np.zeros((n, n, 3), dtype=np.uint8)
+    a[..., 0], a[..., 1], a[..., 2] = 110, 120, 70
+    a[120:136, :, :] = (40, 70, 140)
+    return a
+
+
+class SatelliteLookTests(unittest.TestCase):
+    def test_satellite_texture_is_blended_in_dark_and_muted(self):
+        with tempfile.TemporaryDirectory() as d:
+            bb = B.fit_bbox([(33.99, 74.77), (32.69, 74.84)])
+            plain = np.asarray(B.relief(bb, (320, 180), fetch_tile=fake_tile, cache=Path(d)).convert("RGB"), dtype=np.float32)
+            sat = np.asarray(B.relief(bb, (320, 180), fetch_tile=fake_tile, cache=Path(d), fetch_sat=fake_sat).convert("RGB"), dtype=np.float32)
+            diff = np.abs(sat - plain).mean(axis=2)
+            self.assertGreater(diff.mean(), 1.5)                           # the imagery shows
+            self.assertGreater(diff.max(), 6.0)                            # and its features (the river band) stand out
+            self.assertLess(sat.mean(), 120)                               # still a dark map
+            self.assertLess((sat.max(axis=2) - sat.min(axis=2)).mean(), 45)  # muted, not a colour photo
+
+    def test_no_imagery_falls_back_to_relief(self):
+        def broken(z, x, y):
+            raise OSError("offline")
+        with tempfile.TemporaryDirectory() as d:
+            bb = B.fit_bbox([(33.99, 74.77), (32.69, 74.84)])
+            im = B.relief(bb, (320, 180), fetch_tile=fake_tile, cache=Path(d), fetch_sat=broken)
+            self.assertEqual(im.size, (320, 180))
+
+    def test_missing_tiles_leave_the_relief_not_dark_squares(self):
+        def half(z, x, y):
+            if x % 2:
+                raise OSError("missing")
+            return fake_sat(z, x, y)
+        with tempfile.TemporaryDirectory() as d:
+            bb = B.fit_bbox([(33.99, 74.77), (32.69, 74.84)])
+            plain = np.asarray(B.relief(bb, (320, 180), fetch_tile=fake_tile, cache=Path(d)).convert("L"), dtype=np.float32)
+            got = np.asarray(B.relief(bb, (320, 180), fetch_tile=fake_tile, cache=Path(d) / "h", fetch_sat=half).convert("L"), dtype=np.float32)
+            self.assertLess(((plain - got) > 25).mean(), 0.02)            # nowhere much darker than the plain relief
+
+    def test_credit_names_the_imagery(self):
+        self.assertIn("Sentinel-2", B.SAT_CREDIT)
+
+
+class RouteLookTests(unittest.TestCase):
+    def test_legs_curve(self):
+        pts = F.leg_curve((100.0, 100.0), (900.0, 100.0), bend=0.12)
+        mid = pts[len(pts) // 2]
+        self.assertGreater(abs(mid[1] - 100.0), 50.0)
+        self.assertEqual((round(pts[0][0]), round(pts[-1][0])), (100, 900))
+
+    def test_plane_icon_at_the_head(self):
+        with tempfile.TemporaryDirectory() as d:
+            q = {"airports": ["SXR", "IXJ"], "legs": [{"from": "SXR", "to": "IXJ", "start": 0.0, "length": 4.0}], "fetch_tile": fake_tile, "cache": d}
+            im = np.asarray(F.lay_flight_map(2.0, 6.0, q).convert("RGB"), dtype=np.int32)
+            white = ((im[..., 0] > 235) & (im[..., 1] > 235) & (im[..., 2] > 235)).sum()
+            self.assertGreater(white, 150)                                 # labels + the white airliner icon
+
+
+class LabelPopTests(unittest.TestCase):
+    def test_airport_label_is_absent_before_it_is_named(self):
+        with tempfile.TemporaryDirectory() as d:
+            q = {"airports": ["SXR", "IXJ", "ATQ"], "appear": {"SXR": 0.0, "IXJ": 0.0, "ATQ": 8.0}, "fetch_tile": fake_tile, "cache": d}
+            before, after = F.lay_flight_map(2.0, 12.0, q), F.lay_flight_map(10.0, 12.0, q)
+            bb = B.fit_bbox([(33.987, 74.774), (32.689, 74.837), (31.708, 74.797)], pad=0.22)
+            x, y = B.to_px(bb, 31.708, 74.797, 1280, 720)
+            box = (int(x) - 140, int(y) - 40, int(x) + 10, int(y) + 10)
+            w = lambda im: (np.asarray(im.convert("L").crop(box)) > 235).sum()
+            self.assertLess(w(before), 5)
+            self.assertGreater(w(after), 30)

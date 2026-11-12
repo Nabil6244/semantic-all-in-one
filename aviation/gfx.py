@@ -261,11 +261,11 @@ def _sky() -> Image.Image:
     return Image.composite(Image.new("RGB", (W, H), (34, 30, 44)), Image.new("RGB", (W, H), (12, 22, 44)), g).convert("RGBA")
 
 
-def _side_plane(d: ImageDraw.ImageDraw, x: float, y: float, s: float = 1.0) -> None:
+def _side_plane(d: ImageDraw.ImageDraw, x: float, y: float, s: float = 1.0, tail=(120, 40, 90, 255)) -> None:
     body = (236, 236, 240, 255)
     d.rounded_rectangle([x - 70 * s, y - 7 * s, x + 70 * s, y + 7 * s], int(7 * s), fill=body)
     d.polygon([(x + 70 * s, y - 6 * s), (x + 84 * s, y), (x + 70 * s, y + 6 * s)], fill=body)               # nose
-    d.polygon([(x - 62 * s, y - 6 * s), (x - 80 * s, y - 34 * s), (x - 68 * s, y - 34 * s), (x - 44 * s, y - 6 * s)], fill=(120, 40, 90, 255))
+    d.polygon([(x - 62 * s, y - 6 * s), (x - 80 * s, y - 34 * s), (x - 68 * s, y - 34 * s), (x - 44 * s, y - 6 * s)], fill=tuple(tail))
     d.polygon([(x - 10 * s, y + 2 * s), (x - 34 * s, y + 14 * s), (x - 20 * s, y + 14 * s), (x + 12 * s, y + 3 * s)], fill=(200, 200, 208, 255))
 
 

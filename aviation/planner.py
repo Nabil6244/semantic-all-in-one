@@ -31,6 +31,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
+from . import catalog as C
 from . import footage as FT
 from . import gfx as G
 from . import hud as U
@@ -43,6 +44,7 @@ BREAK_S = 4.0
 OPEN_S = 6.0
 CARD_GAP_S = 10.0             # never two cards closer than this
 CARD_EVERY_S = 16.0           # after this long without a card, any line that names something may carry one
+CARD_MAX_S = 5.0              # a blue card holds 4-6 s in the reference; the rest of a long sentence goes back to clips
 _HOLD = re.compile(r"\b(hold|holding|orbit|orbits|racetrack)\b", re.I)
 _END = re.compile(r"\bstory of\s+((?:[A-Z][\w\-']*|\d+)(?:\s+(?:[A-Z][\w\-']*|\d+))*)")
 
@@ -93,6 +95,64 @@ def _card_worthy(c: Any, since: float) -> bool:
     return since >= 1.5 * CARD_EVERY_S and len(c.text.split()) >= 8
 
 
+def _mins(hhmm: str) -> float:
+    h, m = str(hhmm).split(":")
+    return int(h) * 60 + int(m)
+
+
+def _hhmm(mins: float) -> str:
+    m = int(round(mins)) % (24 * 60)
+    return f"{m // 60:02d}:{m % 60:02d}"
+
+
+def _hud_timeline(scenes, cls, rows) -> List[Optional[Dict[str, Any]]]:
+    """Time and fuel on ONE timeline for the whole film: each reading the narration (or CSV) gives is pinned to the start of its line,
+    values run linearly from one reading to the next across every line between them, and hold after the last. A line's HUD shows
+    (value at its start, value at its end), so the next line starts exactly where this one stopped. Nothing before the first reading."""
+    fuel_pts, time_pts = [], []
+    for k, (s, c) in enumerate(zip(scenes, cls)):
+        r = _row(rows, k)
+        f = r.get("fuel") or (c.values["fuel_kg"][-1] if c.values["fuel_kg"] else None)
+        t = r.get("time") or (c.values["times"][-1] if c.values["times"] else None)
+        if f:
+            fuel_pts.append((float(s["start"]), float(f)))
+        if t:
+            tm = _mins(t)
+            if time_pts and tm < time_pts[-1][1] - 1e-6:
+                tm += 24 * 60                              # past midnight
+            time_pts.append((float(s["start"]), tm))
+
+    def at(pts, x):
+        if not pts or x < pts[0][0] - 1e-6:
+            return None
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            if x0 - 1e-6 <= x <= x1 + 1e-6:
+                return y0 + (y1 - y0) * ((x - x0) / (x1 - x0) if x1 > x0 else 1.0)
+        return pts[-1][1]
+
+    out: List[Optional[Dict[str, Any]]] = []
+    for k, (s, c) in enumerate(zip(scenes, cls)):
+        a, b = float(s["start"]), float(s["end"])
+        fa, fb, ta, tb = at(fuel_pts, a), at(fuel_pts, b), at(time_pts, a), at(time_pts, b)
+        if fa is None and ta is None:
+            out.append(None)
+            continue
+        fuel = (int(round(fa / 10) * 10), int(round(fb / 10) * 10)) if fa is not None else None
+        if fuel and fuel_pts and any(abs(x - a) < 1e-6 for x, _ in fuel_pts):
+            fuel = (int(round(fa)), fuel[1])               # a stated reading shows exactly as said
+        if fuel and fuel_pts and abs(fuel_pts[-1][0] - a) < 1e-6:
+            fuel = (int(round(fa)), int(round(fa)))
+        out.append({"fuel": fuel, "time": (_hhmm(ta), _hhmm(tb)) if ta is not None else None,
+                    "altitude": (getattr(c, "state", {}) or {}).get("altitude_ft")})
+    # values that were stated exactly stay exact where a line ends on the next reading
+    for k in range(len(out) - 1):
+        if out[k] and out[k + 1] and out[k]["fuel"] and out[k + 1]["fuel"]:
+            out[k]["fuel"] = (out[k]["fuel"][0], out[k + 1]["fuel"][0])
+        if out[k] and out[k + 1] and out[k]["time"] and out[k + 1]["time"]:
+            out[k]["time"] = (out[k]["time"][0], out[k + 1]["time"][0])
+    return out
+
+
 def _fact(text: str, limit: int = 110) -> str:
     t = text.strip()
     return t if len(t) <= limit else t[:limit].rsplit(" ", 1)[0] + "…"
@@ -101,6 +161,8 @@ def _fact(text: str, limit: int = 110) -> str:
 def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None) -> Plan:
     texts = [str(s.get("text") or "") for s in scenes]
     cls = R.route_script(texts)
+    SCRIPT_YEAR[0] = max([int(y) for t_ in texts for y in _YEAR.findall(t_)] or [0])     # the story's 'now' for timelines
+    SCRIPT_FUEL[0] = max([float(f) for c_ in cls for f in (c_.values.get("fuel_kg") or [])] or [0.0])   # the fuel gauge's full scale
     _PREV_Q.clear()
     forced, modes = [], []
     for i, c in enumerate(cls):
@@ -110,7 +172,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
         else:
             modes.append(c.mode); forced.append(False)
     modes = _smooth(cls, modes, forced)
-    hplan = U.hud_plan(cls)
+    hplan = _hud_timeline(scenes, cls, rows)
     out = Plan(modes=modes)
     for i, c in enumerate(cls):
         out.log.append({"scene": scenes[i].get("scene_no", i + 1), "mode": modes[i],
@@ -121,7 +183,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
         return "map" if m in MAP_MODES else m
 
     i = 0
-    news_last_card = 0.0            # the card rhythm runs across stretches; the cold open (OPEN_S) is the video's start
+    news_last_card = -CARD_GAP_S    # no card yet; the rhythm runs across stretches; the cold open (OPEN_S) is the video's start
     while i < len(scenes):
         j = i
         while j + 1 < len(scenes) and group(modes[j + 1]) == group(modes[i]):
@@ -133,6 +195,8 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
             news_last_card = _clip_stretch(out, scenes, cls, rows, modes, i, j, news_last_card)
         i = j + 1
 
+    _graphics(out, scenes, cls, rows)
+
     # the next-episode card on a line that says 'the story of X'
     for k, s in enumerate(scenes):
         m = _END.search(texts[k])
@@ -142,6 +206,92 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
                                                       "params": {"kicker": "THE STORY OF", "title": m.group(1).strip()}})
     out.shots.sort(key=lambda x: (x["start"], 0 if x.get("full_frame") or x.get("kind") == "footage" else 1))
     return out
+
+
+_RIGHT_NOW = re.compile(r"\bright now\b|\bat this moment\b|\bmeanwhile\b", re.I)
+_REPORT = re.compile(r"\bweather report\b|\bforecast\b|\bmetar\b|\bbriefing\b", re.I)
+_GLIDE = re.compile(r"\bglide\s*(?:slope|path)\b|\bdecision height\b|\bminimums\b|\bils\b|\bfinal approach\b", re.I)
+_GAUGE = re.compile(r"\bgauges?\b|\breads?\b|\bquantity\b|\bindicat\w*|\bneedle\b", re.I)
+_ROLE = (("first officer", "FIRST OFFICER"), ("second officer", "SECOND OFFICER"), ("flight engineer", "FLIGHT ENGINEER"),
+         ("co-pilot", "CO-PILOT"), ("captain", "CAPTAIN"))
+SCRIPT_FUEL: List[float] = [0.0]
+_KEY = {"wind": "WIND", "haze": "VIS", "fog": "VIS", "cloud": "CLOUD", "storm": "WX", "rain": "WX", "hail": "WX", "heat": "TEMP"}
+
+
+def _graphics(out: Plan, scenes, cls, rows) -> None:
+    """Graphics the CSV's `graphic` column asks for, and the ones the narration itself calls for: a place title when a line says
+    'right now' about a place, the altitude side view when a line gives two altitudes, a weather sheet for a weather-report line (its
+    rows are that line's own words). Overlays sit over whatever is on screen; the side view is full frame for its line."""
+    for k, (s, c) in enumerate(zip(scenes, cls)):
+        r = _row(rows, k)
+        g = str(r.get("graphic") or "").strip().lower()
+        a, b = float(s["start"]), float(s["end"])
+        sc = s.get("scene_no", k + 1)
+        city = ""
+        for code in [r.get("to") or "", r.get("from") or ""] + [x["id"] for x in reversed(c.airports)]:
+            ap = C.get_airport(code) if code else None
+            if ap:
+                city = ap["city"]
+                break
+        if (g == "place_title" or (_RIGHT_NOW.search(c.text) and c.airports)) and city:
+            out.shots.append({"layer": "gfx.lay_place_title", "start": a, "end": min(b, a + 3.5), "scene": sc,
+                              "params": {"name": city, "pill": "RIGHT NOW" if _RIGHT_NOW.search(c.text) else ""}})
+        alts = c.values.get("altitude_ft") or []
+        if g == "altitude" or len(alts) >= 2:
+            if alts:
+                lo_hi = (alts[0], alts[-1]) if len(alts) >= 2 else (alts[0], alts[0])
+                out.shots.append({"layer": "gfx.lay_altitude", "start": a, "end": b, "scene": sc, "full_frame": True,
+                                  "params": {"from_ft": lo_hi[0], "to_ft": lo_hi[1], "lines": sorted(set(alts)),
+                                             "label": (getattr(c, "state", {}) or {}).get("flight") or ""}})
+        items = G.weather_items(c.text)
+        if (g == "briefing_sheet" or _REPORT.search(c.text)) and items:
+            stamp = ""
+            m = re.search(r"\b(?:over|more than)?\s*(\w+)\s+hours?\s+old\b", c.text, re.I)
+            if m:
+                stamp = m.group(0).strip().upper()
+            out.shots.append({"layer": "gfx.lay_sheet", "start": a, "end": b, "scene": sc,
+                              "params": {"title": f"{city.upper()} WEATHER" if city else "WEATHER REPORT",
+                                         "rows": [[_KEY.get(kind, "WX"), label] for kind, label, _sub in items],
+                                         "highlight": list(range(len(items))), "stamp": stamp, "stamp_at": 2.0}})
+        v = c.values
+        al = (r.get("airline") or (c.airlines[0]["id"] if c.airlines else ""))
+        from . import gfx_air as GA
+        tail = GA.tail_of(al)
+        low = c.text.lower()
+        span = (a, min(b, a + 6.0))
+        # a crew line: who they are, how old, how many hours (overlay over the cockpit / map)
+        hours = next((n for n, noun in v.get("counts") or [] if noun == "hours"), None)
+        role = next((lab for w, lab in _ROLE if w in low), "")
+        if role and (v.get("age") or hours):
+            m = re.search(r"([\d,]+)\s+hours?\s+on\s+(?:the\s+)?(?:type|this aircraft|the [a-z0-9\- ]+)", low)
+            out.shots.append({"layer": "gfx_air.lay_crew", "start": a, "end": b, "scene": sc,
+                              "params": {"role": role, "age": v.get("age"), "hours": hours, "name": FT._person(c),
+                                         "on_type": int(m.group(1).replace(",", "")) if m else None}})
+        if v.get("runways") and (v.get("length_m") or re.search(r"\bland\w*|\bcleared\b", low)):
+            out.shots.append({"layer": "gfx_air.lay_runway", "start": span[0], "end": span[1], "scene": sc, "full_frame": True,
+                              "params": {"runway": v["runways"][-1], "length_m": (v.get("length_m") or [None])[-1],
+                                         "airport": c.airports[-1]["id"] if c.airports else ""}})
+        if v.get("vs_fpm"):
+            out.shots.append({"layer": "gfx_air.lay_descent", "start": span[0], "end": span[1], "scene": sc, "full_frame": True,
+                              "params": {"fpm": v["vs_fpm"][0], "speed_kt": (v.get("speed_kt") or [None])[0], "tail": tail}})
+        if _GLIDE.search(c.text) and alts:
+            out.shots.append({"layer": "gfx_air.lay_approach", "start": span[0], "end": span[1], "scene": sc, "full_frame": True,
+                              "params": {"from_ft": max(alts), "to_ft": min(alts) if len(alts) > 1 else 0, "lines": sorted(set(alts)),
+                                         "tail": tail, "label": "glide slope"}})
+        if _GAUGE.search(c.text) and v.get("fuel_kg"):
+            out.shots.append({"layer": "gfx_air.lay_gauge", "start": span[0], "end": span[1], "scene": sc, "full_frame": True,
+                              "params": {"value": v["fuel_kg"][-1], "max": max(SCRIPT_FUEL[0], v["fuel_kg"][-1] * 2), "unit": "KG",
+                                         "label": "FUEL"}})
+        if g == "title":
+            title = (getattr(c, "state", {}) or {}).get("flight") or (c.airlines[0]["name"] if c.airlines else "")
+            if title:
+                out.shots.append({"layer": "gfx_air.lay_title", "start": a, "end": min(b, a + 4.0), "scene": sc, "full_frame": True,
+                                  "params": {"title": title, "sub": (v.get("dates") or [""])[0]}})
+        if g == "end_card" and not _END.search(c.text):
+            title = (getattr(c, "state", {}) or {}).get("flight") or (c.airlines[0]["name"] if c.airlines else "")
+            if title:
+                _replace_with(out, a, b, {"layer": "gfx.lay_end_card", "start": a, "end": b, "scene": sc, "full_frame": True,
+                                          "params": {"kicker": "THE STORY OF", "title": title}})
 
 
 def _replace_with(out: Plan, a: float, b: float, shot: dict) -> None:
@@ -167,6 +317,61 @@ def _queries(c: Any, r: dict) -> List[str]:
     return q
 
 
+_MONEY_WORDS = (("profit", "PROFIT"), ("cash", "CASH"), ("revenue", "REVENUE"), ("loss", "LOSS"), ("invest", "INVESTMENT"),
+                ("fuel", "FUEL BILL"), ("cost", "COSTS"))
+_YEAR = re.compile(r"\b(19[2-9]\d|20[0-4]\d)\b")
+SCRIPT_YEAR: List[int] = [0]
+
+
+def _tail(c: Any, r: dict):
+    from . import gfx_air as GA
+    return GA.tail_of(r.get("airline") or (c.airlines[0]["id"] if c.airlines else ""))
+
+
+def _air_graphics(c: Any, r: dict) -> List[tuple]:
+    """Aviation graphics the line's own numbers call for, most telling first (at most two)."""
+    from . import catalog as Cat
+
+    v, low = c.values, c.text.lower()
+    out: List[tuple] = []
+    label = next((lab for w, lab in _MONEY_WORDS if w in low), "")
+    if v.get("changes"):
+        cur, a, b = v["changes"][0]
+        out.append(("gfx_air.lay_change", {"before": a, "after": b, "currency": cur, "label": label or "CHANGE",
+                                            "before_label": "BEFORE", "after_label": "NOW"}))
+    pcts = list(v.get("percent") or [])
+    if pcts and re.search(r"\bfull\b|load factor|occupancy|seats? (?:were|was|filled)", low):
+        m = re.search(r"\bagainst\s+(\d+(?:\.\d+)?)", low)
+        out.append(("gfx_air.lay_seats", {"now": pcts[0], "before": float(m.group(1)) if m else (pcts[1] if len(pcts) > 1 else None),
+                                           "label": "SEATS FILLED"}))
+    counts = dict((n, x) for x, n in (v.get("counts") or []))
+    fleet = next((counts[n] for n in ("aircraft", "jets", "planes") if counts.get(n, 0) >= 10), 0)
+    if fleet:
+        out.append(("gfx_air.lay_fleet", {"count": fleet, "label": "AIRCRAFT"}))
+    if counts.get("destinations", 0) >= 10:
+        al = Cat.get_airline(r.get("airline") or "") or (c.airlines[0] if c.airlines else None)
+        hub = (al or {}).get("hubs", [None])[0] if al and al.get("hubs") else (c.airports[0]["id"] if c.airports else None)
+        if hub:
+            out.append(("gfx_air.lay_network", {"hub": hub, "count": counts["destinations"], "label": "DESTINATIONS",
+                                                 "plus": bool(re.search(r"more than|over|\+", low))}))
+    if not v.get("changes") and not any(x[0] == "gfx_air.lay_seats" for x in out):
+        sign = "+" if re.search(r"\b(jump\w*|rose|rise\w*|up|increase\w*|grew|growth|record)\b", low) else \
+            ("-" if re.search(r"\b(fell|fall\w*|down|drop\w*|lost|loss|decline\w*|cut)\b", low) else "")
+        icon = "freighter" if re.search(r"\bcargo\b|\bfreight", low) else "airliner"
+        if pcts and (label or icon == "freighter"):
+            out.append(("gfx_air.lay_big_number", {"value": pcts[0], "unit": "%", "sign": sign,
+                                                    "label": ("CARGO " if icon == "freighter" else "") + (label or "REVENUE"), "icon": icon,
+                                                    "tail": _tail(c, r)}))
+        elif v.get("money") and label:
+            cur, amt = v["money"][0]
+            out.append(("gfx_air.lay_big_number", {"value": amt, "unit": cur, "sign": "", "label": label, "icon": icon, "tail": _tail(c, r)}))
+    years = [int(y) for y in _YEAR.findall(c.text)]
+    if years and SCRIPT_YEAR[0] and min(years) <= SCRIPT_YEAR[0] - 15:
+        name = (c.airlines[0]["name"] if c.airlines else "").upper()
+        out.append(("gfx_air.lay_timeline", {"from_year": min(years), "to_year": SCRIPT_YEAR[0], "label": name}))
+    return out[:2]
+
+
 def _clip_stretch(out: Plan, scenes, cls, rows, modes, i: int, j: int, last_card: float) -> float:
     s0 = scenes[i]["start"]
     for k in range(i, j + 1):
@@ -174,22 +379,48 @@ def _clip_stretch(out: Plan, scenes, cls, rows, modes, i: int, j: int, last_card
         a, b = s["start"], s["end"]
         sc = s.get("scene_no", k + 1)
         card = None
-        if mode == "evidence":
+        graphics = _air_graphics(c, r) if mode != "evidence" else []
+        if s.get("has_clip") is False and mode != "evidence" and not (r.get("article") or {}).get("page") and not r.get("article"):
+            # nothing filmed for this line: its aviation graphics share the line, else its own words as a clean text card
+            items = graphics or [("cards.lay_article", {"fact": _fact(c.text)})]
+            step = (b - a) / len(items)
+            for n_, (layer, params) in enumerate(items):
+                out.shots.append({"layer": layer, "start": a + n_ * step, "end": a + (n_ + 1) * step, "scene": sc, "full_frame": True,
+                                  "mode": mode, "params": params})
+            if graphics:
+                last_card = a
+            continue
+        if mode == "evidence" and not (r.get("article") or {}).get("page"):
             card = {"layer": "war.lay_document", "params": {"text": c.text, "highlight": c.text}}
         elif r.get("article"):
             card = {"layer": "cards.lay_article", "params": dict(r["article"], image_from="footage")}
+        elif graphics and a - last_card >= CARD_GAP_S and b - max(a, OPEN_S) >= 2.5:
+            layer, params = graphics[0]
+            card = {"layer": layer, "params": dict(params), "graphic_at": max(a, OPEN_S)}
         elif mode in ("news", "numbers", "fleet") and a >= OPEN_S and a - last_card >= CARD_GAP_S and \
                 (b - a) >= 2.0 and (mode != "fleet" or c.values["counts"]) and _card_worthy(c, a - max(last_card, 0.0)):
             card = {"layer": "cards.lay_article", "params": {"fact": _fact(c.text), "image_from": "footage"}}
-        if card:
-            card.update(start=a, end=b, scene=sc, full_frame=True, mode=mode)
-            out.shots.append(card)
-            if card["layer"] == "cards.lay_article":
-                last_card = a
-            continue
         lo, hi = FT.cut_range(mode)
         q = _queries(c, r)
-        for x, y in _slots(a, b, lo, hi):
+        clip_from = a
+        if card:
+            g0 = float(card.pop("graphic_at", a))
+            if g0 > a + 1e-6:                              # the cold open stays on clips; the graphic comes after it
+                for x, y in _slots(a, g0, lo, hi):
+                    out.shots.append({"kind": "footage", "start": x, "end": y, "scene": sc, "mode": mode, "queries": q, "cut": (lo, hi)})
+            end = b
+            if card["layer"] != "war.lay_document" and b - g0 > CARD_MAX_S + 1.0:
+                end = g0 + CARD_MAX_S                      # the card, then the rest of the sentence on clips
+            card.update(start=g0, end=end, scene=sc, full_frame=True, mode=mode)
+            out.shots.append(card)
+            if card["layer"] != "war.lay_document":
+                last_card = g0
+            if end >= b - 1e-6:
+                continue
+            clip_from = end
+            if mode not in ("news", "numbers"):
+                lo, hi = FT.cut_range("news")
+        for x, y in _slots(clip_from, b, lo, hi):
             out.shots.append({"kind": "footage", "start": x, "end": y, "scene": sc, "mode": mode, "queries": q, "cut": (lo, hi)})
         counters = G.counters_from(c.values)
         if counters:
@@ -202,27 +433,33 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
     airports: List[str] = []
     prm: Dict[str, Any] = {"airports": airports, "storms": [], "callouts": []}
 
+    appear: Dict[str, float] = {}
+    prm["appear"] = appear
+    cur_rel = [0.0]
+
     def seen(a: str) -> None:
         if a and a not in airports:
             airports.append(a)
+        if a and a not in appear:
+            appear[a] = round(cur_rel[0], 3)              # the label pops in when the narration first names the airport
 
     last_airport = ""
     for k in range(i, j + 1):
         s, c, r = scenes[k], cls[k], _row(rows, k)
         rel = s["start"] - t0
+        cur_rel[0] = rel
         named = [a["id"] for a in c.airports]
         for a in named + [r.get("from") or "", r.get("to") or ""]:
             seen(a)
         frm, to = r.get("from") or "", r.get("to") or ""
         if not (frm and to) and len(named) >= 2:
             frm, to = named[0], named[1]
-        if frm and to and frm != to and "route" not in prm:
-            prm["route"] = {"from": frm, "to": to, "start": rel + 0.3, "length": max(2.0, (s["end"] - s["start"]) * 1.5)}
-        elif frm and to and frm != to and prm.get("route") and k > i:
-            # a later leg: the flown track continues to the new airport
-            prm.setdefault("track", [prm["route"]["from"], prm["route"]["to"]])
-            if prm["track"][-1] != to:
-                prm["track"].append(to)
+        if frm and to and frm != to:
+            legs = prm.setdefault("legs", [])
+            if not legs or (legs[-1]["from"], legs[-1]["to"]) != (frm, to):
+                leg = {"from": frm, "to": to, "start": rel + 0.3, "length": max(2.0, (s["end"] - s["start"]) * 1.5)}
+                legs.append(leg)                           # a later leg appears only when the narration reaches it
+                prm.setdefault("route", dict(leg))
         if named or r.get("from") or r.get("to"):
             last_airport = (named[-1] if named else (r.get("to") or r.get("from")))
             prm["active"] = last_airport
@@ -242,8 +479,8 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
         # overlays for this line
         hp = hplan[k] if k < len(hplan) else None
         alt = r.get("altitude") or (hp or {}).get("altitude")
-        fuel = (r["fuel"], r["fuel"]) if r.get("fuel") else (hp or {}).get("fuel")
-        tim = (r["time"], r["time"]) if r.get("time") else (hp or {}).get("time")
+        fuel = (hp or {}).get("fuel")
+        tim = (hp or {}).get("time")
         if fuel or tim or alt:
             out.shots.append({"layer": "hud.lay_hud", "start": s["start"], "end": s["end"], "scene": s.get("scene_no"),
                               "params": {"time": tim, "fuel": fuel, "altitude": alt}})
@@ -268,22 +505,59 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
                 out.shots.append({"kind": "footage", "start": x, "end": y, "scene": s.get("scene_no"), "mode": c.mode,
                                   "queries": _queries(c, r), "cut": (lo, hi)})
         return
-    # one map, split by short footage breaks when it runs long (it carries on, never restarts)
+    # camera: each line that names places re-frames the map on them (a route wide, a storm / hold / approach close on its airport)
+    views: List[Dict[str, Any]] = []
+    last_focus: Optional[List[str]] = None
+    for k in range(i, j + 1):
+        s, c, r = scenes[k], cls[k], _row(rows, k)
+        named = [a["id"] for a in c.airports]
+        frm, to = r.get("from") or "", r.get("to") or ""
+        if frm and to and frm != to:
+            focus = [frm, to]
+        elif len(named) >= 2:
+            focus = named[:2]
+        elif named:
+            focus = named[-1:]
+        elif to:
+            focus = [to]
+        else:
+            continue
+        if focus != last_focus:
+            views.append({"start": max(0.0, s["start"] - t0), "focus": focus})
+            last_focus = focus
+    if views:
+        prm["views"] = views
+    # beats: a line with its own aircraft shot (Flow video / checked YouTube) cuts to it; the map carries on around it (one clock, one
+    # route); a map run longer than MAX_MAP_S still gets a short break so nothing sits too long
     total = t1 - t0
-    pos = t0
-    while pos < t1 - 1e-6:
-        end = min(t1, pos + MAX_MAP_S)
-        if t1 - end < BREAK_S + 2.0:
-            end = t1
-        out.shots.append({"layer": "flightmap.lay_flight_map", "start": pos, "end": end, "full_frame": True, "mode": "flight",
-                          "scene": _scene_at(scenes, i, j, pos),
-                          "params": dict(prm, t0=pos - t0, total=total)})
-        if end >= t1 - 1e-6:
-            break
-        k = _index_at(scenes, i, j, end)
-        out.shots.append({"kind": "footage", "start": end, "end": end + BREAK_S, "scene": scenes[k].get("scene_no"), "mode": "flight",
-                          "queries": _queries(cls[k], _row(rows, k)) or ["airliner flying above clouds"], "cut": (BREAK_S, BREAK_S)})
-        pos = end + BREAK_S
+    segs: List[tuple] = []
+    for k in range(i, j + 1):
+        s = scenes[k]
+        has_clip = bool(s.get("footage")) and str(s.get("asset_type") or "") in ("flow_video", "youtube_video", "flow_image", "stock_video", "local")
+        kind = ("clip", k) if has_clip else ("map", None)
+        if segs and segs[-1][2] == kind[0] and kind[0] == "map":
+            segs[-1] = (segs[-1][0], s["end"], "map", None)
+        else:
+            segs.append((s["start"], s["end"], kind[0], kind[1]))
+    for a, b, kind, k in segs:
+        if kind == "clip":
+            sc_ = scenes[k]
+            out.shots.append({"kind": "footage", "start": a, "end": b, "scene": sc_.get("scene_no"), "mode": "flight",
+                              "queries": _queries(cls[k], _row(rows, k)), "cut": (b - a, b - a)})
+            continue
+        pos = a
+        while pos < b - 1e-6:
+            end = min(b, pos + MAX_MAP_S)
+            if b - end < BREAK_S + 2.0:
+                end = b
+            out.shots.append({"layer": "flightmap.lay_flight_map", "start": pos, "end": end, "full_frame": True, "mode": "flight",
+                              "scene": _scene_at(scenes, i, j, pos), "params": dict(prm, t0=pos - t0, total=total)})
+            if end >= b - 1e-6:
+                break
+            k2 = _index_at(scenes, i, j, end)
+            out.shots.append({"kind": "footage", "start": end, "end": end + BREAK_S, "scene": scenes[k2].get("scene_no"), "mode": "flight",
+                              "queries": _queries(cls[k2], _row(rows, k2)) or ["airliner flying above clouds"], "cut": (BREAK_S, BREAK_S)})
+            pos = end + BREAK_S
 
 
 def _index_at(scenes, i: int, j: int, t: float) -> int:

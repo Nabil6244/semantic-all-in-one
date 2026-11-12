@@ -206,6 +206,7 @@ def wrap_style(app: Any, active: str) -> None:
     wraps = app.__dict__.setdefault("_style_wraps", {})
     browsing = getattr(app, "_style_browsing", False)
     want = None if (browsing or active in ("What If", "Product Trailer", "Roblox Cinema", "Voxel Map", "Rules Horror", "Kids Learn", "City Timelapse")) else active   # both build their own steps
+    want = None if active == "Aviation" else want   # Aviation (ui/aviation_section.py) builds its own steps too
     for name, (top, bottom) in wraps.items():
         if name != want:
             top.grid_remove()

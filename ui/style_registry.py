@@ -153,3 +153,14 @@ GROUPS = tuple((title, names + (CITY_TIMELAPSE,) if title == "Maps" else names) 
 EXTRA_BLURBS[CITY_TIMELAPSE] = ("A low-poly 3D city growing over the centuries on its real ground and water: houses rise street by street, landmarks "
                                 "appear in their year, the camera never stops, with the year, population, era flag, titles and captions over music.")
 EXTRA_CARDS[CITY_TIMELAPSE] = ("▲", "A city growing through history", "A story CSV", "How a city grew, era by era")
+
+
+# Aviation (ui/aviation_section.py, aviation/): appended here so nothing above changes
+AVIATION = "Aviation"
+STANDALONE = STANDALONE + (AVIATION,)
+GROUPS = tuple((title, names + (AVIATION,) if title == "Documentary" else names) for title, names in GROUPS)
+EXTRA_BLURBS[AVIATION] = ("Airline business stories and flight reconstructions, the look chosen per sentence from your narration: fast real clips "
+                          "and blue article cards for the news, a dark flight map with the route, holds, storms and a fuel / clock display for "
+                          "the flight, slow beauty shots for the aircraft. From your voice-over, optionally with an aviation scenes CSV.")
+EXTRA_CARDS[AVIATION] = ("✈", "Airline stories and flight reconstructions", "Your voice-over (+ optional scenes CSV)",
+                         "Airline business, aircraft programmes, incidents")

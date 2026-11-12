@@ -17,6 +17,7 @@ supplied. Nothing is downloaded or invented here, and nothing is drawn when the 
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw, ImageFilter
@@ -31,8 +32,9 @@ BLUE_DARK = (6, 18, 120)
 BLUE_LIGHT = (20, 52, 214)
 RED = (226, 32, 40, 255)
 WHITE = (255, 255, 255, 255)
-WIN_W, WIN_H = int(W * 0.47), int(H * 0.42)
-WIN_X, WIN_Y = int(W * 0.47 - WIN_W / 2), int(H * 0.12)
+WIN_W, WIN_H = int(W * 0.60), int(H * 0.50)          # the reference's window: about 60 % of the width, half the height
+WIN_X, WIN_Y = int(W * 0.48 - WIN_W / 2), int(H * 0.08)
+OUT_S = 0.35                                          # the card lifts away in its last moments instead of cutting off
 BAR_H = 26
 RADIUS = 18
 _CACHE: Dict[str, Image.Image] = {}
@@ -108,6 +110,26 @@ def _plain_page(w: int, h: int, outlet: str, headline: str) -> Image.Image:
     return page
 
 
+def _page_view(page: Image.Image, box: Any, w: int, h: int, t: float, dur: float) -> Image.Image:
+    """A website screenshot in the window: fit to its width, the headline near the top, drifting down slowly; a yellow marker sweeps
+    across the headline (the reference's highlighter)."""
+    s = w / page.width
+    pg = page.resize((w, max(1, int(page.height * s))), Image.LANCZOS).convert("RGBA")
+    hb = [float(v) * s for v in box] if isinstance(box, (list, tuple)) and len(box) == 4 else None
+    if hb:
+        mk = M.draw_fraction(t, 0.9, 0.7)
+        if mk > 0:
+            mark = Image.new("RGBA", pg.size, (0, 0, 0, 0))
+            ImageDraw.Draw(mark).rectangle([hb[0] - 6, hb[1] - 4, hb[0] - 6 + (hb[2] + 12) * mk, hb[1] + hb[3] + 4], fill=(255, 213, 0, 150))
+            pg = Image.alpha_composite(pg, mark)
+    top0 = max(0.0, (hb[1] - 0.3 * h) if hb else 0.0)          # the headline sits about a third down the window
+    travel = min(0.12 * h, max(0.0, pg.height - h - top0))       # a small drift: the marked headline never leaves the window
+    y = int(top0 + travel * M.ease_in_out(M.clamp01(t / max(dur, 0.1))))
+    view = Image.new("RGBA", (w, h), (255, 255, 255, 255))
+    view.alpha_composite(pg.crop((0, y, w, min(pg.height, y + h))), (0, 0))
+    return view
+
+
 def _window(content: Image.Image, w: int, h: int) -> Image.Image:
     """Browser window: light top bar with three dots, the content below, rounded corners, a thin light frame."""
     win = Image.new("RGBA", (w, h), (0, 0, 0, 0))
@@ -165,11 +187,16 @@ def lay_article(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     outlet = str(p.get("outlet") or "").strip()
     headline = str(p.get("headline") or "").strip()
     fact = str(p.get("fact") or "").strip()
-    if pic is None and not headline:
+    page = _load(p.get("page"))
+    if pic is None and not headline and page is None:
+        if fact:
+            return _text_card(t, dur, fact)
         return None
     img = backdrop(t)
     ch = WIN_H - BAR_H
-    if pic is not None:
+    if page is not None:
+        content = _page_view(page, p.get("headline_box"), WIN_W, ch, t, dur)
+    elif pic is not None:
         zoom = 1.0 + 0.10 * M.ease_in_out(M.clamp01(t / max(dur, 0.1)))   # slow push-in for the whole card
         content = _cover(pic, WIN_W, ch, zoom)
     else:
@@ -183,7 +210,8 @@ def lay_article(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     sw, pad = _shadowed(sw)
     x = int(WIN_X + (WIN_W - WIN_W * s) / 2) - pad
     y = int(WIN_Y + 40 * (1 - k) + (WIN_H - WIN_H * s) / 2) - pad
-    img.alpha_composite(L.fade(_place(sw, x, y), k))
+    ko = M.ease_in_out(M.ramp(t, dur - OUT_S, OUT_S)) if dur > 2 * OUT_S else 0.0
+    img.alpha_composite(L.fade(_place(sw, x, y - int(36 * ko)), k * (1.0 - ko)))
     # the text block under the window
     kt = M.ease_out(M.ramp(t, 0.35, 0.5))
     txt = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -193,24 +221,66 @@ def lay_article(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         d.rectangle([tx, ty, tx + 34, ty + 34], fill=RED)
         d.polygon([(tx + 9, ty + 26), (tx + 17, ty + 8), (tx + 25, ty + 26)], fill=WHITE)   # a small up-arrow mark
         fy = ty + 2
-        for ln in _wrap_px(d, fact, T.font("bold", 23), WIN_W - 60)[:2]:
-            d.text((tx + 48, fy), ln, font=T.font("bold", 23), fill=WHITE)
+        shown = count_up(fact, t, 0.6)
+        for ln in _wrap_px(d, shown, T.font("bold", 28), WIN_W - 60)[:2]:
+            d.text((tx + 48, fy), ln, font=T.font("bold", 28), fill=WHITE)
+            fy += 6
             fy += 28
     elif pic is not None and (outlet or headline):
         if outlet:
-            d.text((tx, ty), outlet, font=T.font("bold", 19), fill=WHITE)
+            d.text((tx, ty), outlet, font=T.font("bold", 23), fill=WHITE)
+            ty += 4
             ty += 28
-        fh = T.font("bold", 24)
+        fh = T.font("bold", 30)
         for ln in _wrap_px(d, headline, fh, WIN_W - 20)[:2]:
             d.text((tx, ty), ln, font=fh, fill=WHITE)
             ty += 29
     date = str(p.get("date") or "").strip()
     if date:
-        fd = T.font("regular", 13)
+        fd = T.font("regular", 15)
         dw = d.textlength(date, font=fd)
         d.text((WIN_X + WIN_W - 10 - dw, ty + 6), date, font=fd, fill=(220, 226, 245, 255))
-    img.alpha_composite(L.fade(txt, kt))
+    img.alpha_composite(L.fade(txt, kt * (1.0 - ko)))
     return img
+
+
+def _text_card(t: float, dur: float, fact: str) -> Image.Image:
+    """The line's own words, large, on the moving blue backdrop (numbers count up): for a line with nothing filmed to show."""
+    img = backdrop(t)
+    lay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(lay)
+    f = T.font("bold", 46)
+    lines = _wrap_px(d, count_up(fact, t, 0.4), f, int(W * 0.72))[:4]
+    y = (H - len(lines) * 58) / 2
+    d.rectangle([int(W * 0.12), y - 6, int(W * 0.12) + 8, y + len(lines) * 58 - 10], fill=RED)
+    for ln in lines:
+        d.text((int(W * 0.12) + 30, y), ln, font=f, fill=WHITE)
+        y += 58
+    k = M.ease_out(M.ramp(t, 0.0, 0.5))
+    ko = M.ease_in_out(M.ramp(t, dur - OUT_S, OUT_S)) if dur > 2 * OUT_S else 0.0
+    img.alpha_composite(L.fade(_place(lay, int(20 * (1 - k)), -int(30 * ko)), k * (1 - ko)))
+    return img
+
+
+_NUMS = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)(?![\w])")
+
+
+def count_up(text: str, t: float, start: float, length: float = 0.7) -> str:
+    """The numbers of a fact counting up from 0 as the card arrives ('cut 2,900 jobs'); years (1900-2099) stay as they are."""
+    k = M.clamp01((t - start) / max(length, 1e-6))
+    if k >= 1.0:
+        return text
+
+    def sub(m: "re.Match") -> str:
+        raw = m.group(1)
+        plain = raw.replace(",", "")
+        if "," not in raw and re.fullmatch(r"(19|20)\d\d", plain):
+            return raw
+        dec = len(plain.split(".")[1]) if "." in plain else 0
+        v = float(plain) * k
+        out = f"{v:,.{dec}f}" if "," in raw else f"{v:.{dec}f}"
+        return out
+    return _NUMS.sub(sub, text)
 
 
 def _place(layer: Image.Image, x: int, y: int) -> Image.Image:

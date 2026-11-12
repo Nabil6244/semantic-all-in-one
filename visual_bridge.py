@@ -65,6 +65,13 @@ def _rc_dir(ws) -> Path:
 OWNERS["roblox_cinema"] = ("_rc_active", _rc_dir)   # Roblox Cinema horror picture cards (ui/roblox_cinema_section.py, roblox-cinema-engine/cards.py)
 
 
+def _av_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "aviation" / "assets"
+
+
+OWNERS["aviation"] = ("_av_active", _av_dir)   # Aviation footage (ui/aviation_section.py, aviation/)
+
+
 def _scene_key(scene_number) -> str:   # the table's own key (app._scene_key): "001"
     try:
         return f"{int(str(scene_number).strip()):03d}"

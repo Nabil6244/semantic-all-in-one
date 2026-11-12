@@ -97,3 +97,18 @@ class SmokeRenderTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CardPictureTests(unittest.TestCase):
+    def test_card_picture_is_its_own_scene_clip(self):
+        with tempfile.TemporaryDirectory() as d:
+            own, other = _clip(Path(d) / "own.mp4", 6.0), _clip(Path(d) / "other.mp4", 6.0)
+            sc = [{"scene_no": 1, "text": "Air France confirmed plans to cut jobs.", "start": 0.0, "end": 4.0},
+                  {"scene_no": 2, "text": "Air France launched Joon, a new airline with younger crews and lower costs.", "start": 4.0, "end": 14.0}]
+            rows = [{}, {"mode": "news", "article": {"outlet": "Travel Weekly", "headline": "Air France launches Joon", "date": "2017"},
+                         "queries": ["Joon"], "radio": [], "from": "", "to": "", "fuel": None, "time": "", "altitude": None}]
+            plan = P.plan(sc, rows=rows)
+            pick = lambda s: {"path": own if s.get("scene") == 2 else other, "seek": 0.0, "duration": 6.0}
+            shots, layers, rep = BR.build_timeline(plan, sc, pick, black=str(Path(d) / "black.mp4"))
+            card = [ly for ly in layers if ly.kind == "cards.lay_article"][0]
+            self.assertEqual(card.params["video"], own)

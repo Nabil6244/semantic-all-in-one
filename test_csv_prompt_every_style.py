@@ -14,6 +14,7 @@ EXPECT = {
     "Product Trailer": "concept trailer", "War Documentary": "war / geopolitics documentary", "Enoch Template": 'the "Enoch Template" styl',
     "Health Cinema": "long-form health video", "Normal video": 'the "Normal" style',
 }
+EXPECT["Aviation"] = "visual plan for an aviation documentary"      # ui/aviation_section.py
 
 _SCRIPT = r'''
 import os, sys, tempfile

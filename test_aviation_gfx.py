@@ -124,3 +124,28 @@ class StormTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StormLookTests(unittest.TestCase):
+    def test_storm_is_several_puffs_not_one_blob(self):
+        import tempfile as _t
+        with _t.TemporaryDirectory() as d:
+            q = {"airports": ["SXR", "IXJ", "ATQ"], "fetch_tile": fake_tile, "cache": d}
+            plain = np.asarray(F.lay_flight_map(2.0, 6.0, q).convert("L"), dtype=np.int32)
+            st = np.asarray(F.lay_flight_map(2.0, 6.0, dict(q, storms=[{"at": "IXJ", "km": 45}])).convert("L"), dtype=np.int32)
+            lift = (st - plain) > 25
+            small = lift.reshape(36, 20, 64, 20).mean(axis=(1, 3)) > 0.3      # 64 x 36 grid
+            seen, n = set(), 0
+            for y in range(36):
+                for x in range(64):
+                    if small[y, x] and (y, x) not in seen:
+                        n += 1
+                        stack = [(y, x)]
+                        while stack:
+                            cy, cx = stack.pop()
+                            if (cy, cx) in seen or not (0 <= cy < 36 and 0 <= cx < 64) or not small[cy, cx]:
+                                continue
+                            seen.add((cy, cx))
+                            stack += [(cy + 1, cx), (cy - 1, cx), (cy, cx + 1), (cy, cx - 1)]
+            self.assertGreaterEqual(n, 3)                         # separate cloud cells
+            self.assertLess(lift.mean(), 0.08)                    # and not a wall over the map

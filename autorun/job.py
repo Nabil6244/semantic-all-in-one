@@ -50,6 +50,7 @@ STYLES: Dict[str, Dict[str, Any]] = {
     "rules-horror": _s("Rules Horror", "required", "rules_horror/prompt.txt", fields={"csv": "_rh_csv_var", "voice": "_rh_voice_var"}),
     "kids-learn": _s("Kids Learn", "required", "cartoon3d-engine/samples/chant_lesson.csv", voice="optional",
                      fields={"csv": "_kl_csv_var", "voice": "_kl_voice_var", "music": "_kl_music_var"}),
+    "aviation": _s("Aviation", "optional", "aviation/data/aviation_csv_prompt.txt", fields={"csv": "_av_csv_var", "voice": "_av_voice_var"}),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 
