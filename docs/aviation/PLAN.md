@@ -111,7 +111,29 @@ PEOPLE = press-conference clip or portrait with a name lower-third.
 **Library build (once, not per video)**: a script lists candidate clips per subject from airline and spotter channels, makes a contact sheet,
 and the user approves what goes in (same import/approve flow as the War library). The user's own flight-sim captures can be added as library subjects too.
 
-## 6. Open questions
+## 6. Status (2026-11-12)
+
+| Piece | Module | State |
+|---|---|---|
+| N1 catalog, N2 router | `aviation/catalog.py`, `router.py`, `data/*.json` | committed b7ecd5f |
+| N3 article card, collage, N4 source tag | `aviation/cards.py` | committed 6e134ee |
+| N5 dark relief map, route, holding, callouts, range ring | `aviation/basemap.py`, `flightmap.py` | built, uncommitted |
+| N6 clock/fuel HUD + fuel bar, N7 radio lines | `aviation/hud.py` | built, uncommitted |
+| N8 counters, weather icons, place title, briefing sheet, altitude side view, end card; N9 storms on map | `aviation/gfx.py`, `flightmap.py` | built, uncommitted |
+| N11 search phrases, clip rules, livery check, cut lengths | `aviation/footage.py` | built, uncommitted |
+| N12 CSV columns + prompt | `aviation/csv_rows.py`, `data/aviation_csv_prompt.txt` | built, uncommitted |
+| Planner (modes -> timeline) | `aviation/planner.py` | built, uncommitted |
+| Renderer bridge (plan -> Shot/Layer, card_table) | `aviation/bridge.py` | built, uncommitted; 4 s real render passes |
+| N13 app page, Visuals/Export, footage director hookup, segmented long render, make_video | - | **next** (touches app.py / UI) |
+| N10 3D aircraft | - | waits for OK to download one free airliner model |
+
+Checked on the two reference narrations (Whisper timings, no render): Vistara plans ~68 % map / ~26 % footage (reference ~50 / 30),
+end card found; Air France plans 35 cuts in the first minute (reference 27), a card every ~24 s without a CSV (reference 10-20 s;
+a CSV with real headlines adds more), no generic search phrases left.
+Known: elevation tiles download once per area (Kashmir took ~90 s the first time, then cached); prefetch them at Generate in the
+background when the app hookup is built. Fragments from Whisper make some fact cards half-sentences; the app uses the script's sentences.
+
+## 7. Open questions
 
 - Style name: "Aviation" (working name).
 - More references: a clean Air France copy plus 6+ more videos would firm up NEWS pacing beyond the first 1:22.
