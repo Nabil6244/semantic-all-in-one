@@ -135,6 +135,12 @@ class TimelineYears(unittest.TestCase):
         evs = [(datetime(1970, 4, d), n) for d, n in ((11, "launch"), (14, "explosion"), (17, "splashdown"))]
         self.assertIsNone(_timeline_years(evs, None))
 
+    def test_no_events_yet_make_no_timeline(self):
+        """Apollo 8 #241: a timeline card placed before any event had happened crashed the compile with IndexError."""
+        from starmap.cinema import _timeline_years
+        self.assertIsNone(_timeline_years([], None))
+        self.assertIsNone(_timeline_years([], "1968-12-01T00:00:00Z"))
+
     def test_events_across_years_get_an_axis_with_from_below_to(self):
         from datetime import datetime
         from starmap.cinema import _timeline_years

@@ -543,8 +543,9 @@ def budget(spec: Dict[str, Any], plan: Any, cat: Any, res: Any, clock: Dict[str,
                 now = _clock_utc(clock, t)
                 evs = sorted(((parse_iso(e.utc), n) for n, e in ds.events.items() if e.utc and (not now or e.utc <= now)), key=lambda x: x[0])
                 evs = [(d, n) for d, n in evs if not n.lower().startswith("t+")][:7]
-                span = _timeline_years(evs, now)
-                if len(evs) < 3 or not span:
+                # too few events so far (a card early in the film, before launch) -> no timeline; checked before the year axis
+                span = _timeline_years(evs, now) if len(evs) >= 3 else None
+                if not span:
                     continue
                 layers.append({"type": "cinema_plate", "start": round(t, 3), "end": round(t1, 3), "fade_in": 0.2, "fade_out": 0.3,
                                "_cite": f"DIAGRAM · {ds.name.upper()} TIMELINE"[:100]})
@@ -831,6 +832,8 @@ def _timeline_years(evs: List[Any], now: Any) -> Optional[Dict[str, int]]:
     fall in a single year: every dot would sit on one spot, and from == to stops the engine (Apollo 13: all events in 1970)."""
     from .temporal import parse_iso
 
+    if not evs:                                     # nothing has happened yet at this moment (Apollo 8 #241: IndexError)
+        return None
     y0 = evs[0][0].year
     y1 = max(evs[-1][0].year, parse_iso(now).year if now else evs[-1][0].year)
     if y1 <= y0:
