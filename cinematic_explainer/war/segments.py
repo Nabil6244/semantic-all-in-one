@@ -32,6 +32,7 @@ import json
 import logging
 import math
 import os
+import sys
 import shutil
 import subprocess
 import tempfile
@@ -53,6 +54,7 @@ PIECE_S = 10.0                      # longest piece of a long shot
 MAX_INPUTS = 8                      # clip decodes per piece: 1 clear + one per dim span
 PACK_VERSION = "war-seg-1"
 REUSE_BYTES = False                 # an unchanged card frame re-sends the previous bytes object
+HOLD_STEP = 4                       # once a picture holds still, frames are drawn this far apart (exact: any change redraws each frame)
 GOP = 50                            # closed GOP, a keyframe every 2 s and at every piece start
 CRF = 18                            # 2026-11-09 (owner: footage looked low quality): 20 -> 18, one less step of loss on every clip
 DIM_SHRINK = 32                     # ...and blurred so far that words burned into a clip (a news ticker, another channel's graphic) cannot be read
@@ -103,9 +105,14 @@ class Piece:
         return self.f1 / FPS
 
 
+SPLIT_CARDS = os.environ.get("VIDEOGEN_WAR_SPLIT_CARDS", "1") != "0"
+
+
 def _protected(layers: Sequence[Layer]) -> List[Tuple[float, float]]:
-    """Intervals a cut must never fall inside: every layer, and every dim ramp (merged span widened by the ramp)."""
-    spans = [(ly.start, ly.end) for ly in layers]
+    """Intervals a cut must never fall inside: every dim ramp (merged span widened by the ramp), which ffmpeg draws per piece. Cards and maps
+    are drawn in Python from the film's own clock, so a cut inside one changes no frame (2026-11-12 speed pass: a 82 s map stretch was one
+    piece on one core; it now splits every PIECE_S like footage). VIDEOGEN_WAR_SPLIT_CARDS=0 restores the old rule (every layer protected)."""
+    spans = [] if SPLIT_CARDS else [(ly.start, ly.end) for ly in layers]
     spans += [(a - L.DIM_IN_S, b + L.DIM_IN_S) for a, b in dim_spans(layers)]
     return spans
 
@@ -603,24 +610,40 @@ def _render_piece(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: 
             errors.append(msg)
             log.warning(msg)
 
+    def frame_bytes(f: int) -> Tuple[bytes, Tuple[int, ...]]:
+        t = f / FPS
+        active = [ly for ly in active_all if ly.start <= t < ly.end]
+        ids = tuple(id(ly) for ly in active)
+        if not active:
+            return blank, ids
+        return _compose(t, active, cards, on_error).tobytes(), ids
+
     try:
         assert proc.stdin is not None
-        for f in range(piece.f0, piece.f1):
+        f = piece.f0
+        still = 0                              # how many frames in a row came out identical (the picture has stopped moving)
+        prev_ids: Optional[Tuple[int, ...]] = None
+        while f < piece.f1:
             if cancel():
                 raise RenderCancelled()
-            t = f / FPS
-            active = [ly for ly in active_all if ly.start <= t < ly.end]
-            if not active:
-                data = blank
-            else:
-                img = _compose(t, active, cards, on_error)
-                data = img.tobytes()
-                sig = hashlib.blake2b(data, digest_size=8).digest()
-                if REUSE_BYTES and sig == prev_img_sig and prev_bytes is not None:
-                    data = prev_bytes            # an unchanged frame reuses the previous bytes object (no second 3.7 MB copy kept alive)
-                    reused += 1
-                prev_img_sig, prev_bytes = sig, data
+            # 2026-11-12 speed pass: once the picture holds still, draw only every HOLD_STEP-th frame; the frames between are the same
+            # bytes when the drawn one is identical and the same layers are on screen throughout (else they are each drawn: exact output)
+            if still >= 2 and prev_bytes is not None and f + HOLD_STEP - 1 < piece.f1:
+                tgt = f + HOLD_STEP - 1
+                ids_ok = all(tuple(id(ly) for ly in active_all if ly.start <= g / FPS < ly.end) == prev_ids for g in range(f, tgt + 1))
+                if ids_ok:
+                    data, _ids = frame_bytes(tgt)
+                    if data == prev_bytes:
+                        for _ in range(HOLD_STEP):
+                            proc.stdin.write(prev_bytes)
+                        reused += HOLD_STEP - 1
+                        f = tgt + 1
+                        continue
+            data, ids = frame_bytes(f)
+            still = still + 1 if (prev_bytes is not None and data == prev_bytes and ids == prev_ids) else 0
+            prev_bytes, prev_ids = data, ids
             proc.stdin.write(data)
+            f += 1
         proc.stdin.close()
         err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
         try: rc = proc.wait(timeout=900)
@@ -648,6 +671,81 @@ def _render_piece(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: 
     got = _probe_duration(out_path)
     if got and abs(got - piece.frames / FPS) > 1.5 / FPS:
         raise RenderError(f"piece {piece.index} has {got:.3f}s, expected {piece.frames / FPS:.3f}s (source clip too short or unreadable?)")
+
+
+# ---- one process per piece (2026-11-12 owner: "make it ultra fast") ------------------------------------------------------------------
+PROCESS_DRAW = os.environ.get("VIDEOGEN_WAR_PROCESS_DRAW", "1") != "0"
+
+
+def _process_draw_ok() -> bool:
+    """Pieces are drawn in separate Python processes (every core draws) unless switched off, running frozen (the packaged app has no
+    `python -m`), or this process has replaced the renderer's own functions (a test patch a worker process could not see): then the
+    threads draw as before."""
+    g = globals()
+    patched = g.get("_render_piece") is not _ORIGINALS.get("_render_piece") or g.get("piece_graph") is not _ORIGINALS.get("piece_graph")
+    return PROCESS_DRAW and not patched and not getattr(sys, "frozen", False) and bool(sys.executable)
+
+
+def _render_piece_any(piece: Piece, layers: Sequence[Layer], out_path: Path, codec: str, cards: Dict[str, Callable],
+                      cancel: Callable[[], bool], errors: List[str], procs: "set[subprocess.Popen]", procs_lock: threading.Lock,
+                      stats: Dict[str, float]) -> None:
+    """_render_piece, drawn in its own process (same function there, so the same frames); falls back to this thread if a process cannot start."""
+    if not _process_draw_ok():
+        return _render_piece(piece, layers, out_path, codec, cards, cancel, errors, procs, procs_lock, stats)
+    import pickle
+
+    near = [ly for ly in layers if ly.end > piece.start - 2.0 and ly.start < piece.end + 2.0]
+    job = out_path.with_suffix(".job.pkl")
+    flag = out_path.with_suffix(".cancel")
+    res_path = job.with_suffix(".result.json")
+    try:
+        job.write_bytes(pickle.dumps({"piece": piece, "layers": near, "out": str(out_path), "codec": codec, "cancel_flag": str(flag),
+                                      "cards": cards}))
+    except Exception as exc:  # noqa: BLE001 - a layer that cannot be pickled: draw here
+        log.warning("piece %d drawn in-thread (job not picklable: %s)", piece.index, exc)
+        return _render_piece(piece, layers, out_path, codec, cards, cancel, errors, procs, procs_lock, stats)
+    root = str(Path(__file__).resolve().parents[2])
+    env = dict(os.environ, PYTHONPATH=root + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else ""))
+    proc = subprocess.Popen([sys.executable, "-m", "cinematic_explainer.war.segment_worker", str(job)], cwd=root, env=env,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    with procs_lock:
+        procs.add(proc)
+    try:
+        while True:
+            try:
+                proc.wait(timeout=0.05)
+                break
+            except subprocess.TimeoutExpired:
+                if cancel():
+                    flag.touch()
+                    try:
+                        proc.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        _kill(proc)
+                    raise RenderCancelled()
+        err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
+        try:
+            res = json.loads(res_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            res = {"ok": False, "kind": "crash", "msg": err[-1500:] or f"worker exited with {proc.returncode}"}
+    finally:
+        with procs_lock:
+            procs.discard(proc)
+        for f in (job, res_path, flag):
+            f.unlink(missing_ok=True)
+    for e in res.get("errors") or []:
+        if e not in errors:
+            errors.append(e)
+    for k, v in (res.get("stats") or {}).items():
+        stats[k] = stats.get(k, 0) + v
+    if res.get("ok"):
+        return None
+    if res.get("kind") == "cancelled":
+        raise RenderCancelled()
+    if res.get("kind") == "render":
+        raise RenderError(str(res.get("msg") or "piece failed"))
+    log.warning("piece %d worker failed (%s); drawing it in-thread", piece.index, str(res.get("msg"))[-300:])
+    return _render_piece(piece, layers, out_path, codec, cards, cancel, errors, procs, procs_lock, stats)
 
 
 @lru_cache(maxsize=1)
@@ -957,20 +1055,20 @@ def render_segmented(shots: Sequence[Shot], layers: Sequence[Layer], out_path: s
                 _progress()
                 return
         try:
-            _render_piece(p, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
+            _render_piece_any(p, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
         except RenderCancelled:
             raise
         except RenderError as exc:                  # one awkward clip never costs the whole film its graphics: simpler, then the backdrop
             simple = dataclasses.replace(p, treat=None, dissolve=0.0)
             log.warning("piece %d failed (%s); retrying as a plain cut", p.index, str(exc)[-200:])
             try:
-                _render_piece(simple, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
+                _render_piece_any(simple, layers, out, codec, cards, cancel, errors, procs, procs_lock, stats)
             except RenderError as exc2:
                 plate = backdrop_path or ""
                 if not plate or not os.path.isfile(plate):
                     raise
                 log.warning("piece %d failed again (%s); its graphics play over the backdrop", p.index, str(exc2)[-200:])
-                _render_piece(dataclasses.replace(simple, path=plate, seek=(p.f0 / FPS) % 20.0), layers, out, codec, cards, cancel, errors,
+                _render_piece_any(dataclasses.replace(simple, path=plate, seek=(p.f0 / FPS) % 20.0), layers, out, codec, cards, cancel, errors,
                               procs, procs_lock, stats)
             with lock:
                 retried.append(p.index)
@@ -1075,3 +1173,6 @@ def render_with_fallback(shots: Sequence[Shot], layers: Sequence[Layer], out_pat
                     pass
         return {"ok": True, "out": out_path, "frames": stats.get("frames"), "fallback": True, "fallback_reason": str(exc)[-300:],
                 "skipped_layers": skipped, "seconds": time.time() - t0}
+
+
+_ORIGINALS = {"_render_piece": _render_piece, "piece_graph": piece_graph}     # the functions as defined here (see _process_draw_ok)

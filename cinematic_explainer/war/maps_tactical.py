@@ -433,7 +433,8 @@ HALO = (8, 10, 14, 255)
 
 # ---------------------------------------------------------------------------------------------------------------- base map (one mosaic per card, cropped per frame)
 _BASE: "OrderedDict[tuple, Tuple[Image.Image, tuple]]" = OrderedDict()
-_BASE_MAX = 16          # 2026-11-12: 4 thrashed (82 rebuilds for 734 map frames of one film; 186 s of planning)
+_BASE_MAX = 16          # 2026-11-12: 4 thrashed (82 rebuilds for 734 map frames of one film; 186 s of planning) ...
+_BASE_MAX_BYTES = 400 * 1024 * 1024   # ... but never more than this in memory per process (a 16 GB Mac ran out with several render processes)
 _MOSAIC_MAX_W = 4800
 
 
@@ -631,7 +632,7 @@ def _mosaic(views: List[MP.View], theme: str, fills: List[dict], grid: bool, loo
         img = _build_mosaic(mv, theme, fills, grid, look, ctx_fill)
         _disk_write(disk, img)
     _BASE[key] = (img, mv)
-    while len(_BASE) > _BASE_MAX:
+    while len(_BASE) > 1 and (len(_BASE) > _BASE_MAX or sum(v[0].width * v[0].height * 3 for v in _BASE.values()) > _BASE_MAX_BYTES):
         _BASE.popitem(last=False)
     return img, mv
 
@@ -839,6 +840,22 @@ def _flag_anchor(feat: Any, view: MP.View) -> Optional[Tuple[float, float]]:
     import numpy as np
 
     vb = view.bounds()
+    key = (feat.iso, tuple(round(v, 2) for v in vb))              # same rounding as maps._anchor: the grid point is the same
+    if key in _FLAG_ANCHORS:
+        return _FLAG_ANCHORS[key]
+    out = _flag_anchor_rus(feat, vb)
+    if len(_FLAG_ANCHORS) > 400:
+        _FLAG_ANCHORS.clear()
+    _FLAG_ANCHORS[key] = out
+    return out
+
+
+_FLAG_ANCHORS: Dict[Any, Optional[Tuple[float, float]]] = {}
+
+
+def _flag_anchor_rus(feat: Any, vb: Any) -> Optional[Tuple[float, float]]:
+    import numpy as np
+
     lo0, la0, lo1, la1 = max(vb[0], feat.bbox[0]), max(vb[1], feat.bbox[1]), min(vb[2], feat.bbox[2]), min(vb[3], feat.bbox[3])
     if lo1 <= lo0 or la1 <= la0:
         return None

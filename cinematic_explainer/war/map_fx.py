@@ -84,6 +84,9 @@ def spotlight(img: Image.Image, cx: float, cy: float, r0: float = 330.0, r1: flo
 _NOISE: Optional[np.ndarray] = None
 
 
+_NOISE16 = None
+
+
 def grain(img: Image.Image, frame: int, amount: float = 5.0) -> Image.Image:
     """Fine film grain: a fixed noise field sampled at a per-frame offset (deterministic)."""
     global _NOISE
@@ -93,8 +96,11 @@ def grain(img: Image.Image, frame: int, amount: float = 5.0) -> Image.Image:
         _NOISE = (rng.standard_normal((h * 2, w * 2)) * amount).astype(np.float32)
     ox = (frame * 37) % w
     oy = (frame * 53) % h
-    n = _NOISE[oy:oy + h, ox:ox + w]
-    a = np.asarray(img.convert("RGB"), dtype=np.float32) + n[..., None]
+    global _NOISE16
+    if _NOISE16 is None or _NOISE16.shape != _NOISE.shape:
+        _NOISE16 = np.rint(_NOISE).astype(np.int16)            # the same field, added in 16-bit ints (2026-11-12 speed pass)
+    n = _NOISE16[oy:oy + h, ox:ox + w]
+    a = np.asarray(img.convert("RGB"), dtype=np.int16) + n[..., None]
     out = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8), "RGB")
     return out.convert(img.mode)
 
