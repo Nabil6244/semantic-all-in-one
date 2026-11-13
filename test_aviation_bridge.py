@@ -59,9 +59,11 @@ class TimelineTests(unittest.TestCase):
 
     def test_missing_clip_becomes_a_fact_card_not_black(self):
         shots, layers, rep = self.build([NEWS[0], NEWS[2]], pick=lambda slot: None)
-        cards = [ly for ly in layers if ly.kind == "cards.lay_article"]
+        # a news line with no clip is a short sticker-stage beat (its aircraft + its own words), never a blue text-only card
+        cards = [ly for ly in layers if ly.kind == "stage.lay_stage"]
         self.assertTrue(cards)
-        self.assertTrue(all(ly.params.get("headline") or ly.params.get("fact") for ly in cards))
+        self.assertFalse([ly for ly in layers if ly.kind == "cards.lay_article" and not (ly.params.get("video") or ly.params.get("page"))])
+        self.assertTrue(all(any(e["kind"] == "caption" for e in ly.params["elements"]) for ly in cards))
         self.assertGreater(rep["missing_footage"], 0)
         covered = sum(ly.end - ly.start for ly in cards)
         self.assertAlmostEqual(covered, 8.0, places=6)

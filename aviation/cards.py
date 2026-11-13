@@ -210,7 +210,9 @@ def lay_article(t: float, dur: float, p: dict) -> Optional[Image.Image]:
     sw, pad = _shadowed(sw)
     x = int(WIN_X + (WIN_W - WIN_W * s) / 2) - pad
     y = int(WIN_Y + 40 * (1 - k) + (WIN_H - WIN_H * s) / 2) - pad
-    ko = M.ease_in_out(M.ramp(t, dur - OUT_S, OUT_S)) if dur > 2 * OUT_S else 0.0
+    # no window fade-out: it left the empty blue backdrop on screen until the cut. The card holds and the next shot (or the
+    # look transition, which shrinks this very card away) takes over, as the references hard-cut out of a card.
+    ko = M.ease_in_out(M.ramp(t, dur - OUT_S, OUT_S)) if (dur > 2 * OUT_S and p.get("exit_fade")) else 0.0
     img.alpha_composite(L.fade(_place(sw, x, y - int(36 * ko)), k * (1.0 - ko)))
     # the text block under the window
     kt = M.ease_out(M.ramp(t, 0.35, 0.5))
@@ -257,6 +259,8 @@ def _text_card(t: float, dur: float, fact: str) -> Image.Image:
         d.text((int(W * 0.12) + 30, y), ln, font=f, fill=WHITE)
         y += 58
     k = M.ease_out(M.ramp(t, 0.0, 0.5))
+    # no window fade-out: it left the empty blue backdrop on screen until the cut. The card holds and the next shot (or the
+    # look transition, which shrinks this very card away) takes over, as the references hard-cut out of a card.
     ko = M.ease_in_out(M.ramp(t, dur - OUT_S, OUT_S)) if dur > 2 * OUT_S else 0.0
     img.alpha_composite(L.fade(_place(lay, int(20 * (1 - k)), -int(30 * ko)), k * (1 - ko)))
     return img

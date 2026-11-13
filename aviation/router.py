@@ -12,6 +12,9 @@ Modes (docs/aviation/PLAN.md section 2):
     numbers   money, percentages, profit and loss       -> big number / chart cards
     evidence  investigation, report, court, regulator   -> report pages with highlighted lines
     people    captain, first officer, executives        -> name cards, crew counters
+    story     founded, formed, split, merged, owned, government, renamed, national airline; or (route_script) a year more than
+              15 years before the latest year of the script -> sticker stage. Words weigh 2.5 so a story line beats the news words it
+              shares (merger, rebrand), but never a clear flight / weather / evidence line. values['years'] = the years named.
 Pure rules and word lists: no network, no model calls (a CSV run must make zero Gemini calls). Every point is logged in .reasons.
 A sentence that scores nothing is neutral: alone it is 'news'; inside route_script it takes its neighbours' mode.
 """
@@ -24,7 +27,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import catalog as C
 
-MODES = ("news", "flight", "weather", "fleet", "numbers", "evidence", "people")
+MODES = ("news", "flight", "weather", "fleet", "numbers", "evidence", "people", "story")
 NEUTRAL_BELOW = 1.0
 
 _NUM = r"(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
@@ -63,6 +66,12 @@ _WORDS: Tuple[Tuple[str, float, Tuple[str, ...]], ...] = (
     ("evidence", 1.0, ("found", "document*", "according to", "concluded", "blamed")),
     ("people", 2.0, ("captain", "first officer", "co-pilot", "copilot", "logbook", "flying hours", "chief executive", "ceo",
                      "founder", "chairman", "president")),
+    ("story", 2.5, ("founded", "formed", "established", "split", "splits", "merged", "merger", "joint venture", "owned", "owner*",
+                    "ownership", "stake", "shares", "independence", "renamed", "rebrand*", "flag carrier", "national airline",
+                    "national carrier", "spun off", "sold off")),
+    ("story", 1.5, ("government", "governments")),
+    ("story", 2.5, ("independent", "inherited", "inherit", "divided", "divide", "kept the", "took over", "handed over",
+                    "colony", "federation", "nationalised", "nationalized", "privatised", "privatized")),
     ("people", 1.0, ("pilot", "pilots", "hours", "years old", "experience", "his", "her", "cabincrew")),
 )
 
@@ -116,7 +125,7 @@ def extract_values(text: str) -> Dict[str, Any]:
     t = str(text or "")
     low = t.lower()
     v: Dict[str, Any] = {k: [] for k in ("times", "fuel_kg", "altitude_ft", "distance_km", "speed_kt", "counts", "money",
-                                         "percent", "flights", "dates", "changes")}
+                                         "percent", "flights", "dates", "changes", "years")}
 
     for m in re.finditer(r"\b(\d{1,2}):(\d{2})\s*(?:([ap])\.?\s?m\b\.?)?", low):
         h, mi, ap = int(m.group(1)), int(m.group(2)), m.group(3)
@@ -213,6 +222,16 @@ def extract_values(text: str) -> Dict[str, Any]:
     for m in re.finditer(_MONTH_RE + r"\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})\b", low):
         dates.append((m.start(), f"{int(m.group(3)):04d}-{_MONTHS[m.group(1)]:02d}-{int(m.group(2)):02d}"))
     v["dates"] = [d for _, d in sorted(dates)]
+    # years: a bare 4-digit 1900-2099 ('in 1966'), not part of a bigger number and not a measure ('1950 feet', '2000 kg')
+    unit = r"(?!\s*(?:feet|foot|ft|kg|kgs|km|nm|miles?|metres|meters|m\b|knots|kts?|%|percent|per\s+cent|seats|passengers|fpm|"
+    unit += r"jobs|aircraft|crew|employees|staff|flights|hours))"
+    yrs = [(m.start(), int(m.group(1))) for m in re.finditer(r"(?<![\d,.$€£:\-])(19\d\d|20\d\d)(?![\d,]|\.\d)" + unit, t)]
+    yrs += [(0, int(d[:4])) for d in v["dates"]]
+    seen_y: List[int] = []
+    for _, y in sorted(yrs):
+        if y not in seen_y:
+            seen_y.append(y)
+    v["years"] = seen_y
     return v
 
 
@@ -238,6 +257,12 @@ def _is_radio(text: str, airlines: Sequence[C.Match]) -> bool:
     quoted = bool(re.match(r"^[\"“'‘]", t)) or bool(re.search(r"[\"“][^\"”]{6,}[\"”]", t))
     callsign = any(a.start < 40 for a in airlines) and bool(re.search(r"\b\d{2,4}\s*,", t))
     return (quoted or callsign) and bool(re.search(_RADIO_PHRASES, t.lower()))
+
+
+def _decide(scores: Dict[str, float]) -> Tuple[str, bool]:
+    neutral = max(scores.values()) < NEUTRAL_BELOW
+    # ties keep MODES order (news first), so a neutral line is 'news'
+    return ("news" if neutral else max(MODES, key=lambda m: (scores[m], -MODES.index(m)))), neutral
 
 
 def classify(text: str) -> Classification:
@@ -295,10 +320,7 @@ def classify(text: str) -> Classification:
     if radio:
         add("flight", 3.0, "radio call")
 
-    top = max(scores.values())
-    neutral = top < NEUTRAL_BELOW
-    # ties keep MODES order (news first), so a neutral line is 'news'
-    mode = "news" if neutral else max(MODES, key=lambda m: (scores[m], -MODES.index(m)))
+    mode, neutral = _decide(scores)
     return Classification(t, mode, scores, reasons, vals, [a.entry for a in airlines if a.entry],
                           [a.entry for a in specific_types], [a.entry for a in airports if a.entry], radio, neutral)
 
@@ -307,6 +329,16 @@ def classify(text: str) -> Classification:
 
 def route_script(lines: Sequence[str]) -> List[Classification]:
     out = [classify(s) for s in lines]
+    # story: a line about a year far (> 15 years) before the latest year of the script, unless it is clearly flight / weather / evidence
+    all_years = [y for c in out for y in c.values.get("years", ())]
+    if all_years:
+        latest = max(all_years)
+        for c in out:
+            old = [y for y in c.values.get("years", ()) if latest - y > 15]
+            if old and max(c.scores[m] for m in ("flight", "weather", "evidence")) < 3.0:
+                c.scores["story"] += 3.0
+                c.reasons.append(f"story +3 year {old[0]} is {latest - old[0]} years before {latest}")
+                c.mode, c.neutral = _decide(c.scores)
     # neutral lines take the previous decided mode (or the next one at the start of the script)
     for i, c in enumerate(out):
         if not c.neutral:

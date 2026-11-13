@@ -55,8 +55,9 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._av_prompt_status = ctk.StringVar(value="")
     make_button(tools, "Copy the CSV prompt", lambda: copy_csv_prompt(app), size="sm", width=150).grid(row=0, column=0, padx=(0, 10))
     ctk.CTkLabel(tools, textvariable=app._av_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(row=0, column=1, sticky="w")
-    ctk.CTkLabel(body, text="Business and news lines get fast real clips and blue article cards; flight, route and weather lines get the dark "
-                            "flight map with the route, holds, storms and the fuel / clock display; aircraft lines get slow beauty shots.",
+    ctk.CTkLabel(body, text="History and ownership lines play on the sticker stage (stickers, year badge, logo cards, splits, maps); "
+                            "business and news lines get fast real clips and blue article cards; flight, route and weather lines get the dark "
+                            "flight map with the route, holds, storms and the fuel / clock display.",
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(4, 0))
 
     body = section(block, 1, 2, "Generate scenes, then Render", "Generate scenes fetches the footage into the Visuals tab; Render makes the video")
@@ -70,6 +71,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._av_render_btn.grid(row=0, column=1, padx=(0, 10))
     app._av_stop_btn = make_button(go, "Stop", lambda: cancel(app), size="sm", width=90, state="disabled")
     app._av_stop_btn.grid(row=0, column=2)
+    make_button(go, "Import retention CSV", lambda: on_import_retention(app), size="sm", width=170).grid(row=0, column=3, padx=(10, 0))
     ctk.CTkLabel(body, textvariable=app._av_status_var, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left",
                  wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
@@ -491,7 +493,8 @@ def on_generate(app: Any) -> None:
         if rows and any(r.get("url") for r in rows):
             n_pages = RN.prepare_pages(rows, _state_dir(app) / "pages", log)
             log(f"{n_pages} article / report page(s) captured for the cards")
-        plan = P.plan(scenes, rows)
+        plan = _plan_with_web(app, scenes, rows, log)
+        _write_bible(app, scenes, rows, log)
         from aviation import flow as FL
 
         n_flow = FL.assign(scenes, plan, rows)            # aircraft shots between map beats, the cockpit for crew lines
@@ -612,8 +615,10 @@ def on_render(app: Any) -> None:
         # exactly what the Visuals tab holds now (the user's Retry / Change source / Local clip included); nothing is fetched
         scenes, _vrows = fetch_csv_footage(scenes, None, images_dir, log, fetch=False, ai_cap=0, director=False, library=False)
         RN.attach_images(scenes, images_dir)
+        from aviation import director as AD0
+        AD0.recheck_main(scenes, _state_dir(app), log)    # today's title rules also apply to clips an older Generate chose
         RN.mark_clips(scenes)                             # lines without a clip get aviation graphics / text cards
-        plan = P.plan(scenes, rows)
+        plan = P.plan(scenes, rows, web=_saved_web(app))  # the story stages' web pictures found at Generate
         work = _state_dir(app) / "render"
         from aviation import director as AD
 
@@ -621,6 +626,7 @@ def on_render(app: Any) -> None:
             extras = json.loads((_state_dir(app) / AD.EXTRAS).read_text(encoding="utf-8"))
         except Exception:  # noqa: BLE001
             extras = {}
+        extras = AD.recheck_extras(extras, scenes, log)     # today's title rules also apply to clips an older Generate saved
         return RN.render_film(plan, scenes, ready["voice"], str(out_path), work=str(work), progress=_progress(app, True),
                               cancel=app._av_cancel.is_set, log=log, extras=extras)
 
@@ -631,3 +637,81 @@ def on_render(app: Any) -> None:
         app._append_log(f"{TAG} {msg}\n")
 
     _start(app, "aviation-render", job, done, end)
+
+
+STORY_WEB = "story_web.json"
+
+
+def _plan_with_web(app, scenes, rows, log):
+    """The plan, with the sticker stages' web pictures (cited pages, real photos) found first and kept for Render."""
+    from aviation import planner as P
+    from aviation import storyweb as SW
+    try:
+        from aviation import library as LIB
+    except Exception:  # noqa: BLE001
+        LIB = None
+    try:
+        plan, rep = SW.plan_with_web(scenes, rows, _state_dir(app) / "web", log=log, library=LIB)
+    except Exception as ex:  # noqa: BLE001  the web is a bonus: without it the stage still plays
+        log(f"web pictures skipped: {ex}")
+        return P.plan(scenes, rows, web={})
+    if rep.get("web"):
+        log(f"web pictures: {rep['photo']} photo card(s), {rep['paper']} page sticker(s); {len(rep['dropped'])} not good enough, left out")
+    try:
+        (_state_dir(app) / STORY_WEB).write_text(json.dumps(rep.get("web") or {}), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+    return plan
+
+
+def _saved_web(app):
+    try:
+        return json.loads((_state_dir(app) / STORY_WEB).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def _write_bible(app, scenes, rows, log):
+    """The script bible (eras, fleet, liveries, places, cast, motifs, moods) and the library's make-once list, saved for the Flow
+    steps. Nothing is sent to Flow here: making the list's pictures waits for the user's OK."""
+    try:
+        from aviation import bible as BB
+        from aviation import library as LIB
+        b = BB.read([str(s.get("text") or "") for s in scenes], rows)
+        need = LIB.needs_from_bible(b)
+        sd = _state_dir(app)
+        (sd / "bible.json").write_text(json.dumps(b.to_dict(), indent=1), encoding="utf-8")
+        (sd / "library_needs.json").write_text(json.dumps(need, indent=1), encoding="utf-8")
+        if need:
+            log(f"library: {len(need)} reference picture(s) not made yet (hero aircraft, cast, places); not sent to Flow")
+    except Exception as ex:  # noqa: BLE001  the bible feeds later Flow steps; it never stops Generate
+        log(f"bible skipped: {ex}")
+
+
+def on_import_retention(app: Any) -> None:
+    """After publishing: YouTube Studio's audience-retention export for this film -> where viewers left and what was on screen,
+    and this channel's picture-hold limits nudged one small step for the next film. Nothing in the film or script changes."""
+    from tkinter import filedialog
+
+    ready = getattr(app, "_av_ready", None)
+    if not ready or not Path(str(ready.get("scenes_file", ""))).is_file():
+        app._av_status_var.set("Generate scenes for this film first, then import its retention CSV.")
+        return
+    path = filedialog.askopenfilename(title="YouTube Studio audience retention (CSV)", filetypes=[("CSV", "*.csv"), ("All", "*.*")])
+    if not path:
+        return
+    try:
+        from aviation import runner as RN
+        data = json.loads(Path(ready["scenes_file"]).read_text(encoding="utf-8"))
+        rep = RN.import_retention(path, data["scenes"], data.get("rows"), web=_saved_web(app))
+        worst = sorted(rep["dips"], key=lambda d: -d["drop"])[:3]
+        lines = [f"{int(d['start']) // 60}:{int(d['start']) % 60:02d} -{d['drop']:.1f} pts on {d['look'] or '?'} ({d['cause']})"
+                 for d in worst]
+        lim = rep["limits"]
+        app._av_status_var.set(("Biggest drops: " + "; ".join(lines) if lines else "No sharp drops found.") +
+                               f"  Limits now: same picture {lim['MAX_SAME_S']:.0f} s, card {lim['CARD_MAX']:.1f} s, "
+                               f"re-hook every {lim['REHOOK_MAX_S']:.0f} s.")
+        app._append_log(f"{TAG} retention import: {json.dumps({k: rep[k] for k in ('drop_by_look', 'drop_by_cause', 'limits')})}\n")
+    except Exception as exc:  # noqa: BLE001
+        app._av_status_var.set(f"Could not read that retention CSV: {exc}")
+

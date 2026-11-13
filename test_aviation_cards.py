@@ -133,15 +133,18 @@ class CardAnimationTests(unittest.TestCase):
         self.assertEqual(K.count_up("Carried 3 million passengers", 5.0, 0.6), "Carried 3 million passengers")
         self.assertEqual(K.count_up("cut 2,900 jobs", 0.6 + 0.35, 0.6), "cut 1,450 jobs")
 
-    def test_card_leaves_at_the_end(self):
+    def test_card_holds_to_the_cut_unless_asked_to_leave(self):
+        # the window used to fade into an empty blue backdrop before the cut (seen in the 3-minute test film); it now holds,
+        # and leaves only when exit_fade is asked for
         import tempfile
         from PIL import Image
         with tempfile.TemporaryDirectory() as d:
             Image.new("RGB", (800, 500), (200, 120, 60)).save(f"{d}/a.png")
             p = {"image": f"{d}/a.png", "headline": "x"}
-            mid, end = K.lay_article(2.5, 5.0, p), K.lay_article(4.95, 5.0, p)
             px = lambda im: im.convert("RGB").getpixel((640, 230))
-            self.assertNotEqual(px(mid), px(end))
+            self.assertEqual(px(K.lay_article(2.5, 5.0, p)), px(K.lay_article(4.95, 5.0, p)))
+            q = dict(p, exit_fade=True)
+            self.assertNotEqual(px(K.lay_article(2.5, 5.0, q)), px(K.lay_article(4.95, 5.0, q)))
 
     def test_card_window_is_reference_size(self):
         self.assertGreaterEqual(K.WIN_W, 1280 * 0.58)

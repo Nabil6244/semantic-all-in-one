@@ -50,7 +50,15 @@ def classify_line(text: str) -> Any:
 _AVIATION = re.compile(r"\b(airlines?|airways|air\s*lines?|airport|aircraft|airplane|aeroplane|planes?|jets?|jetliner|airliner|flights?|"
                        r"flying|takeoff|take\s*off|landing|cockpit|cabin|pilots?|crew|runway|terminal|airbus|boeing|embraer|aviation|hangar|"
                        r"spotting|tarmac|gate|departures?|arrivals?|livery|storm|thunderstorm|clouds?|rain|monsoon)\b", re.I)
-_TRIP = re.compile(r"\b(trip\s*report|flight\s*report|flight\s*experience|review|vlog|cabin\s*tour|seat\s*review|unboxing)\b", re.I)
+_TRIP = re.compile(r"\b(trip\s*report|flight\s*report|flight\s*experience|review|vlog|cabin\s*tour|seat\s*review|unboxing|"
+                   r"flying\s+(?:nonstop|non-stop|business|economy|first|premium)|my\s+(?:flight|trip|journey)|"
+                   r"(?:economy|business|first|premium\s+economy)\s+class\s+(?:on|in|flight)|"
+                   r"[A-Z]{3}\s*[-–→>]\s*[A-Z]{3}\s*(?:\||$)|"
+                   r"\bin\s+(?:business|economy|first|premium\s+economy)(?:\s+class)?\b|\bultra\s+long\s+haul\s+with\b)", re.I)
+# an explainer / education video: its pictures are stock offices, handshakes and slides, never the event itself
+_EXPLAINER = re.compile(r"\bexplained\b|\bwhat\s+is\s+(?:a|an)\b|\bkinds\s+of\b|\btypes\s+of\b|\bupsc\b|\bcurrent\s+affairs\b|"
+                        r"\bfor\s+beginners\b|\bclass\s+\d+\b|\blecture\b", re.I)
+# the last ones: a passenger's own trip video ('FLYING NONSTOP', 'SIN - EWR |'); its captured moments are hotels, zoos and meals
 # a sub-brand's own name may be missing from a title about it: the parent's name is accepted (Joon -> Air France)
 PARENTS = {"joon": "air_france", "transavia": "air_france", "scoot": "singapore_airlines", "vistara": "air_india"}
 
@@ -101,6 +109,8 @@ def title_reject(title: str, c: Any, people_line: bool = False, airlines: Sequen
     mode = getattr(c, "mode", "")
     if mode in ("news", "numbers", "people", "evidence") and _TRIP.search(t):
         return f"title: {_TRIP.search(t).group(0).lower()} (a passenger's video, not the story)"
+    if _EXPLAINER.search(t):
+        return f"title: {_EXPLAINER.search(t).group(0).lower()} (an explainer video: stock pictures, not the event)"
     ok, _s, why = FT.clip_ok(t, c)
     if not ok:
         return f"title: {why}"
@@ -347,3 +357,57 @@ def run(scenes: Sequence[Dict[str, Any]], images_dir: Any, state_dir: Any, *, se
     n = sum(1 for v in report["scenes"].values() if v["decision"] in ("footage", "kept"))
     log(f"Aviation footage: {n} of {len(rows)} YouTube scenes have checked footage, {sum(len(v) for v in extras.values())} extra burst clips")
     return report
+
+
+def recheck_extras(extras: Dict[str, List[Dict[str, Any]]], scenes: Sequence[Dict[str, Any]],
+                   log: Callable[[str], None] = lambda m: None) -> Dict[str, List[Dict[str, Any]]]:
+    """Burst clips saved by an earlier Generate, checked again against today's title rules at Render (a rule fixed later -
+    e.g. a passenger trip video - also cleans projects made before the fix). Clips that fail are left out, never replaced."""
+    from . import router as R
+    by_no = {str(s.get("scene_no")): s for s in scenes}
+    out: Dict[str, List[Dict[str, Any]]] = {}
+    for no, clips in (extras or {}).items():
+        sc = by_no.get(str(no))
+        if sc is None:
+            continue
+        c = R.classify(str(sc.get("text") or ""))
+        c.mode = sc.get("mode") or c.mode
+        keep = []
+        for x in clips or []:
+            why = title_reject(x.get("title", ""), c, airlines=[sc["airline"]] if sc.get("airline") else (),
+                               channel=x.get("channel", ""))
+            if why:
+                log(f"scene {no}: burst clip left out ({why}): {str(x.get('title', ''))[:60]}")
+            else:
+                keep.append(x)
+        if keep:
+            out[str(no)] = keep
+    return out
+
+
+REPORT = "aviation_director_report.json"
+
+
+def recheck_main(scenes: List[Dict[str, Any]], state_dir: Any, log: Callable[[str], None] = lambda m: None) -> int:
+    """The main YouTube clip each scene got at Generate, checked again against today's title rules at Render (the report keeps
+    each clip's title). A clip that fails is taken off the scene (the line plays on the stage instead), never swapped for another
+    scene's clip. Flow / local / user-picked clips are not touched. Returns how many were taken off."""
+    from . import router as R
+    try:
+        rep = json.loads((Path(state_dir) / REPORT).read_text(encoding="utf-8")).get("scenes") or {}
+    except Exception:
+        return 0
+    n = 0
+    for sc in scenes:
+        r = rep.get(str(sc.get("scene_no"))) or {}
+        if r.get("decision") != "footage" or str(sc.get("asset_type") or "") != "youtube_video" or not sc.get("footage"):
+            continue
+        c = R.classify(str(sc.get("text") or ""))
+        c.mode = sc.get("mode") or c.mode
+        why = title_reject(r.get("title", ""), c, airlines=[sc["airline"]] if sc.get("airline") else (), channel=r.get("channel", ""))
+        if why:
+            log(f"scene {sc.get('scene_no')}: clip left out at Render ({why}): {str(r.get('title', ''))[:60]}")
+            sc["footage"] = None
+            sc["has_clip"] = False
+            n += 1
+    return n

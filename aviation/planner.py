@@ -54,6 +54,7 @@ class Plan:
     shots: List[Dict[str, Any]] = field(default_factory=list)
     modes: List[str] = field(default_factory=list)
     log: List[Dict[str, Any]] = field(default_factory=list)
+    retention: Dict[str, Any] = field(default_factory=dict)
 
 
 def _row(rows: Optional[Sequence[dict]], i: int) -> dict:
@@ -67,6 +68,80 @@ def _smooth(cls: List[Any], modes: List[str], forced: List[bool]) -> List[str]:
             continue
         if max(cls[i].scores.values()) < STRONG:
             out[i] = out[i - 1]
+    return out
+
+
+JOIN_STORY = ("numbers", "fleet", "people", "news")
+
+
+_BIBLE: Dict[str, Any] = {}
+
+
+def _bible(texts: Sequence[str], rows) -> Any:
+    """The script bible, read once per script (the story director takes each airline's aircraft from it)."""
+    key = "\n".join(texts) + repr(rows)
+    if _BIBLE.get("key") != key:
+        from . import bible as BB
+        try:
+            _BIBLE.update(key=key, bible=BB.read(list(texts), rows))
+        except Exception:                       # the bible only improves the stickers: without it the era guess is used
+            _BIBLE.update(key=key, bible=None)
+    return _BIBLE["bible"]
+
+
+STAGE_CLIP_S = (4.0, 6.0)      # a story line's own clip, full screen, cut out of the stage
+
+
+def _stage_with_clips(shot: Dict[str, Any], scenes, i: int, j: int) -> List[Dict[str, Any]]:
+    """The stage gives way to real footage: a story line with its own clip (an archive YouTube clip, a Flow shot, the user's
+    file) plays it full screen for 4-6 s from the line's start, then the stage resumes on its own clock (t_offset) - so a
+    history chapter is stickers AND real pictures, never one long sticker block."""
+    holes = []
+    for k in range(i, j + 1):
+        sc = scenes[k]
+        if not (sc.get("has_clip") or (sc.get("footage") and str(sc.get("asset_type") or "") not in ("", "none"))):
+            continue
+        a, b = float(sc["start"]), float(sc["end"])
+        if b - a < 2.5:
+            continue
+        hb = min(b, a + STAGE_CLIP_S[1]) if b - a >= STAGE_CLIP_S[0] else b
+        holes.append((a, hb, sc.get("scene_no", k + 1)))
+    if not holes:
+        return [shot]
+    out, s0 = [], float(shot["start"])
+    cur = s0
+    for a, b, no in holes:
+        if a > cur + 0.3:
+            out.append(dict(shot, start=cur, end=a, params=dict(shot["params"], t_offset=cur - s0)))
+        out.append({"kind": "footage", "start": a, "end": b, "scene": no, "mode": "story", "queries": [], "cut": STAGE_CLIP_S})
+        cur = b
+    if float(shot["end"]) > cur + 0.3:
+        out.append(dict(shot, start=cur, end=float(shot["end"]), params=dict(shot["params"], t_offset=cur - s0)))
+    elif out and out[-1].get("kind") == "footage":
+        out[-1]["end"] = float(shot["end"])
+    pieces = [x for x in out if x.get("layer") == "stage.lay_stage"]
+    keep = [(t, n) for t, n in shot.get("cues") or [] if not any(a <= t < b for a, b, _ in holes)]
+    for k, x in enumerate(pieces):
+        x["cues"] = keep if k == 0 else []          # every sticker sound once, none over a full-screen clip
+    return out
+
+
+def _story_join(modes: List[str], forced: List[bool], cls: Sequence[Any]) -> List[str]:
+    """A line next to a story line stays on the sticker stage instead of breaking the story: always a numbers line (its figures
+    become sticker graphics); a fleet / people / news line when it scored weakly (< STRONG: no clear event of its own - for a
+    1960s airline no footage would match anyway). Runs join on either side. CSV modes, flight, weather and evidence are kept."""
+    out = list(modes)
+    changed = True
+    while changed:
+        changed = False
+        for k, m in enumerate(out):
+            if m not in JOIN_STORY or forced[k] or m == "story":
+                continue
+            if m != "numbers" and max(cls[k].scores.values() or [0]) >= STRONG:
+                continue
+            if (k > 0 and out[k - 1] == "story") or (k + 1 < len(out) and out[k + 1] == "story"):
+                out[k] = "story"
+                changed = True
     return out
 
 
@@ -158,8 +233,12 @@ def _fact(text: str, limit: int = 110) -> str:
     return t if len(t) <= limit else t[:limit].rsplit(" ", 1)[0] + "…"
 
 
-def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None) -> Plan:
+def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None, web: Optional[Dict[str, Any]] = None,
+         retention: bool = True) -> Plan:
+    """web: aviation.storyweb.resolve results (None on the first pass: story stages request their web pictures)."""
     texts = [str(s.get("text") or "") for s in scenes]
+    from . import story as _ST
+    _ST._BD_USED.clear()                # a new film: every library photo is free to use once again
     cls = R.route_script(texts)
     SCRIPT_YEAR[0] = max([int(y) for t_ in texts for y in _YEAR.findall(t_)] or [0])     # the story's 'now' for timelines
     SCRIPT_FUEL[0] = max([float(f) for c_ in cls for f in (c_.values.get("fuel_kg") or [])] or [0.0])   # the fuel gauge's full scale
@@ -172,6 +251,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
         else:
             modes.append(c.mode); forced.append(False)
     modes = _smooth(cls, modes, forced)
+    modes = _story_join(modes, forced, cls)
     hplan = _hud_timeline(scenes, cls, rows)
     out = Plan(modes=modes)
     for i, c in enumerate(cls):
@@ -191,6 +271,14 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
         g = group(modes[i])
         if g == "map":
             _map_stretch(out, scenes, cls, rows, hplan, i, j)
+        elif g == "story":
+            from . import story as ST
+            shot, lg = ST.build(scenes, cls, rows, i, j, web=web, bible=_bible(texts, rows))          # one evolving sticker stage for the whole stretch
+            out.shots.extend(_stage_with_clips(shot, scenes, i, j))
+            for e in lg:
+                for L_ in out.log:
+                    if L_["scene"] == e["scene"]:
+                        L_["stage"] = e["stage"]
         else:
             news_last_card = _clip_stretch(out, scenes, cls, rows, modes, i, j, news_last_card)
         i = j + 1
@@ -204,6 +292,12 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
             _replace_with(out, s["start"], s["end"], {"layer": "gfx.lay_end_card", "start": s["start"], "end": s["end"],
                                                       "scene": s.get("scene_no"), "full_frame": True,
                                                       "params": {"kicker": "THE STORY OF", "title": m.group(1).strip()}})
+    out.shots.sort(key=lambda x: (x["start"], 0 if x.get("full_frame") or x.get("kind") == "footage" else 1))
+    if retention:                       # re-hooks on turn lines, 8 s variety, fast opening, callback (aviation/retention.py)
+        from . import retention as RT
+        out.retention = RT.apply(out, scenes)
+    from . import transitions as TR      # the stage / map / news looks hand over with shared transitions
+    TR.add(out)
     out.shots.sort(key=lambda x: (x["start"], 0 if x.get("full_frame") or x.get("kind") == "footage" else 1))
     return out
 

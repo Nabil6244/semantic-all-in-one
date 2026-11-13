@@ -84,8 +84,9 @@ def _patterns(kind: str) -> Tuple[Tuple[re.Pattern, bool, int], ...]:
                 pats.append((re.compile(r"(?<![A-Za-z0-9])" + re.escape(a[1:]) + r"(?![A-Za-z0-9])"), True, i))
             else:
                 body = r" ".join(re.escape(p) for p in normalise(a).split())
+                plural = r"(?:'?s)?" if kind == "aircraft" else ""       # 'Boeing 707s', 'two A350s'
                 if body:
-                    pats.append((re.compile(r"(?<![a-z0-9])" + body + r"(?![a-z0-9])"), False, i))
+                    pats.append((re.compile(r"(?<![a-z0-9])" + body + plural + r"(?![a-z0-9])"), False, i))
     return tuple(pats)
 
 
@@ -177,3 +178,44 @@ def all_aircraft() -> List[dict]:
 
 def all_airports() -> List[dict]:
     return list(_data("airports")[0])
+
+
+# ------------------------------------------------------------------------------------------------ airline history (story mode)
+
+def get_airline(airline_id: str) -> Optional[Dict[str, Any]]:
+    for e in _data("airlines")[0]:
+        if e.get("id") == airline_id:
+            return e
+    return None
+
+
+def lineage(airline_id: str) -> Dict[str, List[str]]:
+    """{'ancestors': oldest first, 'descendants': breadth first} from the optional parent / successors fields. Unknown id -> both empty."""
+    anc: List[str] = []
+    cur, seen = get_airline(airline_id), {airline_id}
+    while cur and cur.get("parent") and cur["parent"] not in seen:
+        anc.append(cur["parent"]); seen.add(cur["parent"]); cur = get_airline(cur["parent"])
+    desc: List[str] = []
+    queue = list((get_airline(airline_id) or {}).get("successors") or [])
+    while queue:
+        n = queue.pop(0)
+        if n in seen:
+            continue
+        seen.add(n); desc.append(n)
+        queue.extend((get_airline(n) or {}).get("successors") or [])
+    return {"ancestors": list(reversed(anc)), "descendants": desc}
+
+
+def name_in_year(airline_id: str, year: int) -> Optional[str]:
+    """The airline's name in that year (previous_names ranges are from <= year < to); None when it did not exist then."""
+    e = get_airline(airline_id)
+    if not e:
+        return None
+    for p in e.get("previous_names") or ():
+        if p.get("from") is not None and p["from"] <= year < (p.get("to") or 10**6):
+            return p["name"]
+    if e.get("founded") is not None and year < e["founded"]:
+        return None
+    if e.get("defunct") is not None and year > e["defunct"]:
+        return None
+    return e.get("name")

@@ -259,7 +259,7 @@ def split_timeline(shots: Sequence[Any], layers: Sequence[Any], chunk_s: float =
 def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: str, *, work: str, chunk_s: float = 60.0, workers: int = 3,
                 progress: Callable[[float, str], None] = lambda k, m: None, cancel: Callable[[], bool] = lambda: False,
                 log: Callable[[str], None] = lambda m: None, map_extra: Optional[dict] = None,
-                extras: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> Dict[str, Any]:
+                extras: Optional[Dict[str, List[Dict[str, Any]]]] = None, sound: bool = True) -> Dict[str, Any]:
     from cinematic_explainer import render as RD
 
     if cancel():
@@ -273,6 +273,23 @@ def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: st
     table = BR.card_table()
     parts = [wd / f"part_{i:03d}.mp4" for i in range(len(chunks))]
     done = [0]
+    total_s = shots[-1].end if shots else 0.0
+    mixed: Dict[str, Any] = {}
+
+    def sound_mix() -> None:
+        """Sticker pops, year ticks, re-hook hits and chapter music under the voice (aviation/sound.py), mixed while the picture
+        renders. Any failure leaves the plain voice-over: sound never stops a film."""
+        try:
+            from . import sound as SD
+            ev = SD.events(plan, scenes)
+            mu = SD.music_plan(plan, scenes, total_s=total_s)
+            dst = wd / "voice_mix.m4a"
+            SD.mix(str(voice), ev, mu, str(dst), total_s)
+            if dst.is_file() and dst.stat().st_size > 0:
+                mixed["path"] = str(dst)
+                mixed["events"] = len(ev)
+        except Exception as ex:  # noqa: BLE001
+            log(f"sound design skipped ({ex}); the plain voice-over is used")
 
     def one(i: int) -> None:
         if cancel():
@@ -282,9 +299,16 @@ def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: st
         done[0] += 1
         progress(0.92 * done[0] / len(chunks), f"rendered {done[0]} of {len(chunks)} parts")
 
-    with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
-        for f in [ex.submit(one, i) for i in range(len(chunks))]:
-            f.result()
+    with ThreadPoolExecutor(max_workers=1) as sx:
+        sfut = sx.submit(sound_mix) if sound and total_s > 0 else None
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as ex:
+            for f in [ex.submit(one, i) for i in range(len(chunks))]:
+                f.result()
+        if sfut is not None:
+            sfut.result()
+    if mixed.get("path"):
+        log(f"sound design: {mixed['events']} effects + chapter music mixed under the voice")
+        voice = mixed["path"]
     if cancel():
         raise Cancelled()
     lst = wd / "parts.txt"
@@ -300,7 +324,34 @@ def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: st
         tmp.unlink(missing_ok=True)
         raise Cancelled()
     shutil.move(str(tmp), out)
+    thumbs: List[str] = []
+    try:                                   # 3 thumbnail candidates from the film's own stickers and words (offered, never uploaded)
+        from . import thumbs as TH
+        thumbs = TH.make(plan, scenes, Path(out).with_name(Path(out).stem + "_thumbs"))
+        if thumbs:
+            log(f"{len(thumbs)} thumbnail candidates saved next to the video")
+    except Exception as ex:  # noqa: BLE001
+        log(f"thumbnails skipped: {ex}")
     for p in parts + [silent, lst]:
         Path(p).unlink(missing_ok=True)
     progress(1.0, "done")
-    return {"chunks": len(chunks), "missing_footage": rep["missing_footage"], "clips": rep["clips"], "duration": shots[-1].end if shots else 0.0}
+    return {"chunks": len(chunks), "missing_footage": rep["missing_footage"], "clips": rep["clips"], "duration": shots[-1].end if shots else 0.0,
+            "thumbs": thumbs}
+
+
+def import_retention(csv_path: Any, scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[Dict[str, Any]]] = None,
+                     web: Optional[Dict[str, Any]] = None, tune: bool = True) -> Dict[str, Any]:
+    """YouTube Studio's audience-retention CSV for a published Aviation film: the film's plan is rebuilt from its scenes (the
+    same plan it was rendered from), each viewer drop is matched to the picture on screen, and with tune=True the channel's
+    limits move one small step (aviation/retention_import.py). Returns the report with the new limits."""
+    from . import planner as P
+    from . import retention_import as RI
+    plan = P.plan(list(scenes), rows, web=web)
+    total = max([float(s["end"]) for s in scenes] + [0.0])
+    curve = RI.read_curve(csv_path, total)
+    rep = RI.analyze(curve, plan)
+    if tune and rep["dips"]:
+        rep["limits"] = RI.tune(rep)
+    else:
+        rep["limits"] = RI.limits()
+    return rep

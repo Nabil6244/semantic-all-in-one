@@ -43,6 +43,13 @@ def card_table() -> Dict[str, Any]:
             "gfx_air.lay_runway": gfx_air.lay_runway, "gfx_air.lay_approach": gfx_air.lay_approach,
             "gfx_air.lay_descent": gfx_air.lay_descent, "gfx_air.lay_title": gfx_air.lay_title,
         })
+        from . import gfx_flight, retention, stage, transitions
+        _TABLE.update({
+            "transitions.lay_out": transitions.lay_out,
+            "stage.lay_stage": stage.lay_stage, "retention.lay_rehook": retention.lay_rehook,
+            "gfx_flight.lay_instrument": gfx_flight.lay_instrument, "gfx_flight.lay_pip": gfx_flight.lay_pip,
+            "gfx_flight.lay_speed_tape": gfx_flight.lay_speed_tape, "gfx_flight.lay_report": gfx_flight.lay_report,
+        })
     return _TABLE
 
 
@@ -68,6 +75,7 @@ def ensure_black(path: str, seconds: float) -> str:
 def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Callable[[dict], Optional[dict]], black: str,
                    map_extra: Optional[Dict[str, Any]] = None) -> Tuple[List[Shot], List[Layer], Dict[str, Any]]:
     text_of = {s.get("scene_no"): str(s.get("text") or "") for s in scenes}
+    scene_of = {s.get("scene_no"): s for s in scenes}
     total = max([float(s["end"]) for s in scenes] + [0.0])
     base: List[Tuple[float, float, Optional[dict]]] = []          # (start, end, clip or None=black)
     layers: List[Layer] = []
@@ -91,13 +99,16 @@ def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Calla
             else:
                 report["missing_footage"] += 1
                 base.append((a, b, None))
-                ly = Layer("cards.lay_article", a, b, {"fact": text_of.get(s.get("scene"), ""), "image_from": "footage", "_fallback": True})
+                ly = Layer("cards.lay_article", a, b, {"fact": text_of.get(s.get("scene"), ""), "image_from": "footage", "_fallback": True,
+                                                       "_scene": s.get("scene")})
                 layers.append(ly)
                 pending_cards.append(ly)
             continue
         params = dict(s.get("params") or {})
         if s.get("layer") == "flightmap.lay_flight_map" and map_extra:
             params.update(map_extra)
+        if s.get("layer") == "cards.lay_article":
+            params.setdefault("_scene", s.get("scene"))
         ly = Layer(s["layer"], a, b, params)
         layers.append(ly)
         if params.get("image_from") == "footage":
@@ -128,10 +139,23 @@ def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Calla
             ly.params.pop("image_from", None)
             ly.params.pop("_fallback", None)
             continue
-        # no clip of its own: no picture at all (a picture borrowed from another scene showed an engraving and a meal tray under
-        # Emirates' profit figures). A fact becomes the clean text card; an article keeps its typeset page.
+        # no clip of its own: never a picture borrowed from another scene (an engraving and a meal tray once sat under Emirates'
+        # profit figures) and never a text-only blue card either: the line becomes a short sticker-stage beat (its airline's
+        # aircraft sticker, its own words as the caption, its year). An article with its own page keeps the typeset page.
+        fb = ly.params.pop("_fallback", None)
         ly.params.pop("image_from", None)
-        ly.params.pop("_fallback", None)
+        if fb or (ly.kind == "cards.lay_article" and ly.params.get("fact") and not ly.params.get("page")
+                  and not ly.params.get("image")):    # a fact card with no picture of its own: the same stage beat
+            from . import story as ST
+            ly.kind = "stage.lay_stage"
+            ly.params = ST.fallback_stage(str(ly.params.get("fact") or ""), ly.end - ly.start, scene=scene_of.get(ly.params.get("_scene")))
+
+    # any fact card still without a picture (the planner's own number / fact cards never ask for one): the same stage beat
+    from . import story as ST
+    for ly in layers:
+        if ly.kind == "cards.lay_article" and ly.params.get("fact") and not any(ly.params.get(k) for k in ("page", "image", "video")):
+            ly.kind = "stage.lay_stage"
+            ly.params = ST.fallback_stage(str(ly.params.get("fact") or ""), ly.end - ly.start, scene=scene_of.get(ly.params.get("_scene")))
 
     # contiguous base shots, holes filled with black
     base.sort(key=lambda x: x[0])

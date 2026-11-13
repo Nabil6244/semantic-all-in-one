@@ -1,3 +1,5 @@
+> Superseded by MASTER_PLAN.md (2026-11-13); kept for its detail and history.
+
 # Aviation style — plan (2026-11-12)
 
 A **third, new style** ("Aviation") that mixes both references and lets the **narration choose the look of each moment**:

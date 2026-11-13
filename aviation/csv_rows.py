@@ -19,7 +19,7 @@ from . import catalog as C
 from . import router as R
 
 COLUMNS = ("scene_number", "script_segment", "asset_type", "prompt", "graphic", "mode", "airline", "aircraft", "from", "to", "time",
-           "fuel", "altitude", "article", "radio", "url")
+           "fuel", "altitude", "article", "radio", "url", "search", "owners", "split", "person", "role", "quote")
 PROMPT_FILE = Path(__file__).resolve().parent / "data" / "aviation_csv_prompt.txt"
 
 
@@ -115,6 +115,13 @@ def read_rows(path: Any) -> List[Dict[str, Any]]:
             "article": _article(get(row, "article")),
             "radio": _radio(get(row, "radio")),
             "url": get(row, "url") if get(row, "url").lower().startswith(("http://", "https://")) else "",
+            # sticker-story columns (all optional): web photo searches, owners with shares, who got what, a named person + quote
+            "web_queries": [q.strip() for q in get(row, "search").split("||") if q.strip()],
+            "owners": get(row, "owners"),
+            "split": get(row, "split"),
+            "person": get(row, "person"),
+            "role": get(row, "role"),
+            "quote": get(row, "quote"),
             "cls": cls,
         })
     return rows

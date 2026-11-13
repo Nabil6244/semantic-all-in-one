@@ -1,7 +1,7 @@
-You are preparing the visual plan for an aviation documentary: airline business stories, aircraft explainers and flight-incident reconstructions. Read the SCRIPT at the end and write ONE CSV, one row per scene, in the script's order. Output only the CSV inside one ```csv block, nothing else.
+You are preparing the visual plan for an aviation documentary: airline history and business stories, aircraft explainers and flight-incident reconstructions. History, ownership, splits, mergers and rebrands play on a sticker stage (aircraft stickers in each airline's livery, a year badge, logo cards on a timeline, split trees, ownership diagrams, flags arguing in speech bubbles, maps); news gets real clips and article cards; flights get the dark flight map with the route and a clock / fuel display. Read the SCRIPT at the end and write ONE CSV, one row per scene, in the script's order. Output only the CSV inside one ```csv block, nothing else.
 
 HEADER (exactly this):
-scene_number,script_segment,asset_type,prompt,graphic,mode,airline,aircraft,from,to,time,fuel,altitude,article,radio,url
+scene_number,script_segment,asset_type,prompt,graphic,mode,airline,aircraft,from,to,time,fuel,altitude,article,radio,url,search,owners,split,person,role,quote
 
 COLUMNS
 - scene_number: 1, 2, 3 ...
@@ -16,8 +16,9 @@ COLUMNS
 - prompt:
     youtube_video: 2 search phrases separated by " || ", most specific first, naming the real airline, aircraft type, airport and year the sentence names: "Air France Joon launch 2017 || Joon A321 takeoff". Never add the word "footage".
     flow_video / flow_image: one sentence describing the shot: the aircraft type and the airline's livery, the phase of flight, the place and weather, and the camera ("chase camera behind the wing", "cockpit over the captain's shoulder", "low tower view of the runway", "cabin aisle looking forward"). Example: "Vistara Airbus A320 in purple and gold livery climbing out of Srinagar over snow-capped mountains, chase camera from behind the left wing, afternoon light".
-- graphic: leave empty unless a specific graphic is needed: "counters", "weather", "place_title", "briefing_sheet", "altitude", "collage", "end_card".
+- graphic: leave empty unless a specific graphic is needed. Flight / news: "counters", "weather", "place_title", "briefing_sheet", "altitude", "collage", "end_card". Sticker stage (mode story): "hook" (the opening question in big type), "split" (one airline branching into two, or two merging), "ownership" (who owns the airline and how much), "argument" (two countries or sides wanting different things), "timeline" (an airline's names over the years), "map" (a political map: independence, colonies, borders), "routes" (the network from the hub to the cities named). Leave empty and the stage picks from the words.
 - mode: the look of the scene, one of
+    story     history and relationships: founding, renaming, ownership, governments, independence, splits, mergers, joint ventures, an era far before the story's present. The sticker stage. Use it for most lines of an airline-history video
     news      business / corporate / dated events (launches, orders, strikes, deals, collapses): real clips cut fast + article cards
     flight    what the aircraft and crew are doing (take-off, climb, hold, divert, approach, landing): the dark flight map with the route, between aircraft shots
     weather   storms, monsoon, gusts, visibility: the flight map with storm clouds and weather icons
@@ -34,10 +35,16 @@ COLUMNS
 - article: for a news scene that reports what an outlet wrote: "Outlet | Headline | Date" using the outlet's real headline when you know it, else empty. Never invent a headline.
 - radio: radio calls the scene quotes, as "SPEAKER: words || SPEAKER: words" (FIRST OFFICER, CAPTAIN, JAMMU ATC, TOWER ...), else empty
 - url: the web address of the real article or report the scene cites (the page is shown in the video), only an address you are sure exists; else empty. Never invent or guess an address.
+- search: for a story scene, 1-2 web search phrases for a REAL photo of what the scene is about, separated by " || ", naming the airline, aircraft type and year or decade: "Malayan Airways Douglas DC-3 1950s || Kallang Airport 1950s". The photo is shown dimmed behind the stickers. Else empty.
+- owners: for an ownership scene, the owners and their shares exactly as the script says: "Malaysia 42.79% / Singapore 42.79% / BOAC / Qantas". Else empty.
+- split: for a scene that divides assets, who got what, exactly as the script says: "Singapore: international routes, Boeing 707s, headquarters | Malaysia: domestic network, Fokker 27s". Else empty.
+- person, role, quote: a named real person the scene quotes: their name, their role ("Prime Minister of Singapore"), and the quote copied exactly from the script. Else empty. Never a quote the script does not contain.
 
 RULES
 - Only facts that are in the script. Leave a column empty rather than guess a time, fuel figure, altitude, airline, headline or address.
 - A named real event or person gets youtube_video (or none), never flow_video / flow_image.
+- Story scenes: asset_type none (the stage) or youtube_video with archive searches for a real old clip ("Malaysia-Singapore Airlines Boeing 707 archive 1960s"); give most story scenes a search phrase so real photos appear behind the stickers.
+- Dates: write every year the script gives into the scene's text as it is; the stage's year badge follows them.
 - In a flight sequence, alternate: a flow_video (or youtube_video) aircraft shot every 2-3 rows between rows with asset_type none (the map).
 - Keep commas inside a cell by quoting the cell with double quotes.
 - A flight story keeps its numbers consistent: fuel goes down over time, times go forward.

@@ -65,3 +65,6 @@ out/
 
 # Carl Jung Theory reference pictures: local only (web photos, copyright unknown; the repo is public). refs.json lists which to use.
 assets/jung/refs/
+
+# Aviation shared library (captured pages, photos, clips, Flow pictures): local only, never pushed
+assets/aviation/library/
