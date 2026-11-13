@@ -230,9 +230,12 @@ def candidates(prompt: str, clips: Sequence[Dict[str, Any]], views: Optional[Seq
 
 def _fitting(r: Any, clips: Sequence[Dict[str, Any]], views: Sequence[Dict[str, Any]], terms: Optional[set], relax: bool = False) -> List[Tuple[int, int, int]]:
     """candidates() of the row's prompt that also show what the row's LINE is about (terms None: prompt only, the old behaviour for callers
-    without the narration)."""
+    without the narration). 2026-11-13 (Kill Zone v2: 84 rows lost a clip that matched their own CSV search because the spoken line was a
+    bridge like 'And honestly, that might be the point'): when no clip fits the line, the clips that fit the row's search are used."""
     got = candidates(_query(r), clips, views, relax=relax)
-    return got if terms is None else [x for x in got if line_fits(views[x[2]], terms)]
+    if terms is None:
+        return got
+    return [x for x in got if line_fits(views[x[2]], terms)] or got
 
 
 def live_rows(rows: Sequence[Any], clips: Sequence[Dict[str, Any]], views: Sequence[Dict[str, Any]], cap: Optional[int],
