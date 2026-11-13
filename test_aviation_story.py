@@ -35,8 +35,9 @@ def test_story_lines_make_one_stage_shot():
     stages = [s for s in pl.shots if s.get("layer") == "stage.lay_stage"]
     assert len(stages) == 1
     st = stages[0]
-    assert st["start"] == 0.0 and st["end"] == 30.0 and st["full_frame"]
-    assert not [s for s in pl.shots if s.get("kind") == "footage"]          # no news clips on story lines
+    assert st["start"] == 0.0 and 8.0 <= st["end"] <= 12.0 and st["full_frame"]   # a stage builds 8-12 s, ending with a sentence
+    rest = [s for s in pl.shots if s.get("kind") == "footage"]
+    assert rest and all(s.get("filler") for s in rest)                       # the rest borrows nearby clips, no new searches
     years = [y for _, y in st["params"]["years"]]
     assert years[:3] == ["1947", "1963", "1966"] and "1972" in years
     kinds = {e["kind"] for e in st["params"]["elements"]}
@@ -142,7 +143,7 @@ def test_story_line_with_its_own_clip_plays_it_full_screen():
     sc[2]["footage"] = "/x/archive.mp4"
     sc[2]["asset_type"] = "youtube_video"
     pl = P.plan(sc)
-    foot = [s for s in pl.shots if s.get("kind") == "footage"]
+    foot = [s for s in pl.shots if s.get("kind") == "footage" and not s.get("filler")]
     assert foot and all(f["scene"] == 3 for f in foot)                       # the opening may cut it into faster pieces
     assert 4.0 <= max(f["end"] for f in foot) - min(f["start"] for f in foot) <= 6.0 + 1e-6
     stages = [s for s in pl.shots if s.get("layer") == "stage.lay_stage"]

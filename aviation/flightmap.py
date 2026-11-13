@@ -291,8 +291,8 @@ def _camera(p: dict, t: float, dur: float):
     keys = [(float(v.get("start", 0.0)), _focus_bbox(p, v.get("focus") or [])) for v in (p.get("views") or [])]
     keys = [(st, bb) for st, bb in keys if bb]
     if not keys:
-        k = M.ease_in_out(M.clamp01(t / max(dur, 0.1)))
-        return B.scale_bbox(whole, 1.0 - 0.05 * k, 0.012 * k, -0.008 * k), whole
+        z, dx, dy = _drift(t)
+        return B.scale_bbox(whole, z, dx, dy), whole
     idx = max([i for i, (st, _) in enumerate(keys) if st <= t + 1e-9] or [0])
     st, cur = keys[idx]
     src = cur
@@ -300,9 +300,23 @@ def _camera(p: dict, t: float, dur: float):
         prev = keys[idx - 1][1]
         cur = _merc_lerp(prev, cur, M.ease_in_out(M.clamp01((t - st) / TRANS_S)))
         src = _union(prev, keys[idx][1])
-    nxt = keys[idx + 1][0] if idx + 1 < len(keys) else max(dur, st + 1.0)
-    k = M.ease_in_out(M.clamp01((t - st) / max(0.5, nxt - st)))
-    return B.scale_bbox(cur, 1.0 - 0.04 * k, 0.008 * k, -0.006 * k), src
+    z, dx, dy = _drift(t - st)
+    return B.scale_bbox(cur, z, dx, dy), src
+
+
+DRIFT_ZOOM_PER_S = 0.014      # the camera never stops: ~1.4 % closer each second (visible, calm)
+DRIFT_PAN_PER_S = 0.003
+DRIFT_MAX = 0.15              # never so close that a route's far end leaves the frame (framings are padded ~25-35 %)
+
+
+def _drift(age: float) -> Tuple[float, float, float]:
+    """(scale, pan x, pan y) of the slow push-in, from the seconds since the camera settled on its framing. Time-based: a framing that
+    holds 7 s or 60 s moves at the same calm pace (spread over the time to the next framing it was ~4 % a minute: a still screen)."""
+    age = max(0.0, age)
+    a = age * age / 3.0 if age < 1.5 else age - 0.75          # eases in over 1.5 s (no jolt), then a steady pace
+    zoom = min(DRIFT_MAX, DRIFT_ZOOM_PER_S * a)
+    pan = min(DRIFT_MAX / 5.0, DRIFT_PAN_PER_S * a)
+    return 1.0 - zoom, pan, -0.7 * pan
 
 
 def lay_flight_map(t: float, dur: float, p: dict) -> Optional[Image.Image]:

@@ -91,7 +91,7 @@ def read_rows(path: Any) -> List[Dict[str, Any]]:
             continue
         cls = R.classify(text)
         mode_csv = get(row, "mode").lower()
-        if mode_csv in R.MODES:
+        if mode_csv in R.MODES or mode_csv == "map":           # 'map': the real map on a place line (planner turns it into flight)
             mode, src = mode_csv, "csv"
         else:
             mode, src = cls.mode, f"router (csv mode '{mode_csv}' unknown)" if mode_csv else "router"

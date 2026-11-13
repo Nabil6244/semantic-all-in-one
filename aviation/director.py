@@ -31,6 +31,8 @@ EXTRAS = "aviation_extra_clips.json"
 REPORT = "aviation_director_report.json"
 SHORTLIST = 5
 CAPTURE_TRIES = 2               # a failed capture costs about a minute: two tries, then the scene goes to Flow or a card
+CAPTURE_LIMIT_S = 30.0          # aviation's own limit per capture (+2 s per clip second: 46 s for an 8 s clip; War waits 69 s)
+SCENE_WORKERS = 3               # scenes captured at the same time (the shared browser pool records several clips at once)
 EXTRA_PER_NEWS = 2
 MAX_PER_VIDEO = 2
 CLIP_S = 8.0
@@ -175,8 +177,15 @@ class Used:
                 return True
         return False
 
-    def add(self, vid: str, a: float, b: float, hashes: Sequence[str]) -> None:
-        self.moments.append({"vid": vid, "a": a, "b": b, "hashes": list(hashes)})
+    def add(self, vid: str, a: float, b: float, hashes: Sequence[str]) -> Dict[str, Any]:
+        m = {"vid": vid, "a": a, "b": b, "hashes": list(hashes)}
+        self.moments.append(m)
+        return m
+
+    def drop(self, m: Dict[str, Any]) -> None:
+        """A reserved moment whose capture failed is free again."""
+        if m in self.moments:
+            self.moments.remove(m)
 
 
 # ---------------------------------------------------------------------------------------------------------------- the app's tools
@@ -197,8 +206,8 @@ def _default_tools(state_dir: Path, log):
         return F.inspect(F.tiles_from_storyboard(sb) if sb else F.tiles_from_thumbnails(c.video_id, c.duration))
 
     from providers.youtube.acquisition.browser_client import get_client
-    from cinematic_explainer.war.footage_director import CAPTURE_LIMIT_S, bounded
-    acquire = bounded(get_client().acquire, lambda sec: CAPTURE_LIMIT_S + 3.0 * float(sec))
+    from cinematic_explainer.war.footage_director import bounded
+    acquire = bounded(get_client().acquire, lambda sec: CAPTURE_LIMIT_S + 2.0 * float(sec))
 
     def capture(video_id: str, start: float, seconds: float, dest: Path, tl: Sequence[Any]) -> Dict[str, Any]:
         return C.capture(video_id, start, seconds, dest, tl, acquire=acquire, log=log)
@@ -252,6 +261,8 @@ def run(scenes: Sequence[Dict[str, Any]], images_dir: Any, state_dir: Any, *, se
         if rec.get("video_id") and str(rec.get("status")).lower() == "complete" and Path(str(rec.get("local_path") or "")).is_file():
             used.add(rec["video_id"], float(rec.get("clip_start") or 0), float(rec.get("timestamp_end") or 0), rec.get("tile_hashes") or [])
     tiles_cache: Dict[str, List[Any]] = {}
+    import threading
+    lock = threading.RLock()            # scenes run side by side: the used moments, the manifest and the report are shared
 
     def frames_of(c: Any) -> List[Any]:
         if c.video_id not in tiles_cache:
@@ -283,17 +294,20 @@ def run(scenes: Sequence[Dict[str, Any]], images_dir: Any, state_dir: Any, *, se
             tl = frames_of(cand)
             if not tl:
                 continue
-            win = F.choose_window(tl, cand.duration, clip_s=CLIP_S, min_s=min_stretch(c.mode),
-                                  usable=lambda a, b, h, v=cand.video_id: not used.conflict(v, a, b, h))
+            with lock:                  # the window is reserved before the capture, so two scenes never take the same seconds
+                win = F.choose_window(tl, cand.duration, clip_s=CLIP_S, min_s=min_stretch(c.mode),
+                                      usable=lambda a, b, h, v=cand.video_id: not used.conflict(v, a, b, h))
+                held = used.add(cand.video_id, float(win["start"]), float(win["end"]), win.get("hashes") or []) if win else None
             if not win:
                 log(f"scene {no}: '{cand.title[:50]}' has no clean filmed stretch (studio, text, graphics or stills)")
                 continue
             tries += 1
             got = capture(cand.video_id, float(win["start"]), float(win["end"]) - float(win["start"]), dest, tl)
             if not got.get("ok"):
+                with lock:
+                    used.drop(held)
                 log(f"scene {no}: '{cand.title[:50]}' capture failed: {'; '.join(got.get('reasons') or [])}")
                 continue
-            used.add(cand.video_id, float(win["start"]), float(win["end"]), win.get("hashes") or [])
             return {"cand": cand, "win": win, "path": got["path"], "score": _score}
         return None
 
@@ -317,15 +331,17 @@ def run(scenes: Sequence[Dict[str, Any]], images_dir: Any, state_dir: Any, *, se
     with ThreadPoolExecutor(max_workers=4) as ex:
         list(ex.map(discover, rows))
 
-    for sc in rows:
+    def one(sc: Dict[str, Any]) -> None:
         if cancel():
-            break
+            return
         no = str(sc["scene_no"])
-        rec = man.get(no) or {}
+        with lock:
+            rec = man.get(no) or {}
         if rec.get("user_override") or rec.get("source") == "manual" or \
                 (rec.get("selection_method") == "aviation_director" and Path(str(rec.get("local_path") or "")).is_file()):
-            report["scenes"][no] = {"decision": "kept", "video_id": rec.get("video_id", "")}
-            continue
+            with lock:
+                report["scenes"][no] = {"decision": "kept", "video_id": rec.get("video_id", "")}
+            return
         c = classify_line(sc.get("text", ""))
         if sc.get("mode") in R.MODES:
             c.mode = sc["mode"]
@@ -333,12 +349,14 @@ def run(scenes: Sequence[Dict[str, Any]], images_dir: Any, state_dir: Any, *, se
         pool = pools.get(no) if no in pools else list(search(qs) or [])
         main = pick(no, sc, c, pool, images_dir / f"{int(no):03d}.mp4" if no.isdigit() else images_dir / f"{no}.mp4", set())
         if not main:
-            report["scenes"][no] = {"decision": "none", "queries": qs, "found": len(pool)}
-            report["unfilled"].append(no)
+            with lock:
+                report["scenes"][no] = {"decision": "none", "queries": qs, "found": len(pool)}
+                report["unfilled"].append(no)
             log(f"scene {no}: no YouTube clip passed the checks ({len(pool)} found): a Flow shot or a card goes here")
-            continue
-        _record(man, no, sc, main["cand"], main["win"], main["path"])
-        report["scenes"][no] = {"decision": "footage", "video_id": main["cand"].video_id, "title": main["cand"].title,
+            return
+        with lock:
+            _record(man, no, sc, main["cand"], main["win"], main["path"])
+            report["scenes"][no] = {"decision": "footage", "video_id": main["cand"].video_id, "title": main["cand"].title,
                                 "window": [main["win"]["start"], main["win"]["end"]], "queries": qs}
         log(f"scene {no}: {main['cand'].channel} '{main['cand'].title[:60]}' {float(main['win']['start']):.1f}-{float(main['win']['end']):.1f}s")
         if c.mode in ("news", "numbers"):
@@ -349,9 +367,13 @@ def run(scenes: Sequence[Dict[str, Any]], images_dir: Any, state_dir: Any, *, se
                 if not ex:
                     break
                 got_vids.add(ex["cand"].video_id)
-                extras.setdefault(no, []).append({"path": ex["path"], "video_id": ex["cand"].video_id, "title": ex["cand"].title,
+                with lock:
+                    extras.setdefault(no, []).append({"path": ex["path"], "video_id": ex["cand"].video_id, "title": ex["cand"].title,
                                                   "channel": ex["cand"].channel,
                                                   "duration": float(ex["win"]["end"]) - float(ex["win"]["start"])})
+    with ThreadPoolExecutor(max_workers=max(1, SCENE_WORKERS)) as ex:
+        list(ex.map(one, rows))
+    report["unfilled"].sort(key=lambda x: int(x) if str(x).isdigit() else 0)
     (state_dir / EXTRAS).write_text(json.dumps(extras, indent=1), encoding="utf-8")
     (state_dir / REPORT).write_text(json.dumps(report, indent=1, default=str), encoding="utf-8")
     n = sum(1 for v in report["scenes"].values() if v["decision"] in ("footage", "kept"))

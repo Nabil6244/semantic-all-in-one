@@ -212,3 +212,42 @@ class RealLengthTests(unittest.TestCase):
             for s in [x for x in plan.shots if x.get("kind") == "footage"]:
                 g = pick(s)
                 self.assertLessEqual(g["seek"] + (s["end"] - s["start"]), 3.5 + 0.05)
+
+
+def test_back_to_back_slices_of_one_clip_play_on_without_jumping(tmp_path, monkeypatch):
+    """One clip split into several slots in a row (a Flow shot cut for pace) plays on: each slice starts where the last one ended,
+    never back at another point of the same clip ('stuck play, stuck play'); when the clip runs out, the next slot cuts away."""
+    from types import SimpleNamespace
+    from aviation import runner as RN
+    a, b = tmp_path / "001.mp4", tmp_path / "002.mp4"
+    a.write_bytes(b"x"); b.write_bytes(b"x")
+    monkeypatch.setattr(RN, "_duration", lambda p: 8.0)
+    scenes = [{"scene_no": 1, "text": "x", "footage": str(a)}, {"scene_no": 2, "text": "y", "footage": str(b)}]
+    plan = SimpleNamespace(modes=["fleet", "fleet"])
+    pick = RN.clip_picker(scenes, plan, lambda m: None, {})
+    got = [pick({"kind": "footage", "scene": 1, "start": t, "end": t + 1.6}) for t in (0.0, 1.6, 3.2, 4.8, 6.4)]
+    seeks = [g["seek"] for g in got[:4]]
+    assert all(abs(y - (x + 1.6)) < 1e-6 for x, y in zip(seeks, seeks[1:]))
+    assert got[4]["path"] == str(b)                    # 001 has no 1.6 s left after 6.4 + lead: the next slot cuts to scene 2's clip
+
+
+def test_a_borrowed_clip_is_the_one_shown_longest_ago_not_the_nearest(tmp_path, monkeypatch):
+    """A line with no clip of its own (a capped card's rest) never takes the clip that was just on screen, nor the clip of the
+    line coming up next (the opening once showed scene 1's clip 7 times in 21 s)."""
+    from types import SimpleNamespace
+    from aviation import runner as RN
+    monkeypatch.setattr(RN, "_duration", lambda p: 8.0)
+    f = {n: tmp_path / f"{n:03d}.mp4" for n in (1, 3, 7)}
+    for p in f.values():
+        p.write_bytes(b"x")
+    scenes = [{"scene_no": 1, "text": "a", "start": 0, "end": 6, "footage": str(f[1])},
+              {"scene_no": 2, "text": "b", "start": 6, "end": 20},
+              {"scene_no": 3, "text": "c", "start": 20, "end": 23, "footage": str(f[3])},
+              {"scene_no": 4, "text": "d", "start": 23, "end": 26},
+              {"scene_no": 5, "text": "e", "start": 26, "end": 29},
+              {"scene_no": 6, "text": "f", "start": 29, "end": 32},
+              {"scene_no": 7, "text": "g", "start": 60, "end": 64, "footage": str(f[7])}]
+    pick = RN.clip_picker(scenes, SimpleNamespace(modes=["news"] * 7), lambda m: None, {})
+    pick({"kind": "footage", "scene": 1, "start": 0.0, "end": 6.0})
+    got = pick({"kind": "footage", "scene": 2, "start": 12.0, "end": 14.0})
+    assert got["path"] == str(f[7])                       # not scene 1's (just shown), not scene 3's (its line is next)

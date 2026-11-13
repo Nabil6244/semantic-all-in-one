@@ -30,8 +30,9 @@ _EVENTS = (("strike", r"\bstrik\w*|\bwalkout"), ("launch", r"\blaunch\w*|\bunvei
 _PHASES = (("takeoff", r"\btak(?:e|es|ing|en) off\b|\btook off\b|\btakeoff\b|\bdepart\w*"), ("landing", r"\bland(?:s|ed|ing)?\b|\btouch\w* down"),
            ("approach", r"\bapproach\w*"), ("climbing above clouds", r"\bclimb\w*"), ("cruising", r"\bcruis\w*"), ("taxiing", r"\btaxi\w*"),
            ("boarding", r"\bboard\w*"), ("cockpit", r"\bcockpit\b|\bpilots?\b"))
-CUTS = {"news": (1.0, 2.0), "fleet": (4.0, 8.0), "flight": (5.0, 15.0), "weather": (3.0, 6.0), "people": (3.0, 6.0),
-        "numbers": (1.0, 2.0), "evidence": (4.0, 8.0)}      # a number line is part of the business story: it cuts like news
+CUTS = {"news": (2.0, 3.5), "fleet": (4.0, 8.0), "flight": (5.0, 15.0), "weather": (3.0, 6.0), "people": (3.0, 6.0),
+        "numbers": (2.0, 3.5), "evidence": (4.0, 8.0)}      # a number line is part of the business story: it cuts like news
+# (news was 1-2 s: with few real clips the same shot came back every second and the film felt frantic next to its cards)
 
 
 def cut_range(mode: str) -> Tuple[float, float]:

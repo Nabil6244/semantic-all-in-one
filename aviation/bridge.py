@@ -152,14 +152,18 @@ def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Calla
                   and not ly.params.get("image")):    # a fact card with no picture of its own: the same stage beat
             from . import story as ST
             ly.kind = "stage.lay_stage"
-            ly.params = ST.fallback_stage(str(ly.params.get("fact") or ""), ly.end - ly.start, scene=scene_of.get(ly.params.get("_scene")))
+            no = ly.params.get("_scene")
+            ly.params = ST.fallback_stage(str(ly.params.get("fact") or ""), ly.end - ly.start, scene=scene_of.get(no),
+                                          backdrop=ST.film_still(scenes, no))
 
     # any fact card still without a picture (the planner's own number / fact cards never ask for one): the same stage beat
     from . import story as ST
     for ly in layers:
         if ly.kind == "cards.lay_article" and ly.params.get("fact") and not any(ly.params.get(k) for k in ("page", "image", "video")):
             ly.kind = "stage.lay_stage"
-            ly.params = ST.fallback_stage(str(ly.params.get("fact") or ""), ly.end - ly.start, scene=scene_of.get(ly.params.get("_scene")))
+            no = ly.params.get("_scene")
+            ly.params = ST.fallback_stage(str(ly.params.get("fact") or ""), ly.end - ly.start, scene=scene_of.get(no),
+                                          backdrop=ST.film_still(scenes, no))
 
     # contiguous base shots, holes filled with black
     base.sort(key=lambda x: x[0])

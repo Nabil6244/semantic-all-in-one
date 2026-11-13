@@ -58,7 +58,7 @@ def repeats(plan: Any) -> List[Tuple[int, str]]:
     for i in range(1, len(base)):
         a, b = base[i - 1], base[i]
         la, lb = str(a.get("layer") or ""), str(b.get("layer") or "")
-        if la and la == lb and la != "stage.lay_stage" and abs(float(a["end"]) - float(b["start"])) < 0.05:
+        if la and la == lb and la not in ("stage.lay_stage", "flightmap.lay_flight_map") and abs(float(a["end"]) - float(b["start"])) < 0.05:
             out.append((i, lb))
     return out
 

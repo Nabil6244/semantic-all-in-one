@@ -266,11 +266,17 @@ _OWN_PATTERNS = (
 )
 
 
+_PEOPLE = re.compile(r"\b(employees?|staff|workers?|pilots?|crew|unions?|investors?|shareholders?|public|private|funds?|"
+                     r"management|founders?|families|family)\b", re.I)
+
+
 def _owner(name: str, pct: Optional[float] = None) -> Dict[str, Any]:
     name = _clean(name)
     o: Dict[str, Any] = {"name": name}
     code = country_code(name)
-    if code:
+    if _PEOPLE.search(name):
+        o["people"] = True            # 'TAP employees' are people, not the airline TAP: their own label and a people icon
+    elif code:
         o["code"] = code
     else:
         hits = [m for m in C.find_airlines(name) if m.entry]
@@ -318,6 +324,16 @@ def owners_from(text: Any) -> List[Dict[str, Any]]:
 
 def _owner_icon(o: Dict[str, Any], size: int) -> Image.Image:
     from . import stickers
+    if o.get("people"):                                   # employees / investors / the public: three heads in a white disc
+        disc = Image.new("RGBA", (size + 24, size + 24), (0, 0, 0, 0))
+        dd = ImageDraw.Draw(disc)
+        dd.ellipse((0, 0, disc.width - 1, disc.height - 1), fill=S.WHITE)
+        cx, cy, u = disc.width / 2, disc.height / 2, size / 9.0
+        for dx, sc_, col in ((-2.6, 0.82, (120, 126, 138)), (2.6, 0.82, (120, 126, 138)), (0.0, 1.0, S.INK)):
+            hx, r = cx + dx * u, 1.5 * u * sc_
+            dd.ellipse((hx - r, cy - 2.6 * u * sc_ - r, hx + r, cy - 2.6 * u * sc_ + r), fill=col)
+            dd.pieslice((hx - 2.6 * u * sc_, cy - 0.6 * u, hx + 2.6 * u * sc_, cy + 4.2 * u * sc_), 180, 360, fill=col)
+        return disc
     if o.get("code"):
         return _flag_sticker(o["code"], int(size * 1.15))
     if o.get("airline"):

@@ -24,6 +24,7 @@ every name, number and word is the narration's, the CSV's or the catalog's.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import catalog as C
@@ -190,6 +191,7 @@ def build(scenes: Sequence[Dict[str, Any]], cls: Sequence[Any], rows: Optional[S
     beats: List[Dict[str, Any]] = []
     d.web = web
     d.bible = bible
+    d.film = (scenes, i, j)
     log: List[Dict[str, Any]] = []
     rel, maps, cards2, skin = _mod("story_relations"), _mod("story_maps"), _mod("story_cards2"), _mod("gfx_sticker")
     for k in range(i, j + 1):
@@ -254,7 +256,9 @@ def _cutaways(d: "_Director", beats: List[Dict[str, Any]], every: float = CUT_EV
     for bt in beats:
         a, b = bt["a"], bt["b"]
         full_card = any(bt["why"].startswith(x) for x in NO_CUT)
-        start = a + (max(2.4, (b - a) * 0.5) if full_card else 0.15)
+        if full_card:
+            continue          # an ownership tree / split / map is read while it builds: no photo drops in over or under it
+        start = a + 0.15
         if start - last_cut < every or b - start < 2.2 or bt["why"].startswith(("argument", "hook", "paper sticker")):
             continue
         cands = [x for x in _cut_sources(d, bt, els, used) if x["image"] != last_img]
@@ -267,7 +271,7 @@ def _cutaways(d: "_Director", beats: List[Dict[str, Any]], every: float = CUT_EV
         title = ((al.get("name") or "") + (f", {bt['year']}" if bt["year"] else "")).strip(", ")
         end = min(b, start + CUT_S)
         el = d.st.add("photo_full", start, {"image": pick["image"], "credit": pick["credit"], "title": title, "ai": pick["ai"]},
-                      pos=(640, 360), enter="fade", float_=False, edge=False, z=880, anim=end - start)
+                      pos=(640, 360), enter="fade", float_=False, edge=False, z=5000, anim=end - start)   # covers the stage
         d.st.remove(el, end, exit="fade")
         placed.append(el)
         last_cut, last_kind, last_img = start, pick["kind"], pick["image"]
@@ -286,6 +290,14 @@ def _backdrop(d: "_Director", a: float, c: Any, r: dict, airline: str, text: str
     al = C.get_airline(airline) or {}
     subject = (al.get("name") or "") + (" " + c.aircraft[0]["name"] if c.aircraft else "")
     subject = subject.strip()
+    if not subject and not d.bd_id:                 # a line that names no airline: still never stickers on plain black
+        own = _film_picture(d)
+        if own:
+            d.bd_id = d.st.add("backdrop", a, {"image": own, "credit": ""}, pos=(640, 360), enter="fade", float_=False, edge=False,
+                               z=-1000)
+            d.st.move(d.bd_id, a + 0.05, pos=(608, 352), dur=BACKDROP_S * 1.5)
+            d.bd_at = a
+        return
     if not subject or subject == d.bd_subject or (a - d.bd_at < BACKDROP_S and d.bd_id):
         return
     q = [f"{subject} {d.year}".strip() if d.year else subject, f"{al.get('name') or subject} aircraft"]
@@ -294,6 +306,9 @@ def _backdrop(d: "_Director", a: float, c: Any, r: dict, airline: str, text: str
     if not pa and d.web is not None and (not d.year or d.year >= 2000):
         lb = _library_backdrop(airline, c, d.year)   # modern line, nothing new on the web: a photo of the airline in the library
         pa = {"image": lb["path"], "credit": lb.get("credit", "")} if lb else None
+    if not pa:
+        own = _film_picture(d)          # nothing from the web or the library: this film's own Flow picture of the line / stretch
+        pa = {"image": own, "credit": ""} if own else None
     if not pa:
         return
     if d.bd_id:
@@ -518,6 +533,29 @@ _WEAK_END = set("the a an and or but of to in on for with from by at as its thei
 _BD_USED: List[str] = []          # library photos already put behind a stage in this film (no photo twice in a row)
 
 
+def _film_picture(d: "_Director") -> str:
+    """The still picture (a Flow image made for this film) of the current line, else of the nearest line of the same stretch;
+    a modern line (no year, or 2000+) may also take one from up to 3 lines around the stretch; a history line never does (its era).
+    '' when there is none."""
+    film = getattr(d, "film", None)
+    if not film:
+        return ""
+    scenes, i, j = film
+    order = sorted(range(i, j + 1), key=lambda k: abs(k - d.k))
+    if not d.year or d.year >= 2000:                # a modern line may also use a neighbour's picture (no wrong era possible)
+        order += sorted((k for k in range(max(0, i - 3), min(len(scenes), j + 4)) if not i <= k <= j), key=lambda k: abs(k - d.k))
+    for k in order:
+        f = str(scenes[k].get("footage") or "")
+        if not f.endswith(".still.mp4"):
+            continue
+        base = f[: -len(".still.mp4")]
+        for ext in (".png", ".jpg", ".jpeg", ".webp"):
+            if Path(base + ext).is_file() and base + ext not in _BD_USED:
+                _BD_USED.append(base + ext)
+                return base + ext
+    return ""
+
+
 def _library_backdrop(airline: str, c: Any = None, year: int = 0) -> Optional[Dict[str, Any]]:
     """A real photo of this airline the shared library already holds (captured from the web for this or an earlier film):
     photo-like only (never a logo), ranked by its caption like a web backdrop (the line's aircraft / airline up; seats, cabins,
@@ -551,7 +589,27 @@ def _library_backdrop(airline: str, c: Any = None, year: int = 0) -> Optional[Di
         return None
 
 
-def fallback_stage(text: str, dur: float, scene: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+def film_still(scenes: Sequence[Dict[str, Any]], scene_no: Any, reach: int = 2) -> str:
+    """This film's own Flow picture of the line `scene_no`, else of a line up to `reach` lines away (a modern line only: a history
+    line never takes a picture made for another era). '' when there is none."""
+    nos = [s.get("scene_no") for s in scenes]
+    if scene_no not in nos:
+        return ""
+    k0 = nos.index(scene_no)
+    from . import router as R
+    yrs = R.plain_years(str(scenes[k0].get("text") or ""))
+    span = 0 if (yrs and min(yrs) < 2000) else reach
+    for k in sorted(range(max(0, k0 - span), min(len(scenes), k0 + span + 1)), key=lambda k: abs(k - k0)):
+        f = str(scenes[k].get("footage") or "")
+        if f.endswith(".still.mp4"):
+            base = f[: -len(".still.mp4")]
+            for ext in (".png", ".jpg", ".jpeg", ".webp"):
+                if Path(base + ext).is_file():
+                    return base + ext
+    return ""
+
+
+def fallback_stage(text: str, dur: float, scene: Optional[Dict[str, Any]] = None, backdrop: str = "") -> Dict[str, Any]:
     """A news line with no usable clip, as one short stage beat (never a blue text-only card): its airline's aircraft sticker,
     the line's own words as the caption under it, its year on the badge."""
     from . import router as R
@@ -566,6 +624,8 @@ def fallback_stage(text: str, dur: float, scene: Optional[Dict[str, Any]] = None
     typ = c.aircraft[0]["id"] if c.aircraft else ((ac[0].entry or {}).get("id") if ac and ac[0].entry else
                                                     era_type(int(years[0]) if years else 0))
     bd = _library_backdrop(al, c, int(years[0]) if years else 0)
+    if not bd and backdrop:
+        bd = {"path": backdrop, "credit": ""}      # this film's own Flow picture of the line: never a sticker on plain black
     if bd:
         st.add("backdrop", 0.0, {"image": bd["path"], "credit": bd.get("credit", "")}, pos=(640, 360), enter="fade",
                float_=False, edge=False, z=-1000)

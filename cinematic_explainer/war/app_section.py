@@ -422,7 +422,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
         except Exception as exc:  # noqa: BLE001 - an audit never stops Generate scenes
             log(f"clip check skipped: {exc}")
     over = set(ai_plan(scenes, images_dir, ai_cap)["over"])
-    if over:
+    if over and fetch:                   # a listing pass (fetch=False) makes nothing: no cap message (Aviation makes its Flow rows itself)
         log(f"AI clip limit {ai_cap} reached: scenes {', '.join(sorted(over, key=lambda x: int(x) if x.isdigit() else 0))} use the map or cards instead")
     todo = []
     directed = [r for r in rows if director and fetch and r.asset_type == "youtube_video" and str(r.scene_number) not in over

@@ -119,9 +119,8 @@ def lay_share(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
     big = str(p.get("big") or f"{parts[0]['pct']:g} %")
     if k > 0.6:
         _text(d, (x1 - int(150 * sc), y - int(80 * sc)), big, 46, side(parts[0].get("side") or "a"), "title")
-    if p.get("type"):
-        sil = _silhouette(p["type"], int(260 * sc))
-        im.alpha_composite(sil, (int(W / 2 - sil.width / 2), y + int(80 * sc)))
+    sil = _silhouette(p.get("type") or "wide", int(300 * sc))     # always the aircraft under the bar (J-11 J4a), the line's type if named
+    im.alpha_composite(_fade(sil, _k(t, 0.3, 0.8)), (int(W / 2 - sil.width / 2), y + int(90 * sc)))
     return im
 
 
@@ -178,7 +177,7 @@ def lay_icons(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
     n_icons = max(1, count // per)
     cols = min(20, n_icons)
     rows = (n_icons + cols - 1) // cols
-    s = int(min(18, 300 / max(1, rows)) * sc)
+    s = int(min(18, 300 / max(1, rows), 760 / (cols * 2.6)) * sc)     # the grid ends left of the big number (x 1000)
     gx, gy = int(110 * sc), int(250 * sc)
     k = _k(t, 0.4, 1.8)
     shown = icons_shown(count, per, k)
@@ -259,9 +258,8 @@ def lay_options(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image
         d.rectangle((x, yy, x + 5, yy + ch), fill=col)
         _text(d, (x + 26, yy + 24), str(o.get("title") or "").upper(), 26, col, "title")
         _text(d, (x + 26, yy + 66), str(o.get("sub") or "").upper(), 13, GREY)
-        if o.get("type"):
-            sil = _silhouette(o["type"], int(cw * 0.6))
-            im.alpha_composite(sil, (int(x + cw / 2 - sil.width / 2), int(yy + ch - sil.height - 30 * sc)))
+        sil = _silhouette(o.get("type") or "narrow", int(cw * 0.6))      # every option card shows its aircraft (J-11 J4e)
+        im.alpha_composite(_fade(sil, k), (int(x + cw / 2 - sil.width / 2), int(yy + ch - sil.height - 30 * sc)))
         x += cw + int(30 * sc)
     return im
 
@@ -273,17 +271,19 @@ def lay_quotes(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]
     im = _frame(t, p)
     d = ImageDraw.Draw(im)
     sc = S.scale()
-    f = S.font("title", 28)
-    y = int(230 * sc)
+    one = len(qs) == 1
+    f = S.font("title", 44 if one else 28)        # a single quote is the card: big, centred (it sat small at the top)
+    y = int((270 if one else 230) * sc)
     for i, q in enumerate(qs):
         k = _k(t, 0.4 + 1.2 * i, 0.6)
         if k <= 0:
             continue
-        x = int((110 + 330 * i) * sc)
+        x = int((150 if one else 110 + 330 * i) * sc)
+        boxw = int((980 if one else 700) * sc)
         words, lines, cur = str(q["text"]).upper().split(), [], ""
         for w in words:
             tt = (cur + " " + w).strip()
-            if d.textlength(tt, font=f) > 620 * sc and cur:
+            if d.textlength(tt, font=f) > boxw - 100 * sc and cur:
                 lines.append(cur)
                 cur = w
             else:
@@ -292,7 +292,7 @@ def lay_quotes(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]
         lines = lines[:3]
         bh = len(lines) * int(f.size * 1.2) + int(70 * sc)
         col = side(q.get("side") or ("warn" if i else "a"))
-        d.rectangle((x, y, x + int(700 * sc), y + bh), fill=PANEL)
+        d.rectangle((x, y, x + boxw, y + bh), fill=PANEL)
         d.rectangle((x, y, x + 5, y + bh), fill=col)
         _text(d, (x + 22, y + 6), "“", 46, col, "title")
         yy = y + int(26 * sc)
@@ -349,9 +349,8 @@ def lay_family(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]
         d.rectangle((x, y, x + 4, y + ch), fill=col)
         _text(d, (x + 20, y + 16), str(m.get("name") or "").upper(), 24, col, "title")
         _text(d, (x + 20, y + 52), str(m.get("sub") or "").upper(), 12, GREY)
-        if m.get("type"):
-            sil = _silhouette(m["type"], int(cw * 0.5))
-            im.alpha_composite(sil, (x + cw - sil.width - 20, y + ch - sil.height - 16))
+        sil = _silhouette(m.get("type") or "narrow", int(cw * 0.42))     # every variant card shows its aircraft (J-11 J4i)
+        im.alpha_composite(_fade(sil, k), (x + cw - sil.width - 20, y + ch - sil.height - 16))
     return im
 
 

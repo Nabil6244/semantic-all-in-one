@@ -90,7 +90,7 @@ class LiveryTests(unittest.TestCase):
 
 class PacingTests(unittest.TestCase):
     def test_cut_lengths_by_mode(self):
-        self.assertEqual(FT.cut_range("news"), (1.0, 2.0))
+        self.assertEqual(FT.cut_range("news"), (2.0, 3.5))       # 1-2 s felt frantic next to the cards
         lo, hi = FT.cut_range("fleet")
         self.assertGreaterEqual(lo, 4.0)
         self.assertGreater(FT.cut_range("flight")[1], FT.cut_range("news")[1])

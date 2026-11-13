@@ -40,6 +40,7 @@ from . import router as R
 STRONG = 3.0
 MAP_MODES = ("flight", "weather")
 MAX_MAP_S = 30.0
+PLACE_MAP_S = 7.0             # a place map (no flight sequence): its routes are drawn by then; the rest of the line goes to footage
 BREAK_S = 4.0
 OPEN_S = 6.0
 CARD_GAP_S = 10.0             # never two cards closer than this
@@ -309,7 +310,11 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
     forced, modes = [], []
     for i, c in enumerate(cls):
         r = _row(rows, i)
-        if r.get("mode") in R.MODES:
+        g_ = str(r.get("graphic") or "").strip().lower()
+        if str(r.get("mode") or "").strip().lower() == "map" or (g_ == "routes" and _present_day(c)):
+            modes.append("flight"); forced.append(True)        # CSV 'map' / a present-day 'routes' line: the real map, not a card
+            c.values["place_map"] = True
+        elif r.get("mode") in R.MODES:
             modes.append(r["mode"]); forced.append(True)
         else:
             modes.append(c.mode); forced.append(False)
@@ -348,6 +353,8 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
 
     _graphics(out, scenes, cls, rows)
     _csv_dossier(out, scenes, cls, rows)
+    _cap_holds(out, scenes, cls, rows)
+    _split_long_footage(out)
 
     # the next-episode card on a line that says 'the story of X'
     for k, s in enumerate(scenes):
@@ -418,7 +425,7 @@ def _graphics(out: Plan, scenes, cls, rows) -> None:
         from . import gfx_air as GA
         tail = GA.tail_of(al)
         low = c.text.lower()
-        span = (a, min(b, a + 6.0))
+        span = (a, min(b, a + CARD_HOLD_S))
         # a crew line: who they are, how old, how many hours (overlay over the cockpit / map)
         hours = next((n for n, noun in v.get("counts") or [] if noun == "hours"), None)
         role = next((lab for w, lab in _ROLE if w in low), "")
@@ -458,7 +465,7 @@ DOSSIER_CSV = ("dossier", "markers", "options", "family", "quotes")
 
 
 def _csv_dossier(out: Plan, scenes, cls, rows) -> None:
-    """The CSV's `graphic` asks for a dossier card on this line: it covers the line (up to 6 s, the rest goes back to what was
+    """The CSV's `graphic` asks for a dossier card on this line: it covers the line (up to CARD_HOLD_S = 5 s, the rest goes back to what was
     planned), drawn over the stage or the clips under it."""
     from . import dossier as DZ
     for k, (s, c) in enumerate(zip(scenes, cls)):
@@ -470,9 +477,120 @@ def _csv_dossier(out: Plan, scenes, cls, rows) -> None:
         if not card:
             continue
         a, b = float(s["start"]), float(s["end"])
-        e = min(b, a + 6.0)
+        e = min(b, a + CARD_HOLD_S)
         _replace_with(out, a, e, {"layer": card[0], "start": a, "end": e, "scene": s.get("scene_no", k + 1), "full_frame": True,
                                   "mode": out.modes[k] if k < len(out.modes) else "news", "params": dict(card[1])})
+
+
+HOLD_S = {"stage.lay_stage": 8.0}     # a sticker stage builds for 8 s at most; any other full-frame card holds 6 s
+CARD_HOLD_S = 5.0             # a card is read in 5 s (user, 2026-11-13: they ran ~7 s), then footage takes over
+STAGE_MAX_S = 12.0
+STAGE_GAP_S = 2.5             # nothing new on a stage for this long = a blank screen
+NO_CAP = ("flightmap.lay_flight_map", "gfx.lay_end_card", "gfx_air.lay_title")
+
+
+def _cap_holds(out: Plan, scenes, cls, rows) -> None:
+    """No look sits still: a full-frame card / stage longer than its hold is cut there and the rest of its time goes to the line's
+    own footage (or the nearest clip of the stretch). The same card twice at the same moment is drawn once (the longer one, then capped like the rest)."""
+    seen: Dict[tuple, dict] = {}
+    for sh in list(out.shots):
+        if not (sh.get("full_frame") and sh.get("layer")):
+            continue
+        key = (sh["layer"], round(float(sh["start"]), 2), repr(sorted((sh.get("params") or {}).items(), key=lambda kv: kv[0])))
+        if key in seen:
+            other = seen[key]
+            drop = sh if (sh["end"] - sh["start"]) < (other["end"] - other["start"]) else other     # the longer covers its time
+            out.shots.remove(drop)
+            seen[key] = other if drop is sh else sh
+        else:
+            seen[key] = sh
+    by_no = {s.get("scene_no", k + 1): k for k, s in enumerate(scenes)}
+
+    def filler(t: float, b: float, fallback_no: Any) -> None:
+        while t < b - 1e-3:                                  # footage of the line(s) under it, one slot per line
+            k = next((by_no[s_.get("scene_no", i_ + 1)] for i_, s_ in enumerate(scenes)
+                      if float(s_["start"]) <= t + 1e-3 < float(s_["end"])), by_no.get(fallback_no, 0))
+            e = min(b, float(scenes[k]["end"]))
+            if e - t < 1e-3:
+                break
+            out.shots.append({"kind": "footage", "start": t, "end": e, "scene": scenes[k].get("scene_no"),
+                              "mode": out.modes[k] if k < len(out.modes) else "news", "queries": _queries(cls[k], _row(rows, k)),
+                              "cut": (e - t, e - t), "filler": True})    # borrows a nearby clip; never asks for a new search
+            t = e
+
+    # a stage with nothing new on screen for a while (only a caption / its blurred backdrop left) is a blank screen: footage covers the gap
+    # and the stage picks up on its own clock where its next sticker comes
+    for sh in [x for x in out.shots if x.get("layer") == "stage.lay_stage"]:
+        a, b = float(sh["start"]), float(sh["end"])
+        off = float((sh.get("params") or {}).get("t_offset") or 0.0)
+        # only a caption or the blurred background picture left = a blank screen (the backdrop is a background, not a subject)
+        els = [e for e in (sh.get("params") or {}).get("elements") or [] if e.get("kind") not in ("caption", "backdrop")]
+        step, t, gap0, gaps = 0.1, a, None, []
+        while t <= b + 1e-6:
+            lt = t - a + off
+            vis = any(float(e.get("t0") or 0.0) <= lt < (float(e["t1"]) if e.get("t1") is not None else 1e9) for e in els)
+            if not vis and gap0 is None:
+                gap0 = t
+            if (vis or t >= b - 1e-6) and gap0 is not None:
+                if t - gap0 >= STAGE_GAP_S:
+                    gaps.append((gap0, t))
+                gap0 = None
+            t += step
+        if not gaps:
+            continue
+        cues = list(sh.get("cues") or [])
+        pieces, cur = [], a
+        for ga, gb in gaps:
+            if ga > cur + 0.3:
+                pieces.append((cur, ga))
+            filler(ga, min(b, gb), sh.get("scene"))
+            cur = gb
+        if b > cur + 0.3:
+            pieces.append((cur, b))
+        out.shots.remove(sh)
+        for pa, pb in pieces:
+            out.shots.append(dict(sh, start=pa, end=pb, params=dict(sh["params"], t_offset=off + pa - a),
+                                  cues=[x for x in cues if pa <= float(x[0]) < pb]))
+
+    for sh in list(out.shots):
+        lay = sh.get("layer")
+        if not (sh.get("full_frame") and lay) or lay in NO_CAP:
+            continue
+        hold = HOLD_S.get(lay, CARD_HOLD_S)
+        a, b = float(sh["start"]), float(sh["end"])
+        grace = 1.5 if lay == "stage.lay_stage" else 0.0     # a card never runs past its 5 s (a stage may finish its sentence)
+        if b - a <= hold + grace:
+            continue
+        cut = a + hold
+        if lay == "stage.lay_stage":            # a stage ends with a sentence (a question stays up until its line ends), 12 s at most
+            ends = [float(s_["end"]) for s_ in scenes if a + hold - 1e-3 <= float(s_["end"]) <= min(b, a + STAGE_MAX_S) + 1e-3]
+            cut = min(ends) if ends else cut
+        if b - cut < 1.0:
+            if lay == "stage.lay_stage":
+                continue
+            cut = b - 1.0                  # never a sub-second flash of footage after a card: the card ends a little earlier
+        sh["end"] = cut
+        if sh.get("cues"):
+            sh["cues"] = [x for x in sh["cues"] if float(x[0]) <= cut]   # no sticker pop over the footage that follows
+        filler(cut, b, sh.get("scene"))
+
+
+FOOTAGE_MAX_S = 5.0            # a footage slot longer than this is split: a clip shorter than its slot would leave it empty
+
+
+def _split_long_footage(out: Plan) -> None:
+    """Footage slots over FOOTAGE_MAX_S become equal pieces (the clip picker plays one clip on through them, or cuts to the next
+    clip when it runs out) - one 11 s slot with only 8 s clips around it showed a sticker on black instead."""
+    for sh in [x for x in out.shots if x.get("kind") == "footage"]:
+        a, b = float(sh["start"]), float(sh["end"])
+        n = int(math.ceil((b - a) / FOOTAGE_MAX_S - 1e-9))
+        if n <= 1:
+            continue
+        out.shots.remove(sh)
+        step = (b - a) / n
+        for k in range(n):
+            x, y = a + k * step, (b if k == n - 1 else a + (k + 1) * step)
+            out.shots.append(dict(sh, start=x, end=y, cut=(y - x, y - x)))
 
 
 def _replace_with(out: Plan, a: float, b: float, shot: dict) -> None:
@@ -540,7 +658,15 @@ def _air_graphics(c: Any, r: dict) -> List[tuple]:
             ("-" if re.search(r"\b(fell|fall\w*|down|drop\w*|lost|loss|decline\w*|cut)\b", low) else "")
         icon = "freighter" if re.search(r"\bcargo\b|\bfreight", low) else "airliner"
         if pcts and (label or icon == "freighter"):
-            out.append(("gfx_air.lay_big_number", {"value": pcts[0], "unit": "%", "sign": sign,
+            val = pcts[0]
+            word = next((w for w, lab in _MONEY_WORDS if lab == label), "")
+            if word and len(pcts) > 1:          # 'passengers up 4.2 percent, revenue up 4.3 percent': the label's own figure
+                at = low.find(word)
+                ms = [(m.start(), float(m.group(1))) for m in re.finditer(r"(\d+(?:\.\d+)?)\s*(?:%|percent|per cent)", low)]
+                after = [x for x in ms if x[0] > at]
+                if after:
+                    val = after[0][1]
+            out.append(("gfx_air.lay_big_number", {"value": val, "unit": "%", "sign": sign,
                                                     "label": ("CARGO " if icon == "freighter" else "") + (label or "REVENUE"), "icon": icon,
                                                     "tail": _tail(c, r)}))
         elif v.get("money") and label:
@@ -617,6 +743,61 @@ def _clip_stretch(out: Plan, scenes, cls, rows, modes, i: int, j: int, last_card
     return last_card
 
 
+def _present_day(c: Any) -> bool:
+    """Not a history line: no year more than 15 years before the script's latest year, no founding / renaming / merger words."""
+    old = [y for y in R.plain_years(c.text) if SCRIPT_YEAR[0] and SCRIPT_YEAR[0] - y > 15]
+    return not old and not R._HISTORY.search(c.text)
+
+
+def _places(c: Any) -> List[str]:
+    """The airports a line names, then (a place-map line only) the anchor airports of the regions it names ('Brazil', 'Africa')."""
+    named = list(dict.fromkeys(a["id"] for a in c.airports))
+    if c.values.get("place_map"):
+        for x in R.region_airports(c.text):
+            if x not in named and all(_km(x, y) > 800.0 for y in named):
+                named.append(x)                 # a region's stand-in never sits on a place already shown (labels would overlap)
+    return named
+
+
+def _km(a: str, b: str) -> float:
+    pa, pb = C.get_airport(a), C.get_airport(b)
+    if not pa or not pb:
+        return 1e9
+    la1, lo1, la2, lo2 = map(math.radians, (pa["lat"], pa["lon"], pb["lat"], pb["lon"]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 6371.0 * 2 * math.asin(math.sqrt(min(1.0, h)))
+
+
+_ROUTE_TO = re.compile(r"\b(?:flew|flies|fly|flying|flights?|routes?|services?)\s+to\b", re.I)
+_NETWORK = re.compile(r"\bmap\b|\bnetwork\b|\broutes\b|\bdestinations\b", re.I)
+
+
+def _airline_hubs(al_id: str) -> List[str]:
+    al = C.get_airline(al_id) if al_id else None
+    if not al and al_id:
+        hits = C.find_airlines(al_id)
+        al = hits[0].entry if hits else None
+    return [h for h in (al or {}).get("hubs") or [] if C.get_airport(h)]
+
+
+def _hub_of(c: Any, r: dict, named: Sequence[str], prev: str = "") -> str:
+    """The line's hub: an airline hub among the airports the line names; else, for a line that names only regions, the hub
+    already on the map, then the row's airline hub; else the first airport named. ('United States' is a region, not United.)"""
+    own = [a["id"] for a in c.airports]
+    hubs = [h for al_id in [r.get("airline") or ""] + [a["id"] for a in c.airlines] for h in _airline_hubs(al_id)]
+    for h in hubs:
+        if h in own:
+            return h
+    if own and hubs and _ROUTE_TO.search(c.text):
+        return hubs[0]                                    # 'a DC-3 flew to Madrid': out of the airline's hub
+    if own:
+        return own[0]
+    if prev:
+        return prev
+    row_hubs = _airline_hubs(r.get("airline") or "")
+    return row_hubs[0] if row_hubs else (named[0] if named else "")
+
+
 def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
     t0, t1 = scenes[i]["start"], scenes[j]["end"]
     airports: List[str] = []
@@ -637,11 +818,36 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
         s, c, r = scenes[k], cls[k], _row(rows, k)
         rel = s["start"] - t0
         cur_rel[0] = rel
-        named = [a["id"] for a in c.airports]
-        for a in named + [r.get("from") or "", r.get("to") or ""]:
-            seen(a)
+        named = _places(c)
         frm, to = r.get("from") or "", r.get("to") or ""
-        if not (frm and to) and len(named) >= 2:
+        if c.values.get("place_map") and not (frm and to):
+            # a place line (no flight): the network from the hub - one line out to each place it names, drawn one after another
+            hub = _hub_of(c, r, named, prm.get("hub", ""))
+            prm["hub"] = hub
+            dests = [x for x in named if x != hub]
+            line_hubs = _airline_hubs(r.get("airline") or "") + [h for a in c.airlines for h in _airline_hubs(a["id"])]
+            if hub and not dests and hub in line_hubs and _NETWORK.search(c.text):
+                # 'Lisbon is a small hub with a big map': the network the script names anywhere else, out of this hub
+                dests = [x for k2, c2 in enumerate(cls) if c2.values.get("place_map")
+                         and _hub_of(c2, _row(rows, k2), _places(c2), hub) == hub for x in _places(c2) if x != hub]
+                dests = list(dict.fromkeys(dests))
+                # the whole network at world scale: places closer than ~1/8 of its span would print their names on each other
+                span = max([_km(x, y) for x in [hub] + dests for y in [hub] + dests] or [0.0])
+                kept: List[str] = []
+                for x in dests:
+                    if all(_km(x, y) >= 0.13 * span for y in [hub] + kept):
+                        kept.append(x)
+                dests = kept
+            if hub and dests:
+                seen(hub)
+                legs = prm.setdefault("legs", [])
+                for n_, d_ in enumerate(dests[:8]):
+                    if not any((lg["from"], lg["to"]) == (hub, d_) for lg in legs):
+                        legs.append({"from": hub, "to": d_, "start": rel + 0.3 + 0.35 * n_, "length": 2.2})
+            named = ([hub] if hub else []) + dests
+        for a in named + [frm, to]:
+            seen(a)
+        if not (frm and to) and len(named) >= 2 and not c.values.get("place_map"):
             frm, to = named[0], named[1]
         if frm and to and frm != to:
             legs = prm.setdefault("legs", [])
@@ -697,12 +903,21 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
     # camera: each line that names places re-frames the map on them (a route wide, a storm / hold / approach close on its airport)
     views: List[Dict[str, Any]] = []
     last_focus: Optional[List[str]] = None
+    cam_hub = ""
     for k in range(i, j + 1):
         s, c, r = scenes[k], cls[k], _row(rows, k)
-        named = [a["id"] for a in c.airports]
+        named = _places(c)
+        if c.values.get("place_map"):
+            hub = _hub_of(c, r, named, cam_hub)
+            cam_hub = hub or cam_hub
+            named = ([hub] if hub else []) + [x for x in named if x != hub]
         frm, to = r.get("from") or "", r.get("to") or ""
         if frm and to and frm != to:
             focus = [frm, to]
+        elif c.values.get("place_map") and prm.get("legs") and len(named) <= 1 and named:
+            focus = list(dict.fromkeys([named[0]] + [lg["to"] for lg in prm["legs"] if lg["from"] == named[0]]))[:9]
+        elif c.values.get("place_map") and len(named) >= 2:
+            focus = named[:9]                              # the whole network in frame
         elif len(named) >= 2:
             focus = named[:2]
         elif named:
@@ -728,6 +943,25 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
             segs[-1] = (segs[-1][0], s["end"], "map", None)
         else:
             segs.append((s["start"], s["end"], kind[0], kind[1]))
+    # a place map (where an airline flies, no flight on it) says what it has to say once its routes are drawn: 7 s, then footage
+    if any(cls[k].values.get("place_map") for k in range(i, j + 1)):
+        # each place line gets the map on its own words (up to PLACE_MAP_S; its legs are timed to the line), the rest is footage
+        def foot(a_: float, b_: float, k_: int) -> None:
+            if b_ - a_ > 1e-3:
+                out.shots.append({"kind": "footage", "start": a_, "end": b_, "scene": scenes[k_].get("scene_no"), "mode": "flight",
+                                  "queries": _queries(cls[k_], _row(rows, k_)) or ["airliner flying above clouds"], "cut": (b_ - a_, b_ - a_)})
+        for k in range(i, j + 1):
+            s_ = scenes[k]
+            a_, b_ = float(s_["start"]), float(s_["end"])
+            if not cls[k].values.get("place_map"):
+                foot(a_, b_, k)
+                continue
+            e_ = b_ if b_ - (a_ + PLACE_MAP_S) < 2.0 else a_ + PLACE_MAP_S
+            out.shots.append({"layer": "flightmap.lay_flight_map", "start": a_, "end": e_, "full_frame": True, "mode": "flight",
+                              "scene": s_.get("scene_no"), "params": dict(prm, t0=a_ - t0, total=total)})
+            foot(e_, b_, k)
+        return
+    max_map = MAX_MAP_S
     for a, b, kind, k in segs:
         if kind == "clip":
             sc_ = scenes[k]
@@ -736,7 +970,7 @@ def _map_stretch(out: Plan, scenes, cls, rows, hplan, i: int, j: int) -> None:
             continue
         pos = a
         while pos < b - 1e-6:
-            end = min(b, pos + MAX_MAP_S)
+            end = min(b, pos + max_map)
             if b - end < BREAK_S + 2.0:
                 end = b
             out.shots.append({"layer": "flightmap.lay_flight_map", "start": pos, "end": end, "full_frame": True, "mode": "flight",

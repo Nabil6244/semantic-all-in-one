@@ -1122,6 +1122,29 @@
     "Viracopos",
     "Campinas"
    ]
+  },
+  {
+   "id": "LAD",
+   "name": "Luanda Quatro de Fevereiro Airport",
+   "city": "Luanda",
+   "country": "AO",
+   "lat": -8.858,
+   "lon": 13.231,
+   "aliases": [
+    "Luanda",
+    "Quatro de Fevereiro"
+   ]
+  },
+  {
+   "id": "MPM",
+   "name": "Maputo International Airport",
+   "city": "Maputo",
+   "country": "MZ",
+   "lat": -25.921,
+   "lon": 32.573,
+   "aliases": [
+    "Maputo"
+   ]
   }
  ]
 }

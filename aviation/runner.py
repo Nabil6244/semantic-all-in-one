@@ -66,7 +66,7 @@ def archive_queries(text: str) -> List[str]:
 
 
 def request_footage(scenes: List[Dict[str, Any]], plan: Any) -> None:
-    need = {s.get("scene") for s in plan.shots if s.get("kind") == "footage"}
+    need = {s.get("scene") for s in plan.shots if s.get("kind") == "footage" and not s.get("filler")}
     need |= {s.get("scene") for s in plan.shots if (s.get("params") or {}).get("image_from") == "footage"}
     # balance: story lines also ask for real archive clips (every other one that names something), so a history chapter mixes
     # footage into the sticker stage (the clips that pass the checks cut into the stage full screen); the CSV still decides first
@@ -190,12 +190,15 @@ def _duration(path: str) -> float:
         return 0.0
 
 
+RECENT_S = 20.0               # a borrowed clip shown in the last 20 s of the film is the last choice, not the first
+
 def clip_picker(scenes: Sequence[Dict[str, Any]], plan: Any, log: Callable[[str], None] = lambda m: None,
                 extras: Optional[Dict[str, List[Dict[str, Any]]]] = None) -> Callable[[dict], Optional[dict]]:
     by_no = {sc["scene_no"]: sc for sc in scenes}
     order = [sc["scene_no"] for sc in scenes]
     mode_of = {sc["scene_no"]: m for sc, m in zip(scenes, plan.modes)}
     used: Dict[str, int] = {}
+    cursor: Dict[str, Tuple[float, float]] = {}       # clip path -> (film time its last slice ended, clip second it reached)
     durs: Dict[str, float] = {}
     usable: Dict[Any, Optional[dict]] = {}
     per_scene: Dict[Any, int] = {}
@@ -229,18 +232,35 @@ def clip_picker(scenes: Sequence[Dict[str, Any]], plan: Any, log: Callable[[str]
         usable[no] = clip
         return clip
 
+    def borrow(no: Any, slot: dict) -> Optional[dict]:
+        """A line with no clip of its own takes one from the lines around it (up to 6 away): the clip that was just playing if it
+        still has room (it plays on), else the one shown longest ago - never the nearest one again and again (the opening once
+        showed scene 1's clip 7 times in 21 s). The same look and a nearer line only break ties."""
+        i = order.index(no)
+        a = float(slot["start"])
+        length = float(slot["end"]) - a
+        cands: Dict[str, Tuple[tuple, dict]] = {}
+        for j in range(max(0, i - 6), min(len(order), i + 7)):
+            if j == i:
+                continue
+            c = own(order[j])
+            if not c:
+                continue
+            prev = cursor.get(c["path"])
+            go_on = bool(prev and abs(prev[0] - a) < 0.08 and prev[1] + length <= float(c.get("duration") or 0.0) + 0.05)
+            ago = (a - prev[0]) if prev else 1e9
+            soon = 0.0 <= float(scenes[j].get("start") or 0.0) - a < RECENT_S      # its own line is coming up: it would show twice
+            key = (0 if go_on else 1, 1 if (ago < RECENT_S or soon) else 0, used.get(c["path"], 0), -min(ago, 1e9),
+                   0 if mode_of.get(order[j]) == mode_of.get(no) else 1, abs(j - i))
+            if c["path"] not in cands or key < cands[c["path"]][0]:
+                cands[c["path"]] = (key, c)
+        return min(cands.values(), key=lambda kv: kv[0])[1] if cands else None
+
     def pick(slot: dict) -> Optional[dict]:
         no = slot.get("scene")
         clip = own(no)
-        if clip is None and no in order:                      # borrow the nearest clip of the same stretch
-            i = order.index(no)
-            for k in range(1, 4):
-                for j in (i - k, i + k):
-                    if 0 <= j < len(order) and mode_of.get(order[j]) == mode_of.get(no) and own(order[j]):
-                        clip = own(order[j])
-                        break
-                if clip:
-                    break
+        if clip is None and no in order:
+            clip = borrow(no, slot)
         if clip is None:
             return None
         alts = [clip] + (extra_of.get(str(no), []) if own(no) is clip else [])
@@ -249,14 +269,30 @@ def clip_picker(scenes: Sequence[Dict[str, Any]], plan: Any, log: Callable[[str]
             per_scene[no] = k + 1
             clip = alts[k % len(alts)]
         length = float(slot["end"]) - float(slot["start"])
+        prev = cursor.get(clip["path"])
+        if prev and abs(prev[0] - float(slot["start"])) < 0.08 and prev[1] + length > float(clip.get("duration") or 0.0) + 0.05 \
+                and no in order:
+            # the clip that just played has run out: cut to a neighbouring scene's clip instead of jumping back inside the same one
+            i = order.index(no)
+            for k in range(1, 6):
+                nb = next((own(order[j]) for j in (i - k, i + k) if 0 <= j < len(order) and own(order[j])
+                           and own(order[j])["path"] != clip["path"]), None)
+                if nb:
+                    clip = nb
+                    break
         d = float(clip.get("duration") or 0.0)
         n = used.get(clip["path"], 0)
         used[clip["path"]] = n + 1
         lead = min(1.5, 0.15 * d)                                  # the first moments of a cut are often a channel intro or a fade
         room = max(0.0, d - length - lead - 0.1)
-        seek = lead + ((n * 2.3) % room if room > 0.05 else 0.0)  # each slice starts somewhere else in the clip
+        prev = cursor.get(clip["path"])
+        if prev and abs(prev[0] - float(slot["start"])) < 0.08 and prev[1] + length <= d + 0.05:
+            seek = prev[1]                                         # the slot right after this clip's last slice: it plays on, no jump
+        else:
+            seek = lead + ((n * 2.3) % room if room > 0.05 else 0.0)  # a later, separate use starts somewhere else in the clip
         if seek + length > d:
             seek = max(0.0, d - length)
+        cursor[clip["path"]] = (float(slot["end"]), seek + length)
         return dict(clip, seek=round(seek, 3))
 
     return pick

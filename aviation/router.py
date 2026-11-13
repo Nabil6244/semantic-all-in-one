@@ -343,6 +343,55 @@ def has_flight_story(cls: Sequence["Classification"]) -> bool:
     return sum(1 for c in cls if _FLIGHT_ACT.search(c.text)) >= 2
 
 
+# a place line in a script that tells no flight: the map shows WHERE (a route network, a region the airline serves). 'hub' alone
+# ('Lisbon is about to become a fortress hub') is a strategy line, not a map: with one place it needs a route / geography word
+_GEO = re.compile(r"\bmap\b|\broutes?\b|\bnetwork\b|\bdestinations?\b|\bconnect\w*|\blink\w*|\bserv(?:e|es|ed|ing)\b|"
+                  r"\bflights? (?:to|from|between)\b|\bflew to\b|\bfl(?:y|ies) to\b|\bcrossing\b|\bacross the\b|\bocean\b|\batlantic\b|"
+                  r"\bpacific\b|\bcontinents?\b|\bedge of\b|\bgateway\b|\bjumping-off\b|\bcoast\b|\bislands?\b", re.I)
+# regions a narration names without an airport -> the main airport(s) that stand for them on the map (only ids the catalog has are used)
+_REGIONS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
+    (r"\bsouth atlantic\b", ("GIG",)), (r"\bbrazil\w*", ("GRU",)), (r"\bsouth(?: and central)? america\b", ("BOG",)),
+    (r"\blatin america\b", ("BOG",)), (r"\bnorth atlantic\b", ("JFK",)), (r"\bnorth america\b", ("ORD",)),
+    (r"\bunited states\b|\bthe us\b|\bamerica\b", ("JFK",)),
+    (r"\bportuguese-speaking africa\b|\blusophone africa\b|\bangola\b|\bmozambique\b", ("LAD", "MPM")), (r"\bafrica\w*", ("NBO",)),
+    (r"\bmiddle east\b|\bthe gulf\b", ("DXB",)), (r"\basia\w*", ("SIN",)), (r"\bchina\b", ("PEK",)),
+    (r"\bjapan\b", ("HND",)), (r"\bindia\b", ("DEL",)), (r"\baustralia\b", ("SYD",)))
+
+
+def region_airports(text: str) -> List[str]:
+    """Anchor airports for the regions a line names ('Brazil', 'the South Atlantic', 'Africa'), in order of mention, once each."""
+    hits = []
+    # 'Instead of Asia and the North Atlantic, its strength is ...': a region the line turns away from is not on the map
+    skip = [(m.start(), m.end()) for m in re.finditer(r"\b(?:instead of|rather than|unlike|apart from|not)\b[^,.;]*", text, re.I)]
+    for pat, ids in _REGIONS:
+        for m in re.finditer(pat, text, re.I):
+            if any(a <= m.start() < b for a, b in skip):
+                continue
+            hits.append((m.start(), m.end(), [i for i in ids if C.get_airport(i)]))
+    out: List[str] = []
+    spans: List[Tuple[int, int]] = []
+    for a, b, ids in sorted(hits, key=lambda h: (h[0], -(h[1] - h[0]))):      # the longest name wins ('North America' over 'America')
+        if any(a < y and x < b for x, y in spans):
+            continue
+        spans.append((a, b))
+        out += [i for i in ids if i not in out]
+    return out
+
+
+def plain_years(text: str) -> List[int]:
+    """Every 1900-2099 year in the text, also one before a comma ('in 1946, it went'), which extract_values leaves out."""
+    return [int(y) for y in re.findall(r"(?<![\d,.$€£:\-])\b(19\d\d|20\d\d)\b(?!\.\d|,\d)", text)]
+
+
+def is_place_line(c: "Classification") -> bool:
+    """A line about places, not a flight: two or more airports / cities, or a place or region with route / geography words
+    ('a natural jumping-off point for the Atlantic', 'routes to the United States', 'a small hub with a big map')."""
+    aps = {a["id"] for a in c.airports}
+    if len(aps) >= 2:
+        return True
+    return bool((aps or region_airports(c.text)) and _GEO.search(c.text))
+
+
 def route_script(lines: Sequence[str]) -> List[Classification]:
     out = [classify(s) for s in lines]
     # story: a line about a year far (> 15 years) before the latest year of the script, unless it is clearly flight / weather / evidence
@@ -368,9 +417,32 @@ def route_script(lines: Sequence[str]) -> List[Classification]:
                 c.reasons.append("story 1: a present-day line (no old year, no history words)")
     # flight needs a flight: a script that never tells one (no flight number, clock time, fuel, altitude, take-off / landing /
     # ATC words) is a business or history story; its 'runway', 'airport', 'climbed back' lines are not a flight sequence
+    # ... but a PLACE line (two airports, or a place / region with route words) still gets the map: where the airline flies, its hub,
+    # its network - the map look without a flight on it (no clock / fuel HUD: those need the script's own times and fuel)
     if not has_flight_story(out):
-        for c in out:
-            if c.mode == "flight" or c.scores.get("flight", 0) > 0:
+        # years read plainly here ('in 1946, it went ...' is a year too; extract_values skips a year before a comma)
+        yrs = [plain_years(c.text) for c in out]
+        top = max([y for ys in yrs for y in ys] or [0])
+        # each line's look with no flight score: a place line that would be (or sit inside) a story line is history - it keeps the
+        # sticker stage, which draws its own route card ('Malaysia-Singapore Airlines flew its 707 to London that year')
+        bare = [_decide(dict(c.scores, flight=0.0)) for c in out]
+
+        def story_around(k: int) -> bool:
+            if bare[k][0] == "story" and not bare[k][1]:
+                return True
+            if max(v for m, v in out[k].scores.items() if m != "flight") >= 3.0:
+                return False                        # a strong line of its own (news, numbers ...) is not pulled into the story
+            # a weak or neutral line right after a story line joins the stage (planner._story_join does the same)
+            return k > 0 and bare[k - 1][0] == "story" and not bare[k - 1][1]
+
+        for k, c in enumerate(out):
+            history = any(top - y > 15 for y in yrs[k]) or c.mode == "story" or story_around(k)
+            if is_place_line(c) and not history:
+                c.scores["flight"] = max(c.scores.get("flight", 0.0), 3.0, max(c.scores.values()) + 0.5)
+                c.mode, c.neutral = _decide(c.scores)
+                c.values["place_map"] = True
+                c.reasons.append("map: a place line (airports / regions with route words) in a script with no flight")
+            elif c.mode == "flight" or c.scores.get("flight", 0) > 0:
                 c.scores["flight"] = 0.0
                 c.mode, c.neutral = _decide(c.scores)
                 c.reasons.append("flight 0: the script tells no flight")
@@ -378,8 +450,9 @@ def route_script(lines: Sequence[str]) -> List[Classification]:
     for i, c in enumerate(out):
         if not c.neutral:
             continue
-        prev = next((out[j].mode for j in range(i - 1, -1, -1) if not out[j].neutral), None)
-        nxt = next((out[j].mode for j in range(i + 1, len(out)) if not out[j].neutral), None)
+        # a place-map line lends its look to no one: 'It is the runway.' after a route line is a business line, not more map
+        prev = next((out[j].mode for j in range(i - 1, -1, -1) if not out[j].neutral and not out[j].values.get("place_map")), None)
+        nxt = next((out[j].mode for j in range(i + 1, len(out)) if not out[j].neutral and not out[j].values.get("place_map")), None)
         c.mode = prev or nxt or "news"
         c.reasons.append(f"neutral -> {c.mode} from {'previous' if prev else 'next' if nxt else 'default'} line")
     state: Dict[str, Any] = {"flight": None, "time": None, "fuel_kg": None, "altitude_ft": None, "airport": None}

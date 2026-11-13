@@ -224,3 +224,32 @@ class EmiratesRenderFixes(unittest.TestCase):
 
     def test_capture_tries_are_capped_at_two(self):
         self.assertEqual(D.CAPTURE_TRIES, 2)
+
+
+class ParallelTests(unittest.TestCase):
+    def test_scenes_capture_side_by_side_and_never_share_seconds(self):
+        import threading
+        import time as _t
+
+        class Slow(Fakes):
+            def __init__(self, *a):
+                super().__init__(*a)
+                self.live, self.peak, self.lk = 0, 0, threading.Lock()
+
+            def capture(self, video_id, start, seconds, dest, tl):
+                with self.lk:
+                    self.live += 1
+                    self.peak = max(self.peak, self.live)
+                _t.sleep(0.2)
+                with self.lk:
+                    self.live -= 1
+                return super().capture(video_id, start, seconds, dest, tl)
+
+        fk = Slow({"*": [cand("film1", "Air France A350 landing Paris")]}, {"film1": tiles(GOOD, seed="f", n=200)})
+        sc = [{"scene_no": i, "text": "The Air France A350 landed in Paris.", "asset_type": "youtube_video", "mode": "fleet"}
+              for i in (1, 2)]
+        with tempfile.TemporaryDirectory() as d:
+            D.run(sc, Path(d) / "assets", Path(d) / "state", search=fk.search, tiles=fk.tiles, capture=fk.capture)
+        self.assertEqual(fk.peak, 2)                                   # both scenes captured at the same time
+        (v1, a1, s1, _), (v2, a2, s2, _) = fk.captured[:2]
+        self.assertTrue(a1 + s1 + 2.0 <= a2 or a2 + s2 + 2.0 <= a1)     # one video, two different stretches

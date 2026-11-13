@@ -196,6 +196,21 @@ def _tile(z: int, x: int, y: int, fetch: Callable, cache: Path) -> Optional[np.n
     return a
 
 
+def _from_parent(z: int, x: int, y: int, fetch: Callable, cache: Path, up: int = 3) -> Optional[np.ndarray]:
+    """The part of a coarser tile (1-3 levels up) that covers tile (z, x, y), enlarged to a full tile."""
+    for k in range(1, up + 1):
+        if z - k < 0:
+            break
+        p = _tile(z - k, x >> k, y >> k, fetch, cache)
+        if p is None or p.shape != (TILE, TILE):
+            continue
+        span = TILE >> k
+        ox, oy = (x - ((x >> k) << k)) * span, (y - ((y >> k) << k)) * span
+        part = np.ascontiguousarray(p[oy:oy + span, ox:ox + span], dtype=np.float32)
+        return np.asarray(Image.fromarray(part, mode="F").resize((TILE, TILE), Image.BILINEAR), dtype=np.float32)
+    return None
+
+
 def elevation(bb: BBox, size: Tuple[int, int], fetch_tile: Optional[Callable] = None, cache: Optional[Path] = None) -> np.ndarray:
     fetch = fetch_tile or terrarium_tile
     cache = Path(cache) if cache else default_cache()
@@ -209,6 +224,8 @@ def elevation(bb: BBox, size: Tuple[int, int], fetch_tile: Optional[Callable] = 
     for ty in range(ty0, ty1 + 1):
         for tx in range(tx0, tx1 + 1):
             a = _tile(z, tx, ty, fetch, cache)
+            if a is None or a.shape != (TILE, TILE):
+                a = _from_parent(z, tx, ty, fetch, cache)      # a tile that did not come: its coarser parent, never a black square
             if a is not None and a.shape == (TILE, TILE):
                 mosaic[(ty - ty0) * TILE:(ty - ty0 + 1) * TILE, (tx - tx0) * TILE:(tx - tx0 + 1) * TILE] = a
     # crop the mosaic to the box, resample to the wanted size

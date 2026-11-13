@@ -298,9 +298,9 @@ class LabelPopTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             q = {"airports": ["SXR", "IXJ", "ATQ"], "appear": {"SXR": 0.0, "IXJ": 0.0, "ATQ": 8.0}, "fetch_tile": fake_tile, "cache": d}
             before, after = F.lay_flight_map(2.0, 12.0, q), F.lay_flight_map(10.0, 12.0, q)
-            bb = B.fit_bbox([(33.987, 74.774), (32.689, 74.837), (31.708, 74.797)], pad=0.22)
-            x, y = B.to_px(bb, 31.708, 74.797, 1280, 720)
-            box = (int(x) - 140, int(y) - 40, int(x) + 10, int(y) + 10)
-            w = lambda im: (np.asarray(im.convert("L").crop(box)) > 235).sum()
-            self.assertLess(w(before), 5)
-            self.assertGreater(w(after), 30)
+            def box(t):                               # where ATQ's label sits at time t (the camera drifts slowly)
+                x, y = B.to_px(F.view_at(q, t, 12.0), 31.708, 74.797, 1280, 720)
+                return (int(x) - 140, int(y) - 40, int(x) + 10, int(y) + 10)
+            w = lambda im, t: (np.asarray(im.convert("L").crop(box(t))) > 235).sum()
+            self.assertLess(w(before, 2.0), 5)
+            self.assertGreater(w(after, 10.0), 30)
