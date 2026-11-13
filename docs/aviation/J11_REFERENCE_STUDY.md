@@ -79,6 +79,9 @@ sticker skin and the news skin by chapter, so all three are used in one film; co
 
 ## 5. Build order (each step code + tests, a still sheet to check; nothing renders until asked)
 
+Status 2026-11-13: step 1 skipped; steps 2-7 built (commits 0ece0b1, 02a6ef9, 101e5b2, 38c75f1 + the FLIR look). Not yet seen in a
+real Generate + render.
+
 1. ~~Footage chips (J1)~~ — skipped (user, 2026-11-13: not needed; footage keeps its plain Source tag).
 2. **Dossier skin (J4a-J4f, J4h, J4i):** graphite backdrop + title system; share bar, range bar, icon grid, marker timeline,
    option cards, quote card(s), flow list, family tree — fed by the router's values like `gfx_air`.

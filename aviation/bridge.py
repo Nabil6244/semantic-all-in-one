@@ -43,8 +43,9 @@ def card_table() -> Dict[str, Any]:
             "gfx_air.lay_runway": gfx_air.lay_runway, "gfx_air.lay_approach": gfx_air.lay_approach,
             "gfx_air.lay_descent": gfx_air.lay_descent, "gfx_air.lay_title": gfx_air.lay_title,
         })
-        from . import dossier, gfx_flight, retention, stage, transitions
+        from . import dossier, flir, gfx_flight, retention, stage, transitions
         _TABLE.update(dossier.CARDS)
+        _TABLE["flir.lay_hud"] = flir.lay_hud
         _TABLE.update({
             "transitions.lay_out": transitions.lay_out,
             "stage.lay_stage": stage.lay_stage, "retention.lay_rehook": retention.lay_rehook,
@@ -97,6 +98,8 @@ def build_timeline(plan: Any, scenes: Sequence[Dict[str, Any]], pick_clip: Calla
                 report["clips"] += 1
                 if clip.get("source"):
                     layers.append(Layer("cards.tag_source", a, b, {"source": clip["source"]}))
+                if clip.get("flir"):                       # infrared footage (by its title): the targeting-box overlay
+                    layers.append(Layer("flir.lay_hud", a, b, {}))
             else:
                 report["missing_footage"] += 1
                 base.append((a, b, None))

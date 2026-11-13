@@ -201,8 +201,11 @@ def clip_picker(scenes: Sequence[Dict[str, Any]], plan: Any, log: Callable[[str]
     per_scene: Dict[Any, int] = {}
     extra_of: Dict[str, List[dict]] = {}
     for no, lst in (extras or {}).items():
-        extra_of[str(no)] = [{"path": e["path"], "duration": _duration(e["path"]) or float(e.get("duration") or 0.0),
-                              "source": str(e.get("channel") or "").strip()} for e in lst if e.get("path") and Path(e["path"]).is_file()]
+        from . import flir as FL
+        extra_of[str(no)] = [{"path": FL.graded(e["path"]) if FL.is_flir(e.get("title", "")) else e["path"],
+                              "duration": _duration(e["path"]) or float(e.get("duration") or 0.0),
+                              "source": str(e.get("channel") or "").strip(), "flir": FL.is_flir(e.get("title", ""))}
+                             for e in lst if e.get("path") and Path(e["path"]).is_file()]
 
     def own(no: Any) -> Optional[dict]:
         if no in usable:
@@ -220,7 +223,9 @@ def clip_picker(scenes: Sequence[Dict[str, Any]], plan: Any, log: Callable[[str]
                 real = durs.setdefault(path, _duration(path))       # the file can be shorter than its record says (a capture
                 d = min(float(meta.get("duration") or real), real) if real else float(meta.get("duration") or 0.0)  # keeps fewer seconds)
                 src = str(meta.get("channel") or meta.get("author") or "").strip()
-                clip = {"path": path, "duration": d, "source": src}
+                from . import flir as FL
+                fl = FL.is_flir(title)                                   # infrared footage by its own title: the IR look
+                clip = {"path": FL.graded(path) if fl else path, "duration": d, "source": src, "flir": fl}
         usable[no] = clip
         return clip
 
