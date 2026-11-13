@@ -43,7 +43,8 @@ def card_table() -> Dict[str, Any]:
             "gfx_air.lay_runway": gfx_air.lay_runway, "gfx_air.lay_approach": gfx_air.lay_approach,
             "gfx_air.lay_descent": gfx_air.lay_descent, "gfx_air.lay_title": gfx_air.lay_title,
         })
-        from . import gfx_flight, retention, stage, transitions
+        from . import dossier, gfx_flight, retention, stage, transitions
+        _TABLE.update(dossier.CARDS)
         _TABLE.update({
             "transitions.lay_out": transitions.lay_out,
             "stage.lay_stage": stage.lay_stage, "retention.lay_rehook": retention.lay_rehook,

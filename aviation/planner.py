@@ -89,10 +89,61 @@ def _bible(texts: Sequence[str], rows) -> Any:
     return _BIBLE["bible"]
 
 
+_SKIN = {"n": 0}                # number cards placed so far in this film (the skin rotor)
+
+
+def _dz_ok(c: Any, r: dict) -> bool:
+    from . import dossier as DZ
+    return DZ.pick(c, r) is not None
+
+
+def _numbers_card(c: Any, r: dict, graphics: List[tuple]) -> Optional[tuple]:
+    """The card for a line with figures, rotating skins so no one look takes the film: the dossier card (J-11 study) on every
+    other number card, the built aviation graphic (blue news skin) on the rest; whichever exists when only one does."""
+    from . import dossier as DZ
+    dz = DZ.pick(c, r)
+    if not dz and not graphics:
+        return None
+    use_dz = dz is not None and (not graphics or _SKIN["n"] % 2 == 0)
+    _SKIN["n"] += 1
+    return dz if use_dz else graphics[0]
+
+
 STAGE_CLIP_S = (4.0, 6.0)      # a story line's own clip, full screen, cut out of the stage
 
 
-def _stage_with_clips(shot: Dict[str, Any], scenes, i: int, j: int) -> List[Dict[str, Any]]:
+STAGE_SHOWS = ("ownership", "timeline", "split tree", "who got what", "argument")   # richer stage pieces keep their line; a plain
+# sticker number graphic rotates with the dossier card (the rotor picks which one this line shows)
+
+
+def _story_dossier(scenes, cls, rows, i: int, j: int, lg) -> List[tuple]:
+    """Story lines whose figure the stage does not already show (its own sticker graphic, timeline, ownership ...) get a dossier
+    card cut into the stage on every other number card: (start, end, scene_no, card shot)."""
+    from . import dossier as DZ
+    why = {e["scene"]: e.get("stage") or "" for e in lg}
+    out = []
+    for k in range(i, j + 1):
+        sc, c, r = scenes[k], cls[k], _row(rows, k)
+        no = sc.get("scene_no", k + 1)
+        if any(str(why.get(no, "")).startswith(x) for x in STAGE_SHOWS):
+            continue
+        dz = DZ.pick(c, r)
+        if not dz:
+            continue
+        if _SKIN["n"] % 2 == 1:
+            _SKIN["n"] += 1
+            continue
+        _SKIN["n"] += 1
+        a, b = float(sc["start"]), float(sc["end"])
+        if b - a < 2.5:
+            continue
+        e = min(b, a + 5.0)
+        out.append((a, e, no, {"layer": dz[0], "params": dict(dz[1]), "start": a, "end": e, "scene": no, "full_frame": True,
+                               "mode": "story"}))
+    return out
+
+
+def _stage_with_clips(shot: Dict[str, Any], scenes, i: int, j: int, cards: Sequence[tuple] = ()) -> List[Dict[str, Any]]:
     """The stage gives way to real footage: a story line with its own clip (an archive YouTube clip, a Flow shot, the user's
     file) plays it full screen for 4-6 s from the line's start, then the stage resumes on its own clock (t_offset) - so a
     history chapter is stickers AND real pictures, never one long sticker block."""
@@ -105,22 +156,29 @@ def _stage_with_clips(shot: Dict[str, Any], scenes, i: int, j: int) -> List[Dict
         if b - a < 2.5:
             continue
         hb = min(b, a + STAGE_CLIP_S[1]) if b - a >= STAGE_CLIP_S[0] else b
-        holes.append((a, hb, sc.get("scene_no", k + 1)))
+        holes.append((a, hb, sc.get("scene_no", k + 1), None))
+    for a, b, no, card in cards:                         # dossier cards cut into the stage (never over a clip of the same line)
+        if not any(h[2] == no for h in holes):
+            holes.append((a, b, no, card))
+    holes.sort(key=lambda h: h[0])
     if not holes:
         return [shot]
     out, s0 = [], float(shot["start"])
     cur = s0
-    for a, b, no in holes:
+    for a, b, no, card in holes:
+        if a < cur - 1e-6:
+            continue
         if a > cur + 0.3:
             out.append(dict(shot, start=cur, end=a, params=dict(shot["params"], t_offset=cur - s0)))
-        out.append({"kind": "footage", "start": a, "end": b, "scene": no, "mode": "story", "queries": [], "cut": STAGE_CLIP_S})
+        out.append(card if card else {"kind": "footage", "start": a, "end": b, "scene": no, "mode": "story", "queries": [],
+                                      "cut": STAGE_CLIP_S})
         cur = b
     if float(shot["end"]) > cur + 0.3:
         out.append(dict(shot, start=cur, end=float(shot["end"]), params=dict(shot["params"], t_offset=cur - s0)))
     elif out and out[-1].get("kind") == "footage":
         out[-1]["end"] = float(shot["end"])
     pieces = [x for x in out if x.get("layer") == "stage.lay_stage"]
-    keep = [(t, n) for t, n in shot.get("cues") or [] if not any(a <= t < b for a, b, _ in holes)]
+    keep = [(t, n) for t, n in shot.get("cues") or [] if not any(a <= t < b for a, b, _, _c in holes)]
     for k, x in enumerate(pieces):
         x["cues"] = keep if k == 0 else []          # every sticker sound once, none over a full-screen clip
     return out
@@ -239,6 +297,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
     texts = [str(s.get("text") or "") for s in scenes]
     from . import story as _ST
     _ST._BD_USED.clear()                # a new film: every library photo is free to use once again
+    _SKIN["n"] = 0
     cls = R.route_script(texts)
     SCRIPT_YEAR[0] = max([int(y) for t_ in texts for y in _YEAR.findall(t_)] or [0])     # the story's 'now' for timelines
     SCRIPT_FUEL[0] = max([float(f) for c_ in cls for f in (c_.values.get("fuel_kg") or [])] or [0.0])   # the fuel gauge's full scale
@@ -274,7 +333,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
         elif g == "story":
             from . import story as ST
             shot, lg = ST.build(scenes, cls, rows, i, j, web=web, bible=_bible(texts, rows))          # one evolving sticker stage for the whole stretch
-            out.shots.extend(_stage_with_clips(shot, scenes, i, j))
+            out.shots.extend(_stage_with_clips(shot, scenes, i, j, _story_dossier(scenes, cls, rows, i, j, lg)))
             for e in lg:
                 for L_ in out.log:
                     if L_["scene"] == e["scene"]:
@@ -476,20 +535,21 @@ def _clip_stretch(out: Plan, scenes, cls, rows, modes, i: int, j: int, last_card
         graphics = _air_graphics(c, r) if mode != "evidence" else []
         if s.get("has_clip") is False and mode != "evidence" and not (r.get("article") or {}).get("page") and not r.get("article"):
             # nothing filmed for this line: its aviation graphics share the line, else its own words as a clean text card
-            items = graphics or [("cards.lay_article", {"fact": _fact(c.text)})]
+            first = _numbers_card(c, r, graphics)
+            items = ([first] + [g for g in graphics if g is not first][:1]) if first else [("cards.lay_article", {"fact": _fact(c.text)})]
             step = (b - a) / len(items)
             for n_, (layer, params) in enumerate(items):
                 out.shots.append({"layer": layer, "start": a + n_ * step, "end": a + (n_ + 1) * step, "scene": sc, "full_frame": True,
                                   "mode": mode, "params": params})
-            if graphics:
+            if first:
                 last_card = a
             continue
         if mode == "evidence" and not (r.get("article") or {}).get("page"):
             card = {"layer": "war.lay_document", "params": {"text": c.text, "highlight": c.text}}
         elif r.get("article"):
             card = {"layer": "cards.lay_article", "params": dict(r["article"], image_from="footage")}
-        elif graphics and a - last_card >= CARD_GAP_S and b - max(a, OPEN_S) >= 2.5:
-            layer, params = graphics[0]
+        elif (graphics or _dz_ok(c, r)) and a - last_card >= CARD_GAP_S and b - max(a, OPEN_S) >= 2.5:
+            layer, params = _numbers_card(c, r, graphics)
             card = {"layer": layer, "params": dict(params), "graphic_at": max(a, OPEN_S)}
         elif mode in ("news", "numbers", "fleet") and a >= OPEN_S and a - last_card >= CARD_GAP_S and \
                 (b - a) >= 2.0 and (mode != "fleet" or c.values["counts"]) and _card_worthy(c, a - max(last_card, 0.0)):

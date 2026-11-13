@@ -66,9 +66,15 @@ class TriggerTests(unittest.TestCase):
         return {s["layer"] for s in p.shots if str(s.get("layer", "")).startswith("gfx_air.")}, p
 
     def test_numbers_bring_their_graphic(self):
+        # number lines rotate between the blue news skin and the dossier skin (J-11 study), so both appear in one film
         k, _ = self.kinds(EMIRATES[:4], has_clip=False)
-        for want in ("gfx_air.lay_fleet", "gfx_air.lay_network", "gfx_air.lay_seats", "gfx_air.lay_change", "gfx_air.lay_big_number"):
-            self.assertIn(want, k)
+        old = [w for w in ("gfx_air.lay_fleet", "gfx_air.lay_network", "gfx_air.lay_seats", "gfx_air.lay_change", "gfx_air.lay_big_number")
+               if w in k]
+        self.assertGreaterEqual(len(old), 4)
+        sc = scenes(EMIRATES[:4])
+        for x in sc:
+            x["has_clip"] = False
+        self.assertTrue(any(str(s.get("layer", "")).startswith("dossier.") for s in P.plan(sc).shots))
 
     def test_history_line_gets_the_timeline(self):
         # a flight line (EK600 leaving Dubai) gets the route map; a history line in the business story gets the timeline
