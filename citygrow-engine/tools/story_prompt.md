@@ -53,6 +53,11 @@ Rows (the `row` column says which kind):
 5. 0–3 `event` rows: fires, sieges, earthquakes that destroyed part of the city.
    - year, focus = "lon,lat" of the centre, radius = metres (300–1500), kind = fire|siege|quake|flood, caption = one sentence,
      extra {"regrow": years until rebuilt}
+   - an event whose year falls between two eras gets its own stop on screen (the clock halts, the camera flies to it):
+     a fire spreads from its centre with flames and smoke and leaves ruins; a quake raises dust; a siege shows the
+     attackers' camp, guns firing at the walls, and a fleet on the nearest water
+   - for a siege, focus = the ATTACKERS' CAMP on open land just outside the walls (300–700 m from them), not the city centre
+   - a wall row's streets get gatehouses automatically; walls can take extra {"band": "brick"|"#hex"} for the stripe colour
 
 Rules:
 - Use real coordinates. Every district, landmark and event must be within half of the plan's size (default 8 km: 4 km) of the

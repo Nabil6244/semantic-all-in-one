@@ -22,8 +22,18 @@ export function noise2(x, z, scale, seed = 0) {
   return a + (b - a) * s(u) + (c - a) * s(v) + (a - b - c + d) * s(u) * s(v);
 }
 
+/** Is (x, z) inside a district that is burning right now (an event's own year, the fire front past it)? */
+export function burningAt(events, x, z, year, prog) {
+  if (!prog) return false;
+  for (let j = 0; j < events.length; j++) {
+    const e = events[j]; if (e.kind === 'siege' || year < e.year || year >= e.year + 1 || !(prog[j] > 0)) continue;
+    const d = Math.hypot(x - e.x, z - e.z); if (d < e.r && d / e.r < prog[j] * 1.15) return true;
+  }
+  return false;
+}
+
 export const ROAD_HALF = { 1: 8, 2: 5.5, 3: 3 };   // street half-widths (m) by class (1 main, 2 secondary, 3 lane)
-const MAX_LOTS = 130000;
+const MAX_LOTS = 130000, MAX_INFILL = 60000;
 
 /** Lanes for a world with no street data: a wobbly grid over dry, gentle land. */
 export function fallbackLanes(terrain, seed = 1) {
@@ -44,7 +54,7 @@ export function fallbackLanes(terrain, seed = 1) {
 }
 
 /** House lots along the streets, up to `rows` deep on each side. Each lot: {x, z, rot, w, d, y, cls, road}. */
-export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS } = {}) {
+export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS, infill = false } = {}) {
   const R = rng(seed), lots = [];
   const B = 16, grid = new Map();                       // circle-overlap test in 16 m buckets
   const key = (i, j) => i * 100003 + j;
@@ -98,7 +108,39 @@ export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS } 
       }
     }
   }
+  if (infill) fillBlocks(lots, terrain, R, fits, add, B, grid, key);
   return lots;
+}
+
+/**
+ * Old towns are packed: houses fill the blocks between the streets, not just their frontage. Infill lots sit on a jittered
+ * 10.5 m grid inside 40 m cells that already have street houses, take the nearest street house's direction and street,
+ * and are marked `infill` (the page shows them only in pre-modern house styles, where alleys were a few metres wide).
+ */
+function fillBlocks(lots, terrain, R, fits, add, B, grid, key) {
+  const C = 40, cells = new Set(), n0 = lots.length;
+  // the cells with street houses and the ring round them: the blocks' insides
+  for (let i = 0; i < n0; i++) { const ci = Math.floor(lots[i].x / C), cj = Math.floor(lots[i].z / C); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) cells.add((ci + a) * 100003 + cj + b); }
+  let added = 0;
+  const nearest = (x, z) => {
+    let best = null, bd = 55 * 55;
+    for (let i = Math.floor((x - 55) / B); i <= Math.floor((x + 55) / B); i++) for (let j = Math.floor((z - 55) / B); j <= Math.floor((z + 55) / B); j++) {
+      for (const o of grid.get(key(i, j)) || []) { if (o.street || o.infill) continue; const d = (o.x - x) ** 2 + (o.z - z) ** 2; if (d < bd) { bd = d; best = o; } }
+    }
+    return best;
+  };
+  for (const ck of [...cells].sort((a, b) => a - b)) {
+    const ci = Math.round(ck / 100003), cj = ck - ci * 100003, x0 = ci * C, z0 = cj * C;
+    for (let gz = 0; gz < C; gz += 10.5) for (let gx = 0; gx < C; gx += 10.5) {
+      const x = x0 + gx + R() * 3, z = z0 + gz + R() * 3, w = 6.5 + R() * 4, d = 6.5 + R() * 4, rad = Math.min(w, d) * 0.5;
+      if (Math.abs(x) > terrain.half - 10 || Math.abs(z) > terrain.half - 10) continue;
+      const y = terrain.heightAt(x, z);
+      if (y < 1.0 || terrain.slopeAt(x, z, Math.max(w, d)) > 0.32 || terrain.waterAt?.(x, z) || !fits(x, z, rad + 0.6)) continue;
+      const nb = nearest(x, z); if (!nb) continue;
+      add({ x, z, rot: nb.rot + (R() - 0.5) * 0.1, w, d, y, cls: 3, road: nb.road, rad, infill: true });
+      if (++added >= MAX_INFILL) return;
+    }
+  }
 }
 
 /**
@@ -153,12 +195,16 @@ export function riseOf(rank, need, total) {
 }
 
 /** 0..1 multiplier from destruction events at (x, z) in `year`: 0 while cleared, regrowing outward afterwards. */
-export function eventFactor(events, x, z, year) {
+export function eventFactor(events, x, z, year, prog = null) {
   let f = 1;
-  for (const e of events) {
+  for (let j = 0; j < events.length; j++) {
+    const e = events[j];
     if (year < e.year) continue;
     const d = Math.hypot(x - e.x, z - e.z); if (d > e.r) continue;
     const back = e.year + (e.regrow ?? 20);
+    // the event's own year: destruction spreads from the centre outward (the page passes how far on screen it has got)
+    const into = prog && prog[j] != null && year < e.year + 1 ? prog[j] : year - e.year;
+    if (into < 1) { if (d / e.r < into * 1.15) f = 0; continue; }
     if (year <= e.year + (e.down ?? 2)) { f = 0; continue; }
     // regrowth runs from the edge of the cleared area inward
     const k = (year - e.year - (e.down ?? 2)) / Math.max(1, back - e.year - (e.down ?? 2));
@@ -180,7 +226,7 @@ export function cityExtent(lots, need) {
 }
 
 /** Trees on open land, each remembering the rank of the nearest lot, so it is cleared when the city reaches it. */
-export function makeTrees(terrain, lots, { seed = 11, spacing = 19, max = 90000, density = 1, densityAt = null } = {}) {
+export function makeTrees(terrain, lots, { seed = 11, spacing = 15, max = 170000, density = 1, densityAt = null } = {}) {
   const R = rng(seed), out = [], B = 24, near = new Map();
   for (const l of lots) { const k = Math.floor(l.x / B) * 100003 + Math.floor(l.z / B); (near.get(k) || near.set(k, []).get(k)).push(l); }
   const lim = terrain.half - 5;
@@ -188,7 +234,7 @@ export function makeTrees(terrain, lots, { seed = 11, spacing = 19, max = 90000,
     for (let x = -lim; x < lim; x += spacing) {
       const px = x + (R() - 0.5) * spacing, pz = z + (R() - 0.5) * spacing;
       const dens = noise2(px, pz, 300, seed);
-      if (R() > (0.05 + dens * dens * 1.3) * (densityAt ? densityAt(px, pz) : density)) continue;
+      if (R() > (0.07 + dens * dens * 2.1) * (densityAt ? densityAt(px, pz) : density)) continue;   // thick woods in clumps, open glades between
       const y = terrain.heightAt(px, pz);
       if (y < 1.5 || terrain.slopeAt(px, pz, 8) > 0.7 || terrain.waterAt?.(px, pz)) continue;
       let rank = Infinity;

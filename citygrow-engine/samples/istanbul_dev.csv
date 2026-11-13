@@ -10,7 +10,9 @@ event,1204,,,,,"Crusaders sack the city in 1204, and whole districts burn.",,,,,
 era,1320,,Palaiologan Constantinople,"plain:#8a1c1c,#e9c46a|ΒΒ",90000,A shrunken city of villages inside the old walls.,,,medieval,,,,,,,
 era,1600,,Ottoman Istanbul,"crescent:#b3202a,#ffffff",500000,The Ottoman capital fills the peninsula again.,,,ottoman,,,,,,,
 landmark,203,,Hippodrome,,,,,,,,"28.9753,41.0058",,hippodrome,,,"{""rot"":-28,""size"":420}"
-landmark,537,,Hagia Sophia,,,,,,,,"28.9802,41.0086",,dome_church,,,"{""size"":80,""rot"":-30}"
+landmark,537,,Hagia Sophia,,,,,,,,"28.9802,41.0086",,dome_church,,,"{""size"":80,""rot"":-30,""color"":""brick""}"
 landmark,1348,,Galata Tower,,,,,,,,"28.9741,41.0256",,tower,,,"{""size"":66}"
 landmark,1616,,Blue Mosque,,,,,,,,"28.9768,41.0054",,mosque,,,"{""size"":72,""minarets"":6,""rot"":-30}"
 landmark,330,,Land Walls,,,,,,,,,,wall,,,"{""path"":[[28.958,41.002],[28.955,41.010],[28.953,41.018],[28.952,41.024]],""height"":16}"
+event,1453,,,,,"1453: the Ottoman army camps before the land walls, its guns firing day and night.",,,,,"28.9455,41.0135",,siege,450,,
+landmark,330,,Great Palace,,,,,,,,"28.9770,41.0040",,palace,,,"{""size"":160,""rot"":-30}"

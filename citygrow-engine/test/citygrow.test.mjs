@@ -213,3 +213,80 @@ test('land use decides the trees: woods fill, desert stays bare, unmapped follow
   assert.ok(treeFactor(LAND.dry, 1) < 0.1);
   assert.equal(treeFactor(0, 0.12), 0.12);
 });
+
+// ---------------------------------------------------------------- reference-gap pass: fields, ships, events, walls
+import { shoreDistance, makeShips, shipAt, makeFields, fieldShown, clearTreesForFields, planEvent, wallGates, eventFocus } from '../lib/fx.mjs';
+import { burningAt } from '../lib/growth.mjs';
+
+const coastWorld = () => {   // west half land at 20 m, east half sea at -8 m
+  const n = 200, a = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) a[j * n + i] = i < 100 ? 20 : -8;
+  return makeTerrain(a, n, n, 10, { step: 2 });
+};
+
+test('shore distance grows out to sea; ships sail open water only', () => {
+  const T = coastWorld(), D = shoreDistance(T);
+  const at = (x) => D[Math.round(T.n / 2) * T.n + Math.round((x - T.x0) / T.sp)];
+  assert.equal(at(-300), 0);
+  assert.ok(at(100) > 0 && at(600) > at(100));
+  const ships = makeShips(T, D, { seed: 3, count: 20 });
+  assert.ok(ships.length > 5);
+  for (const s of ships) for (let t = 0; t < 200; t += 7) { const p = shipAt(s, t); assert.ok(p.x > 0, 'a ship never sails onto the land'); }
+});
+
+test('fields are tilled near the city and give way when it builds over them; their trees go first', () => {
+  const T = flatWorld(300);
+  const roads = [{ c: 2, p: [[-200, 0], [200, 0]] }];
+  const lots = rankLots(makeLots(roads, T, { seed: 2 }), [{ x: 0, z: 0, year: 0 }]);
+  const fields = makeFields(T, lots, { seed: 4 });
+  assert.ok(fields.length > 10);
+  const f = fields.find((q) => Number.isFinite(q.over)) || fields[0];
+  assert.equal(fieldShown(f, f.near - 100, 25), 0);
+  if (Number.isFinite(f.over) && f.over - f.near > 60) assert.ok(fieldShown(f, (f.near + f.over) / 2, 25) > 0.5);
+  const trees = [{ x: f.x, z: f.z, rank: Infinity }];
+  clearTreesForFields(trees, fields);
+  assert.ok(trees[0].rank <= f.near);
+});
+
+test('a siege brings a camp on land and a fleet on the water, framed between camp and city', () => {
+  const T = coastWorld(), D = shoreDistance(T);
+  const ev = { kind: 'siege', x: -400, z: 0, r: 300, year: 1453 };
+  const { camp, fleet } = planEvent(T, D, ev);
+  assert.ok(camp.length > 50 && camp.some((c) => c[4] === 1) && camp.every((c) => c[0] < 0));
+  assert.ok(fleet.length > 10 && fleet.every(([x]) => x > 0));
+  const f = eventFocus(ev);
+  assert.ok(f.x > ev.x && f.x < 0, 'the shot looks from the camp toward the city');
+  assert.deepEqual(planEvent(T, D, { ...ev, kind: 'fire' }), { camp: [], fleet: [] });
+});
+
+test('fire spreads from the centre during its own year; houses there are ruins, not gaps', () => {
+  const ev = [{ kind: 'fire', x: 0, z: 0, r: 100, year: 1000, down: 2, regrow: 20 }];
+  assert.equal(eventFactor(ev, 10, 0, 1000, [0.5]), 0);
+  assert.equal(eventFactor(ev, 90, 0, 1000, [0.5]), 1, 'the edge is not reached yet');
+  assert.ok(burningAt(ev, 10, 0, 1000, [0.5]) && !burningAt(ev, 90, 0, 1000, [0.5]));
+  assert.ok(!burningAt(ev, 10, 0, 1002, [1]), 'after its year the area is cleared, not burning');
+});
+
+test('streets crossing a wall make gates', () => {
+  const g = wallGates([[0, -500], [0, 500]], [{ c: 1, p: [[-100, 0], [100, 0]] }, { c: 3, p: [[-100, 200], [100, 200]] }]);
+  assert.deepEqual(g.map(([x, z]) => [Math.round(x), Math.round(z)]), [[0, 0]], 'main streets only');
+});
+
+test('an event between eras stops the clock in its own year and the camera flies to it', () => {
+  const s = parseStory(CSV);
+  const tl = buildTimeline(s, testCity());
+  assert.equal(tl.stops.length, 1);
+  const st = tl.stops[0];
+  assert.equal(stateAt(tl, (st.t0 + st.t1) / 2).year, 1100);
+  assert.ok(st.t1 - st.t0 >= 5.5);
+  assert.ok(tl.captions.some((c) => c.text === 'A great fire.' && c.t0 >= st.t0 && c.t1 <= st.t1));
+  assert.ok(tl.camera.some((c) => c.type === 'move' && c.t0 === st.t0));
+  assert.equal(tl.eventWindows[0].t0, st.t0);
+});
+
+test('lots: block infill packs the old town and is marked', () => {
+  const T = flatWorld(300);
+  const roads = [{ c: 3, p: [[-300, 0], [300, 0]] }, { c: 3, p: [[-300, 90], [300, 90]] }];
+  const plain = makeLots(roads, T, { seed: 2 }), packed = makeLots(roads, T, { seed: 2, infill: true });
+  assert.ok(packed.length > plain.length && packed.some((l) => l.infill) && !plain.some((l) => l.infill));
+});

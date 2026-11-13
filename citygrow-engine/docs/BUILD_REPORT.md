@@ -42,3 +42,21 @@ CTA sync, project open (deactivate + resume), run flags. `ui/style_kit.py`: "Cit
 - No smoke/fire particles for event rows (the area clears and regrows; the caption tells it).
 - The paused scheduled task "city-timelapse-build" is no longer needed (delete it in the Scheduled sidebar).
 - Nothing committed or pushed.
+
+## Reference-gap pass (2026-11-14, How Cities Grew "Constantinople" study)
+All 9 gaps from the comparison were built:
+1. Landmarks: domes on window-ringed drums, arched window rows, buttresses, narthex/atrium (mosque: domed courtyard),
+   hippodrome tiers + arcade + obelisks, palace second court and gardens, amphitheatre arcades; every model is merged
+   into one mesh per material (few draw calls).
+2. Hero shots: closer, lower landmark orbits, a new `street` shot among the roofs, a tighter `low_track`.
+3. Events: an event between two eras stops the clock in its year (`tl.stops`, camera `event` shot, its caption there).
+   Fire spreads from the centre, houses become charred ruins, flames and smoke columns; quake dust; siege camp (tents,
+   engines that fire, banners in the next era's colour), shelling on the walls, a fleet (`lib/fx.mjs` planEvent).
+4. Forest denser (spacing 15 m, clumps); farm fields (`makeFields`) tilled when the city nears, built over later.
+5. Old towns packed: block infill lots (`infill`, pre-modern `dense` styles only); narrow lanes not drawn there.
+6. House variety: ~3 % big public buildings, taller old core, district roof tones, wider wall jitter.
+7. Water: turquoise shallows, foam line and deep blue from a shore-distance texture; 140 sea lanes, ships by population.
+8. Walls: towers every 55 m with battlements and banners, brick courses, battlements, gatehouses where streets cross.
+9. Lighting: stronger sun, contact shading at the foot of walls and trees, softer shadows.
+New buildings rise inside scaffolding (clipping plane) and finish halfway through their era's hero shot (max 8 s).
+Measured: Istanbul plan 0.7 s; 720p frames 32–35 ms avg (was 28–31). Tests: 23 Node, runner 4.
