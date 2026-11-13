@@ -404,6 +404,9 @@ def generate_starmap_video(
             return PakmapResult(False, problems or ["the plan could not be compiled"])
         comp, _check = built
     except Exception as exc:
+        import traceback                            # the line that failed goes to the log, so a report names its place (Apollo 8 #241/#245)
+        for line in traceback.format_exc().rstrip().splitlines()[-6:]:
+            log(f"[StarMap] {line}")
         return PakmapResult(False, [f"unexpected error while compiling the plan: {exc!r}"])
     # skipped pictures: a card without a file is left out, a clip without one leaves its time to the map
     spec = strip_private(comp.spec)
