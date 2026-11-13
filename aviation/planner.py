@@ -90,6 +90,7 @@ def _bible(texts: Sequence[str], rows) -> Any:
 
 
 _SKIN = {"n": 0}                # number cards placed so far in this film (the skin rotor)
+_ART = {"n": 0}                 # cited articles so far: the 2nd, 4th ... without a page get the newspaper card
 
 
 def _dz_ok(c: Any, r: dict) -> bool:
@@ -298,6 +299,9 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
     from . import story as _ST
     _ST._BD_USED.clear()                # a new film: every library photo is free to use once again
     _SKIN["n"] = 0
+    _ART["n"] = 0
+    from . import sides as SD
+    SD.set_film(texts)                  # colour = side: the film's two sides, one colour each in every graphic
     cls = R.route_script(texts)
     SCRIPT_YEAR[0] = max([int(y) for t_ in texts for y in _YEAR.findall(t_)] or [0])     # the story's 'now' for timelines
     SCRIPT_FUEL[0] = max([float(f) for c_ in cls for f in (c_.values.get("fuel_kg") or [])] or [0.0])   # the fuel gauge's full scale
@@ -547,7 +551,14 @@ def _clip_stretch(out: Plan, scenes, cls, rows, modes, i: int, j: int, last_card
         if mode == "evidence" and not (r.get("article") or {}).get("page"):
             card = {"layer": "war.lay_document", "params": {"text": c.text, "highlight": c.text}}
         elif r.get("article"):
-            card = {"layer": "cards.lay_article", "params": dict(r["article"], image_from="footage")}
+            art = dict(r["article"])
+            _ART["n"] += 1
+            if not art.get("page") and art.get("headline") and _ART["n"] % 2 == 0:
+                # no page captured: the cream newspaper card (J-11 study J4g) on every other article, the blue typeset one on the rest
+                card = {"layer": "dossier.lay_newspaper", "params": {"title": "The press", "outlet": art.get("outlet", ""),
+                                                                    "date": art.get("date", ""), "headline": art["headline"]}}
+            else:
+                card = {"layer": "cards.lay_article", "params": dict(art, image_from="footage")}
         elif (graphics or _dz_ok(c, r)) and a - last_card >= CARD_GAP_S and b - max(a, OPEN_S) >= 2.5:
             layer, params = _numbers_card(c, r, graphics)
             card = {"layer": layer, "params": dict(params), "graphic_at": max(a, OPEN_S)}

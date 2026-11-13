@@ -76,3 +76,33 @@ def test_story_line_with_a_figure_gets_a_dossier_cut():
     cards = [s for s in pl.shots if str(s.get("layer", "")).startswith("dossier.")]
     stages = [s for s in pl.shots if s.get("layer") == "stage.lay_stage"]
     assert cards and cards[0]["scene"] == 2 and len(stages) == 2
+
+
+def test_newspaper_and_reveal_cards():
+    from aviation import router as R
+    p = {"title": "The press", "outlet": "The Straits Times", "date": "1972", "headline": "One airline becomes two", "split": "becomes"}
+    a, b = D.lay_newspaper(0.2, 5.0, p), D.lay_newspaper(3.0, 5.0, p)
+    assert a.tobytes() != b.tobytes() and D.lay_newspaper(1.0, 5.0, {"title": "x"}) is None
+    name, rp = D.pick(R.classify("Air France turned its Airbus A340 fleet into an Airbus A350 fleet."))
+    assert name == "dossier.lay_reveal" and rp["from"]["type"] == "a340" and rp["to"]["type"] == "a350"
+    assert D.lay_reveal(0.5, 4.0, rp).tobytes() != D.lay_reveal(3.5, 4.0, rp).tobytes()
+
+
+def test_article_without_a_page_rotates_to_the_newspaper_card():
+    from aviation import planner as P
+    lines = ["Air France confirmed plans to cut 2,900 jobs in 2015.", "Air France launched Joon in 2017."]
+    rows = [{"mode": "news", "article": {"outlet": "The Guardian", "headline": "Air France to cut 2,900 jobs", "date": "2015"}},
+            {"mode": "news", "article": {"outlet": "Reuters", "headline": "Air France launches Joon", "date": "2017"}}]
+    pl = P.plan(_scenes(lines, step=10.0), rows)
+    layers = [s["layer"] for s in pl.shots if s.get("layer") in ("dossier.lay_newspaper", "cards.lay_article")]
+    assert "dossier.lay_newspaper" in layers and "cards.lay_article" in layers
+
+
+def test_framed_photo_for_a_non_wide_picture(tmp_path):
+    from PIL import Image
+    from aviation import storycards as K
+    p = tmp_path / "old.png"
+    Image.new("RGB", (600, 600), (200, 60, 40)).save(p)
+    im = K.photo_full({"image": str(p), "_k": 0.5})
+    assert im.getpixel((640, 360))[:3] == (200, 60, 40)                       # the whole photo is in the middle
+    assert im.getpixel((20, 360))[0] < 120                                   # its blurred, darkened copy fills the sides

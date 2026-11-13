@@ -418,7 +418,9 @@ def _line(d: _Director, a: float, c: Any, r: dict, g: str, airline: str, al: dic
             return "timeline"
     # political map
     if (g == "map" or (_POLITY.search(text) and codes)) and has("political_map"):
-        d.card(a, "political_map", {"countries": [{"code": x} for x in codes], "title": r.get("title") or ""}, anim=2.4, enter="fade")
+        from . import sides as SD
+        cs = [dict({"code": x}, **({"color": SD.hex_of(SD.side_of(x))} if SD.side_of(x) else {})) for x in codes]
+        d.card(a, "political_map", {"countries": cs, "title": r.get("title") or ""}, anim=2.4, enter="fade")
         return "political map"
     # route map
     aps = [x["id"] for x in c.airports]

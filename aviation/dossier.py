@@ -355,9 +355,100 @@ def lay_family(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]
     return im
 
 
+CREAM = (238, 232, 218, 255)
+INK = (26, 26, 28, 255)
+
+
+def lay_newspaper(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
+    """The press said ... (J4g): a cream paper card with the outlet, the date and the headline TYPESET (never a fake page); the
+    words after `split` (if given) turn red as the second line. A small note under it when the CSV gives one."""
+    head = str(p.get("headline") or "").strip()
+    if not head:
+        return None
+    im = _frame(t, p)
+    d = ImageDraw.Draw(im)
+    sc = S.scale()
+    k = _k(t, 0.3, 0.6)
+    x, y, w, h = int(330 * sc), int(220 * sc) + int(30 * (1 - k)), int(620 * sc), int(300 * sc)
+    card = Image.new("RGBA", (w, h), CREAM)
+    cd = ImageDraw.Draw(card)
+    cd.text((26, 22), str(p.get("outlet") or "").upper(), font=S.font("serif", 30), fill=INK)
+    cd.line((26, 66, w - 26, 66), fill=(120, 112, 100, 255), width=2)
+    cd.text((26, 76), str(p.get("date") or "").upper(), font=S.font("body", 13), fill=(110, 104, 96, 255))
+    kh = _k(t, 0.9, 0.6)
+    if kh > 0:
+        f = S.font("title", 38)
+        split = str(p.get("split") or "")
+        parts = [head.split(split, 1)[0].strip(), split + head.split(split, 1)[1]] if split and split in head else [head]
+        yy = 118
+        for i, part in enumerate(parts):
+            words, line = part.upper().split(), ""
+            for wd in words:
+                tt = (line + " " + wd).strip()
+                if cd.textlength(tt, font=f) > w - 52 and line:
+                    cd.text((26, yy), line, font=f, fill=INK if i == 0 else RED)
+                    yy += int(f.size * 1.1)
+                    line = wd
+                else:
+                    line = tt
+            if line:
+                cd.text((26, yy), line, font=f, fill=INK if i == 0 else RED)
+                yy += int(f.size * 1.1)
+    sh = Image.new("RGBA", (w + 40, h + 40), (0, 0, 0, 0))
+    ImageDraw.Draw(sh).rectangle((20, 26, w + 20, h + 26), fill=(0, 0, 0, 150))
+    im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(10)), (x - 20, y - 20))
+    card.putalpha(card.getchannel("A").point(lambda v: int(v * k)))
+    im.alpha_composite(card, (x, y))
+    if p.get("note") and t > 1.6:
+        d.rectangle((x, y + h + 26, x + 4, y + h + 50), fill=ORANGE)
+        _text(d, (x + 14, y + h + 28), str(p["note"]).upper(), 14, S.WHITE)
+    return im
+
+
+def lay_reveal(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
+    """What it became (J4j): the first type's picture on the left, a grey silhouette with '?' on the right; then an arrow and the
+    second type slides in where the '?' was. Types / airlines from the line; the pictures are the Flow stickers when made."""
+    a, b = p.get("from") or {}, p.get("to") or {}
+    if not a.get("type") or not b.get("type"):
+        return None
+    from . import sticker_flow as SF
+    from . import stickers as SK
+    im = _frame(t, p)
+    d = ImageDraw.Draw(im)
+    sc = S.scale()
+    w = int(470 * sc)
+    left = SK.die_cut(SF.aircraft_image(a["type"], a.get("airline", ""), w), 6)
+    k0 = _k(t, 0.3, 0.6)
+    if k0 > 0:
+        im.alpha_composite(_fade(left, k0), (int(90 * sc), int(300 * sc)))
+        _text(d, (int(100 * sc), int(300 * sc) + left.height + 10), str(a.get("label") or "").upper(), 16, side(a.get("side") or "b"))
+    k1 = _k(t, 1.0, 0.8)
+    rx, ry = int(720 * sc), int(300 * sc)
+    if k1 < 1:
+        sil = _silhouette(b["type"], w, fill=(70, 72, 80, 255))
+        im.alpha_composite(sil, (rx, ry))
+        _text(d, (rx + sil.width // 2 - 14, ry + sil.height // 2 - 40), "?", 64, (150, 152, 160, 255), "title")
+    if k1 > 0:
+        d.line((int(600 * sc), int(380 * sc), int(600 * sc) + int(80 * sc * k1), int(380 * sc)), fill=S.WHITE, width=3)
+        right = SK.die_cut(SF.aircraft_image(b["type"], b.get("airline", ""), w), 6)
+        im.alpha_composite(_fade(right, k1), (rx + int(60 * (1 - k1)), ry))
+        if k1 > 0.8:
+            _text(d, (rx + 10, ry + right.height + 10), str(b.get("label") or "").upper(), 16, side(b.get("side") or "a"))
+    return im
+
+
+def _fade(im: Image.Image, k: float) -> Image.Image:
+    if k >= 0.999:
+        return im
+    out = im.copy()
+    out.putalpha(im.getchannel("A").point(lambda v: int(v * k)))
+    return out
+
+
 CARDS = {"dossier.lay_share": lay_share, "dossier.lay_range": lay_range, "dossier.lay_icons": lay_icons,
          "dossier.lay_markers": lay_markers, "dossier.lay_options": lay_options, "dossier.lay_quotes": lay_quotes,
-         "dossier.lay_flow": lay_flow, "dossier.lay_family": lay_family}
+         "dossier.lay_flow": lay_flow, "dossier.lay_family": lay_family, "dossier.lay_newspaper": lay_newspaper,
+         "dossier.lay_reveal": lay_reveal}
 
 
 # ---------------------------------------------------------------------------------------------------------------- picking
@@ -388,6 +479,14 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
     v = getattr(c, "values", {}) or {}
     years = [int(y) for y in v.get("years") or []]
     sub = (f"{min(years)}" if years else "")
+    acs = [a for a in getattr(c, "aircraft", [])]
+    if len({a["id"] for a in acs}) >= 2 and _re.search(r"\binto\b|\bbecame\b|\bturned\b|\bdeveloped\b|\bevolved\b|\breplaced by\b", text, _re.I):
+        from . import sides as SD
+        al = getattr(c, "airlines", [])
+        aid = al[0]["id"] if al else ""
+        return "dossier.lay_reveal", {"title": "What it became", "sub": sub,
+                                      "from": {"type": acs[0]["id"], "airline": aid, "label": acs[0]["name"], "side": "b"},
+                                      "to": {"type": acs[1]["id"], "airline": aid, "label": acs[1]["name"], "side": "a"}}
     q = _QUOTE.search(text)
     if q:
         who = (r or {}).get("person") or (_SAID.search(text).group(1) if _SAID.search(text) else "")
@@ -403,9 +502,14 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
     pcts = v.get("percent") or []
     if pcts and _SHARE_WORDS.search(text) and 0 < float(pcts[0]) < 100:
         p = float(pcts[0])
+        from . import sides as SD
+        m = _re.search(r"\b(?:made|built|produced|supplied|owned)\s+(?:in|by)\s+([A-Z][\w\-]*(?:\s+[A-Z][\w\-]*)?)", text)
+        who = m.group(1) if m else ""
+        sa = SD.side_of(who) or "a"                            # the named side keeps its film colour
+        sb = "b" if sa == "a" else "a"
         return "dossier.lay_share", {"title": _title(c, text, "THE SHARE"), "sub": sub,
-                                     "parts": [{"label": "", "pct": p, "side": "a"}, {"label": "", "pct": 100 - p, "side": "b"}],
-                                     "big": f"{p:g} %"}
+                                     "parts": [{"label": (m.group(0) if m else ""), "pct": p, "side": sa},
+                                               {"label": "", "pct": 100 - p, "side": sb}], "big": f"{p:g} %"}
     counts = dict((n, x) for x, n in (v.get("counts") or []))
     n_ac = next((counts[w] for w in ("aircraft", "jets", "planes", "airliners", "fighters") if counts.get(w)), 0)
     if n_ac >= 5:
@@ -413,6 +517,9 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
                                      "approx": bool(_re.search(r"\babout\b|\baround\b|\bnearly\b|\balmost\b|\bsome\b", text, _re.I))}
     if len(set(years)) >= 2:
         ys = sorted(set(years))
+        from . import sides as SD
+        line_side = next((SD.side_of(x["id"]) for x in getattr(c, "airlines", []) if SD.side_of(x["id"])), "")
         return "dossier.lay_markers", {"title": "The dates", "sub": "", "start": ys[0] - 1, "end": ys[-1] + 1,
-                                       "markers": [{"year": y, "label": str(y), "side": "a" if i % 2 == 0 else "b"} for i, y in enumerate(ys)]}
+                                       "markers": [{"year": y, "label": str(y), "side": line_side or ("a" if i % 2 == 0 else "b")}
+                                                   for i, y in enumerate(ys)]}
     return None

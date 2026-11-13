@@ -223,6 +223,20 @@ def photo_full(a: Dict[str, Any]) -> Image.Image:
     ox = int((big.width - W_) * (0.35 + 0.3 * k))
     oy = int((big.height - H_) / 2)
     out = ImageEnhance.Contrast(big.crop((ox, oy, ox + W_, oy + H_))).enhance(1.04).convert("RGBA")
+    if im.width / max(1, im.height) < 1.5:
+        # not a 16:9 picture (J-11 study J6): the whole photo in a thin white frame over its own blurred, darkened copy -
+        # an old 4:3 or portrait photo is never cropped to a strip
+        from PIL import ImageFilter as _F
+        out = ImageEnhance.Brightness(out.filter(_F.GaussianBlur(18))).enhance(0.45)
+        fh = int(H_ * (0.74 + 0.03 * k))
+        fw = int(im.width * fh / im.height)
+        if fw > W_ * 0.86:
+            fw = int(W_ * 0.86)
+            fh = int(im.height * fw / im.width)
+        inner = im.resize((fw, fh), Image.LANCZOS).convert("RGBA")
+        fr = Image.new("RGBA", (fw + 12, fh + 12), (245, 245, 245, 255))
+        fr.alpha_composite(inner, (6, 6))
+        out.alpha_composite(fr, ((W_ - fr.width) // 2, (H_ - fr.height) // 2))
     d = ImageDraw.Draw(out)
     title = str(a.get("title") or "").strip()
     if title:
