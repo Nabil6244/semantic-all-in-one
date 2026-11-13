@@ -106,3 +106,13 @@ def test_framed_photo_for_a_non_wide_picture(tmp_path):
     im = K.photo_full({"image": str(p), "_k": 0.5})
     assert im.getpixel((640, 360))[:3] == (200, 60, 40)                       # the whole photo is in the middle
     assert im.getpixel((20, 360))[0] < 120                                   # its blurred, darkened copy fills the sides
+
+
+def test_part_callouts_from_the_lines_words():
+    from aviation import router as R
+    name, p = D.pick(R.classify("The Boeing 747 is about 70 m long, with its cockpit up front and four engines under the wings."))
+    assert name == "dossier.lay_callouts" and p["type"] == "b747" and p["length_m"] == 70.0
+    assert set(p["parts"]) == {"cockpit", "engines", "wings"}
+    assert D.parts_in("Singapore Airlines flew to London.") == []
+    a, b = D.lay_callouts(0.5, 5.0, p), D.lay_callouts(4.5, 5.0, p)
+    assert a.tobytes() != b.tobytes() and D.lay_callouts(1.0, 5.0, {"parts": ["wings"]}) is None   # needs an aircraft

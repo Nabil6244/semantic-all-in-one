@@ -445,10 +445,109 @@ def _fade(im: Image.Image, k: float) -> Image.Image:
     return out
 
 
+import re as _re
+
+# where each part sits on a side view, nose to the right, as fractions of the picture (x, y) - the Flow stickers and the code kit
+# both draw a plain side view, so one table serves every type
+PARTS = (("cockpit", r"\bcockpit\b|\bflight deck\b|\bcanopy\b", (0.93, 0.40)),
+         ("engines", r"\bengines?\b|\bturbofans?\b|\bnacelles?\b", (0.58, 0.72)),
+         ("wings", r"\bwings?\b|\bwingspan\b|\bwinglets?\b", (0.50, 0.62)),
+         ("tail", r"\btail\b|\bfin\b|\brudder\b|\bstabiliser\b|\bstabilizer\b", (0.08, 0.22)),
+         ("landing gear", r"\blanding gear\b|\bundercarriage\b|\bwheels\b", (0.62, 0.92)),
+         ("fuel tanks", r"\bfuel tanks?\b|\btanks?\b", (0.47, 0.60)),
+         ("cabin", r"\bcabin\b|\bseats?\b|\bwindows?\b", (0.66, 0.42)),
+         ("doors", r"\bdoors?\b", (0.84, 0.50)),
+         ("fuselage", r"\bfuselage\b|\bbody\b|\bstretched\b|\blonger\b", (0.40, 0.45)))
+_LENGTH = _re.compile(r"(\d+(?:\.\d+)?)\s*(?:m|metres|meters)\s+long|\blength of\s+(\d+(?:\.\d+)?)\s*(?:m|metres|meters)", _re.I)
+
+
+def parts_in(text: str) -> List[str]:
+    return [name for name, rx, _ in PARTS if _re.search(rx, str(text or ""), _re.I)]
+
+
+@lru_cache(maxsize=2)
+def _hangar(w: int, h: int) -> Image.Image:
+    """A bright studio hangar (J-11 study J3): pale walls, a few arch ribs, a light floor with a soft reflection band."""
+    im = Image.new("RGBA", (w, h), (226, 229, 234, 255))
+    d = ImageDraw.Draw(im)
+    for y in range(h):
+        g = int(236 - 26 * (y / h))
+        d.line((0, y, w, y), fill=(g, g + 2, g + 6, 255))
+    for i in range(6):
+        x = int(w * (0.08 + i * 0.17))
+        d.arc((x - w * 0.5, -h * 0.3, x + w * 0.5, h * 1.1), 200, 340, fill=(205, 208, 214, 255), width=3)
+    d.rectangle((0, int(h * 0.74), w, h), fill=(214, 217, 222, 255))
+    d.line((0, int(h * 0.74), w, int(h * 0.74)), fill=(196, 199, 206, 255), width=2)
+    return im
+
+
+def lay_callouts(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
+    """Part callouts on the line's aircraft: the plane large (its Flow sticker when made) in the bright hangar or on the dark
+    card, a label with a thin leader line for each part the line names, one after another, and a dimension line when the line
+    states a length."""
+    parts = [x for x in (p.get("parts") or []) if any(x == n for n, _, _ in PARTS)][:4]
+    if not parts or not p.get("type"):
+        return None
+    from . import sticker_flow as SF
+    sc = S.scale()
+    light = p.get("look", "hangar") == "hangar"
+    im = _hangar(W, H).copy() if light else _backdrop(W, H).copy()
+    d = ImageDraw.Draw(im)
+    ink = (24, 26, 30, 255) if light else S.WHITE
+    k = _k(t, 0.0, 0.45)
+    title = str(p.get("title") or "").upper()
+    if title:
+        d.rectangle((int(64 * sc), int(58 * sc), int(64 * sc) + int(36 * sc * k), int(62 * sc)), fill=ORANGE)
+        d.text((int(64 * sc), int(74 * sc)), title, font=S.font("title", 30), fill=ink[:3] + (int(255 * k),))
+    pw = int(820 * sc)
+    plane = SF.aircraft_image(p["type"], p.get("airline", ""), pw)
+    drift = int(18 * sc * M.clamp01(t / max(1.0, dur)))           # a slow camera drift over the model
+    px, py = int(W / 2 - plane.width / 2) - drift, int(H * 0.56 - plane.height / 2)
+    if light:
+        sh = Image.new("RGBA", (plane.width, plane.height // 4), (0, 0, 0, 0))
+        ImageDraw.Draw(sh).ellipse((plane.width * 0.1, 0, plane.width * 0.9, sh.height), fill=(0, 0, 0, 70))
+        im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)), (px, int(H * 0.74) - sh.height // 2))
+    im.alpha_composite(_fade(plane, _k(t, 0.15, 0.6)), (px, py))
+    # labels in spread slots (left to right in the order the parts sit), alternating above / below the plane: never stacked
+    order = sorted(parts, key=lambda n: next(xy for m, _, xy in PARTS if m == n)[0])
+    n = len(order)
+    for i, name in enumerate(order):
+        kk = _k(t, 0.8 + 0.55 * i, 0.5)
+        if kk <= 0:
+            continue
+        fx, fy = next(xy for m, _, xy in PARTS if m == name)
+        ax, ay = px + plane.width * fx, py + plane.height * fy
+        up = i % 2 == 0
+        lx = px + plane.width * (0.12 + 0.76 * (i + 0.5) / n)
+        ly = (py - int(52 * sc)) if up else (py + plane.height + int(48 * sc))
+        d.ellipse((ax - 5, ay - 5, ax + 5, ay + 5), fill=ORANGE)
+        d.line((ax, ay, ax + (lx - ax) * kk, ay + (ly - ay) * kk), fill=ink, width=2)
+        if kk > 0.8:
+            f = S.font("body", 15)
+            lab = name.upper()
+            tw = d.textlength(lab, font=f)
+            bx = lx - (tw + 24) / 2
+            d.rectangle((bx, ly - 14, bx + tw + 24, ly + 14), fill=(24, 26, 30, 230))
+            d.rectangle((bx, ly - 14, bx + 4, ly + 14), fill=ORANGE)
+            d.text((bx + 13, ly - 9), lab, font=f, fill=S.WHITE)
+    if p.get("length_m") and t > 0.8:
+        kd = _k(t, 0.8, 0.8)
+        y = py - int(110 * sc)                                  # above the plane and its upper labels
+        x0, x1 = px + plane.width * 0.02, px + plane.width * 0.98
+        d.line((x0, y, x0 + (x1 - x0) * kd, y), fill=ORANGE, width=2)
+        d.line((x0, y - 8, x0, y + 8), fill=ORANGE, width=2)
+        if kd >= 1:
+            d.line((x1, y - 8, x1, y + 8), fill=ORANGE, width=2)
+            lab = f"~{p['length_m']:g} M"
+            f = S.font("title", 22)
+            d.text(((x0 + x1) / 2 - d.textlength(lab, font=f) / 2, y - 32), lab, font=f, fill=ink)
+    return im
+
+
 CARDS = {"dossier.lay_share": lay_share, "dossier.lay_range": lay_range, "dossier.lay_icons": lay_icons,
          "dossier.lay_markers": lay_markers, "dossier.lay_options": lay_options, "dossier.lay_quotes": lay_quotes,
          "dossier.lay_flow": lay_flow, "dossier.lay_family": lay_family, "dossier.lay_newspaper": lay_newspaper,
-         "dossier.lay_reveal": lay_reveal}
+         "dossier.lay_reveal": lay_reveal, "dossier.lay_callouts": lay_callouts}
 
 
 # ---------------------------------------------------------------------------------------------------------------- picking
@@ -487,6 +586,13 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
         return "dossier.lay_reveal", {"title": "What it became", "sub": sub,
                                       "from": {"type": acs[0]["id"], "airline": aid, "label": acs[0]["name"], "side": "b"},
                                       "to": {"type": acs[1]["id"], "airline": aid, "label": acs[1]["name"], "side": "a"}}
+    pts = parts_in(text)
+    if pts and acs:
+        al = getattr(c, "airlines", [])
+        m = _LENGTH.search(text)
+        ln = float(m.group(1) or m.group(2)) if m else None
+        return "dossier.lay_callouts", {"title": acs[0]["name"], "type": acs[0]["id"], "airline": al[0]["id"] if al else "",
+                                        "parts": pts, "length_m": ln, "look": "hangar"}
     q = _QUOTE.search(text)
     if q:
         who = (r or {}).get("person") or (_SAID.search(text).group(1) if _SAID.search(text) else "")
