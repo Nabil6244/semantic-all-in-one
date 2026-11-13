@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import sys
 import threading
 from pathlib import Path
@@ -161,6 +162,7 @@ DEFAULT_AI_CAP = 15               # AI clips made per video at most, unless the 
 AI_LOOK = ("cinematic documentary shot, desaturated muted colours, overcast moody light, shallow depth of field, slow camera move, "
            "35mm film grain, no text, no logos, no faces in close-up")
 LOCAL_TYPES = ("local", "local_video")
+FLOW_IMAGE_TYPES = ("flow_image",)  # a Flow picture (war/flow_pictures.py) for a scene no real clip shows; filed as the scene's still
 WAR_YT_CLIP_S = 8.0               # War scenes run 5-10 s and are cut into 3-6 s shots: the app-wide 3.5 s YouTube cut ran out mid-scene
 
 
@@ -187,7 +189,7 @@ def csv_rows(scenes: List[dict]) -> List[Any]:
     rows = []
     for sc in scenes:
         at = str(sc.get("asset_type") or "").strip().lower()
-        if at in FETCH_TYPES or at in LOCAL_TYPES:
+        if at in FETCH_TYPES or at in LOCAL_TYPES or at in FLOW_IMAGE_TYPES:
             prompt = str(sc.get("prompt") or "").strip()
             if at == "nasa_video" and not prompt:
                 prompt = str(sc.get("text") or "")[:80]
@@ -376,6 +378,42 @@ def _library_report(state_dir: Path) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
+def _make_flow_pictures(rows: List[Any], images_dir: Path, state_dir: Path, log=lambda m: None) -> int:
+    """flow_image rows: one Flow picture each (flow_pictures.make; one made before is reused), filed as the scene's finished asset so the
+    Visuals tab lists it and the render turns it into a moving still. A row that already has an asset (the user's pick) is kept."""
+    import time
+
+    import visual_bridge
+    from asset_manager import AssetManifest
+    from . import flow_pictures as FP
+
+    want = {f"scene_{r.scene_number}": str(r.prompt or "").strip() for r in rows
+            if str(r.prompt or "").strip() and not visual_bridge.records(images_dir, [r])}
+    if not want:
+        return 0
+    log(f"Flow pictures: making {len(want)} for the flow_image scenes (pictures made before are reused)…")
+    try:
+        made = FP.make(want, Path(state_dir) / "flow_pictures", log=log)
+    except Exception as exc:  # noqa: BLE001 - no Flow: those scenes use the War maps and cards
+        log(f"Flow pictures not made ({type(exc).__name__}: {exc}): those scenes use maps and cards")
+        return 0
+    images_dir.mkdir(parents=True, exist_ok=True)
+    man = AssetManifest(images_dir)
+    for key, src in made.items():
+        no = key.split("_", 1)[1]
+        dest = images_dir / f"{int(no):03d}{Path(src).suffix}" if no.isdigit() else images_dir / f"{no}{Path(src).suffix}"
+        try:
+            shutil.copyfile(src, dest)
+        except OSError as exc:
+            log(f"scene {no}: Flow picture not copied ({exc})")
+            continue
+        man.set(no, {"status": "complete", "type": "image", "source": "flow_image", "asset_type": "local", "local_path": str(dest),
+                     "prompt": want[key], "ai_generated": True, "selection_method": "flow_picture", "credit": FP.credit(),
+                     "resolved_at": time.time(), "error": None})
+    log(f"Flow pictures: {len(made)} of {len(want)} scenes have a picture" + ("" if len(made) == len(want) else "; the rest use maps and cards"))
+    return len(made)
+
+
 def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
                       ai_cap: int = DEFAULT_AI_CAP, fetch: bool = True, listed=None, on_start=None, on_done=None,
                       director: Optional[bool] = None, library: Any = None) -> "tuple[List[dict], List[Any]]":
@@ -427,8 +465,11 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     todo = []
     directed = [r for r in rows if director and fetch and r.asset_type == "youtube_video" and str(r.scene_number) not in over
                 and str(r.scene_number) not in lib_nos | gfx_nos]
+    flow_nos = {str(sc.get("scene_no")) for sc in scenes if str(sc.get("asset_type") or "").strip().lower() in FLOW_IMAGE_TYPES}
+    if fetch and flow_nos:
+        _make_flow_pictures([r for r in rows if str(r.scene_number) in flow_nos], Path(images_dir), state_dir, log)
     for r in (rows if fetch else []):
-        if r in directed or str(r.scene_number) in lib_nos | gfx_nos:
+        if r in directed or str(r.scene_number) in lib_nos | gfx_nos | flow_nos:
             continue
         if r.asset_type in LOCAL_TYPES or str(r.scene_number) in over or visual_bridge.records(images_dir, [r]):
             continue
@@ -499,7 +540,7 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
         at = str(sc.get("asset_type") or "").strip().lower()
         if at == "none":
             sc["no_footage"] = True
-        rec = (man.get(str(sc.get("scene_no"))) or {}) if man is not None and (at in FETCH_TYPES or at in LOCAL_TYPES) else {}
+        rec = (man.get(str(sc.get("scene_no"))) or {}) if man is not None and (at in FETCH_TYPES or at in LOCAL_TYPES or at in FLOW_IMAGE_TYPES) else {}
         foot, _why = integration.footage_from_record(rec, Path(images_dir)) if rec else (None, "")
         if foot:
             sc["footage"] = foot
@@ -511,6 +552,8 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
             meta["csv_pick"] = True                # the CSV's own search, shown in the Visuals tab before Render: only a clear contradiction drops it
             sc["footage_meta"] = meta
             got += 1
+        elif at in FLOW_IMAGE_TYPES:
+            sc["no_footage"] = True                # Flow made no picture (not running / refused): the War maps and cards, never a bare plate
         elif str(sc.get("scene_no")) in gfx_nos:
             sc["no_footage"] = True                # the library knows this subject but every clip of it is used: War graphics, no search
             sc.pop("footage", None)
@@ -673,9 +716,33 @@ def add_frontline(app) -> None:
         var.set(msg)
 
 
+def library_subjects_text(lib: Optional[Path] = None, limit: int = 160) -> str:
+    """The War library's subjects as plain words (most clips first), for the CSV prompt: a youtube / stock search that uses these words is
+    filled from the library at once, with no live search. A short fixed list when this computer has no library."""
+    import collections
+
+    from . import library as LIB
+
+    try:
+        clips = LIB.load(Path(lib) if lib else LIB.root(None))
+    except Exception:  # noqa: BLE001 - the prompt still works without the list
+        clips = []
+    count: "collections.Counter[str]" = collections.Counter()
+    for c in clips:
+        sub = re.sub(r"^ai_", "", str(c.get("subject") or "")).replace("_", " ").strip()
+        if sub and sub not in ("symbolic", "stamp queue"):
+            count[sub] += 1
+    if not count:
+        return ("tanks, tank column, artillery, howitzer firing, drone strike aerial, fpv drone flight, missile launch, air defence launcher, "
+                "warship at sea, submarine, destroyed city aerial, strike aftermath, soldiers, frontline road, trench, refinery fire, power lines, "
+                "rail freight, cargo port cranes, kremlin moscow, factory")
+    return ", ".join(k for k, _ in count.most_common(limit))
+
+
 def csv_prompt_text(script: str = "") -> str:
     """The War Documentary CSV prompt (cinematic_explainer/war/data/war_csv_prompt.txt) with the script in place of its placeholder."""
     text = (Path(__file__).resolve().parent / "data" / "war_csv_prompt.txt").read_text(encoding="utf-8")
+    text = text.replace("<<<LIBRARY SUBJECTS>>>", library_subjects_text())
     script = (script or "").strip()
     return text.replace("<<<PASTE THE SCRIPT HERE>>>", script) if script else text
 

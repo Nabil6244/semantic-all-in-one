@@ -1,37 +1,59 @@
 You are preparing the footage plan for a war / geopolitics documentary. Read the SCRIPT at the end and write ONE CSV, one row per scene, in the script's order. Output only the CSV inside one ```csv block, nothing else.
 
+HOW THIS EDITOR FILLS A SCENE (plan for it: it decides how fast and how rich the video is)
+  1. The FOOTAGE LIBRARY: hundreds of reviewed war clips already on this computer, used at once with no search. A youtube_video or
+     stock_video row whose prompt uses the library's words below is filled from it. This is the fastest and best source: use it first.
+  2. FLOW PICTURES (asset_type flow_image): a photorealistic still made for the scene and moved on screen (slow push / pan). For what no
+     library clip shows: inside a tank, a crew at a periscope, a command post at night, a burnt-out checkpoint, an empty village street.
+  3. THE WAR GRAPHICS (asset_type none + a graphic): animated maps, front lines, routes, numbers, charts, equipment panels, timelines.
+  Live internet searches are slow and often switched off: never count on them. A row the library cannot fill and that is not flow_image
+  becomes a graphic.
+
+LIBRARY WORDS (subjects of the clips in the library, most clips first; build youtube_video / stock_video prompts from these):
+<<<LIBRARY SUBJECTS>>>
+
 HEADER (exactly this):
-scene_number,script_segment,asset_type,prompt,graphic
+scene_number,script_segment,asset_type,prompt,graphic,stock
 
 COLUMNS
 - scene_number: 1, 2, 3 ...
 - script_segment: the scene's narration copied EXACTLY from the script, every word in order. One scene = one sentence, or two short ones about the same thing. Never reword, shorten or merge across a change of topic. Every word of the script must appear in exactly one row.
 - asset_type: one of
-    youtube_video   real news / archive / official footage of THIS event (most scenes that describe what happened)
+    youtube_video   real news / archive / official footage of what the sentence describes. Filled from the library first.
+    stock_video     generic real footage of one filmable subject (also filled from the library first)
+    flow_image      a photorealistic AI picture of the KIND of place, object or moment the sentence describes, for when no real clip
+                    would show it. Cheap and fast: use it freely, about one scene in four
     archive_video   historical film that exists on the Internet Archive (archive.org): newsreels and government film from before about 1970
                     (WWII, Korea, the early Cold War, Vietnam-era newsreels), e.g. Die Deutsche Wochenschau, Universal Newsreel, British Pathé,
                     Movietone, US Army Signal Corps, Soviet newsreels. For anything after about 1970, or any recent war, use youtube_video.
-    stock_video     generic footage of what the sentence describes (only when no real footage would exist)
-    flow_video      an AI-generated cinematic shot, for an idea no real or stock footage can show: a symbol or a mood (chess pieces on a dark
-                    board, an empty ministry corridor at night, a warship's silhouette in fog, a hand turning a radio dial). Costs credits: use sparingly
+    flow_video      an AI-generated moving shot. Costs many credits and takes long: at most one scene in fifteen, only for a moment a still
+                    cannot carry (a slow push toward a drone in the sky). Prefer flow_image.
     nasa_video      satellite or space imagery
     local           I will attach the file myself (leave prompt empty)
-    none            no footage: the scene is data, a map, a statistic, a quote card or a figure. The editor draws a labelled map or graphic from the narration.
+    none            no footage: the scene is a map, a statistic, a comparison, a quote card or a figure. The editor draws it from the narration.
 - prompt:
-    youtube_video / archive_video: 2 search phrases separated by " || ", most specific first, e.g. "Pokrovsk Ukraine frontline drone footage || Donetsk oblast fighting". Name the real place, event and equipment the sentence names.
+    youtube_video: 2 search phrases separated by " || ". The FIRST is 2 to 4 LIBRARY WORDS for what is on screen ("tank column",
+      "drone strike aerial", "artillery howitzer firing"); the second names the real place, event and equipment the sentence names
+      ("Pokrovsk frontline drone footage"). The library is matched on the first, a live search (if on) uses the second.
+    archive_video: 2 search phrases separated by " || ", most specific first.
     archive_video searches are matched against archive titles and descriptions, so write them the way an archivist titles film:
       the place + the year + what is on film, 3-6 words, plus a newsreel name when one fits: "Stalingrad 1942 newsreel ||
       Wochenschau Stalingrad 1942", "German prisoners Stalingrad 1943 || Soviet newsreel Stalingrad surrender 1943". Always include the
       year. Never a modern word (drone, footage of the anniversary), never an abstract idea (turning point, brutal fighting): only what a
       camera filmed then. If no camera could have filmed the moment (a decision, a plan, a feeling), use none and a graphic instead.
-    stock_video: 2 to 5 words, one filmable subject, no place, no date, no name (e.g. "armored column on road").
+    stock_video: 2 to 5 words, one filmable subject, no place, no date, no name, in LIBRARY WORDS where they fit (e.g. "tank column",
+      "frontline road", "power lines").
+    flow_image: one sentence describing a single photograph: the subject, the setting, the time of day / weather and the camera
+      (wide, aerial, low angle, close detail), e.g. "a battle-scarred main battle tank hidden under camouflage netting at a muddy forest
+      edge, grey winter morning, low angle". Match the script's war, season and terrain. Vary the camera between neighbouring
+      flow_image rows. Never a real named person, a recognisable leader, a dead or wounded body, a flag, text, a logo or a uniform
+      insignia; a real event is shown as the kind of scene, not as if photographed there. The tool adds the photographic look itself.
     flow_video: one sentence describing a single cinematic shot: the subject, the setting and the light, e.g. "a lone chess king toppling
       on a dark board, cold light from one side". Never a real named person, a real event shown as if filmed, a flag-burning, a dead body,
       text or a logo. The tool adds the look (muted colours, film grain) itself.
     nasa_video / local / none: empty.
-- stock (optional column, after graphic): for youtube_video / archive_video rows, 2-3 plain words for a stock shot to use if no real
-  footage of the event is found: a filmable subject with no names, places or dates ("city ruins smoke", "soldiers in snow", "river at
-  night"). Leave it empty to let the editor derive one. Stock shots are labelled illustrative.
+- stock (optional column, after graphic; the last cell): for youtube_video / archive_video rows, 2-3 LIBRARY WORDS for a clip of the same kind of thing, used if the
+  first search finds nothing ("destroyed city", "ukrainian soldiers", "strike aftermath"). Empty on other rows.
 - graphic: the on-screen graphic for this scene, or empty to let the editor choose. The editor builds it ONLY from this scene's
   script_segment, so pick one the sentence can actually fill:
     title       a section opener or strong statement: the sentence's words as a cinematic title card
@@ -80,28 +102,45 @@ COLUMNS
   On a footage row (youtube_video, stock_video ...) the graphic is laid OVER the clip: title, date, quote, kinetic, radar, dossier and
   keywords darken the clip and play on top of it; sticker, speaker card, stamp, steps and number sit in a corner or on one side of it;
   map, timeline, equipment, speaker, supply, icons and compare fill the frame for a few seconds, then the clip returns.
-  On a none row, graphic says which graphic replaces the footage. Use graphic on roughly one scene in three; leave the rest empty.
-  RICH PANELS FIRST. Whenever the sentence can fill one, choose a rich panel: number, compare, ratio, chart, equipment (a weapon or a
-  type such as "warships", "submarines", "air defence", "drones"), speaker, timeline, institution, supply, article, map, route.
-  At least half of the graphics in the CSV are rich panels. kinetic, title, keywords, radar, big word, label and caption are light
+  On a none row, graphic says which graphic replaces the footage. Put a graphic on about HALF of the scenes; leave the rest empty.
+  RICH PANELS FIRST. Whenever the sentence can fill one, choose a rich panel: map, route, number, compare, ratio, chart, equipment (a
+  weapon or a type such as "tanks", "air defence", "drones"), timeline, institution, supply, article, speaker, icons, scale.
+  At least two thirds of the graphics in the CSV are rich panels. kinetic, title, keywords, radar, big word, label and caption are light
   graphics: use one only when no rich panel fits, never two light graphics in a row, and leave graphic empty for a sentence that only
   links ideas or sets up what comes next.
+  ANIMATED MAPS. Maps are this style's signature: plan at least one map, route or locator for every eight scenes.
+    - Every place named for the first time (a city, a region, a river, a front, a base, a sea) gets map (as a none row, or over the
+      clip) or locator (over a library clip, when the footage should keep playing).
+    - Every movement between named places (an advance, a retreat, a supply line, a missile or drone flight from A to B) gets route.
+    - Every capture, loss or retaking of a named place with a date gets map: the area changes hands on screen.
+    - Never two map rows in a row on the same place: the next scene goes back to footage or a panel.
 
 RULES FOR WHAT GETS FOOTAGE
-- Choose the source in this order: youtube_video when real footage of the event would exist; stock_video when a generic real clip shows it;
-  flow_video only when neither could, for symbolic or mood scenes. At most one scene in four is flow_video, and never two in a row.
-- Aim for footage on 70 to 80 percent of the scenes. Use none only when the sentence itself is the visual: it states a number or percentage, a date range, a territory change, a named place on a map, an equipment spec list, a ranking, a comparison, or a quote from a named person. The editor builds the map or card from the narration, and a graphic must not be hidden under footage. A sentence that only links ideas, asks a question or sets up what comes next ("So here's the question", "You'll see why") is not a graphic: give it footage of the story's subject.
-- Footage must match the sentence: if it names a system (HIMARS, S-400, Leopard 2), search for that system, not "missile". If it describes a city under attack, search for that city. Never ask for a place, side, equipment or year the sentence does not mention.
-- Never request footage of another war or the other side to fill a gap. If you cannot name a real clip that would exist, use none instead of a vague stock clip.
+- The mix for the whole CSV: about half the scenes youtube_video / stock_video in LIBRARY WORDS, about one in four flow_image, about
+  one in four none with a rich graphic or map. flow_video almost never.
+- Choose in this order for each scene:
+    1. a library clip shows it (tanks, drones, artillery, soldiers, ruins, warships, air defence, factories, ports ...): youtube_video
+       with library words first;
+    2. the sentence is a number, a date range, a place, a movement, a comparison, a list or a quote: none + the rich graphic;
+    3. it is a moment no real or library clip would show (inside a vehicle, a crew's view, a command post, a scene at night, a symbol
+       or a mood): flow_image;
+    4. otherwise a library clip of the story's subject (youtube_video in library words).
+- Footage (library clips and flow_image) on 70 to 80 percent of the scenes. No more than two none scenes in a row, and at most two
+  flow_image rows in a row: vary so there is motion every few seconds.
+- The same library words on two scenes in a row are fine (the editor picks different clips); the same flow_image prompt twice is not.
+- Footage must match the sentence: if it names a system (HIMARS, S-400, Leopard 2), the prompt names that system after the library words.
+  If it describes a city under attack, name that city. Never ask for a place, side, equipment or year the sentence does not mention.
+- Never request footage of another war or the other side to fill a gap: use flow_image or none instead.
 - Do not request graphic or animated content in the prompt column (maps, infographics, "animation of ..."). Ask for them in the graphic column.
-- Never invent numbers, names, quotes, dates or places. The prompt column uses only words from the script.
-- The first scene is the title or hook: footage if it opens on an event, none if it opens on a statement or figure.
-- No more than two none scenes in a row: vary with footage so there is motion every few seconds.
-- For youtube_video, search for news reports of the event itself ("ship sinking Black Sea footage"), not interviews, studio panels or explainers: a news anchor at a desk is not footage.
+- Never invent numbers, names, quotes, dates or places. The prompt column describes only what the script says.
+- Named people: a sentence about a named leader or commander is youtube_video (news footage of them) or none with speaker / quote /
+  speaker card. Never flow_image.
+- The first scene is the hook: a strong library clip or a flow_image of the moment, with title or kinetic only if the line is a statement.
+- For youtube_video, ask for footage of the event itself, not interviews, studio panels or explainers.
 
 FORMAT
 - Quote any cell that contains a comma or a line break, and double any quote inside it.
-- One row for every scene, exactly 5 cells per row (graphic may be empty), no blank lines, no comments.
+- One row for every scene, exactly 6 cells per row (graphic and stock may be empty), no blank lines, no comments.
 - Vary the graphics: never the same graphic on two scenes in a row; rich panels first, light graphics (kinetic, big word, caption) rarely.
 
 SCRIPT:

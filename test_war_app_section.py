@@ -283,6 +283,54 @@ class TestCsvFootage(unittest.TestCase):
         self.assertEqual(visual_bridge.folder("war", ws), Path("/p/state/war/assets"))
 
 
+class TestFlowImageRows(unittest.TestCase):
+    """Owner (2026-11-14): 'upgrade the prompt so we can use flow images and library more'. A flow_image CSV row gets a Flow picture filed as
+    the scene's asset (never a live search); with no Flow it is left to the War maps and cards; the prompt lists the library's words."""
+
+    def scenes(self):
+        return [{"scene_no": 1, "text": "Inside, the crew can barely see.", "start": 0.0, "end": 3.0, "asset_type": "flow_image",
+                 "prompt": "inside a dark tank turret, a green periscope screen"},
+                {"scene_no": 2, "text": "Convoys moved along the road.", "start": 3.0, "end": 6.0, "asset_type": "stock_video",
+                 "prompt": "tank column"}]
+
+    def test_flow_image_row_gets_a_picture_and_no_search(self):
+        from unittest import mock
+        from cinematic_explainer.war import app_section as A, flow_pictures as FP
+
+        d = Path(tempfile.mkdtemp())
+        pic = d / "made.jpg"
+        from PIL import Image
+        Image.new("RGB", (320, 180), (90, 90, 80)).save(pic)
+        mgr = _FakeManager(d / "images")
+        with mock.patch.object(FP, "make", return_value={"scene_1": str(pic)}) as made:
+            out, rows = A.fetch_csv_footage(self.scenes(), mgr, d / "images", director=False)
+        self.assertEqual(made.call_args[0][0], {"scene_1": "inside a dark tank turret, a green periscope screen"})
+        self.assertEqual([a[0] for a in mgr.asked], ["2"])                   # the Flow row is never sent to a search
+        self.assertIn("001", Path(out[0]["footage"]).name)
+        self.assertTrue(out[0]["footage_meta"].get("ai_generated"))
+
+    def test_no_flow_leaves_the_scene_to_the_graphics(self):
+        from unittest import mock
+        from cinematic_explainer.war import app_section as A, flow_pictures as FP
+
+        d = Path(tempfile.mkdtemp())
+        with mock.patch.object(FP, "make", side_effect=RuntimeError("Flow not running")):
+            out, _ = A.fetch_csv_footage(self.scenes(), _FakeManager(d), d, director=False)
+        self.assertTrue(out[0].get("no_footage") and not out[0].get("footage"))
+
+    def test_prompt_lists_library_words_and_flow_image(self):
+        from cinematic_explainer.war import app_section as A
+
+        lib = Path(tempfile.mkdtemp())
+        (lib / "a.mp4").write_bytes(b"x")
+        (lib / "index.json").write_text('{"clips": [{"file": "a.mp4", "subject": "ai_tank_column"}]}')
+        self.assertEqual(A.library_subjects_text(lib), "tank column")
+        t = A.csv_prompt_text("Tanks rolled in.")
+        self.assertNotIn("<<<", t)
+        self.assertIn("flow_image", t)
+        self.assertIn("scene_number,script_segment,asset_type,prompt,graphic,stock", t)
+
+
 class TestGenerateScenesFirst(unittest.TestCase):
     """A scenes CSV goes through the Visuals tab: Generate scenes fetches into it, Render fetches nothing and uses what it holds."""
 
