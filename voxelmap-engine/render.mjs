@@ -5,6 +5,7 @@
 // Optional --narration narration.json (from tools/narration_timing.py) to follow a real voiceover.
 // A local server for the page, its modules, three.js and the world asset; a GPU Chromium; window.renderFrame(t) per frame;
 // JPEGs piped to ffmpeg. stdout: one JSON object per line. Every run ends with a {"event":"perf"} line.
+import { launchChromium } from './lib/launch.mjs';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -275,7 +276,7 @@ async function main() {
   const server = await serve({ W, H, fps, timeline: tl, story, tiles: onDisk, clearance, aimGround, blur: a.blur !== 'off' }, worldDir, cardRes.files);
   const { chromium } = loadPlaywright();
   const soft = process.env.VOXEL_GL === 'software';
-  const browser = await chromium.launch({ headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] });
+  const browser = await launchChromium(chromium, { headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] }, { flowDir: path.join(REPO, 'flow-engine'), emit });
   const errors = [];
   const wall0 = Date.now();
   try {

@@ -21,6 +21,7 @@ import { pathToXZ, footprint } from './lib/landmarks.mjs';
 import { styleOf } from './lib/styles.mjs';
 import { climateOf, CLIMATES, landClassAt, treeFactor } from './lib/climate.mjs';
 import { styleForYear } from './lib/story.mjs';
+import { launchChromium } from './lib/launch.mjs';
 import { shoreDistance, makeShips, makeFields, clearTreesForFields, planEvent, wallGates } from './lib/fx.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -202,7 +203,7 @@ async function main() {
   const server = await serve(config, { '/world/height.f32': path.join(worldDir, 'height.f32'), ...(plan.hasLanduse ? { '/world/landuse_cls.u8': path.join(worldDir, 'landuse_cls.u8') } : {}), '/world/water.u8': path.join(worldDir, 'water.u8'), '/world/water_level.f32': path.join(worldDir, 'water_level.f32'), ...(groundKind ? { '/world/ground.img': path.join(worldDir, groundFile) } : {}), '/data/lots.bin': packLots(lots), '/data/trees.bin': packTrees(trees) });
   const { chromium } = loadPlaywright();
   const soft = process.env.CITY_GL === 'software';
-  const browser = await chromium.launch({ headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] });
+  const browser = await launchChromium(chromium, { headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] }, { flowDir: path.join(REPO, 'flow-engine'), emit });
   const errors = [];
   try {
     const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
