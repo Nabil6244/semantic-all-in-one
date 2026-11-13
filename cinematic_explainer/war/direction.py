@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import dataclasses
 import re
+import types
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -116,6 +117,38 @@ def _content_count(w: Sequence[str]) -> int:
 _STOP_END = {"of", "the", "a", "an", "to", "in", "on", "at", "with", "for", "by", "as", "from", "and", "or", "but", "that", "which", "is", "are", "was",
              "were", "its", "their", "his", "her", "this", "these", "those", "toward", "towards", "into", "onto", "over", "near", "after",
              "before", "against", "across", "through", "along", "behind", "under", "between", "around", "than", "more", "most", "very"}
+
+
+WHOLE_LINE_MAX = 18
+_LINE_OPEN = re.compile(r"^(?:and|but|so|or)\s+", re.I)
+
+
+def _whole_line(sentences: Sequence[Any], sent: Any) -> str:
+    """When a sentence gives no phrase: the narration's own whole words, never a fragment. A run of short sentences said together
+    ('No signal. No heat. No sound.') is one line; a longer sentence is shown whole (its opening 'And' / 'But' dropped) up to WHOLE_LINE_MAX
+    words. '' when even that is too long. Kill Zone v3 (2026-11-14): both cases left an empty backing field on screen for 2.4 s and 6 s."""
+    seq = list(sentences)
+    try:
+        i = next(k for k, x in enumerate(seq) if x is sent)
+    except StopIteration:
+        return ""
+    n = lambda x: len(str(x.text).split())
+    if n(sent) <= 4:
+        j = i
+        while j > 0 and n(seq[j - 1]) <= 4:
+            j -= 1
+        run = []
+        for x in seq[j:]:
+            if n(x) > 4 or sum(n(y) for y in run) + n(x) > 12:
+                break
+            run.append(x)
+        if len(run) >= 2:
+            return " ".join(str(x.text).strip() for x in run)
+    w = _LINE_OPEN.sub("", str(sent.text).strip()).split()
+    if 2 <= len(w) <= WHOLE_LINE_MAX:
+        t = " ".join(w)
+        return t[:1].upper() + t[1:]
+    return ""
 
 
 def _phrase_or_lead(sentence: str) -> str:
@@ -3151,7 +3184,18 @@ def uncovered_spans(plan: Any, total: float, tol: float = COVER_TOL, picture=Non
     ok = picture or _has_picture
     cov = [(sh.start, sh.end) for sh in plan.shots if ok(sh.path)]
     skip = {id(x) for x in (thin or ())}                  # layers MEASURED thin (thin_layers): drawn, but the grid shows through them
-    cov += [(ly.start, ly.end) for ly in plan.layers if ly.kind in SELF_BACKED and not (ly.params or {}).get("over") and id(ly) not in skip]
+    cov += [(ly.start, ly.end) for ly in plan.layers if ly.kind in SELF_BACKED and ly.kind != BACKING_KIND and not (ly.params or {}).get("over")
+            and id(ly) not in skip]
+    # Kill Zone v3 (2026-11-14): a backing field is a faint plate with no words; it covers only while a card or mark is drawn on it. It was made
+    # for a whole span but its card was shorter (a source tag ending 2.4 s early, a stamp 1.3 s before the next clip): those seconds rendered
+    # as an empty screen that counted as covered, so nothing filled them.
+    on_top = _spans_union([(ly.start, ly.end) for ly in plan.layers if ly.kind != BACKING_KIND and ly.kind not in SOFT and id(ly) not in skip])
+    for ly in plan.layers:
+        if ly.kind == BACKING_KIND and not (ly.params or {}).get("over") and id(ly) not in skip:
+            if (ly.params or {}).get("last_resort"):          # _cover_plate found nothing for these seconds (flagged for the owner)
+                cov.append((ly.start, ly.end))
+            else:
+                cov += [(max(ly.start, a), min(ly.end, b)) for a, b in on_top if a < ly.end and b > ly.start]
     out: List[Tuple[float, float, str]] = []
     cur = 0.0
     for a, b in _spans_union(cov) + [(total, total)]:
@@ -3198,6 +3242,15 @@ def _cover_plate(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
                     nxt.start = fr(a)
                 counts["plate_held"] = counts.get("plate_held", 0) + 1
                 continue
+            if not fg and b - a <= HOLE_HOLD_S:
+                # a card or mark that ends where the empty seconds begin stays up until the next picture (Kill Zone v3: a stamp ended
+                # 1.3 s before the next clip and left its backing field empty on screen)
+                held = max((ly for ly in plan.layers if ly.kind != BACKING_KIND and ly.kind not in SOFT and abs(ly.end - a) < 0.06),
+                           key=lambda x: x.end, default=None)
+                if held is not None:
+                    held.end = fr(b)
+                    counts["plate_held"] = counts.get("plate_held", 0) + 1
+                    continue
             # a word-free overlay (the missile / drone fly-over) is no reason for a bare field: alone on the plate it reads as an
             # empty screen (Moskva 044: 4 s of a tiny missile on the field). The motion card goes under it, the overlay stays on top.
             heavy = [ly for ly in fg if ly.kind not in LIGHT_OVER]
@@ -3205,8 +3258,11 @@ def _cover_plate(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
                 b = fr(max(ly.end for ly in heavy))         # the field backs the card only; the rest is filled on the next round
             fg = heavy
             made = None
-            asked = any((ly.params or {}).get("csv_graphic") for ly in plan.layers
-                        if ly.start < b - 0.05 and ly.end > a + 0.05 and ly.kind not in LIGHT_OVER)
+            asked_ly = [ly for ly in plan.layers if (ly.params or {}).get("csv_graphic") and ly.start < b - 0.05 and ly.end > a + 0.05
+                        and ly.kind not in LIGHT_OVER]
+            if asked_ly and not fg and min(ly.start for ly in asked_ly) <= a + 0.05 and max(ly.end for ly in asked_ly) <= b - 2.0:
+                b = fr(max(ly.end for ly in asked_ly))     # Kill Zone v3: a CSV stamp ending 6 s early kept the whole span a bare field
+            asked = bool(asked_ly)
             if not fg and not asked and b - a >= 2.0:          # a CSV-asked card keeps its own words on a quiet field, not under more words
                 made = _motion_over(rows, cat, log_by_no, a, b, plan.layers)
             if made is None and not fg and not asked and b - a >= 2.0:
@@ -3214,7 +3270,7 @@ def _cover_plate(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no:
             if made is None:
                 row = next((r for r in rows if r["_start"] - 0.01 <= a < r["_end"]), rows[0] if rows else None)
                 seed = int(row["_no"]) if row is not None and str(row.get("_no", "")).isdigit() else int(a)
-                made = Layer(BACKING_KIND, fr(a), fr(b), {"seed": seed}, dim=False)
+                made = Layer(BACKING_KIND, fr(a), fr(b), {"seed": seed, **({} if fg or asked else {"last_resort": True})}, dim=False)
                 counts["plate_backed"] = counts.get("plate_backed", 0) + 1
                 if not fg and b - a >= 1.0:
                     # nothing relevant for these seconds: flagged for the owner, never filled with an unrelated visual
@@ -3414,6 +3470,10 @@ def _motion_over(rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, 
         A2 = S.analyze_scene(str(row.get("text") or ""), cat, row.get("words"), row["_start"], row["_end"])
         sent = next((x for x in A2.sentences if A2.time_at(x.span[0]) - 0.2 <= a + 0.6 <= A2.end_time_of(x.span) + 0.6), A2.sentences[-1] if A2.sentences else None)
         h = _phrase_or_lead(sent.text) if sent is not None else ""
+        if not h and sent is not None:
+            h = _whole_line(A2.sentences, sent)
+            if h:
+                sent = types.SimpleNamespace(text=h)       # the card reads exactly what is shown
         if not h:
             return None
         near = {ly.kind for ly in plan_layers if ly.kind in MOTION_KINDS and (abs(ly.end - a) < 0.3 or abs(ly.start - b) < 0.3)}

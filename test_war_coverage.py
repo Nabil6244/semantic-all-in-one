@@ -103,6 +103,39 @@ class Coverage(unittest.TestCase):
         self.assertNotEqual(im1.tobytes(), im2.tobytes())
 
 
+class EmptyBackingField(unittest.TestCase):
+    """Kill Zone v3 (2026-11-14): the faint backing field showed alone on screen for 0.3-6 s (render_qa 'black or flat frames')."""
+
+    def test_a_field_with_nothing_on_it_is_not_covered(self):
+        plan = _plan(layers=[Layer("kit_field", 0, 6, {}), Layer("kit_stamp", 0, 2, {})])
+        self.assertEqual([(a, b) for a, b, _ in D.uncovered_spans(plan, 6, picture=_picture)], [(2.0, 6.0)])
+        self.assertEqual(D.uncovered_spans(_plan(layers=[Layer("kit_field", 0, 6, {"last_resort": True})]), 6, picture=_picture), [])
+
+    def test_a_mark_ending_early_is_held_to_the_next_clip(self):
+        plan = _plan([Shot("a.mp4", 0, 4, 0), Shot("b.mp4", 6.5, 10, 0)],
+                     [Layer("kit_field", 4, 6.5, {}), Layer("kit_stamp", 3, 5.2, {"text": "CAN'T BE VERIFIED"})])
+        _fix(plan, 10)
+        self.assertEqual(D.uncovered_spans(plan, 10, picture=_picture), [])
+        self.assertAlmostEqual(next(ly for ly in plan.layers if ly.kind == "kit_stamp").end, 6.5, delta=0.05)     # snapped to a frame
+
+    def test_a_csv_stamp_ending_early_leaves_no_bare_field(self):
+        rows = [{"_no": 1, "_start": 0.0, "_end": 10.0, "words": None,
+                 "text": "Imagine that. An army that can't talk to itself. And soldiers too scared to say anything anyway."}]
+        plan = _plan(layers=[Layer("kit_field", 0, 10, {}), Layer("kit_stamp", 0, 1.0, {"csv_graphic": True})])
+        _fix(plan, 10, rows)
+        self.assertEqual(D.uncovered_spans(plan, 10, picture=_picture), [])
+        bare = [ly for ly in plan.layers if (ly.params or {}).get("last_resort") and ly.end - ly.start > 1.0]
+        self.assertEqual(bare, [])
+
+    def test_whole_line_when_no_phrase(self):
+        S = SimpleNamespace
+        short = [S(text="They fly to a roadside, land, and switch themselves off."), S(text="No signal."), S(text="No heat."), S(text="No sound.")]
+        self.assertEqual(D._whole_line(short, short[1]), "No signal. No heat. No sound.")
+        one = [S(text="And the reason they believed it is one of the most surprising stories of this entire war.")]
+        self.assertEqual(D._whole_line(one, one[0]), "The reason they believed it is one of the most surprising stories of this entire war.")
+        self.assertEqual(D._whole_line([S(text=" ".join(["word"] * 30))], None), "")
+
+
 class TinyRenders(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
