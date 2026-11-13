@@ -164,3 +164,13 @@ EXTRA_BLURBS[AVIATION] = ("Airline business stories and flight reconstructions, 
                           "the flight, slow beauty shots for the aircraft. From your voice-over, optionally with an aviation scenes CSV.")
 EXTRA_CARDS[AVIATION] = ("✈", "Airline stories and flight reconstructions", "Your voice-over (+ optional scenes CSV)",
                          "Airline business, aircraft programmes, incidents")
+
+
+# Ocean Predators (ui/ocean_section.py, ocean/): appended here so nothing above changes
+OCEAN = "Ocean Predators"
+STANDALONE = STANDALONE + (OCEAN,)
+GROUPS = tuple((title, names + (OCEAN,) if title == "Explainers" else names) for title, names in GROUPS)
+EXTRA_BLURBS[OCEAN] = ("Sea-predator explainers drawn in code: flat 2D sharks, orcas, whales, seals and squid act every sentence in one moving "
+                       "underwater world, numbers become cards (counts, dot grids, clocks, calendars), studies a paper card, 'what would "
+                       "you do' the diver's view, with joke props and orange keyword captions over a music bed. From your voice-over only.")
+EXTRA_CARDS[OCEAN] = ("\u25C9", "Sea predators, drawn and explained", "Your voice-over", "Ocean animals, 'what scares X', deep-sea lists")

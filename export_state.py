@@ -27,6 +27,7 @@ STYLE_LABELS = {
     "health_cinema": "Health Cinema", "reptheory": "Rep Theory", "product_trailer": "Product Trailer", "war": "War Documentary",
 }
 STYLE_LABELS["aviation"] = "Aviation"   # ui/aviation_section.py
+STYLE_LABELS["ocean"] = "Ocean Predators"   # ui/ocean_section.py
 
 
 def run_outcome(error: str, output_path=None, stopped: bool = False) -> str:
