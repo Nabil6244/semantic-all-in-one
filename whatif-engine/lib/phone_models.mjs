@@ -11,7 +11,7 @@
 //   buildPhoneModel(THREE, model, { envMap, shot, screenMap? }) -> THREE.Group (userData: { W, H, D, model }).
 // Deterministic: no Math.random (a seeded rng keyed on the model id).
 
-export const PHONE_LAYOUTS = ['galaxy_ultra', 'galaxy_s', 'iphone_pro', 'iphone_base', 'pixel_bar', 'round_island', 'square_island', 'vertical_pill', 'galaxy_s27_island', 'galaxy_s27_video'];
+export const PHONE_LAYOUTS = ['galaxy_ultra', 'galaxy_s', 'iphone_pro', 'iphone_base', 'pixel_bar', 'round_island', 'square_island', 'vertical_pill', 'galaxy_s27_island', 'galaxy_s27_video', 'air_plateau'];
 
 // ---------- catalog ----------
 let CATALOG = [];
@@ -232,6 +232,15 @@ function layoutOf(model) {
       out.pillLenses = [{ x: 0.413 * k, y: 0.40 * k, r: 0.034 * k }];
       break;
     }
+    case 'air_plateau': {         // iPhone Air: a raised plateau the full width of the back near the top; the lens(es) side by side on the left
+      // (one on the Air, two on the Air 2 dummies), the flash and the mic towards the right (camera.count picks 1 or 2)
+      const ph = 0.3 * w, cy = 3.2 + ph / 2, n = Math.max(1, Math.min(3, (model.camera.count | 0) || 1)), lr = 0.088 * w;
+      out.island = { shape: 'bar', x: w / 2, y: cy, w: w + 0.2, h: ph, r: ph * 0.42 };
+      out.lenses = Array.from({ length: n }, (_, i) => ({ x: 0.17 * w + i * 0.215 * w, y: cy, r: lr, ring: 1.12 }));
+      out.flash = { x: (n > 1 ? 0.64 : 0.6) * w, y: cy, r: 0.03 * w };
+      out.extras = [{ x: (n > 1 ? 0.74 : 0.72) * w, y: cy, r: 0.012 * w, kind: 'mic' }];
+      break;
+    }
     case 'square_island':
     default:
       out.island = { shape: 'rect', x: 21, y: 21, w: 32, h: 32, r: 7 };
@@ -430,4 +439,4 @@ export function buildPhoneModel(THREE, model, { envMap = null, shot = {}, screen
   return grp;
 }
 // island heights (mm) per layout
-const L_ISLAND = { iphone_pro: 1.9, iphone_base: 1.5, pixel_bar: 2.2, round_island: 2.4, square_island: 1.6, vertical_pill: 1.4, galaxy_s27_island: 0.9, galaxy_s27_video: 1.1 };
+const L_ISLAND = { iphone_pro: 1.9, iphone_base: 1.5, pixel_bar: 2.2, round_island: 2.4, square_island: 1.6, vertical_pill: 1.4, galaxy_s27_island: 0.9, galaxy_s27_video: 1.1, air_plateau: 1.6 };

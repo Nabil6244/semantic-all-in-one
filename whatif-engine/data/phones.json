@@ -950,6 +950,210 @@
      "back_color": "#f0ebe2"
     }
    ]
+  },
+  {
+   "id": "iphone_air",
+   "brand": "Apple",
+   "name": "iPhone Air",
+   "aliases": [
+    "air"
+   ],
+   "w_mm": 74.7,
+   "h_mm": 156.2,
+   "d_mm": 5.64,
+   "corner_mm": 12.5,
+   "frame": "flat",
+   "frame_finish": "polished",
+   "frame_color": "#b9c9d8",
+   "back_color": "#cfdbe6",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "air_plateau",
+    "count": 1,
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.15
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Sky Blue",
+     "frame_color": "#b9c9d8",
+     "back_color": "#cfdbe6"
+    },
+    {
+     "name": "Light Gold",
+     "frame_color": "#d6c3a0",
+     "back_color": "#e6d8bd"
+    },
+    {
+     "name": "Cloud White",
+     "frame_color": "#dcdcd8",
+     "back_color": "#ecebe6"
+    },
+    {
+     "name": "Space Black",
+     "frame_color": "#3a3b3f",
+     "back_color": "#2a2b2f"
+    }
+   ]
+  },
+  {
+   "id": "iphone_air_2",
+   "brand": "Apple",
+   "name": "iPhone Air 2",
+   "aliases": [
+    "air 2"
+   ],
+   "concept": true,
+   "w_mm": 74.7,
+   "h_mm": 156.2,
+   "d_mm": 5.4,
+   "corner_mm": 12.5,
+   "frame": "flat",
+   "frame_finish": "polished",
+   "frame_color": "#b9c9d8",
+   "back_color": "#cfdbe6",
+   "back_finish": "matte",
+   "camera": {
+    "layout": "air_plateau",
+    "count": 2,
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.15
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Sky Blue",
+     "frame_color": "#b9c9d8",
+     "back_color": "#cfdbe6"
+    },
+    {
+     "name": "Light Gold",
+     "frame_color": "#d6c3a0",
+     "back_color": "#e6d8bd"
+    },
+    {
+     "name": "Cloud White",
+     "frame_color": "#dcdcd8",
+     "back_color": "#ecebe6"
+    },
+    {
+     "name": "Space Black",
+     "frame_color": "#3a3b3f",
+     "back_color": "#2a2b2f"
+    }
+   ]
+  },
+  {
+   "id": "iphone_18",
+   "brand": "Apple",
+   "name": "iPhone 18",
+   "aliases": [
+    "18"
+   ],
+   "concept": true,
+   "w_mm": 71.5,
+   "h_mm": 149.6,
+   "d_mm": 7.95,
+   "corner_mm": 11.5,
+   "frame": "flat",
+   "frame_finish": "matte",
+   "frame_color": "#9fb4cc",
+   "back_color": "#b4c7dc",
+   "back_finish": "glossy",
+   "camera": {
+    "layout": "vertical_pill",
+    "flash": true
+   },
+   "screen": {
+    "cutout": "island",
+    "bezel_mm": 1.2
+   },
+   "buttons": "both",
+   "colors": [
+    {
+     "name": "Mist Blue",
+     "frame_color": "#9fb4cc",
+     "back_color": "#b4c7dc"
+    },
+    {
+     "name": "Lavender",
+     "frame_color": "#b6a9cf",
+     "back_color": "#c9bfe0"
+    },
+    {
+     "name": "Sage",
+     "frame_color": "#a7b39c",
+     "back_color": "#bac6ad"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#2e2f33",
+     "back_color": "#2a2b2f"
+    }
+   ]
+  },
+  {
+   "id": "galaxy_s27_pro",
+   "brand": "Samsung",
+   "name": "Galaxy S27 Pro",
+   "aliases": [
+    "s27 pro",
+    "samsung s27 pro"
+   ],
+   "concept": true,
+   "w_mm": 74.6,
+   "h_mm": 155.0,
+   "d_mm": 7.9,
+   "corner_mm": 9.5,
+   "frame": "flat",
+   "frame_finish": "satin",
+   "frame_color": "#5d6a80",
+   "back_color": "#2f3a50",
+   "back_finish": "metal",
+   "camera": {
+    "layout": "galaxy_s27_video",
+    "flash": true
+   },
+   "wordmark": "SAMSUNG",
+   "screen": {
+    "cutout": "punch",
+    "bezel_mm": 1.0
+   },
+   "buttons": "right",
+   "colors": [
+    {
+     "name": "Navy",
+     "frame_color": "#5d6a80",
+     "back_color": "#2f3a50"
+    },
+    {
+     "name": "Sky Blue",
+     "frame_color": "#a9bdd2",
+     "back_color": "#93b1d3"
+    },
+    {
+     "name": "Pink",
+     "frame_color": "#d9c0c4",
+     "back_color": "#e3c4cb"
+    },
+    {
+     "name": "White",
+     "frame_color": "#d4d6d8",
+     "back_color": "#e8e8e5"
+    },
+    {
+     "name": "Black",
+     "frame_color": "#4a4d52",
+     "back_color": "#26272a"
+    }
+   ]
   }
  ]
 }

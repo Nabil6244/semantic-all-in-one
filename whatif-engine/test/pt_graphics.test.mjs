@@ -180,3 +180,34 @@ test('pt_lenses: a two-lens phone with a "None" telephoto draws cleanly', async 
   const L = await impl({ type: 'pt_lenses', start: 0, end: 6, phones: [{ label: 'iPhone Duo', cams: 2 }], lenses: [{ kind: 'main', value: null, at: 0.2 }, { kind: 'telephoto', value: 'None', at: 0.6 }] });
   for (const t of [0.5, 2, 5.9]) assert.equal(drawAt(L, t).bad.length, 0);
 });
+
+// narration graphics (product_trailer/narration_gfx.py): lists, steps, breakdowns and the ledger draw cleanly; a done item is up from the start
+test('pt_list / pt_steps / pt_breakdown / pt_ledger: draw cleanly, build on their cues', async () => {
+  const defs = [
+    { type: 'pt_list', mode: 'check', title: 'Checklist', start: 1, end: 7, items: [{ text: 'Update to the latest patch', done: true }, { text: 'Back up', at: 2 }] },
+    { type: 'pt_list', mode: 'risk', title: 'The risks', start: 1, end: 7, items: [{ text: 'Betas can have bugs' }, { text: 'Battery life can be worse', at: 3 }] },
+    { type: 'pt_list', mode: 'chips', title: 'Countries', start: 1, end: 7, items: ['Germany', 'India', 'Poland', 'South Korea', 'UK', 'US'].map((text) => ({ text })) },
+    { type: 'pt_steps', title: 'How to sign up', n: 2, total: 4, text: 'Tap the One UI 9.5 banner', target: 'One UI 9.5 banner', app: 'Samsung Members', start: 1, end: 7 },
+    { type: 'pt_breakdown', title: 'Patch', total: 179, label: 'vulnerabilities', start: 1, end: 7, parts: [{ value: 155, label: 'Android fixes' }, { value: 24, label: 'Samsung fixes' }], inner: { of: 0, value: 20, label: 'critical' } },
+    { type: 'pt_ledger', active: 1, start: 1, end: 7, cols: [{ title: 'Known', tone: 'green', done: true, items: [{ text: 'A build exists', done: true }] },
+      { title: 'Reported', tone: 'amber', items: [{ text: 'Next week' }, { text: 'Memory app' }] }, { title: 'Unknown', tone: 'red', items: [{ text: 'Exact date' }] }] },
+  ];
+  for (const def of defs) {
+    const L = await impl(def);
+    const n = [0.5, 1.05, 1.6, 3.5, 6.9, 7.5].map((t) => { const r = drawAt(L, t); assert.equal(r.bad.length, 0, `${def.type} no NaN at ${t}`); return r.texts; });
+    assert.equal(n[0], 0, `${def.type}: nothing before its start`);
+    assert.ok(n[3] > 0, `${def.type}: draws in its window`);
+    assert.equal(n[5], 0, `${def.type}: nothing after its end`);
+  }
+  const chk = await impl(defs[0]);
+  assert.ok(drawAt(chk, 1.1).texts >= 2, 'a done item is on screen from the start');
+  await assert.rejects(() => impl({ type: 'pt_list', items: [] }));
+  await assert.rejects(() => impl({ type: 'pt_breakdown', total: 0, parts: [] }));
+});
+
+// the 3D props module loads (a syntax slip there turns every 3D shot of a film into a plain plate)
+test('props3d: loads and lists its props and moves', async () => {
+  const m = await import('../lib/props3d.mjs');
+  assert.deepEqual(m.PROP_OBJECTS, ['server', 'shield', 'calendar', 'apps']);
+  assert.ok(m.PROP_MOVES.includes('prop_turn') && typeof m.buildProp === 'function');
+});

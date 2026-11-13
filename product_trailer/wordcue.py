@@ -25,6 +25,8 @@ ITEMS = {                       # layer type -> (list key, fields that name an i
     "pt_coststack": ("rows", ("label",)),
     "pt_swatches": ("cards", ("name",)),
     "pt_sides": ("items", ("value", "sub")),
+    "pt_list": ("items", ("text",)),             # narration_gfx.py: checklists, risks, names
+    "pt_breakdown": ("parts", ("value", "label")),
 }
 Part = Tuple[str, float]
 

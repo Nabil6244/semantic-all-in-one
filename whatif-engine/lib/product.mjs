@@ -23,6 +23,7 @@
 //     samples: 8 (sub-frames per frame: motion blur over a 180-degree shutter + subpixel AA; env PRODUCT_SAMPLES overrides), fps: 30, shutter: 0.5 }
 // A pure function of the time inside the shot, like every other shot (sub-frames, sweep and sparks included), so parallel parts match.
 
+import { PROP_OBJECTS, PROP_MOVES, buildProp, propPlacement } from './props3d.mjs';
 import { uiDraw, uiCard, uiLayout, drawLockScreen, SCREEN_W, SCREEN_H } from './uikit.mjs';
 
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
@@ -34,8 +35,8 @@ const linE = (k) => { const kk = clamp01(k); return 0.75 * kk + 0.25 * ease(kk);
 const SEMANTIC_MOVES = new Set(['flip', 'rise', 'reveal', 'demo']);   // these end on a pose the shot needs: full travel, constant speed
 const lerp = (a, b, k) => a + (b - a) * k;
 
-export const PRODUCT_OBJECTS = ['phone', 'iphone', 'galaxy', 'chip'];
-export const PRODUCT_MOVES = ['island', 'monolith', 'hero', 'hero_back', 'profile', 'orbit', 'screen', 'edge', 'flip', 'rise', 'port', 'buttons', 'chip', 'chip_macro', 'reveal', 'demo', 'lens_push', 'plateau_rake', 'capsule_macro', 'overhead_back', 'pull_back', 'dutch_back', 'spin_back'];
+export const PRODUCT_OBJECTS = ['phone', 'iphone', 'galaxy', 'chip', ...PROP_OBJECTS];
+export const PRODUCT_MOVES = ['island', 'monolith', 'hero', 'hero_back', 'profile', 'orbit', 'screen', 'edge', 'flip', 'rise', 'port', 'buttons', 'chip', 'chip_macro', 'reveal', 'demo', 'lens_push', 'plateau_rake', 'capsule_macro', 'overhead_back', 'pull_back', 'dutch_back', 'spin_back', ...PROP_MOVES];
 export const PRODUCT_BACKDROPS = ['stars', 'wash', 'horizon', 'studio', 'charcoal', 'daylight'];
 const seeded = (seed) => { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
 
@@ -464,6 +465,7 @@ function buildChip(THREE, shot, envMap) {
 // camera and phone placement for each move, as a function of k (0..1 through the shot) and t (seconds into it)
 function placement(THREE, shot, k, t) {
   const e = SEMANTIC_MOVES.has(shot.move) ? linE(k) : camE(k, 0.3, shot), c = shot.cam || {}, fl = Math.sin(t * 0.9) * 0.012;
+  if (PROP_MOVES.includes(shot.move) || PROP_OBJECTS.includes(shot.object)) return propPlacement(THREE, shot, k, t, e, lerp);
   const flat = (spin) => new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), spin).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2));
   const eul = (x, y, z) => new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z, 'YXZ'));
   switch (shot.move) {
@@ -636,17 +638,19 @@ function buildUiStage(THREE, shot, phone, holder, scene, envMap, dur) {
 }
 
 export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
+  const isProp = PROP_OBJECTS.includes(shot.object);
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#020306');
   const bd = shot.backdrop || 'stars';
   const sky = stars(shot.seed ?? 11); if (sky.children[1]) sky.children[1].material.opacity = bd === 'horizon' ? 0.08 : 0.16; if (sky.children[0]) sky.children[0].material.opacity = 0.8;
   if (bd === 'stars' || bd === 'horizon') scene.add(sky);
   const studio = studioEnvironment(THREE, renderer, shot); let envMap = studio.texture;
-  scene.environment = envMap; let darkness = 0; scene.environmentIntensity = shot.object === 'iphone' ? 1.7 : shot.object === 'chip' ? 0.9 : 0.9;
+  scene.environment = envMap; let darkness = 0; scene.environmentIntensity = shot.object === 'iphone' ? 1.7 : (shot.object === 'chip' || isProp) ? 0.9 : 0.9;
   let phone = null, live = null, spec = null;
-  const wantLive = shot.object !== 'chip' && !(shot.screen && shot.screen.wallpaper === 'model');
-  if (shot.object !== 'chip' && (shot.phone || shot.glb)) { try { const pmx = await import('./phone_models.mjs'); spec = pmx.resolvePhone(phoneSpec(shot)); } catch { spec = null; } }
+  const wantLive = !(shot.object === 'chip' || isProp) && !(shot.screen && shot.screen.wallpaper === 'model');
+  if (!(shot.object === 'chip' || isProp) && (shot.phone || shot.glb)) { try { const pmx = await import('./phone_models.mjs'); spec = pmx.resolvePhone(phoneSpec(shot)); } catch { spec = null; } }
   if (wantLive) live = liveScreen(THREE, shot, spec?.back_color || shot.tone || '#8fa3b5');
-  if (shot.object === 'chip') phone = buildChip(THREE, shot, envMap);
+  if (isProp) phone = buildProp(THREE, shot, envMap);
+  else if (shot.object === 'chip') phone = buildChip(THREE, shot, envMap);
   else if (shot.phone || shot.glb) {   // a real model (assets/models/phones/<id>.glb) first, then the code-built preset, then the built-in phone
     let pm = null;
     try { pm = await import('./phone_models.mjs'); spec = pm.resolvePhone(phoneSpec(shot)); } catch (err) { console.warn(`product: phone library not loaded (${err && err.message})`); }
@@ -663,10 +667,10 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   if (!phone) phone = buildPhone(THREE, shot, envMap, live ? live.texture : null);
   const holder = new THREE.Group(); holder.add(phone); scene.add(holder);
   if (shot.hide_phone) holder.visible = false;   // a phone-free title card on the backdrop (the references' Android 17 / All-Day Battery cards)
-  const stage = shot.object !== 'chip' && (shot.layers3d || shot.wall) ? buildUiStage(THREE, shot, phone, holder, scene, envMap, Math.max(0.5, (shot.end ?? 0) - (shot.start ?? 0))) : null;
+  const stage = !(shot.object === 'chip' || isProp) && (shot.layers3d || shot.wall) ? buildUiStage(THREE, shot, phone, holder, scene, envMap, Math.max(0.5, (shot.end ?? 0) - (shot.start ?? 0))) : null;
   // dark finishes (Titanium Black...) reflect almost nothing as pure metal: lift the base colour to a floor and the reflections with it,
   // so the frame and back still carry broad soft highlights; light finishes are left as they are so they never blow out
-  if (shot.object !== 'chip') {
+  if (!(shot.object === 'chip' || isProp)) {
     const seen = new Set(), lum = (c) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b, FLOOR = 0.075;
     // how dark the finish is comes from the body colours (frame + back); the small dark metal parts (lens collars, port lip) would
     // otherwise make every phone count as black and push every light to full
@@ -686,22 +690,22 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
       }
     });
   }
-  if (shot.object !== 'chip' && shot.object !== 'iphone') scene.environmentIntensity = 0.9 + 0.5 * darkness;
-  const keyI = shot.object === 'iphone' ? 2.2 : shot.object === 'chip' ? 0.9 : 0.9 + 1.6 * darkness;
+  if (!(shot.object === 'chip' || isProp) && shot.object !== 'iphone') scene.environmentIntensity = 0.9 + 0.5 * darkness;
+  const keyI = shot.object === 'iphone' ? 2.2 : isProp ? 1.9 : shot.object === 'chip' ? 0.9 : 0.9 + 1.6 * darkness;
   const key = new THREE.DirectionalLight(0xffffff, keyI); key.position.set(-3, 4, 5); scene.add(key);
-  const fill = new THREE.DirectionalLight(0xdfe8ff, shot.object === 'chip' ? 0 : 0.2 + 0.7 * darkness); fill.position.set(4, 1, 3); scene.add(fill);
+  const fill = new THREE.DirectionalLight(0xdfe8ff, isProp ? 0.7 : shot.object === 'chip' ? 0 : 0.2 + 0.7 * darkness); fill.position.set(4, 1, 3); scene.add(fill);
   const wash = shot.wash ? new THREE.Color(shot.wash) : null, washTex = glowTexture(THREE);
   const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: washTex, color: wash || '#000', transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: wash && bd !== 'wash' ? 0.24 : 0 }));
   glow.scale.setScalar(shot.wash_size ?? 14); scene.add(glow);
   // light finishes on macro / edge-on moves are where the frame turns into a white sheet: rim, key and reflections are capped there
-  const NEAR = ['island', 'island_old', 'screen', 'edge', 'port', 'buttons', 'profile'].includes(shot.move), lightFin = shot.object !== 'chip' && shot.object !== 'iphone' && darkness < 0.35;
+  const NEAR = ['island', 'island_old', 'screen', 'edge', 'port', 'buttons', 'profile'].includes(shot.move), lightFin = !(shot.object === 'chip' || isProp) && shot.object !== 'iphone' && darkness < 0.35;
   const glareCap = lightFin && NEAR ? 0.4 : lightFin ? 0.8 : 1;
   if (glareCap < 1) { key.intensity *= 0.55 + 0.45 * glareCap; fill.intensity *= 0.7; }
-  const rimK = (shot.object === 'chip' || shot.object === 'iphone' ? 1 : 0.4 + 0.6 * darkness) * glareCap;   // light finishes get a gentler rim, or the edges blow out
+  const rimK = ((shot.object === 'chip' || isProp) || shot.object === 'iphone' ? 1 : 0.4 + 0.6 * darkness) * glareCap;   // light finishes get a gentler rim, or the edges blow out
   const rimA = new THREE.PointLight(wash || 0x7fa6ff, (wash ? 14 : 4) * rimK, 12, 1.6), rimB = new THREE.PointLight(0x9fd8ff, (bd === 'studio' ? 1.2 : 5) * rimK, 12, 1.6);   // studio: low, or it pools on the floor
   if (bd === 'daylight') {   // a bright set: a stronger soft key and fill, rims down (they only glow against the dark), fuller reflections
     key.intensity = 2.3 * glareCap + 0.6; fill.intensity = 1.0; rimA.intensity *= 0.2; rimB.intensity *= 0.2;
-    if (shot.object !== 'chip') scene.environmentIntensity = 1.25;
+    if (!(shot.object === 'chip' || isProp)) scene.environmentIntensity = 1.25;
   }
   scene.add(rimA, rimB);   // the silhouette edge against the dark
   // the backdrop plate (wash / horizon / studio): camera-facing, beyond the object, in front of the star sphere
@@ -716,11 +720,11 @@ export async function buildProduct(THREE, shot, { stars, renderer, W, H }) {
   // ---- the reveal kit: power-on, the screen's halo, the window-light streak, dry-ice fog, light dims (all pure functions of t) ----
   const dur0 = Math.max(0.5, (shot.end ?? 0) - (shot.start ?? 0)), scrOpt = shot.screen || {};
   const powerOn = typeof scrOpt.power_on === 'number' ? scrOpt.power_on : shot.move === 'reveal' ? (shot.turn_at ?? 0.45) * dur0 + 0.8 : -1;
-  const halo = shot.glow && shot.object !== 'chip' ? new THREE.Sprite(new THREE.SpriteMaterial({ map: washTex, color: wallpaperTint(THREE, scrOpt.tint || spec?.back_color || shot.tone),
+  const halo = shot.glow && !(shot.object === 'chip' || isProp) ? new THREE.Sprite(new THREE.SpriteMaterial({ map: washTex, color: wallpaperTint(THREE, scrOpt.tint || spec?.back_color || shot.tone),
     transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 })) : null;
   if (halo) { halo.scale.set(2.5, 3.6, 1); scene.add(halo); }
   let streak = null;
-  if (shot.streak && shot.object !== 'chip') {   // a crisp diagonal band of window light riding just above the back glass (the island occludes it)
+  if (shot.streak && !(shot.object === 'chip' || isProp)) {   // a crisp diagonal band of window light riding just above the back glass (the island occludes it)
     const ud = phone.userData || {}, PW = ud.W || 0.9557, PH = ud.H || 2, PZ = (ud.D || 0.0973) / 2 + 0.0095;
     const col = new THREE.Color(spec?.back_color || shot.tone || '#c8ccd2').lerp(new THREE.Color("#ffffff"), 0.25);
     streak = new THREE.Mesh(new THREE.PlaneGeometry(PW, PH), new THREE.ShaderMaterial({

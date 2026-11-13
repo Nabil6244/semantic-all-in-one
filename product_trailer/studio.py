@@ -62,7 +62,7 @@ def bar_phones(spec: Dict[str, Any], phone: str) -> None:
                 ph.setdefault("design", "bar")
 
 
-MODEL_RE = re.compile(r"\b(iphone\s*\d+(?:\s*(?:pro\s*max|pro|plus|air|e))?|pixel\s*\d+(?:\s*(?:pro\s*xl|pro|a))?|(?:galaxy\s*)?s\d{2}(?:\s*(?:ultra|plus|\+|fe|edge|pro))?)\b", re.I)
+MODEL_RE = re.compile(r"\b(iphone\s*air(?:\s*\d)?|iphone\s*\d+(?:\s*(?:pro\s*max|pro|plus|air)|e)?|pixel\s*\d+(?:\s*(?:pro\s*xl|pro|a))?|(?:galaxy\s*)?s\d{2}(?:\s*(?:ultra|plus|\+|fe|edge|pro))?)\b", re.I)
 
 
 def consistent_phones(spec: Dict[str, Any]) -> None:
@@ -80,8 +80,11 @@ def consistent_phones(spec: Dict[str, Any]) -> None:
             key = re.sub(r"\s+|galaxy", "", m.group(1).lower())
             if key not in seen:
                 look: Dict[str, Any] = {"color": ph.get("color")}
-                if ph.get("design") == "bar":
-                    look["design"] = "bar"
+                if ph.get("design") in ("bar", "air", "pill"):    # a camera the phone's own preset gave it (subject.fix_phones) is kept
+                    look["design"] = ph["design"]
+                    look["cams"] = ph.get("cams") or 2
+                elif re.fullmatch(r"iphone\d+e", key):           # the budget "e" iPhones: one lens, no camera module
+                    look.update({"design": "column", "cams": 1})
                 elif key.startswith("iphone"):
                     look.update({"design": "iphone", "cams": 3 if "pro" in key else 2})
                 elif key.startswith("pixel"):
@@ -92,6 +95,8 @@ def consistent_phones(spec: Dict[str, Any]) -> None:
                     look["cams"] = ph.get("cams") or 3
                 if look.get("design") == "bar":
                     look["cams"] = ph.get("cams") or 3
+                if look.get("design") in ("air", "pill"):
+                    look["cams"] = ph.get("cams") or 2
                 seen[key] = look
             ph.update({k: v for k, v in seen[key].items() if v is not None})
 
@@ -238,6 +243,10 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
             if look == "mixed" and not footage_library:       # the variety pass swaps scenes for generic 3D shots; the footage library chooses its own visuals
                 parsed = balance.balance(parsed, phone, footage=bool(stock_settings))        # keep every reference look in rotation
             parsed = put_features(parsed)
+            if not footage_library:                   # lists, steps, numbers, statuses and the things named get graphics and 3D props of their own
+                from . import narration_gfx
+
+                parsed = narration_gfx.apply(parsed, log)
             if look == "news":                        # footage first: YouTube runs of this phone by subject, then stock for what is left
                 from . import news_footage as NF
 
@@ -272,7 +281,12 @@ def plan_film(film_type: str, *, out_dir, csv: Optional[str] = None, script: Opt
             if dur <= 0:
                 raise ValueError("The voice-over's length could not be read.")
             lines = [i["text"] for c in parsed["chapters"] for i in c["items"] if i["kind"] == "line"]
-            spec = review.plan_review_timed(parsed, pack, results, vo.align_lines(lines, ws, dur), ws, media_dir=media, width=width, height=height, fps=fps, product=prod, style=style)
+            voice = vo.align_lines(lines, ws, dur)
+            spec = review.plan_review_timed(parsed, pack, results, voice, ws, media_dir=media, width=width, height=height, fps=fps, product=prod, style=style)
+            from .subject import follow
+            moved = follow(spec, lines, [float(sp[0]) for sp in voice["spans"]], phone)   # the 3D phone is the one the sentence is about
+            if moved:
+                log(f"{moved} 3D shots show the phone their sentence is about.")
         else:
             spec = review.plan_review(parsed, pack, results, media_dir=media, width=width, height=height, fps=fps, product=prod, style=style)
         notes = spec.get("whatif", {}).get("notes", [])

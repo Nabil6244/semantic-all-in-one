@@ -338,6 +338,9 @@ def over_layers(it: Dict[str, Any], phone: str, a: float, b: float) -> List[Dict
     return [{"type": "pt_fact", "items": [dict(x) for x in facts["items"]], "kicker": facts.get("kicker") or "", "start": round(a + 0.1, 3), "end": round(b - 0.05, 3)}]
 
 
+PROP_LOOK = {"server": ("studio", "#3ac8ff"), "shield": ("charcoal", "#2ee6a8"), "calendar": ("studio", "#e5484d"), "apps": ("charcoal", "#9b8cff")}
+
+
 def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int, product: Optional[Dict[str, Any]] = None, style: str = "cinematic"):
     """The shot and layers of one non-spoken item (chart, stat, X-ray, fold, lineup, chip, macro, big word, intro, outro): (shot fields, make(a, b) -> layers, seconds)."""
     kind = it["kind"]
@@ -354,6 +357,14 @@ def directive_visual(it: Dict[str, Any], phone: str, cols: Sequence[str], k: int
         shot = {"kind": "product", "object": "phone", "phone": phone, "move": "hero_back", "backdrop": REVIEW_SET, "seed": 61 + k}
         return shot, lambda a, b: [{"type": "pt_sides", "items": [dict(x) for x in items], "ink": "dark" if REVIEW_SET == "daylight" else "light",
                                     "start": round(a + 0.15, 3), "end": round(b - 0.05, 3)}], sec
+    if kind == "gfx":                                # a graphic drawn from what the sentence says (narration_gfx.py): its own layer on the dark plate
+        L0 = dict(it["layer"])
+        return {"kind": "plate", "tint": "cool"}, lambda a, b: [{**copy.deepcopy(L0), "start": round(a + 0.1, 3), "end": round(b - 0.05, 3)}], DIRECTIVE_SECONDS.get("gfx", 6.0)
+    if kind == "prop":                               # a 3D prop the sentence is about (whatif-engine/lib/props3d.mjs): server, shield, calendar, app icons
+        look = PROP_LOOK.get(it["object"], ("studio", "#3ac8ff"))
+        shot = {"kind": "product", "object": it["object"], "move": it.get("move") or "prop_turn", "backdrop": look[0], "wash": look[1], "glow": look[1], "seed": 71 + k,
+                **{f: copy.deepcopy(it[f]) for f in ("label", "sublabel", "pages", "apps") if it.get(f) not in (None, "")}}
+        return shot, lambda a, b: [], DIRECTIVE_SECONDS.get("prop", 6.0)
     if kind == "chip" and it.get("flat"):            # a named chip as the film's chip badge (pt_badge), not a 3D chip marked "Reported"
         flat = paper_form(it, phone, cols, k)
         if flat:
@@ -1244,7 +1255,7 @@ def plan_review_timed(parsed: Dict[str, Any], pack: Dict[str, Any], results: Opt
                        and any(fn(f["line"]["text"]) for typ, fn in _canvas_talk().items() if any(L["type"] == typ for L in held)))   # colour cards / lens callouts keep building (gaps 3-4)
         if (style in ("follow", "news") and not units and last_dir and shots and shots[-1] is last_dir["shot"] and b - last_dir.get("t0", 0.0) <= limit) or swatch_hold:
             prev = shots[-1]                             # a line with no picture of its own keeps the scene before it on screen (as the references do)
-            if b - prev["start"] > MAX_HOLD_S and all(L["type"] in ("pt_paper", "pt_flatphones") for L in held):
+            if b - prev["start"] > MAX_HOLD_S and held and all(L["type"] in ("pt_paper", "pt_flatphones") for L in held):   # a 3D scene with no layers (a prop) is held by growing it, never copied as an empty black shot
                 n0 = prev["end"]                         # a long hold continues as a settled copy of the same scene (a cut between identical frames is invisible)
                 hold_copy(n0, b, held)
             else:

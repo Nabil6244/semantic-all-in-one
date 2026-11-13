@@ -16,6 +16,8 @@ const shade = (hex, k) => { const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ''
 // ("Google-like" too); everything else keeps the lens column (a camera-bar Galaxy is set by the planner as design "bar")
 export function designFor(p) {
   const t = `${p.label || ''} ${p.top || ''}`.toLowerCase();
+  if (/\biphone\s*air\b/.test(t)) return 'air';
+  if (/\biphone\s*1[6-9]e?\b(?!\s*pro)/.test(t)) return 'pill';
   if (/\biphone\b/.test(t)) return 'iphone';
   if (/\b(pixel|google)\b/.test(t)) return 'pixel';
   return null;
@@ -88,7 +90,7 @@ export default {
       const gr = g.createLinearGradient(x, y0, x + ph_w, y0 + ph_h); gr.addColorStop(0, shade(col, 1.25)); gr.addColorStop(1, shade(col, 0.8));
       g.fillStyle = gr; g.beginPath(); g.roundRect(x, y0, ph_w, ph_h, r); g.fill();
       g.shadowColor = 'transparent'; g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 2 * S; g.stroke();
-      const cams = Math.max(2, Math.min(4, p.cams || 3)), cr = ph_w * 0.095;      // lens circles down the top-left
+      const cams = Math.max(1, Math.min(4, p.cams || 3)), cr = ph_w * 0.095;      // lens circles down the top-left
       const design = p.design || designFor(p);
       if (design === 'bar') { drawBarBack(g, x, y0, ph_w, ph_h, r, col, cams, S); }
       else if (design === 'iphone') {                                            // a square camera module, lenses in a triangle, the flash beside them
@@ -96,6 +98,18 @@ export default {
         g.fillStyle = shade(col, 1.12); g.strokeStyle = 'rgba(255,255,255,0.25)'; g.lineWidth = Math.max(1, 1.5 * S); g.beginPath(); g.roundRect(mx, my, side, side, side * 0.26); g.fill(); g.stroke();
         [[0.3, 0.29], [0.3, 0.71], [0.71, 0.5]].slice(0, Math.max(2, Math.min(3, cams))).forEach(([u, v]) => lens(g, mx + side * u, my + side * v, R));
         g.fillStyle = '#f4ead2'; g.beginPath(); g.arc(mx + side * 0.71, my + side * 0.2, R * 0.28, 0, 7); g.fill();
+      } else if (design === 'air') {                                             // iPhone Air: a plateau across the full width at the top, lenses side by side on the left
+        const bh = ph_w * 0.3, by = y0 + ph_w * 0.045, R = bh * 0.3, n = Math.max(1, Math.min(3, p.cams || 1));
+        g.fillStyle = shade(col, 1.14); g.strokeStyle = 'rgba(255,255,255,0.3)'; g.lineWidth = Math.max(1, 1.5 * S);
+        g.beginPath(); g.roundRect(x + ph_w * 0.012, by, ph_w * 0.976, bh, bh * 0.42); g.fill(); g.stroke();
+        for (let c = 0; c < n; c++) lens(g, x + ph_w * (0.17 + c * 0.215), by + bh / 2, R);
+        g.fillStyle = '#f4ead2'; g.beginPath(); g.arc(x + ph_w * (n > 1 ? 0.64 : 0.6), by + bh / 2, R * 0.32, 0, 7); g.fill();
+      } else if (design === 'pill') {                                            // base iPhone 17/18: two lenses in a vertical pill, the flash under them
+        const pw = ph_w * 0.24, phh = ph_w * 0.56, px = x + ph_w * 0.08, py = y0 + ph_w * 0.08, R = pw * 0.36;
+        g.fillStyle = shade(col, 1.14); g.strokeStyle = 'rgba(255,255,255,0.3)'; g.lineWidth = Math.max(1, 1.5 * S);
+        g.beginPath(); g.roundRect(px, py, pw, phh, pw / 2); g.fill(); g.stroke();
+        lens(g, px + pw / 2, py + pw * 0.52, R); lens(g, px + pw / 2, py + pw * 1.42, R);
+        g.fillStyle = '#f4ead2'; g.beginPath(); g.arc(px + pw / 2, py + phh - pw * 0.3, R * 0.3, 0, 7); g.fill();
       } else if (design === 'pixel') {                                           // a camera visor across the full width, lenses in a row
         const bh = ph_h * 0.085, by = y0 + ph_h * 0.12, R = bh * 0.32;
         g.fillStyle = '#15171b'; g.beginPath(); g.roundRect(x - ph_w * 0.01, by, ph_w * 1.02, bh, bh / 2); g.fill();
