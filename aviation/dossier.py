@@ -544,10 +544,43 @@ def lay_callouts(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Imag
     return im
 
 
+def lay_figure(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
+    """One figure that matters (J4): a big counting value, its word under it, and a change chip ('+40 % ON A YEAR EARLIER') in
+    red or green when the line states the change."""
+    val = p.get("value")
+    if val is None:
+        return None
+    im = _frame(t, p)
+    d = ImageDraw.Draw(im)
+    sc = S.scale()
+    k = _k(t, 0.4, 1.2)
+    unit, suf = str(p.get("unit") or ""), str(p.get("suffix") or "")
+    shown = float(val) * k
+    dec = 1 if abs(float(val)) < 100 and float(val) != int(float(val)) else 0
+    txt = f"{unit}{shown:,.{dec}f}{suf}"
+    col = RED if p.get("bad") else ORANGE
+    f = S.font("title", 96)
+    d.text((int(110 * sc), int(250 * sc)), txt, font=f, fill=col)
+    if p.get("label"):
+        _text(d, (int(116 * sc), int(250 * sc) + int(f.size * 1.15)), str(p["label"]).upper(), 18, S.WHITE)
+    if p.get("delta") and t > 1.4:
+        kd = _k(t, 1.4, 0.4)
+        lab = str(p["delta"]).upper()
+        fd = S.font("body", 18)
+        tw = d.textlength(lab, font=fd)
+        x, y = int(116 * sc), int(250 * sc) + int(f.size * 1.15) + int(48 * sc)
+        dc = RED if p.get("delta_bad") else (80, 200, 130, 255)
+        d.rectangle((x, y, x + (tw + 30) * kd, y + 36), fill=(32, 34, 39, 235))
+        d.rectangle((x, y, x + 5, y + 36), fill=dc)
+        if kd > 0.9:
+            d.text((x + 16, y + 7), lab, font=fd, fill=S.WHITE)
+    return im
+
+
 CARDS = {"dossier.lay_share": lay_share, "dossier.lay_range": lay_range, "dossier.lay_icons": lay_icons,
          "dossier.lay_markers": lay_markers, "dossier.lay_options": lay_options, "dossier.lay_quotes": lay_quotes,
          "dossier.lay_flow": lay_flow, "dossier.lay_family": lay_family, "dossier.lay_newspaper": lay_newspaper,
-         "dossier.lay_reveal": lay_reveal, "dossier.lay_callouts": lay_callouts}
+         "dossier.lay_reveal": lay_reveal, "dossier.lay_callouts": lay_callouts, "dossier.lay_figure": lay_figure}
 
 
 # ---------------------------------------------------------------------------------------------------------------- picking
@@ -557,7 +590,7 @@ import re as _re
 _QUOTE = _re.compile(r"[\"“]([^\"”]{12,140})[\"”]")
 _SAID = _re.compile(r"\b([A-Z][\w\-]+(?:\s+[A-Z][\w\-]+){0,3})\s+(?:said|says|called|described|told|wrote|added)\b")
 _RANGE_WORDS = _re.compile(r"\bbetween\b|\bestimat\w*|\bup to\b|\bsomewhere\b|\branging\b|\bfrom\b.*\bto\b", _re.I)
-_SHARE_WORDS = _re.compile(r"\bshare\b|\bmade in\b|\bbuilt in\b|\blocal\w*\b|\bimport\w*|\bstake\b|\bof the\b|\bowned\b|\bsupplied\b", _re.I)
+_SHARE_WORDS = _re.compile(r"\bpercent of\b|\bper cent of\b|%\s+of\b|\bshare\b|\bmade in\b|\bbuilt in\b|\blocal\w*\b|\bimport\w*|\bstake\b|\bof the\b|\bowned\b|\bsupplied\b", _re.I)
 _LABELS = (("price", "THE PRICE"), ("cost", "THE COST"), ("profit", "PROFIT"), ("loss", "LOSS"), ("revenue", "REVENUE"),
            ("stake", "THE STAKE"), ("share", "THE SHARE"), ("order", "THE ORDER"), ("deal", "THE DEAL"), ("fleet", "THE FLEET"),
            ("passenger", "PASSENGERS"), ("import", "IMPORTS"))
@@ -598,6 +631,28 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
         who = (r or {}).get("person") or (_SAID.search(text).group(1) if _SAID.search(text) else "")
         return "dossier.lay_quotes", {"title": "On the record", "sub": sub, "quotes": [{"text": q.group(1).strip(), "who": who, "side": "a"}]}
     money = v.get("money") or []
+    unit_of = lambda cur: {"USD": "$", "EUR": "\u20ac", "GBP": "\u00a3", "SGD": "S$"}.get(cur, "")
+
+    def _scaled(x: float):
+        return (round(x / 1e9, 3), " BN") if x >= 1e9 else ((round(x / 1e6, 1), " M") if x >= 1e6 else (x, ""))
+    # 'N are in Europe, N in Africa ...': the split of a whole, as a share bar of several parts
+    split = _re.findall(r"(\d+)\s+(?:are|were)?\s*in\s+((?:South and Central |North |South |Central |Southern |Northern )?"
+                        r"(?:Europe|America|Africa|Asia|the Middle East|Oceania|Brazil|the United States))", text)
+    if len(split) >= 3:
+        tot = sum(int(n) for n, _ in split)
+        sides_ = ["a", "b", "warn", "grey"]
+        return "dossier.lay_share", {"title": _title(c, text, "WHERE IT FLIES"), "sub": sub, "big": str(tot),
+                                     "parts": [{"label": f"{reg} {n}", "pct": 100.0 * int(n) / tot, "side": sides_[min(i, 3)]}
+                                               for i, (n, reg) in enumerate(split)]}
+    # 'X for 44.9 percent of Y': a stake bought for a price - the share bar with the price as the big figure
+    pcts0 = v.get("percent") or []
+    if money and pcts0 and _re.search(r"\bfor\s+[\d.]+\s*(?:%|percent|per cent)\s+of\b", text, _re.I):
+        val, suf = _scaled(float(money[0][1]))
+        p0 = float(pcts0[0])
+        buyer = getattr(c, "airlines", [])
+        return "dossier.lay_share", {"title": _title(c, text, "THE STAKE"), "sub": sub, "big": f"{unit_of(money[0][0])}{val:g}{suf}",
+                                     "parts": [{"label": f"{buyer[0]['name'] if buyer else 'BUYER'} {p0:g} %", "pct": p0, "side": "a"},
+                                               {"label": "", "pct": 100 - p0, "side": "b"}]}
     if len(money) >= 2 and _RANGE_WORDS.search(text) and not v.get("changes"):
         cur = money[0][0]
         vals = sorted(float(m[1]) for m in money[:2])
@@ -616,6 +671,16 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
         return "dossier.lay_share", {"title": _title(c, text, "THE SHARE"), "sub": sub,
                                      "parts": [{"label": (m.group(0) if m else ""), "pct": p, "side": sa},
                                                {"label": "", "pct": 100 - p, "side": sb}], "big": f"{p:g} %"}
+    if len(money) == 1 and not v.get("changes"):
+        lowt = text.lower()
+        bad = bool(_re.search(r"\blost\b|\bloss\b|\bdebt\b|\bfell\b|\bdown\b|\bcost\b", lowt))
+        m = _re.search(r"([\d.]+)\s*(?:%|percent|per cent)\s+(more|less|higher|lower|up|down)(?:\s+than)?\s+(a year earlier|the year before|last year)?", text, _re.I)
+        if m or _re.search(r"\blost\b|\bprofit\b|\brevenue\b|\bcharge\b", lowt):
+            val, suf = _scaled(float(money[0][1]))
+            delta = f"{'+' if m and m.group(2).lower() in ('more', 'higher', 'up') else '-'}{m.group(1)} % {(m.group(3) or '').strip()}".strip() if m else ""
+            lab = next((L for w, L in _LABELS if w in lowt), "LOSS" if "lost" in lowt else "")
+            return "dossier.lay_figure", {"title": _title(c, text, lab or "THE FIGURE"), "sub": sub, "value": val, "unit": unit_of(money[0][0]),
+                                          "suffix": suf, "label": lab, "bad": bad, "delta": delta, "delta_bad": bad}
     counts = dict((n, x) for x, n in (v.get("counts") or []))
     n_ac = next((counts[w] for w in ("aircraft", "jets", "planes", "airliners", "fighters") if counts.get(w)), 0)
     if n_ac >= 5:
@@ -628,4 +693,52 @@ def pick(c: Any, r: Optional[Dict[str, Any]] = None) -> Optional[tuple]:
         return "dossier.lay_markers", {"title": "The dates", "sub": "", "start": ys[0] - 1, "end": ys[-1] + 1,
                                        "markers": [{"year": y, "label": str(y), "side": line_side or ("a" if i % 2 == 0 else "b")}
                                                    for i, y in enumerate(ys)]}
+    return None
+
+
+def from_csv(graphic: str, c: Any, r: Dict[str, Any]) -> Optional[tuple]:
+    """A dossier card the CSV asks for by name, filled from the row's `split` column (entries separated by '|', 'label: text'):
+       markers  'Nov 2025: three bidders | Apr 2026: IAG out | Oct 2026: Lufthansa chosen'   (years read from each entry)
+       options  'Air France-KLM: its only hub in southern Europe | Lufthansa: leading South Atlantic carrier'
+       family   'Lufthansa | Swiss | Austrian | ITA Airways | TAP Air Portugal'                (airlines from the catalog)
+       quotes   'Reuters: the main attraction of the airline'
+       dossier  the line's own card (pick), whatever the rotation says
+    Every word is the CSV's (from the script); nothing is invented here."""
+    from . import catalog as C
+    g = str(graphic or "").strip().lower()
+    parts = [x.strip() for x in str((r or {}).get("split") or "").split("|") if x.strip()]
+    title = str((r or {}).get("title") or "").strip()
+    if g == "dossier":
+        return pick(c, r)
+    if g == "markers" and parts:
+        ms = []
+        for i, x in enumerate(parts):
+            y = _re.search(r"(19|20)\d\d", x)
+            if y:
+                ms.append({"year": int(y.group(0)), "label": x, "side": "warn" if i == len(parts) - 1 else ("a" if i % 2 == 0 else "b")})
+        if len(ms) >= 2:
+            ys = [m["year"] for m in ms]
+            return "dossier.lay_markers", {"title": title or "The timeline", "start": min(ys) - 1, "end": max(ys) + 1, "markers": ms}
+    if g == "options" and parts:
+        opts = []
+        for i, x in enumerate(parts[:3]):
+            name, _, rest = x.partition(":")
+            hit = C.find_airlines(name)
+            typ = ""
+            opts.append({"title": name.strip(), "sub": rest.strip(), "side": "a" if i == 0 else "b", "type": typ})
+        return "dossier.lay_options", {"title": title or "The offers", "options": opts}
+    if g == "family" and parts:
+        mem = []
+        for i, x in enumerate(parts[:4]):
+            hit = [m.entry for m in C.find_airlines(x) if m.entry]
+            al = hit[0] if hit else {}
+            mem.append({"name": al.get("name") or x, "sub": (f"since {al['founded']}" if al.get("founded") else ""),
+                        "airline": al.get("id", ""), "side": "a" if i == len(parts[:4]) - 1 else "b"})
+        return "dossier.lay_family", {"title": title or "The group", "members": mem}
+    if g == "quotes" and parts:
+        qs = []
+        for i, x in enumerate(parts[:2]):
+            who, _, words = x.partition(":")
+            qs.append({"text": words.strip() or who.strip(), "who": who.strip() if words else "", "side": "a" if i == 0 else "warn"})
+        return "dossier.lay_quotes", {"title": title or "On the record", "quotes": qs}
     return None

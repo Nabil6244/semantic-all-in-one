@@ -28,9 +28,9 @@ def _photo(tmp_path, name, col, flat=False):
 
 
 def test_requests_found_on_first_pass():
-    pl = P.plan(_scenes(LINES), [{}, {}, {}, {"url": "https://example.com/msa"}])
+    pl = P.plan(_scenes(LINES), [{}, {"url": "https://example.com/msa"}, {}, {}])     # the cited page on a story line
     kinds = sorted(e["kind"] for _, e in W.requests(pl))
-    assert "paper" in kinds and "photo_card" in kinds
+    assert "paper" in kinds and ("photo_card" in kinds or "backdrop" in kinds)
 
 
 def test_two_pass_places_only_passed_pictures(tmp_path):

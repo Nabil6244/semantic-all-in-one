@@ -19,7 +19,7 @@ from . import catalog as C
 from . import router as R
 
 COLUMNS = ("scene_number", "script_segment", "asset_type", "prompt", "graphic", "mode", "airline", "aircraft", "from", "to", "time",
-           "fuel", "altitude", "article", "radio", "url", "search", "owners", "split", "person", "role", "quote")
+           "fuel", "altitude", "article", "radio", "url", "search", "owners", "split", "person", "role", "quote", "title")
 PROMPT_FILE = Path(__file__).resolve().parent / "data" / "aviation_csv_prompt.txt"
 
 
@@ -122,6 +122,7 @@ def read_rows(path: Any) -> List[Dict[str, Any]]:
             "person": get(row, "person"),
             "role": get(row, "role"),
             "quote": get(row, "quote"),
+            "title": get(row, "title"),
             "cls": cls,
         })
     return rows

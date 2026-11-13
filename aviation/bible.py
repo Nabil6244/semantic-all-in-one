@@ -410,9 +410,12 @@ def read(lines: Sequence[str], rows: Optional[Sequence[dict]] = None) -> Bible:
                      "aircraft": craft, "airports": airports, "place": place, "roles": roles_in(text), "mood": mood,
                      "_mood_own": bool(m_)})
     first_own = next((r["mood"] for r in recs if r["_mood_own"]), None)
+    seen_own = False
     for r in recs:                                    # lines before the first mood word take the first chapter's mood
-        if first_own and r["mood"] == "steady" and not any(x["_mood_own"] for x in recs[:r["no"] + 1]):
+        seen_own = seen_own or r["_mood_own"]
+        if first_own and r["mood"] == "steady" and not seen_own:
             r["mood"] = first_own
+    for r in recs:                                    # the helper flag goes only after every line was looked at
         r.pop("_mood_own", None)
 
     b = Bible(lines=recs)

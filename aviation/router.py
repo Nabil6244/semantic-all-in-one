@@ -327,6 +327,22 @@ def classify(text: str) -> Classification:
 
 # ---------------------------------------------------------------------------------------------------------------- script
 
+_HISTORY = re.compile(r"\bfounded\b|\bformed\b|\bestablished\b|\brenamed\b|\brebrand\w*|\bsplit\w*|\bmerged\b|\bmerger\b|"
+                      r"\bjoint venture\b|\bindependen\w*|\bflag carrier\b|\bnational airline\b|\bcreated\b|\bfirst (?:aircraft|flight)\b|"
+                      r"\bbegan\b|\bdecades?\b|\bcentury\b|\bhistory\b|\bcolon\w*", re.I)
+_FLIGHT_ACT = re.compile(r"\btook off\b|\btakes? off\b|\btaking off\b|\blanded\b|\btouch(?:ed|es)? down\b|\bdescend\w*|"
+                         r"\bon approach\b|\bthe crew\b|\bthe captain\b|\bfirst officer\b|\bair traffic\b|\batc\b|\bdiverted\b|"
+                         r"\bholding pattern\b|\bcruising altitude\b|\bmayday\b", re.I)
+
+
+def has_flight_story(cls: Sequence["Classification"]) -> bool:
+    """True when the script tells a flight: a flight number, a clock time, fuel or an altitude, or at least two lines of what an
+    aircraft / crew is doing (take-off, landing, descent, ATC ...)."""
+    if any(c.values.get(k) for c in cls for k in ("flights", "times", "fuel_kg", "altitude_ft")):
+        return True
+    return sum(1 for c in cls if _FLIGHT_ACT.search(c.text)) >= 2
+
+
 def route_script(lines: Sequence[str]) -> List[Classification]:
     out = [classify(s) for s in lines]
     # story: a line about a year far (> 15 years) before the latest year of the script, unless it is clearly flight / weather / evidence
@@ -339,6 +355,25 @@ def route_script(lines: Sequence[str]) -> List[Classification]:
                 c.scores["story"] += 3.0
                 c.reasons.append(f"story +3 year {old[0]} is {latest - old[0]} years before {latest}")
                 c.mode, c.neutral = _decide(c.scores)
+    # story is history: on a line about the present (no year > 15 years back, no founding / renaming / split / merger words)
+    # ownership and government words ('stake', 'owned', 'government', 'majority') describe today's deal, a news line
+    if all_years:
+        for c in out:
+            if c.mode != "story":
+                continue
+            old = [y for y in c.values.get("years", ()) if latest - y > 15]
+            if not old and not _HISTORY.search(c.text):
+                c.scores["story"] = min(c.scores.get("story", 0.0), 1.0)
+                c.mode, c.neutral = _decide(c.scores)
+                c.reasons.append("story 1: a present-day line (no old year, no history words)")
+    # flight needs a flight: a script that never tells one (no flight number, clock time, fuel, altitude, take-off / landing /
+    # ATC words) is a business or history story; its 'runway', 'airport', 'climbed back' lines are not a flight sequence
+    if not has_flight_story(out):
+        for c in out:
+            if c.mode == "flight" or c.scores.get("flight", 0) > 0:
+                c.scores["flight"] = 0.0
+                c.mode, c.neutral = _decide(c.scores)
+                c.reasons.append("flight 0: the script tells no flight")
     # neutral lines take the previous decided mode (or the next one at the start of the script)
     for i, c in enumerate(out):
         if not c.neutral:

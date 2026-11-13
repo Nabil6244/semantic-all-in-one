@@ -116,3 +116,17 @@ def test_part_callouts_from_the_lines_words():
     assert D.parts_in("Singapore Airlines flew to London.") == []
     a, b = D.lay_callouts(0.5, 5.0, p), D.lay_callouts(4.5, 5.0, p)
     assert a.tobytes() != b.tobytes() and D.lay_callouts(1.0, 5.0, {"parts": ["wings"]}) is None   # needs an aircraft
+
+
+def test_csv_asks_for_dossier_cards():
+    from aviation import planner as P, router as R
+    c = R.classify("That is why three airline groups raised their hands.")
+    m = D.from_csv("markers", c, {"split": "Nov 2025: three bidders | Apr 2026: IAG out | Oct 2026: Lufthansa chosen"})
+    assert m[0] == "dossier.lay_markers" and [x["year"] for x in m[1]["markers"]] == [2025, 2026, 2026]
+    f = D.from_csv("family", c, {"split": "Lufthansa | Swiss | Austrian | TAP Air Portugal"})
+    assert [x["airline"] for x in f[1]["members"]] == ["lufthansa", "swiss", "austrian", "tap"]
+    o = D.from_csv("options", c, {"split": "Air France-KLM: its only hub in southern Europe | Lufthansa: South Atlantic routes"})
+    assert [x["title"] for x in o[1]["options"]] == ["Air France-KLM", "Lufthansa"]
+    pl = P.plan(_scenes(["That is why three airline groups raised their hands.", "Lufthansa won."]),
+                [{"mode": "news", "graphic": "markers", "split": "Nov 2025: three bidders | Oct 2026: Lufthansa chosen"}, {"mode": "news"}])
+    assert any(s.get("layer") == "dossier.lay_markers" for s in pl.shots)

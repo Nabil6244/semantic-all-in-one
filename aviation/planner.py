@@ -189,19 +189,18 @@ def _stage_with_clips(shot: Dict[str, Any], scenes, i: int, j: int, cards: Seque
 def _story_join(modes: List[str], forced: List[bool], cls: Sequence[Any]) -> List[str]:
     """A line next to a story line stays on the sticker stage instead of breaking the story: always a numbers line (its figures
     become sticker graphics); a fleet / people / news line when it scored weakly (< STRONG: no clear event of its own - for a
-    1960s airline no footage would match anyway). Runs join on either side. CSV modes, flight, weather and evidence are kept."""
+    1960s airline no footage would match anyway). Only a neighbour the ROUTER called story pulls a line in - a joined line never
+    pulls the next one, so one history line cannot turn a whole business story into stickers. CSV modes, flight, weather and
+    evidence are kept."""
+    orig = list(modes)
     out = list(modes)
-    changed = True
-    while changed:
-        changed = False
-        for k, m in enumerate(out):
-            if m not in JOIN_STORY or forced[k] or m == "story":
-                continue
-            if m != "numbers" and max(cls[k].scores.values() or [0]) >= STRONG:
-                continue
-            if (k > 0 and out[k - 1] == "story") or (k + 1 < len(out) and out[k + 1] == "story"):
-                out[k] = "story"
-                changed = True
+    for k, m in enumerate(orig):
+        if m not in JOIN_STORY or forced[k] or m == "story":
+            continue
+        if m != "numbers" and max(cls[k].scores.values() or [0]) >= STRONG:
+            continue
+        if (k > 0 and orig[k - 1] == "story") or (k + 1 < len(orig) and orig[k + 1] == "story"):
+            out[k] = "story"
     return out
 
 
@@ -348,6 +347,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
         i = j + 1
 
     _graphics(out, scenes, cls, rows)
+    _csv_dossier(out, scenes, cls, rows)
 
     # the next-episode card on a line that says 'the story of X'
     for k, s in enumerate(scenes):
@@ -452,6 +452,27 @@ def _graphics(out: Plan, scenes, cls, rows) -> None:
             if title:
                 _replace_with(out, a, b, {"layer": "gfx.lay_end_card", "start": a, "end": b, "scene": sc, "full_frame": True,
                                           "params": {"kicker": "THE STORY OF", "title": title}})
+
+
+DOSSIER_CSV = ("dossier", "markers", "options", "family", "quotes")
+
+
+def _csv_dossier(out: Plan, scenes, cls, rows) -> None:
+    """The CSV's `graphic` asks for a dossier card on this line: it covers the line (up to 6 s, the rest goes back to what was
+    planned), drawn over the stage or the clips under it."""
+    from . import dossier as DZ
+    for k, (s, c) in enumerate(zip(scenes, cls)):
+        r = _row(rows, k)
+        g = str(r.get("graphic") or "").strip().lower()
+        if g not in DOSSIER_CSV:
+            continue
+        card = DZ.from_csv(g, c, r)
+        if not card:
+            continue
+        a, b = float(s["start"]), float(s["end"])
+        e = min(b, a + 6.0)
+        _replace_with(out, a, e, {"layer": card[0], "start": a, "end": e, "scene": s.get("scene_no", k + 1), "full_frame": True,
+                                  "mode": out.modes[k] if k < len(out.modes) else "news", "params": dict(card[1])})
 
 
 def _replace_with(out: Plan, a: float, b: float, shot: dict) -> None:

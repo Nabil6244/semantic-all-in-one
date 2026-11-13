@@ -227,3 +227,12 @@ class PromptTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_bible_reads_a_long_business_script_without_crashing():
+    # the TAP / Lufthansa script crashed here: a mood flag was removed from earlier lines while later lines still read it
+    from aviation import bible as BB
+    lines = ["Here is the strange part.", "TAP lost 99.2 million euros in the first half of this year.", "Now the airport.",
+             "Tourism is booming, and the capital's airport is full.", "Then the story flips.", "The airline is seasonal, not sinking."]
+    b = BB.read(lines)
+    assert len(b.lines) == len(lines) and all("_mood_own" not in r for r in b.lines)
