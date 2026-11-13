@@ -55,6 +55,7 @@ class Plan:
     modes: List[str] = field(default_factory=list)
     log: List[Dict[str, Any]] = field(default_factory=list)
     retention: Dict[str, Any] = field(default_factory=dict)
+    balance: Dict[str, Any] = field(default_factory=dict)
 
 
 def _row(rows: Optional[Sequence[dict]], i: int) -> dict:
@@ -359,6 +360,8 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
     if retention:                       # re-hooks on turn lines, 8 s variety, fast opening, callback (aviation/retention.py)
         from . import retention as RT
         out.retention = RT.apply(out, scenes)
+    from . import balance as BL          # the mix of looks against the target bands; same template twice in a row is fixed
+    out.balance = BL.apply(out, scenes)
     from . import transitions as TR      # the stage / map / news looks hand over with shared transitions
     TR.add(out)
     out.shots.sort(key=lambda x: (x["start"], 0 if x.get("full_frame") or x.get("kind") == "footage" else 1))

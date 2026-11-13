@@ -657,6 +657,11 @@ def _plan_with_web(app, scenes, rows, log):
         return P.plan(scenes, rows, web={})
     if rep.get("web"):
         log(f"web pictures: {rep['photo']} photo card(s), {rep['paper']} page sticker(s); {len(rep['dropped'])} not good enough, left out")
+    bal = getattr(plan, "balance", None) or {}
+    if bal.get("shares"):
+        log("mix of looks: " + ", ".join(f"{k} {v:g}%" for k, v in bal["shares"].items() if v) +
+            ("; outside the target: " + ", ".join(f"{k} {v:g}% (aim {lo}-{hi}%)" for k, v, lo, hi in bal["out_of_band"])
+             if bal.get("out_of_band") else ""))
     try:
         (_state_dir(app) / STORY_WEB).write_text(json.dumps(rep.get("web") or {}), encoding="utf-8")
     except Exception:  # noqa: BLE001

@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from . import bridge as BR
+from . import catalog as C
 from . import csv_rows as V
 from . import footage as FT
 from . import router as R
@@ -48,9 +49,29 @@ def scenes_from_csv(path: Any) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any
     return scenes, rows
 
 
+def archive_queries(text: str) -> List[str]:
+    """YouTube searches for real archive footage of what a story line names: its airline (the name it had that year) and aircraft,
+    with the year or decade - no Gemini, only the line's own names."""
+    c = R.classify(text)
+    years = c.values.get("years") or []
+    yr = int(years[0]) if years else 0
+    al = c.airlines[0] if c.airlines else None
+    name = (C.name_in_year(al["id"], yr) if (al and yr and hasattr(C, "name_in_year")) else None) or (al["name"] if al else "")
+    ac = c.aircraft[0]["name"] if c.aircraft else ""
+    if not (name or ac):
+        return []
+    dec = f"{yr // 10 * 10}s" if yr else ""
+    q = [" ".join(x for x in (name, ac, str(yr) if yr else "") if x), " ".join(x for x in (name or ac, dec, "archive footage") if x)]
+    return [x for x in dict.fromkeys(q) if x]
+
+
 def request_footage(scenes: List[Dict[str, Any]], plan: Any) -> None:
     need = {s.get("scene") for s in plan.shots if s.get("kind") == "footage"}
     need |= {s.get("scene") for s in plan.shots if (s.get("params") or {}).get("image_from") == "footage"}
+    # balance: story lines also ask for real archive clips (every other one that names something), so a history chapter mixes
+    # footage into the sticker stage (the clips that pass the checks cut into the stage full screen); the CSV still decides first
+    story = [sc for sc, m in zip(scenes, getattr(plan, "modes", [])) if m == "story"]
+    want_story = {sc["scene_no"] for k, sc in enumerate(story) if k % 2 == 0 and float(sc["end"]) - float(sc["start"]) >= 3.0}
     for sc in scenes:
         if str(sc.get("asset_type") or "").strip():
             continue                                       # the CSV decided
@@ -58,6 +79,9 @@ def request_footage(scenes: List[Dict[str, Any]], plan: Any) -> None:
             q = FT.queries_for(R.classify(sc["text"]))
             sc["asset_type"] = "youtube_video" if q else "none"
             sc["prompt"] = " || ".join(q[:2])
+        elif sc["scene_no"] in want_story and archive_queries(sc["text"]):
+            sc["asset_type"] = "youtube_video"
+            sc["prompt"] = " || ".join(archive_queries(sc["text"])[:2])
         else:
             sc["asset_type"] = "none"
 
