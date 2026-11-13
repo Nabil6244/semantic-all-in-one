@@ -101,7 +101,8 @@ def frame(ctx: D.Ctx, sc: dict, t: float, prev_section=None, tag: bool = True) -
             if lp > 0:
                 D.text_spaced(d, (lx, ly + off), lab, f, T.WHITE + (int(255 * min(1, lp * 1.6)),), ctx.px(1))
                 D.text_spaced(d, (lx, ly + off + ctx.px(86)), "ILLUSTRATION", ctx.font(T.BODY_FONT, 24), T.GREY + (int(255 * min(1, lp * 1.6)),), ctx.px(4))      # an AI picture, not a verified anatomy plate
-            for c in (pg0["chips"] if pg0 else []): D.pill(d_cv := cv, ctx, lx, ly + ctx.px(132), c["text"], (t - _rel(sc, c["at"])) / 0.5)
+            said = [c for c in (pg0["chips"] if pg0 else []) if _rel(sc, c["at"]) <= t + 1e-6]
+            if said: c = max(said, key=lambda c: c["at"]); D.pill(cv, ctx, lx, ly + ctx.px(132), c["text"], (t - _rel(sc, c["at"])) / 0.5)      # one pill under the label, the newest phrase replacing the last (three drawn in one place overlapped)
     elif kind == "equation":
         bbox = D.paste_art(cv, ctx, sc["art"], 0.2, 0.54, 0.70, 1.0 + 0.04 * min(1, t / 6), 1.0, dx * 0.5, dy * 0.5, rot=1.2 * math.sin(t * 1.2)) if sc["art"] else None
         lay = D.equation(cv, ctx, [{"lhs": e["lhs"], "rhs": e["rhs"], "at_l": _rel(sc, e["at_l"]), "at_r": _rel(sc, e["at_r"])} for e in sc["equations"]], t)

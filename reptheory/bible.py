@@ -70,15 +70,20 @@ def names_rx(c: dict):
 
 # ---- sections, modes, terms -----------------------------------------------------------------------------------------------------------------------------
 _N = r"(?:one|two|three|four|five|six|seven|eight|nine|ten|first|second|third|fourth|fifth|last|final|\d+)"
-HEADER_RX = re.compile(r"\b(?:angle|move|step|exercise|drill|hold|position|technique|trick|tip|rule|level|phase|part|stage|habit|method)\s+(?:number\s+)?" + _N +
-                       r"\s*[:,.\-–—]?\s*(?:is\s+)?(?:the\s+)?([a-z][a-z'\-]*(?:\s+[a-z][a-z'\-]*){0,3})", re.I)
-HEADER_STOP = {"and", "this", "is", "it", "you", "your", "so", "now", "but", "which", "that", "here", "we", "i", "let's", "lets", "try", "stay", "sit", "stand", "put", "grab", "loop", "rest"}
+HEADER_RX = re.compile(r"(?:\b(?:angle|movement|move|step|exercise|drill|hold|position|technique|trick|tip|rule|level|phase|part|stage|habit|method)\s+(?:number\s+)?" + _N +
+                       r"|\bthe\s+(?:first|second|third|fourth|fifth|sixth|seventh|next|last)(?:\s+and\s+(?:final|last))?\s+(?:movement|move|exercise|drill|hold|position|step))"      # "Movement number one is ...", "the fifth and final movement: ..."
+                       r"\s*[:,.\-–—]?\s*(?:is\s+)?(?:the\s+)?([a-z0-9][a-z0-9'\-]*(?:\s+[a-z][a-z'\-]*){0,3})", re.I)
+MOVE_END = {"snatch", "catch", "hold", "lock", "drop", "press", "pull", "push", "carry", "hang", "sit", "raise", "curl", "walk", "squeeze", "pinch", "row", "dip", "plank", "bridge", "snap", "flick"}
+PAREN_HEADER_RX = re.compile(r"(?:\(\s*|\bfor (?:your|the) [a-z ,'\-]{3,50}?\s\(?)the\s+([a-z0-9][a-z0-9'\-]*(?:\s+[a-z][a-z'\-]*){0,3})\s*\)?\s*:"
+                             r"|^for (?:your|the) [a-z ,'\-]{3,50}?\sthe\s+([a-z0-9][a-z0-9'\-]*(?:\s+[a-z][a-z'\-]*){0,3})\b", re.I)      # a transcript: "for your hands and elbows the backpack drop snatch" (no brackets, no colon)      # "For your hands (The Backpack Drop Snatch): ..." names the drill it teaches
+AFTER_COLON_RX = re.compile(r":\s*(?:the\s+)?([a-z0-9][a-z0-9'\-]*(?:\s+[a-z][a-z'\-]*){0,3})", re.I)      # "Movement number four pairs two holds: the multi-angle wall sit ..." -> the name after the colon
+HEADER_STOP = {"and", "for", "paired", "pairs", "with", "goes", "this", "is", "it", "you", "your", "so", "now", "but", "which", "that", "here", "we", "i", "let's", "lets", "try", "stay", "sit", "stand", "put", "grab", "loop", "rest"}
 GENERIC = {"the", "a", "an", "hold", "holds", "move", "exercise", "drill", "angle", "position", "test", "of", "and", "your", "my"}
-END_RX = re.compile(r"\b(before you copy|mistakes? to (?:skip|avoid)|questions everyone asks|a full week|weekly plan|test from the start|to sum (?:it )?up|in summary|quick recap|let'?s recap)\b", re.I)
+END_RX = re.compile(r"\b(how all (?:\w+ )?(?:moves|movements|exercises|holds) fit|before you copy|mistakes? to (?:skip|avoid)|questions everyone asks|a full week|weekly plan|test from the start|to sum (?:it )?up|in summary|quick recap|let'?s recap)\b", re.I)
 EXPLAIN_RX = re.compile(r"^(?:and\s+)?(?:here'?s|that'?s|this is) why\b|^why\b|^look at\b|^think of\b|^imagine\b|\bhere'?s why\b|^(?:and\s+)?here'?s the (?:science|reason|thing)\b", re.I)
-STUDY_RX = re.compile(r"\b(stud(?:y|ies|ied)|researchers?|scientists?|a review of|meta[- ]analysis|trial|experiment|doctors and researchers|analy[sz]ed|lab test)\b", re.I)
+STUDY_RX = re.compile(r"\b(stud(?:y|ies|ied)|researchers?|scientists?|a (?:\d{4} )?review (?:of|in)|meta[- ]analys[ie]s|trials?|experiments?|doctors and researchers|analy[sz]ed|lab test)\b", re.I)
 SETUP_RX = re.compile(r"^(?:now,?\s+|then,?\s+|next,?\s+|first,?\s+)?(?:to train it|do \d|do (?:one|two|three|four|five)|hold|rest|sit|stand|put|loop|grab|start|place|lie|lay|"
-                      r"keep|squeeze|pull|push|twist|turn|curl|bend|lift|raise|lower|slide|wrap|go from|without|stay|too (?:hard|easy)|don'?t have|"
+                      r"keep|squeeze|pull|push|twist|turn|curl|bend|lift|raise|lower|slide|wrap|go from|without|stay|too (?:hard|easy)|don'?t have|take|get into|get in|stack|tuck|step|open your|suddenly|"
                       r"the (?:most )?common mistake|\d+ seconds|(?:ten|twenty|thirty|five) seconds|by rep|add)\b", re.I)
 CTA_RX = re.compile(r"\b(subscribe|tap like|hit like|smash (?:the )?like|comment (?:your|below|the)|pause and comment|in the comments|link in the description|first link|telegram|discord|patreon|share this)\b", re.I)
 SCORE_RX = re.compile(r"^(?:under|over|more than|less than|below|above)?\s*\d+(?:\s*(?:to|-)\s*\d+)?\s*(?:seconds?|reps?|pounds?|minutes?)\s*:", re.I)      # "Under 10 seconds: ..." (a score band, not "20 seconds, a deep ache")
@@ -111,26 +116,39 @@ def build(scenes: List[dict]) -> Optional[dict]:
     if len(sents) <= 1 and len(texts) > 3: sents = [(o, o + len(t), t) for o, t in zip(offs, texts) if t]      # narration without punctuation: one scene, one sentence
     cast = find_cast([s for _, _, s in sents])
     # sections: each header opens one, the next header or a wrap-up line closes it
-    secs: List[dict] = []
+    secs: List[dict] = []; pending: List[str] = []
     for i, (a, b, s) in enumerate(sents):
-        m = HEADER_RX.search(s)
+        m = HEADER_RX.search(s) or PAREN_HEADER_RX.search(s)
         if m:
-            name = re.split(r"\b(?:" + "|".join(HEADER_STOP) + r")\b", m.group(1), flags=re.I)[0].strip(" -'")
-            if name and _term_rx(name):
+            raw = m.group(1) or m.group(m.lastindex)
+            if re.match(r"\s*(?:pairs?|combines?|has|covers?|is (?:two|a pair))\b", raw, re.I):      # a header that names its parts later ("... pairs two holds: the wall sit ..."; a transcript has no colon)
+                mc = AFTER_COLON_RX.search(s, m.start()) or re.compile(r"\bthe\s+((?!same\b)[a-z0-9][a-z0-9'\-]*(?:\s+[a-z][a-z'\-]*){0,3})", re.I).search(s, m.end(m.lastindex))
+                if mc: raw = mc.group(1)
+            ends = [k for k, w in enumerate(raw.split()) if k and w.lower() in MOVE_END]
+            if ends and m.re is PAREN_HEADER_RX and not m.group(1): raw = " ".join(raw.split()[:ends[-1] + 1])      # "the one inch drop catch start at the top" -> "one inch drop catch"
+            name = re.split(r"(?<!wall )\b(?:" + "|".join(HEADER_STOP) + r")\b", raw, flags=re.I)[0].strip(" -'")      # "wall sit" is one exercise
+            if name and _term_rx(name) and not re.match(r"(?:seconds?|secs?|minutes?|mins?|reps?|sets?|rounds?|times?|days?|weeks?|percent|inch(?:es)?|feet|pounds?|kilos?)\b", name, re.I):      # "suitcase hold 45 seconds" is a time, not a move named "seconds"
                 if secs and secs[-1]["end"] is None: secs[-1]["end"] = i
-                secs.append({"name": name.lower(), "start": i, "end": None, "setup": [], "rx": _term_rx(name)}); continue
+                secs.append({"name": name.lower(), "start": i, "end": None, "setup": [], "rx": _term_rx(name)})
+                pending = [p for p in (re.split(r"\b(?:" + "|".join(HEADER_STOP) + r")\b", x, flags=re.I)[0].strip(" .,-") for x in re.findall(r"\b(?:and|paired with|plus|followed by)\s+the\s+([a-z0-9][a-z0-9'\-]*(?:\s+[a-z][a-z'\-]*){0,3})", s[m.end():], re.I)) if _term_rx(p) and p.lower() != name.lower()]      # "...: the wall sit for your knees, and the 4-second heel drop for your ankles"
+                continue
+        sub = next((p for p in (pending if secs and secs[-1]["end"] is None else []) if _term_rx(" ".join(p.split()[-2:])).search(s)), None)      # "heel drop" also in "the 4-second single-leg heel drop"
+        if sub:      # the second move of a paired movement opens where it is named again ("... for the 4-second single-leg heel drop")
+            secs[-1]["end"] = i; secs.append({"name": sub.lower(), "start": i, "end": None, "setup": [], "rx": _term_rx(sub)}); pending.remove(sub); continue
         if secs and secs[-1]["end"] is None and END_RX.search(s): secs[-1]["end"] = i
     for sec in secs:
         sec["end"] = sec["end"] if sec["end"] is not None else len(sents)
-        rest = sents[sec["start"]:sec["end"]]; head = rest[0][2]; after = head[HEADER_RX.search(head).end():].strip(" .,:")      # "Angle number two: the cup hold. Stay at the table..."
+        rest = sents[sec["start"]:sec["end"]]; head = rest[0][2]; hm = HEADER_RX.search(head) or PAREN_HEADER_RX.search(head); after = head[hm.end():].strip(" .,:") if hm else head.strip(" .,:")      # "Angle number two: the cup hold. Stay at the table..."
         pool = ([after] if len(after.split()) >= 4 else []) + [s for _, _, s in rest[1:]]
-        for s in pool:
-            if EXPLAIN_RX.search(s) or STUDY_RX.search(s): break
+        for s in pool[:12]:
+            if EXPLAIN_RX.search(s) or STUDY_RX.search(s):
+                if sec["setup"]: break
+                continue      # a move that opens on its reason or a study ("In a study of trained men ...") still has its setup a few lines on
             if SETUP_RX.search(s) and not CTA_RX.search(s) and len(sec["setup"]) < 3: sec["setup"].append(s.rstrip("."))
         sec["setup_text"] = _cap(". ".join(sec["setup"]), 360)
     if not cast and not secs: return None
     # one pass over the sentences: section, mode, study context, carried term, last line about the people
-    info = []; mode = "intro"; study = ""; carry = None; people_line = ""
+    info = []; mode = "intro"; study = ""; carry = None; carry_i = 0; people_line = ""
     for i, (a, b, s) in enumerate(sents):
         sec = next((x for x in secs if x["start"] <= i < x["end"]), None)
         if sec and i == sec["start"]: mode = "setup"; study = ""
@@ -139,11 +157,12 @@ def build(scenes: List[dict]) -> Optional[dict]:
         if STUDY_RX.search(s) and re.search(r"\d|one|two|three|four|five|six|seven|eight|nine|ten|dozen|hundred", s, re.I): mode, study = "study", s.rstrip(".")
         elif mode == "study" and sec and SETUP_RX.search(s) and not re.search(r"\d+ out of \d+|\d+%|percent", s): mode = "setup"
         elif mode == "study" and not sec and not re.search(r"\d", s) and not STUDY_RX.search(s) and (PLAN_RX.search(s) or END_RX.search(s)): mode = "after"
+        elif mode == "study" and not STUDY_RX.search(s) and not re.search(r"\d|percent|\b(?:in plain words|that means|which means|the result|to be fair)\b", s, re.I) and i > 0 and not STUDY_RX.search(sents[i - 1][2]) and not re.search(r"\d", sents[i - 1][2]): mode = "explain" if sec else "after"      # two lines on from the study and saying nothing about it: the study is over
         elif mode in ("explain",) and sec and SETUP_RX.search(s) and re.match(r"(?:to train it|do |hold |too |don'?t have|the (?:most )?common mistake|rest )", s, re.I): mode = "setup"
         kind = "cta" if CTA_RX.search(s) else "score" if SCORE_RX.search(s) else "study" if mode == "study" else "plan" if PLAN_RX.search(s) and not sec else mode
         terms = [x for x in secs if x is not sec and x["start"] < i and x["rx"].search(s)]      # named after it was taught; the roadmap ("The Twist, The Cup...") comes before
-        if terms and not sec: carry = terms[0]
-        elif sec or END_RX.search(s): carry = None if sec else carry
+        if terms and not sec: carry, carry_i = terms[0], i
+        elif sec or END_RX.search(s) or (carry and i - carry_i > 1): carry = None      # "it" in the next line may be that move; three lines on it is not
         named = [c for c in cast if names_rx(c).search(s)]
         if named: people_line = s.rstrip(".")
         info.append({"i": i, "section": sec, "mode": mode, "kind": kind, "study": study if mode == "study" else "", "terms": terms or ([carry] if carry and not sec else []),
@@ -173,7 +192,7 @@ def _ctx(text: str, inf: dict, cast: List[dict]) -> dict:
     if sec and inf["mode"] == "setup" and sec.get("setup_text") and not _same_words(text, sec["setup_text"]):      # a setup fragment ("and rest your forearm flat") still gets the whole setup
         ctx["context"] = f"the exercise being taught is {sec['name']}: {sec['setup_text']}"
     elif sec and inf["mode"] == "explain":
-        ctx["context"] = f"this line explains why {sec['name']} wins matches; draw what the line describes, not the exercise"
+        ctx["context"] = f"this line explains why {sec['name']} works; draw what the line describes, not the exercise"
     elif inf["kind"] == "study" and inf["study"] and not _same_words(text, inf["study"]):
         ctx["context"] = f"part of this study: {_cap(inf['study'], 240)}"
     elif inf["kind"] in ("cta", "score", "plan") and sec and sec.get("setup_text"):

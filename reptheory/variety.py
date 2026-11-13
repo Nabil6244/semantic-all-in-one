@@ -35,10 +35,23 @@ def _at(sc: dict, text: str, pos: int) -> float:
 def _phrase(s: str) -> str:
     k, _ = N.key_phrase(s, 3); return k.upper()
 
-def _stat(sc: dict, text: str) -> Optional[dict]:
-    nums = N.entities(text)["numbers"]
+CHANGE_RX = re.compile(r"\b(?:dropp?(?:ed|s)?|fell|lower|higher|thicker|stronger|faster|slower|increase[sd]?|decrease[sd]?|jump(?:ed|s)?|grew|gain(?:ed)?|lost|cut|rose|more|less|reduc\w+|improv\w+|boost\w*|by)\b", re.I)
+
+def result_number(text: str) -> Optional[dict]:
+    """The number a sentence is about: a percentage or amount next to what changed ("dropped by about 60%", "60% lower mortality", "crossed 42 kilograms") before a
+    count that only sets the scene ("across 28 countries"); else the first number. None without a number."""
+    nums = [n for n in N.entities(text)["numbers"] if not re.match(r"\s*-", text[n["pos"] + len(n["text"]):n["pos"] + len(n["text"]) + 1])]      # "90-degree", "4-second" name a thing, not a result
     if not nums: return None
-    n = nums[0]; u = n["unit"].upper(); v = float(n["value"]) if not isinstance(n["value"], str) else float(re.sub(r"[^\d.]", "", n["value"]) or 0)
+    def score(n):
+        near = text[max(0, n["pos"] - 28):n["pos"] + len(n["text"]) + 22]
+        return (2 if n["unit"] == "%" else 1 if n["unit"].upper() in ("KG", "KILOGRAM", "KILO", "POINT", "LB", "POUND") else 0) + (2 if CHANGE_RX.search(near) else 0)
+    best = max(nums, key=score)
+    return best if score(best) > 0 else nums[0]
+
+def _stat(sc: dict, text: str) -> Optional[dict]:
+    n = result_number(text)
+    if not n: return None
+    u = n["unit"].upper(); v = float(n["value"]) if not isinstance(n["value"], str) else float(re.sub(r"[^\d.]", "", n["value"]) or 0)
     if v <= 0: return None
     mode = "fill" if u == "%" and v <= 100 else "dots" if (u.rstrip("S") in COUNT_UNITS and float(v).is_integer() and 1 <= v <= 12) else "full"
     return {"value": v, "unit": n["unit"].upper() if u != "%" else "%", "mode": mode, "at": _at(sc, text, n["pos"])}
@@ -228,7 +241,8 @@ def _tiers(sc: dict, text: str) -> list:
         if meaning: tiers.append({"mark": mark, "text": meaning, "at": _at(sc, text, m.start())})
     return tiers
 
-BAND_FOLLOW_S = 40.0
+BAND_FOLLOW_S, BAND_BOARD_BASE = 40.0, 1.4
+NAMED_TIER_RX = re.compile(rf"\b(?P<kind>tier|level|stage|rank)\s+(?P<n>{LX.NUM})\s*[,:.-]\s*(?P<name>[A-Za-z][\w'-]*(?:\s+[A-Za-z][\w'-]*){{0,3}})\s*:", re.I)
 
 def bands_across(scenes: List[dict]) -> int:
     """Result bands said one per sentence ("Under 25 seconds: ... 25 to 45 seconds: ... Over 75 seconds: ..."), which no single scene holds two of: the first band's scene gets
@@ -241,6 +255,9 @@ def bands_across(scenes: List[dict]) -> int:
         if m and m.start() <= 3:
             ts = _tiers(sc, text)
             if ts: found.append((i, dict(ts[0], at=float(sc["start"]) + 0.2)))
+            continue
+        for nm in NAMED_TIER_RX.finditer(text):      # "Tier 1, Starter Cable: ...", "Level two - Solid Frame: ..." (the script names its own levels)
+            found.append((i, {"mark": f"{nm.group('kind').upper()} {_num_of(nm.group('n')):g}", "text": re.sub(r"\s+", " ", nm.group('name')).strip().upper(), "at": _at(sc, text, nm.start())}))
     runs, cur = [], []
     for i, tr in found:
         if cur and (i - cur[-1][0] > 3 or scenes[i]["start"] - scenes[cur[-1][0]]["end"] > BAND_FOLLOW_S): runs.append(cur); cur = []
@@ -435,6 +452,7 @@ def _takeaway(sc: dict, text: str, last: bool, role: str) -> Optional[dict]:
     return {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]}
 
 ELDER_FLOW_BOOST = 0.9      # Elder Health Theory: a picture beats any card unless the last two scenes were pictures (about two pictures to every card)
+RESULT_STAT_BASE, RESULT_LATE_S = 1.2, 4.5      # above a fresh picture (0.82 + 0.3 rotation): the measured result is what the viewer must see
 FLOW_BASE = 0.82      # a picture drawn for this sentence: a card with a real shape in the words (0.85-0.95) still wins, a bare headline never does
 POSE_BASE = 0.8      # a pose shows the sentence's action: as strong as a card, rotated with them by the director
 LATE_CARD_S = 3.0
@@ -498,7 +516,7 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
             ev[look] = (base - ((LATE_FULL_PENALTY if look in FULL_CARDS else 0.6) if late else 0.0), got)      # render 054: a warning card empty for 6 s of 8: a full-frame card that would sit empty is the last resort      # a side card whose first element comes late keeps the scene's words beside it, at a lower score
     for look, (base, got) in DG.evidence(sc, text).items():      # the diagrams that explain why (diagrams.py)
         ev[look] = (base - (0.6 if _first_at(got) - float(sc["start"]) > LATE_CARD_S else 0.0), got)
-    if sc.get("band_card"): ev["result"] = (0.99, sc["band_card"])      # the bands said across sentences (bands_across)
+    if sc.get("band_card"): ev["result"] = (BAND_BOARD_BASE, sc["band_card"])      # the whole ladder the script is about to walk through: nothing else on this line says as much      # the bands said across sentences (bands_across)
     if sc.get("pose_pick"): ev["pose"] = (POSE_BASE, sc["pose_pick"])      # the character doing what the sentence names (poses.py)
     sk = _sketch(text)
     if sk and (not sc.get("pose_pick") or sk.get("variant") in SKETCH_VARIANTS): ev["sketch"] = (SKETCH_BASE, sk)      # the exercise drawn as a moving line figure: when no pose shows it, or the sentence names a variant only the line figure has (wall / incline / knee push-up)
@@ -510,6 +528,10 @@ def evidence(sc: dict, last: bool = False, role: str = "") -> Dict[str, tuple]:
     if "takeaway" not in ev and not any(pg.get("headline") or pg.get("value") or pg.get("chips") for pg in sc.get("pages", [])):      # a scene with nothing written on it would be a bare figure: its own words, lit as they are spoken, are the fallback
         ws = sc.get("words") or []
         if 4 <= len(ws) <= 22 and sc["end"] - sc["start"] >= 3.0: ev["takeaway"] = (0.55, {"words": [{"w": re.sub(r"[^\w'-]", "", w["w"]).upper() or w["w"].upper(), "t0": float(w["t0"])} for w in ws]})
+    if "stat" in ev:      # a result the script measured ("dropped by about 60%", "a 54% increase"): the number is the picture, it wins over a drawing or the figure
+        rn = result_number(text); late = _first_at(ev["stat"][1]) - float(sc["start"])
+        if rn and rn["unit"] == "%" and CHANGE_RX.search(text[max(0, rn["pos"] - 28):rn["pos"] + len(rn["text"]) + 22]) and late <= RESULT_LATE_S:      # the beat's words stand beside the ring until the number is said
+            ev["stat"] = (RESULT_STAT_BASE - (0.25 if late > LATE_CARD_S else 0.0), ev["stat"][1])
     if "equation" in ev: ev.pop("stat", None); ev.pop("bars", None)      # the lockup already shows both numbers: one of them alone in a ring would say less
     return ev
 
@@ -780,14 +802,49 @@ def split_for_cards(scenes: List[dict]) -> int:
     for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
     return n
 
-PLATE_GAP_S = 30.0      # an anatomy plate shown in the last 30 s is not shown again as it was: the scene gets a new look (render 053: one forearm plate filled 36% of the video)
+def results_on_stats(scenes: List[dict]) -> int:
+    """After every cut: a picture or plain-figure shot whose own words say a measured result ("dropped by about 60%", "a 54% increase") within RESULT_LATE_S of
+    its start shows it as the stat ring (a picture cut at a clause after the looks were chosen could still hold it). The hook picture and CSV looks stay. Returns how many."""
+    n = 0
+    for i, sc in enumerate(scenes):
+        if sc.get("hook") or sc.get("directed_look") or (sc.get("look") or sc["kind"]) not in ("flow", "stock", "trainee", "callout") or sc["kind"] not in UPGRADABLE: continue
+        text = sc.get("text", ""); rn = result_number(text)
+        if not rn or rn["unit"] != "%" or not CHANGE_RX.search(text[max(0, rn["pos"] - 28):rn["pos"] + len(rn["text"]) + 22]): continue
+        st = _stat(sc, text)
+        if not st or st["at"] - float(sc["start"]) > RESULT_LATE_S or sc["end"] - st["at"] < 1.2: continue
+        for k in ("flow_prompt", "reuses_picture", "want3d", "cam3d"): sc.pop(k, None)
+        sc["stat"] = st; sc["was_kind"] = sc["kind"]; sc["kind"] = "stat"; sc["look"] = "stat"
+        for pg in sc.get("pages", []): pg["value"] = ""
+        sc["decisions"].append(f"variety: measured result {st['value']:g}{st['unit']} shown as the stat ring"); n += 1
+    return n
+
+def split_for_numbers(scenes: List[dict]) -> int:
+    """A long text / figure scene whose result number ("dropped by about 60%") is said late is cut where the clause holding that number starts, so the number gets
+    its own stat card when it is said instead of a card that would open empty (or none at all). Returns how many cuts were made."""
+    n = 0; i = 0
+    while i < len(scenes):
+        sc = scenes[i]; ws = sc.get("words") or []; text = sc.get("text", "")
+        num = result_number(text) if sc["kind"] in UPGRADABLE and not sc.get("directed_look") and len(ws) >= 8 and sc["end"] - sc["start"] >= 2 * SPLIT_MIN_S else None
+        if not num or num["unit"] != "%" or not CHANGE_RX.search(text[max(0, num["pos"] - 28):num["pos"] + len(num["text"]) + 22]): i += 1; continue      # a measured % result only: "170 cm and 70 kg" is a measurement (tricks.measure), not a result
+        k_num = min(len(text[:num["pos"]].split()), len(ws) - 1); k = k_num
+        while k > 0 and not re.search(r"[,.;:!?]", ws[k - 1].get("p", "")): k -= 1      # back to the start of the number's clause
+        clean = lambda c: N._nw(ws[c - 1]["w"]) not in N.STOP and not LX.num(N._nw(ws[c - 1]["w"])).isdigit() and not LX.num(N._nw(ws[c]["w"])).isdigit() and N._nw(ws[c]["w"]) not in ("half", "quarter", "percent")      # never inside "five and a | half hours"
+        cands = [c for c in [k] + list(range(k_num - 1, k_num - 7, -1)) if 1 <= c < len(ws) and (c == k or clean(c))]      # the clause start, else the nearest clean word boundary before the number
+        t = next((float(ws[c]["t0"]) for c in cands if float(ws[c]["t0"]) - sc["start"] >= SPLIT_MIN_S and sc["end"] - float(ws[c]["t0"]) >= SPLIT_MIN_S and float(ws[k_num]["t0"]) - float(ws[c]["t0"]) <= LATE_CARD_S), None)
+        if t is None or float(ws[k_num]["t0"]) - sc["start"] <= LATE_CARD_S: i += 1; continue      # the number is said early already: no cut needed
+        a, b = _cut(sc, t); scenes[i:i + 1] = [a, b]; b["decisions"] = list(b.get("decisions", [])) + ["variety: cut where its number is said (stat card on the number)"]; n += 1; i += 2
+    for k, sc in enumerate(scenes): sc["no"] = k + 1 if scenes and scenes[0].get("no", 1) == 1 else k
+    return n
+
+PLATE_GAP_S = 120.0      # was 30 s: one plate every half minute still filled a 15-minute video with the same forearm
+PLATE_PARTS = {"anat_forearm_v1": re.compile(r"\b(forearms?|wrists?|hands?|fingers?|grip|palms?|flexors?|pulleys?)\b", re.I)}      # a plate shows only the part it is a picture of      # an anatomy plate shown in the last 30 s is not shown again as it was: the scene gets a new look (render 053: one forearm plate filled 36% of the video)
 TEXT_LOOKS = {"stock", "takeaway", "figure", "callout", "stat"}      # an opening shown as words or a ring: replaced by the hook picture
 RECENT_W = 0.25      # per recent video that had this look at this place in its opening (channel memory, Rule 3)
 JITTER = 0.5      # how far a script's own seed moves a look's score: enough to change close calls, never to pick a look the words do not support
 
 def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool = True, flow: bool = True, budget: Optional[dict] = None, roles: Optional[Dict[int, str]] = None, history: Optional[List[str]] = None, recent: Optional[List[List[str]]] = None) -> dict:
     """Assigns `look` to every scene (and the payload of a card look, `want3d` + `cam3d` for a 3D clip, `chapter_card` for a new part). Returns the summary."""
-    join_for_diagrams(scenes); join_short(scenes); bands_across(scenes); split = split_for_cards(scenes) + split_long(scenes); absorb_slot_items(scenes)
+    join_for_diagrams(scenes); join_short(scenes); bands_across(scenes); split = split_for_cards(scenes) + split_long(scenes) + split_for_numbers(scenes); absorb_slot_items(scenes)
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow") or 10 ** 9      # no picture limit unless a caller sets one
     plate_seen: Dict[str, float] = {}; keyline_parts: set = set()      # chapters that already had their one key-line card
     hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
@@ -806,7 +863,8 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
                 from .direction import build_card
                 build_card(sc)
             continue
-        stale = k == "anatomy" and sc.get("art") and sc["start"] - plate_seen.get(sc["art"], -1e9) < PLATE_GAP_S
+        off_part = k == "anatomy" and sc.get("art") in PLATE_PARTS and not PLATE_PARTS[sc["art"]].search(sc.get("text", ""))      # the forearm plate on a line about knees, the waist or the comments (tendon video: 16 times, 102 s)
+        stale = k == "anatomy" and sc.get("art") and (off_part or sc["start"] - plate_seen.get(sc["art"], -1e9) < PLATE_GAP_S)
         if k == "anatomy" and sc.get("art") and not stale: plate_seen[sc["art"]] = sc["end"]
         free = (k in UPGRADABLE or stale) and not (k == "trainee" and sc.get("art") not in ("", None, "rep_stand_v1")) and not SYNTH_RX.search(sc.get("text", ""))
         if not free: hist.append(k); sc["look"] = k; continue
@@ -824,7 +882,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
             for lk, b in SECTION_BOOST[part].items():
                 if lk in ev: ev[lk] = (ev[lk][0] + b, ev[lk][1])
             sc["section_kind"] = part      # the figure with the named part lit already shows the words; a plate just seen is the last resort
-        if stale: sc["decisions"].append(f"anatomy plate {sc['art']} was on screen in the last {PLATE_GAP_S:.0f} s: a new look")
+        if stale: sc["decisions"].append(f"anatomy plate {sc['art']} " + ("does not show what this line names" if off_part else f"was on screen in the last {PLATE_GAP_S:.0f} s") + ": a new look")
         for look, (base, payload) in ev.items():
             if look == "flow":      # a new picture each time, so a run of them is allowed, but it is one look in the rotation: a pose for the action, the figure with the part lit,
                 # the plate and the cards still win where the words support them and were not just used (render final 2 lost them all to pictures)
@@ -850,8 +908,9 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
                 for pg in sc["pages"]: pg["value"] = ""      # the ring / health card shows the number: the callout column does not repeat it
             if look in FULL_CARDS: sc["pages"] = []      # the card fills the frame (a caption strip follows the narration: states.develop)
             if look == "takeaway": keyline_parts.add(sc.get("section"))
+        elif stale and k == "anatomy": sc["was_kind"] = k; sc["kind"] = "trainee"; sc["art"] = "rep_stand_v1"; sc["look"] = "trainee"; hist[-1] = "trainee"; sc["decisions"].append("variety: the figure with the part lit instead of the plate")      # the plate is what had to go
         else: sc["decisions"].append("variety: stock look kept")
-    fill_slots(scenes); let_cards_finish(scenes); reframe_long(scenes)
+    fill_slots(scenes); let_cards_finish(scenes); reframe_long(scenes); results_on_stats(scenes)
     chap = lambda sc: sc["section"] if sc.get("section") and sc["section"] != sc.get("topic") and not sc["section"].startswith("TIER LIST") else ""      # a part of the video = a unit the narration announced (Part one, Week two ...)
     chapters: List[str] = []
     for sc in scenes:

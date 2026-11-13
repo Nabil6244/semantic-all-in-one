@@ -149,6 +149,79 @@ def shape_text(sc: dict, keep: frozenset = LABELS) -> None:
         if before[0] and not pg["headline"] and not pg["value"] and pg["chips"]: pg["headline"], pg["headline_at"] = pg["chips"][0]["text"], pg["chips"][0]["at"]; pg["chips"] = pg["chips"][1:]
         if before != (pg["headline"], [c["text"] for c in pg["chips"]]): sc["decisions"].append(f"on-screen text kept to phrases of the script: {before[0]!r} -> {pg['headline']!r}")
 
+def _hyphen_whole(text: str, ws: List[dict]) -> str:
+    """A word the script joins to a number ("90-degree", "7-day", "4-second") shown whole: "DEGREE TOWEL LOCK" -> "90-DEGREE TOWEL LOCK"."""
+    full = {}
+    for w in ws:
+        m = re.match(r"^(\d+)-([a-z][a-z-]*)$", re.sub(r"[^a-z0-9-]", "", w["w"].lower()))
+        if m: full.setdefault(m.group(2), w["w"].strip(".,;:!?()\"'").upper())
+    if not full: return text
+    toks = text.split(); out = []
+    for i, t in enumerate(toks):
+        k = t.lower().strip(".,;:!?")
+        prev = out[-1] if out else ""
+        out.append(full[k] if k in full and not prev.endswith(full[k].split("-")[0]) and not re.match(r"^\d", t) else t)
+    return " ".join(out)
+
+def _mend(text: str, script: str, keep: frozenset) -> str:
+    """A text that is still no clean phrase of its sentence (ends on "ACROSS" / "WITHOUT", or is cut out of a longer run): run on to the clause's end when that stays short,
+    else trimmed from the end, else from the front; "" when nothing clean is left."""
+    from .topic_eval import headline_fault      # the same rule the topic test judges by
+    if not headline_fault(text, script): return text
+    toks = text.split(); norm = lambda t: re.sub(r"[^a-z0-9%]", "", t.lower())
+    for clause in re.split(r"[,.;:?!]+", script):
+        c = clause.split(); cn = [norm(t) for t in c]; h = [norm(t) for t in toks]
+        for i in range(len(cn) - len(h) + 1):
+            if cn[i:i + len(h)] == h and len(c) - i <= N.PHRASE_MAX:
+                run = " ".join(t.strip("\"()") for t in c[i:]).upper()
+                if not headline_fault(run, script): return run
+    front_first = headline_fault(text, script).startswith("cut out")      # "THE QUADRICEPS TENDON" | above: keep the noun, lose the front ("QUADRICEPS TENDON")
+    def lead_trim(ts):
+        while len(ts) > 1 and norm(ts[0]) in N.DANGLING: ts = ts[1:]
+        return ts
+    while len(toks) > 1:
+        for cut in ((lead_trim(toks[1:]), toks[:-1]) if front_first else (toks[:-1], lead_trim(toks[1:]))):
+            if cut and not headline_fault(" ".join(cut), script) and any(norm(t) not in N.DANGLING for t in cut) and norm(cut[-1]) not in N.DANGLING: return " ".join(cut)
+        toks = lead_trim(toks[1:]) if front_first else toks[:-1]
+    return toks[0] if toks and norm(toks[0]) not in N.DANGLING else ""
+
+NUM_WORDS = set("one two three four five six seven eight nine ten eleven twelve fifteen twenty thirty forty fifty sixty ninety hundred".split())
+COUNTED = set("number round step week day part level tier movement move rule".split())
+
+def _numbers_kept(text: str, ws: List[dict]) -> str:
+    """A label never loses the number it belongs to: "DEGREE TOWEL LOCK" said as "90 degree towel lock" -> "90 DEGREE TOWEL LOCK", "MOVEMENT NUMBER" (one) -> "MOVEMENT NUMBER ONE"."""
+    toks = text.split(); nw = [N._nw(w["w"]) for w in ws]; h = [N._nw(t) for t in toks]
+    if not h: return text
+    isnum = lambda x: x.isdigit() or x in NUM_WORDS
+    for i in range(len(nw) - len(h) + 1):
+        if nw[i:i + len(h)] != h: continue
+        if i and isnum(nw[i - 1]) and not isnum(h[0]): toks = [ws[i - 1]["w"].upper()] + toks
+        j = i + len(h)
+        if j < len(nw) and isnum(nw[j]) and h[-1] in COUNTED: toks = toks + [ws[j]["w"].upper()]
+        return " ".join(toks)
+    return text
+
+def final_text(scenes: List[dict], keep: frozenset = LABELS) -> int:
+    """Last pass over every page, after all later steps (cadence phrases, gate, meters, chain) have added theirs: hyphen-number words shown whole, then every
+    headline and chip made a phrase of the script again (shape_text). Returns how many texts changed."""
+    n = 0
+    for sc in scenes:
+        ws = sc.get("words") or []
+        if not ws or not sc.get("pages"): continue
+        before = [(pg.get("headline", ""), [c["text"] for c in pg.get("chips", [])]) for pg in sc["pages"]]
+        for pg in sc["pages"]:
+            if pg.get("src") == "overview" or pg.get("given"): continue
+            if pg.get("headline"): pg["headline"] = _numbers_kept(_hyphen_whole(pg["headline"], ws), ws)
+            pg["chips"] = [dict(c, text=_numbers_kept(_hyphen_whole(c["text"], ws), ws)) for c in pg.get("chips", [])]
+        sc.setdefault("decisions", []); shape_text(sc, keep); script = sc.get("text", "")
+        for pg in sc["pages"]:
+            if pg.get("src") == "overview" or pg.get("given"): continue
+            if pg.get("headline"): pg["headline"] = _mend(pg["headline"], script, keep)
+            pg["chips"] = [dict(c, text=t) for c in pg.get("chips", []) for t in [_mend(c["text"], script, keep)] if t]
+        after = [(pg.get("headline", ""), [c["text"] for c in pg.get("chips", [])]) for pg in sc["pages"]]
+        n += sum(a != b for a, b in zip(before, after))
+    return n
+
 def never_empty(scenes: List[dict]) -> List[dict]:
     """Run last, after every look is chosen: a text-only scene with nothing on it gets the opening phrase of its own words; with none it joins the scene before. Never an empty frame."""
     out: List[dict] = []

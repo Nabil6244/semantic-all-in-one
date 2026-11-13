@@ -247,3 +247,43 @@ def develop(scenes: List[dict]) -> int:
             sc["decisions"].append(f"held {FILL_GAP_S:.0f} s with nothing new: '{head}' arrives at its word")
     picture_text(scenes)
     return added
+
+def keep_moving(scenes: List[dict], gap_s: float = 3.6) -> int:
+    """The last pass, after every card, cut and text fix: any stretch longer than gap_s inside one scene with nothing new on screen gets the clause said there
+    (a phrase of the script that the topic test accepts), at its own first word: a new page where the scene draws page text, else a chip (an anatomy plate,
+    a 3D body or a picture with nothing written on it). Long sentences in a picture used to hold one frame for 5-12 s. Returns how many were added."""
+    from . import cadence as C, narrative as N
+    from .topic_eval import headline_fault
+    added = 0
+    for i, sc in enumerate(scenes):
+        ws = sc.get("words") or []
+        if len(ws) < 4 or sc.get("directed_look") and sc.get("given_text"): continue
+        script = sc.get("text", ""); draws = sc["kind"] in C.DRAWS_PAGE_TEXT or sc.get("look") == "flow"
+        shown = {t for x in scenes[max(0, i - 2):i + 1] for pg in x.get("pages", []) for t in [pg.get("headline", "")] + [c["text"] for c in pg.get("chips", [])] if t}
+        for _ in range(6):
+            ev = sorted({float(sc["start"]), float(sc["end"])} | {e["t"] for e in C.events([dict(sc, no=0)]) if e["meaningful"] and sc["start"] <= e["t"] <= sc["end"]})
+            gaps = [(a, b) for a, b in zip(ev, ev[1:]) if b - a > gap_s]
+            pick = None
+            for a, b in gaps:
+                for cl in _parts(ws):
+                    if float(cl[-1]["t1"]) < a + EDGE_S or float(cl[0]["t0"]) > b - EDGE_S: continue
+                    inside = [k for k, w in enumerate(cl) if a + EDGE_S <= float(w["t0"]) <= b - EDGE_S]
+                    windows = [" ".join(re.sub(r"^[^\w%]+|[^\w%']+$", "", w["w"]) for w in cl[k:k + n]).upper() for n in (4, 3, 2) for k in inside if k + n <= len(cl) and N._nw(cl[k]["w"]) not in N.DANGLING and N._nw(cl[k + n - 1]["w"]) not in N.DANGLING]      # last resort: any clean run of the words said in the gap
+                    for head in (N.short_clause(cl), N.phrase(N.key_phrase(" ".join(w["w"] for w in cl))[0], cl), N.lead_phrase(cl, 4), _tail(cl), *windows):
+                        if not head or head in shown or len(head.split()) < 2 or headline_fault(head, script): continue
+                        if not {N._nw(h) for h in head.split()} <= {N._nw(w["w"]) for w in cl}: continue
+                        first = N._nw(head.split()[0]); t0 = next((float(w["t0"]) for w in cl if N._nw(w["w"]) == first and float(w["t0"]) >= a), float(cl[0]["t0"]))
+                        if a + EDGE_S <= t0 <= b - EDGE_S: pick = (t0, head); break
+                    if pick: break
+                if pick: break
+            if not pick: break
+            t0, head = pick; shown.add(head); added += 1
+            from .planner import _numbers_kept; head = _numbers_kept(head, ws)      # "DEGREE TOWEL LOCK" said as "90 degree towel lock"
+            if draws: sc.setdefault("pages", []).append({"at": t0, "headline": head, "headline_at": t0, "value": "", "chips": [], "kicker": "", "src": "cadence"}); sc["pages"].sort(key=lambda p: p["at"])
+            else:
+                pgs = sc.setdefault("pages", [])
+                if not pgs: pgs.append({"at": float(sc["start"]), "headline": "", "headline_at": float(sc["start"]), "value": "", "chips": [], "kicker": "", "src": "cadence"})
+                pg = [p for p in pgs if float(p["at"]) <= t0][-1] if any(float(p["at"]) <= t0 for p in pgs) else pgs[0]
+                pg.setdefault("chips", []).append({"text": head, "at": t0})
+            sc.setdefault("decisions", []).append(f"held {gap_s:g} s with nothing new on screen: '{head}' arrives at its word")
+    return added

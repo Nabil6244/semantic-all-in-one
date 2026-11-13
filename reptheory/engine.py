@@ -145,6 +145,8 @@ def run_rep_theory(project_dir, sentences: List[dict], voiceover_path: str, out_
     if T.THEME == "survival":      # Survival: the number card, item strip, progress dots, #1 tracker and one-rule note, each on the word that says it (reptheory/survival.py)
         from . import survival as SV
         log(f"[SURVIVAL CARDS] {SV.plan(scenes)}")
+    log(f"[REP THEORY TEXT] {P.final_text(scenes)} on-screen text(s) made whole phrases of the script after every card was placed")
+    log(f"[REP THEORY CADENCE] {ST.keep_moving(scenes)} phrase(s) added where a shot would still sit unchanged")
     prog(0.03, "3D body clips")
     if clips3d:      # a 3D body clip for every scene about a body part (reptheory/clip3d.py)
         from . import clip3d as C3

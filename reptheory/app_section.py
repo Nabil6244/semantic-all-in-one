@@ -145,7 +145,7 @@ def restore_settings(app) -> bool:
     finally: app._rt_restoring = False
     return True
 
-DEFAULTS = {"scenes": "", "title": "", "preview": False, "smart": True, "3d": True, "flow": False, "variety": True, "end": False, "end_title": "", "end_url": "", "end_image": ""}
+DEFAULTS = {"scenes": "", "title": "", "preview": False, "smart": True, "3d": True, "flow": True, "variety": True, "end": False, "end_title": "", "end_url": "", "end_image": ""}
 
 def on_workspace(app) -> None:
     """A project was opened (or the page shown): its saved choices on the page, or the defaults for a project that has none, so one project's CSV never carries over
@@ -169,7 +169,7 @@ def on_workspace_safe(app) -> None:
 def build(app, parent, *, row: int) -> None:
     M = _m(app); ctk = M.ctk
     app._rt_scenes_var = ctk.StringVar(value=""); app._rt_status_var = ctk.StringVar(value=""); app._rt_title_var = ctk.StringVar(value=""); app._rt_preview_var = ctk.BooleanVar(value=False)
-    app._rt_smart_var = ctk.BooleanVar(value=True); app._rt_3d_var = ctk.BooleanVar(value=True); app._rt_flow_var = ctk.BooleanVar(value=False); app._rt_variety_var = ctk.BooleanVar(value=True)
+    app._rt_smart_var = ctk.BooleanVar(value=True); app._rt_3d_var = ctk.BooleanVar(value=True); app._rt_flow_var = ctk.BooleanVar(value=True); app._rt_variety_var = ctk.BooleanVar(value=True)
     app._rt_end_var = ctk.BooleanVar(value=False); app._rt_end_title = ctk.StringVar(value=""); app._rt_end_url = ctk.StringVar(value=""); app._rt_end_image = ctk.StringVar(value="")
     for attr in SETTINGS.values(): getattr(app, attr).trace_add("write", lambda *_a: save_settings(app))      # every choice on this page is kept with the project
     app._rt_cancel = threading.Event(); app._rt_running = getattr(app, "_rt_running", False)
@@ -322,7 +322,8 @@ def on_render_click(app) -> None:
     if getattr(app, "_rt_restored_for", None) != str(getattr(ws, "root", "")): on_workspace(app)      # never Generate / Render with another project's (or empty) choices
     media_only = needs_scenes(app); folder = visual_bridge.folder(OWNER, ws); inputs = _inputs_key(app)
     held = visual_bridge.rows(app, OWNER)
-    if not media_only and held and not app._rt_scenes_var.get().strip():      # the Visuals tab holds a CSV's pictures but no CSV is chosen: the render would plan different scenes and use none of them
+    made_from = getattr(app, "_rt_ready_key", None)      # what the last Generate scenes was made from: a script-only run (no CSV) holds its own pictures, nothing to choose
+    if not media_only and held and not app._rt_scenes_var.get().strip() and (made_from is None or made_from[0]):      # the Visuals tab holds a CSV's pictures but no CSV is chosen: the render would plan different scenes and use none of them
         M.messagebox.showerror("Choose the scenes file", f"The Visuals tab holds {len(held)} pictures made from a scenes CSV, but no scenes file is chosen.\n\nChoose the same scenes CSV, then Render."); return
     table = visual_bridge.records(folder, visual_bridge.rows(app, OWNER)) if (wantflow and not media_only) else None
     manager = None

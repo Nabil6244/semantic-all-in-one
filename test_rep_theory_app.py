@@ -44,7 +44,7 @@ def logtext(): return inst.log_box.get("1.0", "end") + "".join(inst._log_backlog
 def scenario():
     inst._on_style_pick("Rep Theory")
     emit("picking_the_style_shows_its_block", inst._rt_block.winfo_manager() != "" and inst._rt_active)
-    emit("option_defaults", (inst._rt_smart_var.get(), inst._rt_3d_var.get(), inst._rt_flow_var.get(), inst._rt_variety_var.get(), inst._rt_preview_var.get()) == (True, True, False, True, False),
+    emit("option_defaults", (inst._rt_smart_var.get(), inst._rt_3d_var.get(), inst._rt_flow_var.get(), inst._rt_variety_var.get(), inst._rt_preview_var.get()) == (True, True, True, True, False),
          str((inst._rt_smart_var.get(), inst._rt_3d_var.get(), inst._rt_flow_var.get(), inst._rt_variety_var.get())))
     labels = []
     def walk(w):
@@ -60,8 +60,8 @@ def scenario():
     emit("button_asks_for_a_voiceover_first", inst._cta_action == "import_audio", inst._cta_action)
     inst._current_voiceover_path = lambda: wav; inst._sync_primary_cta()
 
-    # ---- defaults: smart planner + 3D + mixed looks, no Flow
-    inst._on_primary_cta()
+    # ---- defaults with Flow switched off (Flow is on by default since 2026-11-12; its Generate-scenes path is the scenario further down): smart planner + 3D + mixed looks
+    inst._rt_flow_var.set(False); inst._sync_primary_cta(); inst._on_primary_cta()
     emit("running_state_shows_stop_or_finishes", True)
     yield (lambda: not inst._rt_running and bool(calls))
     emit("defaults_reach_the_engine", (calls.get("planner"), calls.get("per_beat"), calls.get("illustrate"), calls.get("clips3d"), calls.get("variety"), calls.get("flow_settings")) == ("beats", True, False, True, True, None), str({k: calls.get(k) for k in ("planner", "per_beat", "illustrate", "clips3d", "variety", "flow_settings")}))

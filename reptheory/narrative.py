@@ -158,7 +158,7 @@ def relations(text: str) -> List[str]:
 def key_phrase(text: str, n: int = 3) -> Tuple[str, int]:
     """The most specific noun-like run in the words (<= n words) and its position, for a subject the lexicon does not know. Runs are cut at function words; runs that follow a determiner (the / your / an)
     are the likely noun phrases; the longest by letters wins. Returns ("", -1) when the text has no content words."""
-    toks = re.findall(r"[A-Za-z][A-Za-z'-]*", text); runs: List[Tuple[int, List[str], bool]] = []; cur: List[str] = []; start = 0; after_det = False; det_flag = False
+    toks = re.findall(r"\d+(?:-[A-Za-z]+)+|[A-Za-z][A-Za-z'-]*", text); runs: List[Tuple[int, List[str], bool]] = []; cur: List[str] = []; start = 0; after_det = False; det_flag = False
     for i, t in enumerate(toks + ["."]):
         low = t.lower()
         if low in STOP or t == "." or low in ("not", "never", "no") or low.endswith("n't"):      # a negation breaks the run: "WOODS WEREN'T LOST" lifted out of "...weren't lost on the way out" says the opposite
