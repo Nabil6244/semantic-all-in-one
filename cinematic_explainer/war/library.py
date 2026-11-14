@@ -419,6 +419,16 @@ def picture_problem(path: Path) -> str:
 LIBRARY_BAD = ("studio",)
 
 
+def _same_sig(cached: Any, now: str) -> bool:
+    """A cached result still holds when the file size matches: copying the library to another Mac (Finder, AirDrop, a zip) gives every
+    clip a new modified time, which would re-check all of them and re-read every clip on the first War render there."""
+    return bool(cached) and str(cached).split(":")[0] == now.split(":")[0]
+
+
+def _tool_failure(why: str) -> bool:
+    return why == "no frames" or why.startswith("check failed")
+
+
 def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Path], str] = picture_problem,
                  log: Callable[[str], None] = lambda m: None) -> List[Dict[str, Any]]:
     """The clips whose frames pass the visual check (render 050 review: the reviewed library still held the Moskva infographic, subtitled
@@ -430,7 +440,8 @@ def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Pa
         cache = {}
     out: List[Dict[str, Any]] = []
     changed = False
-    dropped = []
+    dropped: List[str] = []
+    unchecked: List[str] = []
     for c in clips:
         f = Path(lib) / str(c["file"])
         try:
@@ -439,11 +450,17 @@ def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Pa
         except OSError:
             continue
         hit = cache.get(str(c["file"]))
-        if not hit or hit.get("sig") != sig:
+        if not hit or not _same_sig(hit.get("sig"), sig) or _tool_failure(str(hit.get("why") or "")):   # an old cached tool failure is retried
             try:
                 why = check(f)
-            except Exception as exc:  # noqa: BLE001 - an unreadable clip is not used
+            except Exception as exc:  # noqa: BLE001 - the check could not run on this Mac
                 why = f"check failed: {exc}"
+            if _tool_failure(why):
+                # the CHECK broke (ffmpeg missing or failing on this Mac), not the clip: a reviewed clip stays usable and nothing is
+                # cached, so it is checked again once the tools work (2026-11-15: a copied library gave nothing on Ahmed's MacBook)
+                unchecked.append(f"{c['file']} ({why[:60]})")
+                out.append(c)
+                continue
             cache[str(c["file"])] = hit = {"sig": sig, "why": why}
             changed = True
         if hit.get("why"):
@@ -455,6 +472,8 @@ def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Pa
             p.write_text(json.dumps(cache, indent=1), encoding="utf-8")
         except OSError:
             pass
+    if unchecked:
+        log(f"War library: visual check could not run on {len(unchecked)} clips, used as reviewed: {'; '.join(unchecked[:3])}")
     if dropped:
         log(f"War library: {len(dropped)} clips not used (their frames fail the visual check): {'; '.join(dropped[:6])}")
     return out

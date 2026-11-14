@@ -249,3 +249,36 @@ class TestImport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_copied_library_keeps_cached_checks_and_tool_failure_keeps_clips():
+    """2026-11-15 Ahmed's MacBook: a copied library has new modified times (cache must still hold by size), and a check that cannot run
+    (ffmpeg gives no frames) must not throw away reviewed clips nor cache that result."""
+    import os
+    lib = make_library()
+    clips = L.load(lib)
+    for c in clips:                                   # what a copy does: same bytes, new modified time
+        os.utime(lib / c["file"], (1, 1))
+    calls = []
+    out = L.usable_clips(clips, lib, check=lambda p: calls.append(p) or "text")
+    assert len(out) == len(clips) and not calls       # cached by size, nothing re-checked
+
+    cache = json.loads((lib / L.USABILITY).read_text())
+    (lib / L.USABILITY).write_text("{}", encoding="utf-8")
+    logs = []
+    out = L.usable_clips(clips, lib, check=lambda p: "no frames", log=logs.append)
+    assert len(out) == len(clips)
+    assert json.loads((lib / L.USABILITY).read_text() or "{}") == {}
+    assert any("could not run" in m for m in logs)
+    assert cache
+
+
+def test_old_cached_tool_failure_is_checked_again():
+    lib = make_library()
+    clips = L.load(lib)
+    cache = json.loads((lib / L.USABILITY).read_text())
+    for k in cache:
+        cache[k]["why"] = "no frames"                 # what an older build cached when ffmpeg failed
+    (lib / L.USABILITY).write_text(json.dumps(cache), encoding="utf-8")
+    out = L.usable_clips(clips, lib, check=lambda p: "")
+    assert len(out) == len(clips)
