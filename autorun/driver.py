@@ -29,6 +29,8 @@ STEP_WAIT_S = 10 * 3600        # one press (a long render or a big Flow batch) m
 SCENE_ROUNDS = 3               # presses of the same Generate step: the app fetches only the scenes still missing each time
 SETTLE_S = 4.0                 # after a press, the button needs a moment to turn into Stop
 FINAL_STABLE_S = 3.0
+SKIP_SHARE = 0.3               # after the rounds, up to this share of scenes still missing are skipped and the video is rendered anyway
+SKIP_WAIT_S = 600              # the app's skip queue gets this long to mark them
 IMPORT_ACTIONS = {"import_csv", "overscaled_import_csv", "pakmap_import_csv", "hybrid_load_csv", "starmap_load_csv", "import_audio", "weather_load"}
 CLAUDE_HANDOFF = {"analyze", "vo_plan", "upload_claude_csv"}
 
@@ -54,6 +56,7 @@ class Runner:
         self.step_started = 0.0
         self.handoff_done = False
         self.finished = False
+        self.skipped: List[str] = []
 
     # ---- plumbing -------------------------------------------------------------------------------------------------------------------
     def log(self, msg: str) -> None:
@@ -377,6 +380,10 @@ class Runner:
         limit = 2 if action in IMPORT_ACTIONS else SCENE_ROUNDS + 1
         if n > limit:
             bad = self.scene_problems()
+            rows = len(getattr(app, "_scene_rows", []) or [])
+            if bad and not self.skipped and action not in IMPORT_ACTIONS and len(bad) <= SKIP_SHARE * rows and hasattr(app, "_bulk_recovery"):
+                self.skip_then_render(action, bad)
+                return
             what = f"{len(bad)} scene(s) are still not ready after {SCENE_ROUNDS} rounds" if bad else f"the app keeps asking for '{action}'"
             self.fail(f"{what}; open the project's Visuals tab to fix or skip them, then Render")
             return
@@ -385,6 +392,64 @@ class Runner:
         self.say(label, f"press {n}" if n > 1 else "")
         app._on_primary_cta()
         self.press_done()
+
+    def skip_then_render(self, action: str, bad: List[str]) -> None:
+        """Unattended, a few scenes that never came back must not stop the night: they are skipped (the Visuals tab's own Skip failed,
+        so the render treats them as the author's skip) and the next press renders. The status and the report list them."""
+        app = self.app
+        self.skipped = list(bad)
+        self.status.set(skipped_scenes=self.skipped)
+        self.say("skip missing scenes", f"{len(bad)} scene(s) still missing after {SCENE_ROUNDS} rounds: skipped, rendering without them")
+        for b in bad:
+            self.log(f"[AUTORUN]   skipped {b}")
+        app._bulk_recovery("skip", selected_only=False)
+        t0 = time.time()
+
+        def wait_skip() -> None:
+            if getattr(app, "_retry_pumping", False) and time.time() - t0 < SKIP_WAIT_S:
+                self.later(wait_skip)
+                return
+            self.fill_skipped()
+            self.presses[action] = SCENE_ROUNDS            # one more press: the render (all scenes now ready or skipped)
+            self.press_done()
+        self.later(wait_skip)
+
+    def fill_skipped(self) -> None:
+        """A skipped scene's file is a 1x1 placeholder (a flat screen in the video): it gets a still of the nearest ready scene instead
+        (a picture is copied, a clip gives its middle frame)."""
+        import subprocess
+
+        app = self.app
+        results = getattr(app, "_asset_results", None) or {}
+        if not results:
+            return
+
+        def ok_file(r: Any) -> Optional[Path]:
+            path = getattr(r, "path", None)
+            st = str(getattr(getattr(r, "status", None), "value", getattr(r, "status", "")))
+            return Path(path) if path and st != "skipped" and getattr(r, "ok", False) and Path(path).is_file() else None
+
+        keys = list(results.keys())
+        for i, k in enumerate(keys):
+            r = results[k]
+            if str(getattr(getattr(r, "status", None), "value", "")) != "skipped" or not getattr(r, "path", None):
+                continue
+            dest = Path(r.path)
+            for j in sorted(range(len(keys)), key=lambda j: (abs(j - i), j > i)):
+                src = ok_file(results[keys[j]]) if j != i else None
+                if src is None:
+                    continue
+                try:
+                    if src.suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):
+                        from PIL import Image
+                        Image.open(src).convert("RGB").save(dest, "PNG")
+                    else:
+                        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-ss", "1", "-i", str(src), "-frames:v", "1", str(dest)],
+                                       check=True, timeout=60)
+                    self.log(f"[AUTORUN]   scene {getattr(r, 'scene_number', k)}: shows a still of scene {getattr(results[keys[j]], 'scene_number', keys[j])}")
+                    break
+                except Exception as exc:  # noqa: BLE001 - the next neighbour is tried
+                    self.log(f"[AUTORUN]   scene {getattr(r, 'scene_number', k)}: still from {src.name} failed: {exc}")
 
     def press_done(self) -> None:
         self.pressed_at = time.time()

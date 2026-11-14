@@ -207,6 +207,8 @@ def cmd_run(a) -> int:
     st = follow(job, proc, say=lambda m: print(m, flush=True))
     if st.get("state") == "done":
         print(f"VIDEO: {st.get('video')}")
+        for s in st.get("skipped_scenes") or []:
+            print(f"  skipped (still missing after the retries): {s}")
         print(f"project: {st.get('project')}")
         return 0
     print(f"FAILED: {st.get('message')}", file=sys.stderr)
@@ -283,6 +285,7 @@ def write_report(report: Path, started: float, results: list, total: int) -> Non
         lines.append(f"{i}. {r['title']} ({r['style']}): " + ("DONE" if r["state"] == "done" else "FAILED") + (f" in {mins:.0f} min" if mins else ""))
         if r["state"] == "done":
             lines.append(f"   video: {r.get('video')}")
+            lines += [f"   skipped (still missing after the retries): {s}" for s in (r.get("skipped_scenes") or [])[:20]]
         else:
             lines.append(f"   why: {r.get('message')}")
             lines += [f"   {s}" for s in (r.get("failed_scenes") or [])[:20]]
@@ -342,7 +345,7 @@ def cmd_batch(a) -> int:
             t0 = time.time()
             st = follow(job, start_app(app, job), max_s=a.max_hours * 3600, say=say)
             results.append({"title": title, "style": j.style, "state": st.get("state"), "message": st.get("message", ""), "video": st.get("video", ""),
-                            "project": st.get("project", ""), "failed_scenes": st.get("failed_scenes") or [], "minutes": (time.time() - t0) / 60,
+                            "project": st.get("project", ""), "failed_scenes": st.get("failed_scenes") or [], "skipped_scenes": st.get("skipped_scenes") or [], "minutes": (time.time() - t0) / 60,
                             "log": str(job.with_name(job.stem + ".log"))})
             say(f"video {i}: " + (f"DONE {st.get('video')}" if st.get("state") == "done" else f"FAILED {st.get('message')}"))
             write_report(report, started, results, len(jobs))

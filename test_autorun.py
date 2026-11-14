@@ -199,7 +199,19 @@ class FakeApp:
         self._hybrid_plan = object()
 
     def _row_status_from_result(self, r):
+        if r.get("skipped"):
+            return "skipped"
+        if r.get("never"):
+            return "failed"
         return "ready" if self.rounds >= self.ready_after else "failed"
+
+    def _bulk_recovery(self, action, selected_only):
+        from tkinter import messagebox
+        if action == "skip" and messagebox.askokcancel("Skip failed scenes", "Skip?"):
+            for r in self._scene_rows:
+                if self._row_status_from_result(r) != "ready":
+                    r["skipped"] = True
+            self.calls.append(("skip",))
 
     def _import_claude_csv_path(self, path, **k):
         self.loaded = True
@@ -228,7 +240,7 @@ class FakeApp:
             messagebox.showerror("Cannot start", "Choose the story CSV first.")
             return
         self.running = 2
-        if a in ("rh_render",) or (a == "generate" and self.rounds >= self.ready_after):
+        if a in ("rh_render",) or (a == "generate" and all(self._row_status_from_result(r) in ("ready", "skipped") for r in self._scene_rows)):
             self.calls.append(("render",))
             out = self.ws.next_final_path()
             out.write_bytes(b"mp4")
@@ -306,6 +318,35 @@ class DriverTest(unittest.TestCase):
             self.assertIn("still not ready", st["message"])
             self.assertEqual(st["failed_scenes"], ["scene 1: failed", "scene 2: failed"])
             self.assertNotIn(("render",), steps)
+
+    def test_a_few_scenes_that_never_come_back_are_skipped_and_the_video_is_rendered(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d).resolve()
+            app = FakeApp(d, scenes_ready_after=1)
+            app._scene_rows = [{"scene_number": i} for i in range(1, 11)]
+            app._scene_rows[3]["never"] = app._scene_rows[7]["never"] = True
+            job, st, steps = self._run(d, app, style="normal")
+            self.assertEqual(st["state"], "done", st)
+            self.assertEqual(len([s for s in steps if s[0] == "scenes"]), 4)
+            self.assertEqual(steps[-2:], [("skip",), ("render",)])
+            self.assertEqual(st["skipped_scenes"], ["scene 4: failed", "scene 8: failed"])
+
+    def test_a_skipped_scene_shows_a_still_of_its_nearest_ready_scene_not_a_flat_screen(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            for n, col in ((1, "red"), (2, "blue")):
+                Image.new("RGB", (64, 36), col).save(d / f"{n:03d}.png")
+            (d / "003.png").write_bytes(b"x")
+            st = lambda v: types.SimpleNamespace(value=v)
+            app = types.SimpleNamespace(_asset_results={
+                "1": types.SimpleNamespace(scene_number="1", path=d / "001.png", status=st("ready"), ok=True),
+                "2": types.SimpleNamespace(scene_number="2", path=d / "002.png", status=st("ready"), ok=True),
+                "3": types.SimpleNamespace(scene_number="3", path=d / "003.png", status=st("skipped"), ok=True)})
+            r = D.Runner.__new__(D.Runner)
+            r.app, r.log = app, lambda m: None
+            r.fill_skipped()
+            self.assertEqual(Image.open(d / "003.png").convert("RGB").getpixel((5, 5)), (0, 0, 255))
 
     def test_a_video_still_being_written_is_waited_for_not_rendered_again(self):
         with tempfile.TemporaryDirectory() as d:
