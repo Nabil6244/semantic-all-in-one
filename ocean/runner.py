@@ -5,7 +5,9 @@
     plan_film(scenes, work, channel, log)        -> summary dict; writes work/plan.json
     load_plan(work)                              -> the saved plan dict or None
     sound_events(plan) / music_plan(plan)        -> stage pops / whooshes, one music bed per chapter (deep chapters darker)
-    render_film(work, voice, out, ...)           -> {"seconds", "chunks", ...}; sound never stops a film (plain voice if the mix fails)
+    clip_scenes(plan)                            -> the real-clip slots as Visuals-tab scenes (ocean/clips.py)
+    render_film(work, voice, out, found=...)     -> {"seconds", "chunks", "clips", ...}; found = {scene_no: {"path", "meta"}} from the
+                                                    Visuals tab; a slot without a clip keeps the drawn stage; sound never stops a film
 
 The picture is drawn entirely in code (ocean/stage.py over a black base clip), so a film needs no downloads, no Flow and
 no Gemini: only the voice-over. Rendering is split into chunks rendered in parallel, joined, then the mixed voice is laid on
@@ -22,6 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
+from . import clips as CL
 from . import planner as P
 from . import reader as R
 
@@ -78,7 +81,7 @@ def auto_chapters(scenes: Sequence[Dict[str, Any]]) -> List[float]:
 # ---------------------------------------------------------------------------------------------------------------- plan
 
 def plan_film(scenes: Sequence[Dict[str, Any]], work: str, channel: str = "Ocean",
-              log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
+              log: Callable[[str], None] = lambda m: None, real_clips: bool = True) -> Dict[str, Any]:
     if not scenes:
         raise RuntimeError("the voice-over has no sentences to plan from")
     chapters = auto_chapters(scenes)
@@ -88,14 +91,19 @@ def plan_film(scenes: Sequence[Dict[str, Any]], work: str, channel: str = "Ocean
     data = {"version": 1, "channel": channel, "chapters": chapters, "scenes": [dict(s) for s in scenes],
             "layers": pl.layers, "shots": pl.shots, "report": pl.report,
             "total": max(float(s["end"]) for s in scenes)}
+    data["clips"] = CL.choose(data["scenes"], pl.layers, data["total"], pl.shots) if real_clips else []
     tmp = wd / (PLAN_FILE + ".tmp")
     tmp.write_text(json.dumps(data, default=list), encoding="utf-8")
     tmp.replace(wd / PLAN_FILE)
     r = pl.report
     log(f"planned {r['shots']} shots (avg {r['shot_avg_s']} s), {sum(r['cards'].values())} cards, {r['captions']} captions, "
-        f"{len(chapters)} chapters, {r['species']} animals; longest still {r['longest_still_s']} s")
+        f"{len(chapters)} chapters, {r['species']} animals, {len(data['clips'])} real-clip slots; longest still {r['longest_still_s']} s")
     return {"shots": r["shots"], "cards": sum(r["cards"].values()), "captions": r["captions"], "chapters": len(chapters),
-            "duration": data["total"], "species": r["species"], "report": r}
+            "duration": data["total"], "species": r["species"], "clips": len(data["clips"]), "report": r}
+
+
+def clip_scenes(plan: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    return CL.visual_scenes((plan or {}).get("clips") or [])
 
 
 def load_plan(work: str) -> Optional[Dict[str, Any]]:
@@ -180,7 +188,8 @@ def timeline(plan: Dict[str, Any], black: str):
     return shots, layers
 
 
-def render_film(work: str, voice: str, out: str, *, chunk_s: float = 45.0, workers: int = 3,
+def render_film(work: str, voice: str, out: str, *, found: Optional[Dict[str, Dict[str, Any]]] = None, chunk_s: float = 45.0,
+                workers: int = 3,
                 progress: Callable[[float, str], None] = lambda k, m: None, cancel: Callable[[], bool] = lambda: False,
                 log: Callable[[str], None] = lambda m: None, sound: bool = True) -> Dict[str, Any]:
     from aviation import bridge as BR
@@ -195,7 +204,13 @@ def render_film(work: str, voice: str, out: str, *, chunk_s: float = 45.0, worke
     wd = Path(work)
     total = float(plan["total"])
     black = BR.ensure_black(str(wd / "black.mp4"), total)
-    shots, layers = timeline(plan, black)
+    used: List[Dict[str, Any]] = []
+    if found:
+        shots, layers, used = CL.apply(plan, found, black, str(wd), log)
+        if used:
+            log(f"{len(used)} real clips cut in (graded into the blue world, credited)")
+    else:
+        shots, layers = timeline(plan, black)
     chunks = split_timeline(shots, layers, chunk_s)
     table = card_table()
     parts = [wd / f"part_{i:03d}.mp4" for i in range(len(chunks))]
@@ -250,13 +265,15 @@ def render_film(work: str, voice: str, out: str, *, chunk_s: float = 45.0, worke
     shutil.move(str(tmp), out)
     for p in parts + [silent, lst]:
         Path(p).unlink(missing_ok=True)
-    _write_description(plan, Path(out))
+    for u in used:
+        Path(u["path"]).unlink(missing_ok=True)
+    _write_description(plan, Path(out), used)
     progress(1.0, "done")
-    return {"seconds": total, "chunks": len(chunks), "sound": bool(mixed.get("path"))}
+    return {"seconds": total, "chunks": len(chunks), "sound": bool(mixed.get("path")), "clips": len(used)}
 
 
-def _write_description(plan: Dict[str, Any], out: Path) -> None:
-    """Chapters with timestamps next to the video (the reference channel puts them in every description)."""
+def _write_description(plan: Dict[str, Any], out: Path, used: Sequence[Dict[str, Any]] = ()) -> None:
+    """Chapters with timestamps (+ the real clips' credits) next to the video, ready for the description."""
     try:
         lines = ["0:00 Intro"]
         scenes = plan.get("scenes") or []
@@ -265,6 +282,9 @@ def _write_description(plan: Dict[str, Any], out: Path) -> None:
             title = " ".join(re.findall(r"[A-Za-z0-9']+", str(sc.get("text", "")) if sc else "")[:6]) or "Chapter"
             m, s = divmod(int(float(c)), 60)
             lines.append(f"{m}:{s:02d} {title}")
+        credits = sorted({u["credit"].replace("Footage: ", "") for u in used if u.get("credit")})
+        if credits:
+            lines += ["", "Credits: Footage: " + "; ".join(credits) + "."]
         out.with_name(out.stem + "_chapters.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     except Exception:  # noqa: BLE001
         pass

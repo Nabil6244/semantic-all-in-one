@@ -1,8 +1,10 @@
 """Ocean Predators: its own style page (a voice-over and a channel name) with a Generate step that reads the narration and
 plans the film, and a Render step that renders it: flat 2D sea animals acting each sentence in one moving underwater
-world, number / study / joke cards, orange keyword captions, pops and whooshes and a music bed under the voice (-14 LUFS).
-All the work lives in ocean/ (runner.py), imported only inside the button handlers. Nothing starts until Generate:
-picking files or options only remembers them. No downloads, no Flow, no Gemini: the picture is drawn in code.
+world, number / study / joke cards, orange keyword captions, pops and whooshes and a music bed under the voice (-14 LUFS),
+and (optional, on by default) a short real clip about every 40 s, graded into the blue world with a credit line. The clips
+are searched through the app's own stock sources at Generate and listed in the Visuals tab (review / Retry / Change source);
+Render uses exactly what the tab holds and fetches nothing. All the work lives in ocean/ (runner.py, clips.py), imported only
+inside the button handlers. Nothing starts until Generate: picking files or options only remembers them. No Flow, no Gemini.
 
 Each project remembers this page (state/ocean/settings.json): reopening it comes back on the page with its choices and, if
 the voice-over did not change, its planned film, so Render is ready.
@@ -13,6 +15,7 @@ app.py only calls in here: activate / deactivate / resume_on_open / sync_cta / c
 from __future__ import annotations
 
 import json
+import sys
 import threading
 from pathlib import Path
 from typing import Any, Optional
@@ -25,11 +28,13 @@ from .widgets import make_button
 
 STYLE = "Ocean Predators"
 TAG = "[OCEAN]"
+OWNER = "ocean"             # its real-clip rows in the Visuals tab (visual_bridge.OWNERS)
 
 
 def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._oc_voice_var = ctk.StringVar(value="")
     app._oc_channel_var = ctk.StringVar(value="Ocean")
+    app._oc_clips_var = ctk.BooleanVar(value=True)
     app._oc_status_var = ctk.StringVar(value="")
     app._oc_cancel = threading.Event()
     app._oc_running = getattr(app, "_oc_running", False)
@@ -53,7 +58,9 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     out = ctk.CTkFrame(body, fg_color="transparent")
     out.grid(row=0, column=0, sticky="ew")
     ctk.CTkLabel(out, text="Channel name (end card)", font=ctk.CTkFont(size=12), text_color=T.MUTED).grid(row=0, column=0, padx=(0, 8))
-    ctk.CTkEntry(out, textvariable=app._oc_channel_var, width=220).grid(row=0, column=1)
+    ctk.CTkEntry(out, textvariable=app._oc_channel_var, width=220).grid(row=0, column=1, padx=(0, 16))
+    ctk.CTkCheckBox(out, text="Real clips (stock, credited; checked in the Visuals tab)", variable=app._oc_clips_var).grid(
+        row=0, column=2)
 
     body = section(block, 2, 3, "Generate, then Render", "Generate reads the voice-over and plans the film; Render makes the video")
     go = ctk.CTkFrame(body, fg_color="transparent")
@@ -72,7 +79,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  justify="left", wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
     block.grid_remove()
-    for v in (app._oc_voice_var, app._oc_channel_var):
+    for v in (app._oc_voice_var, app._oc_channel_var, app._oc_clips_var):
         v.trace_add("write", lambda *_a: _save(app))
 
 
@@ -107,7 +114,7 @@ def _save(app: Any) -> None:
     try:
         planned = getattr(app, "_oc_planned", None)
         data = {"active": bool(getattr(app, "_oc_active", False)), "voice": app._oc_voice_var.get(),
-                "channel": app._oc_channel_var.get(), "planned": None}
+                "channel": app._oc_channel_var.get(), "clips": bool(app._oc_clips_var.get()), "planned": None}
         if planned:
             data["planned"] = {**planned, "sig_voice": _sig(planned["voice"])}
         f.parent.mkdir(parents=True, exist_ok=True)
@@ -133,6 +140,7 @@ def _restore(app: Any) -> None:
     try:
         app._oc_voice_var.set(d.get("voice", "") or "")
         app._oc_channel_var.set(d.get("channel", "") or "Ocean")
+        app._oc_clips_var.set(bool(d.get("clips", True)))
         p = d.get("planned")
         if p and p.get("voice") and (Path(str(p.get("work", ""))) / "plan.json").is_file():
             if p.get("sig_voice") is not None and _sig(p["voice"]) == p["sig_voice"]:
@@ -140,6 +148,12 @@ def _restore(app: Any) -> None:
                 app._oc_status_var.set("Restored: the film is planned. Click Render, or Generate to plan again.")
     finally:
         app._oc_restoring = False
+    try:
+        import visual_bridge
+
+        visual_bridge.restore(app, OWNER)      # this project's clip rows back in the Visuals tab
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def resume_on_open(app: Any) -> None:
@@ -190,6 +204,12 @@ def deactivate(app: Any, *, remember: bool = True) -> None:
         block = getattr(app, "_oc_block", None)
         if block is not None:
             block.grid_remove()
+        try:
+            import visual_bridge
+
+            visual_bridge.clear(app, OWNER)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _sync_buttons(app: Any) -> None:
@@ -317,7 +337,21 @@ def on_generate(app: Any) -> None:
         messagebox.showerror("Cannot start", "Add the voice-over first." if not voice else f"The voice-over is not there: {voice}")
         return
     channel = app._oc_channel_var.get().strip() or "Ocean"
+    want_clips = bool(app._oc_clips_var.get())
     work = str(_work_dir(app) / "film")
+    import visual_bridge
+
+    images_dir = visual_bridge.folder(OWNER, app._workspace)
+    manager = None
+    if want_clips:
+        try:
+            from cinematic_explainer.war.app_section import war_manager
+
+            manager = war_manager(app._build_asset_manager(images_dir, []))      # built here: it reads Tk variables; Gemini off
+        except Exception as exc:  # noqa: BLE001
+            messagebox.showerror("Cannot start", f"The app's clip sources could not be set up:\n{exc}\n\n"
+                                                 "Untick 'Real clips' to make the film from drawings only.")
+            return
     app._oc_planned = None
     _save(app)
     app._oc_status_var.set("Reading the voice-over…")
@@ -339,14 +373,50 @@ def on_generate(app: Any) -> None:
             total = 0.0
         scenes = RN.scenes_from_words(words, total)
         log(f"{len(scenes)} sentences from the voice-over")
-        return RN.plan_film(scenes, work, channel, log)
+        r = RN.plan_film(scenes, work, channel, log, real_clips=want_clips)
+        r["rows"], r["found"] = [], 0
+        cs = RN.clip_scenes(RN.load_plan(work)) if want_clips else []
+        if cs and manager is not None:
+            from cinematic_explainer.war.app_section import fetch_csv_footage
+
+            M = sys.modules[type(app).__module__]
+            live = hasattr(app, "_ui_queue")
+
+            def on_start(scene, source):
+                app._ui_queue.put(("scene_busy", (scene.scene_number, M._scene_busy_kind(source))))
+
+            def on_done(scene, result):
+                app._ui_queue.put(("scene_asset", (scene.scene_number, result)))
+
+            _s, rows = fetch_csv_footage(cs, None, images_dir, log, fetch=False, ai_cap=0, director=False, library=False)
+            if live:
+                app.after(0, lambda: visual_bridge.fill(app, OWNER, rows))   # every slot is listed before the first download
+            app._style_fetch_manager = manager
+            try:
+                fetch_csv_footage(cs, manager, images_dir, log, cancel=app._oc_cancel.is_set, ai_cap=0, fetch=True,
+                                  on_start=on_start if live else None, on_done=on_done if live else None,
+                                  director=False, library=False)
+            finally:
+                app._style_fetch_manager = None
+            got, rows = fetch_csv_footage(cs, None, images_dir, log, fetch=False, ai_cap=0, director=False, library=False)
+            r["rows"], r["found"] = rows, sum(1 for sc in got if sc.get("footage"))
+        if app._oc_cancel.is_set():
+            raise RN.Cancelled()
+        return r
 
     def done(r) -> None:
         app._oc_planned = {"voice": voice, "channel": channel, "work": work}
+        clips = f" {r['found']} of {r['clips']} real clips found (check them in the Visuals tab)." if r.get("clips") else ""
         msg = (f"Planned {r['shots']} shots over {r['duration']:.0f} s: {r['cards']} cards, {r['captions']} captions, "
-               f"{r['chapters']} chapters, {r['species']} animals. Click Render.")
+               f"{r['chapters']} chapters, {r['species']} animals.{clips} Click Render.")
         app._oc_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
+        if r.get("rows"):
+            visual_bridge.fill(app, OWNER, r["rows"])
+            try:
+                app._goto_workflow_view("visual_plan")
+            except Exception:  # noqa: BLE001
+                pass
         _save(app)
 
     _start(app, "ocean-generate", job, done)
@@ -377,14 +447,26 @@ def on_render(app: Any) -> None:
         app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed",
                                   message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
+    import visual_bridge
+
+    images_dir = visual_bridge.folder(OWNER, ws)
+
     def job():
         from ocean import runner as RN
 
-        return RN.render_film(plan["work"], plan["voice"], str(out_path), progress=_progress(app), cancel=app._oc_cancel.is_set,
-                              log=_log(app))
+        found = {}
+        cs = RN.clip_scenes(RN.load_plan(plan["work"]))
+        if cs:      # exactly what the Visuals tab holds now (the user's Retry / Change source / Local clip included); nothing is fetched
+            from cinematic_explainer.war.app_section import fetch_csv_footage
+
+            got, _rows = fetch_csv_footage(cs, None, images_dir, _log(app), fetch=False, ai_cap=0, director=False, library=False)
+            found = {str(sc["scene_no"]): {"path": sc["footage"], "meta": sc.get("footage_meta")} for sc in got if sc.get("footage")}
+        return RN.render_film(plan["work"], plan["voice"], str(out_path), found=found, progress=_progress(app),
+                              cancel=app._oc_cancel.is_set, log=_log(app))
 
     def done(r) -> None:
-        msg = f"Done: {out_path.name} ({r['seconds']:.0f} s). Chapter list saved next to it."
+        clips = f", {r['clips']} real clips" if r.get("clips") else ""
+        msg = f"Done: {out_path.name} ({r['seconds']:.0f} s{clips}). Chapter list and credits saved next to it."
         app._oc_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
 

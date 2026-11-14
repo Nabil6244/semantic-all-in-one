@@ -78,8 +78,26 @@ def world(sets: Sequence[Sequence[Any]], t: float) -> Image.Image:
     return img
 
 
+def _credit_layer(text: str) -> Optional[Image.Image]:
+    """During a real clip the stage steps aside; only the clip's small credit line stays (bottom-left)."""
+    if not text:
+        return None
+    from PIL import ImageDraw
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    f = L.font("regular", 15)
+    sc = L.scale()
+    x, y = 26 * sc, H - 28 * sc
+    d.text((x + 1, y + 1), text, font=f, fill=(0, 0, 0, 150))
+    d.text((x, y), text, font=f, fill=(236, 240, 242, 200))
+    return img
+
+
 def lay_ocean(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
     t = t + float(p.get("t_offset", 0.0))
+    for h in p.get("holes") or []:              # a real clip plays here (ocean/clips.py)
+        if float(h[0]) <= t < float(h[1]):
+            return _credit_layer(str(h[2] if len(h) > 2 else ""))
     canvas = world(p.get("sets") or [[0.0, "open_water", {}]], t)
     sc = L.scale()
     for e in sorted(p.get("elements") or [], key=lambda e: e.get("z", 0)):

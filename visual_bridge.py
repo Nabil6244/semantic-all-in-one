@@ -72,6 +72,13 @@ def _av_dir(ws) -> Path:
 OWNERS["aviation"] = ("_av_active", _av_dir)   # Aviation footage (ui/aviation_section.py, aviation/)
 
 
+def _oc_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "ocean" / "assets"
+
+
+OWNERS["ocean"] = ("_oc_active", _oc_dir)   # Ocean Predators real clips (ui/ocean_section.py, ocean/clips.py)
+
+
 def _scene_key(scene_number) -> str:   # the table's own key (app._scene_key): "001"
     try:
         return f"{int(str(scene_number).strip()):03d}"
