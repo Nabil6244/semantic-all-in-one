@@ -186,6 +186,38 @@ class TestProjectPickerDialogSmoke(unittest.TestCase):
         empty._safe_destroy()
         self.assertEqual(events, [])
 
+    def test_short_window_keeps_every_project_reachable_by_scroll(self):
+        projects = [
+            {"id": f"p{i}", "title": f"Project {i:02d}", "display_seq": i, "last_used": False}
+            for i in range(1, 13)
+        ]
+        dlg = self.ProjectPickerDialog(
+            self.root,
+            projects=projects,
+            on_create=lambda _t: None,
+            on_select=lambda _i: None,
+            on_open_folder=lambda: None,
+        )
+        self.addCleanup(lambda: dlg._safe_destroy())
+        dlg.geometry("520x560")
+        self.root.update_idletasks()
+        self.root.update()
+
+        canvas = dlg._list._parent_canvas
+        bbox = canvas.bbox("all")
+        self.assertIsNotNone(bbox)
+        content_h = bbox[3] - bbox[1]
+        view_h = canvas.winfo_height()
+        self.assertGreater(content_h, view_h + 40)
+        region = [float(part) for part in str(canvas.cget("scrollregion")).split()]
+        self.assertEqual(len(region), 4)
+        self.assertGreater(region[3] - region[1], view_h + 40)
+        self.assertLess(canvas.yview()[1], 0.98)
+
+        canvas.yview_moveto(1.0)
+        self.root.update_idletasks()
+        self.assertGreater(canvas.yview()[0], 0.2)
+
     def test_delete_icon_removes_the_row_and_leaves_the_dialog_open(self):
         from unittest.mock import patch
 

@@ -306,7 +306,11 @@ class ProjectPickerDialog(ctk.CTkToplevel):
         )
         self._list.grid(row=1, column=0, sticky="nsew")
         self._list.grid_columnconfigure(0, weight=1)
-        self._list.bind("<Configure>", self._on_list_configure)
+        # add="+" keeps CTkScrollableFrame's own <Configure> handler, which
+        # sets the canvas scrollregion. Replacing it clips every row that
+        # does not fit and leaves the list unable to scroll until the window
+        # is tall enough to show them all.
+        self._list.bind("<Configure>", self._on_list_configure, add="+")
 
         ordered = _display_order(projects)
         if not ordered:
