@@ -168,7 +168,13 @@ export function buildTimeline(story, city, opts = {}) {
     const tOut = l.until == null ? 1e9 : timeOfYear(tl, l.until);
     const part = holds.flatMap((h) => h.tour || []).find((p) => p.id === l.id);
     // the front keeps pace with the camera: it reaches the shot's last ~2.2 km at the shot's end, the rest follows
-    if (part && part.track) { const L = pathLength(l, city), sc = L / Math.min(L, TRACK_MAX); return [l.id, { tIn: part.t0 + 0.2, tDone: part.t0 + 0.2 + (part.t1 - 0.6 - part.t0) * sc, tOut }]; }
+    if (part && part.track) {
+      // the building front is driven by the camera itself: just ahead of where it looks, all through the shot; a long
+      // wall or road then finishes beyond the shot within a few seconds
+      const P = pathXZ(l, city), A = P[0], B = P[P.length - 1], L0 = Math.hypot(B.x - A.x, B.z - A.z) || 1, dx = (B.x - A.x) / L0, dz = (B.z - A.z) / L0;
+      const c0 = cameraAt(tl.camera, part.t0), c1 = cameraAt(tl.camera, part.t1), lead = 0.18 * c0.dist;
+      return [l.id, { tIn: part.t0, tDone: part.t1, tOut, sweepFrom: c0.x * dx + c0.z * dz + lead, sweepTo: c1.x * dx + c1.z * dz + lead, finish: 3 }];
+    }
     if (part) { const td = part.t0 + 0.55 * (part.t1 - part.t0); return [l.id, { tIn: Math.max(Math.min(tIn, td - 2.2), td - 8, part.t0 - 2.5), tDone: td, tOut }]; }
     const host = null;
     const tDone = host ? Math.max(tIn + 2.2, host.h0 + 0.5 * (host.h1 - host.h0)) : tIn + 2.2;
@@ -357,7 +363,9 @@ function calmShots(segs) {
     if (sg.type !== 'move') continue;
     const dt = Math.max(0.3, sg.t1 - sg.t0), a = sg.from, b = sg.to, d = Math.sqrt(a.dist * b.dist);
     const dh = Math.abs(((((b.heading - a.heading) % 360) + 540) % 360) - 180), glide = Math.hypot(b.x - a.x, b.z - a.z) / d, zoom = Math.abs(Math.log(b.dist / a.dist));
-    const k = Math.min(1, (MAX_TURN * dt) / Math.max(1e-6, dh), ((sg.track ? MAX_TRACK : MAX_GLIDE) * dt) / Math.max(1e-6, glide), (MAX_ZOOM * dt) / Math.max(1e-6, zoom));
+    // a tracking shot keeps its full travel: it rides with the building front, which must stay in frame
+    const k = Math.min(1, (MAX_TURN * dt) / Math.max(1e-6, dh), sg.track ? 1 : (MAX_GLIDE * dt) / Math.max(1e-6, glide), (MAX_ZOOM * dt) / Math.max(1e-6, zoom));
+    if (sg.track && k < 1) { sg.to.heading = a.heading + (b.heading - a.heading) * k; sg.to.dist = a.dist * Math.pow(b.dist / a.dist, k); sg.to.tilt = a.tilt + (b.tilt - a.tilt) * k; continue; }
     if (k < 1) Object.assign(sg.to, mix(a, b, k));   // in place: the flight that follows starts from here too
   }
   // flights: never a whip-pan or a plunge. If the next shot would need the camera to turn faster than ~5 deg/s or change

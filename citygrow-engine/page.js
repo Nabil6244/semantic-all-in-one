@@ -487,7 +487,15 @@ async function main() {
       u.plane.constant = building ? u.baseY - 0.3 + rise * (u.top - u.baseY + 0.5) : 1e6;
       if (u.scaffold) { u.scaffold.visible = building && rise > 0.002; u.sPlane.constant = u.plane.constant + 6; }
       if (u.sweep) {   // keep what lies before the building front: dir . p <= front
-        if (rise < 0.999) { u.plane.normal.copy(u.sweep.n); u.plane.constant = u.sweep.s0 + rise * (u.sweep.s1 - u.sweep.s0); }
+        const tm = u.times;
+        let front = null;
+        if (tm.sweepFrom != null) {   // a tracked build: the front follows the camera, then the rest finishes quickly
+          if (t < tm.tIn) front = u.sweep.s0 - 1;
+          else if (t <= tm.tDone) front = tm.sweepFrom + (tm.sweepTo - tm.sweepFrom) * ((t - tm.tIn) / Math.max(0.1, tm.tDone - tm.tIn));
+          else { const k = smooth((t - tm.tDone) / (tm.finish || 3)); front = k >= 0.999 ? null : tm.sweepTo + (u.sweep.s1 - tm.sweepTo) * k; }
+          g.visible = t >= tm.tIn && gone < 0.998;
+        } else if (rise < 0.999) front = u.sweep.s0 + rise * (u.sweep.s1 - u.sweep.s0);
+        if (front != null) { u.plane.normal.copy(u.sweep.n); u.plane.constant = Math.max(u.sweep.s0 - 1, front); }
         else { u.plane.normal.set(0, -1, 0); u.plane.constant = 1e6; }
       }
     }
