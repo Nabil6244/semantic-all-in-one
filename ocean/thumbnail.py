@@ -20,6 +20,8 @@ from .cards import F
 
 RED = (226, 40, 40, 255)
 HOOKS = [  # (what the script says, hook) first match wins
+    (r"\b(walk(?:s|ed)? away|backs? (?:down|off)|steps? back(?:ward)?|let (?:it|the \w+ \w+) walk away)\b", "THEY ALL ",
+     "BACK OFF.."),
     (r"\b(won'?t|doesn'?t|never|does not|will not) (hunt|attack|eat|bite)", "WON'T HUNT ", "YOU..."),
     (r"\b(follow\w*|circl\w*|stalk\w*|track\w*)\b", "IT FOLLOWS ", "YOU.."),
     (r"\b(can'?t|cannot|doesn'?t) see\b|\bblind\b", "IT CAN'T SEE ", "YOU"),
@@ -79,8 +81,12 @@ def make(animal: str, hook: Tuple[str, str], dst: str, size: Tuple[int, int] = (
         src = src.transpose(Image.FLIP_LEFT_RIGHT)            # facing the diver on the left
     drawn = ink(src, int(w * 0.78))
     im.alpha_composite(drawn, (int(w * 0.3), int(h * 0.56 - drawn.height / 2)))
-    diver = ink(A.draw("diver", 260, 0, face="right"), int(w * 0.09))
-    dx, dy = int(w * 0.14), int(h * 0.66)
+    from . import species as SPX
+    land = SPX.family(animal) in ("land", "bird")
+    hiker = AF.path("hiker", "side") if land else None
+    figure = Image.open(hiker).convert("RGBA") if hiker else A.draw("diver", 260, 0, face="right")
+    diver = ink(figure, int(w * (0.045 if hiker else 0.09)))       # a walking person for land stories, a diver at sea
+    dx, dy = int(w * 0.14), int(h * (0.6 if hiker else 0.66))
     im.alpha_composite(diver, (dx, dy))
     plain, key = hook
     f = F("heavy", int(h * 0.15))

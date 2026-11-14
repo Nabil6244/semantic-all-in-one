@@ -147,3 +147,22 @@ Ocean = a new theme + kit on top of it, plus a few new card types. Steps:
 7. **Script template + CSV**: the 7-part grammar in §2 as a writing template (for the
    CSV/script skill), chapters + credits auto-written to the description.
 8. **Test** on 3+ new-topic scripts (not just sharks) before calling it done.
+
+## 9. How their animals move (reverse-engineered 2026-11-14, 720p frame-by-frame)
+
+Studied the walking tiger in "The Deadliest Man-Eaters" (7:57-8:05) and the swimming orca in "The Only Animals That
+Make Orcas Run Away" (8:06), at 30 fps.
+
+- **Vector puppets, not pictures.** Every animal is a set of separate flat vector shapes: body, head, ears, each leg,
+  tail, fins. Fills are flat colour with one soft gradient (lighter belly), crisp edges, a few detail shapes (stripes,
+  white cheek / belly patch, eye), sometimes a thin light rim line. No fur, no painted texture, no 3D shading.
+- **Jointed legs.** Each leg is two segments (thigh + shin, upper arm + forearm) with a bend at the knee / hock, white
+  paw at the end. The near legs carry the body colour and stripes; the far legs are one darker solid brown, drawn
+  behind the body. Legs cycle in a four-beat walk; the knees bend as the leg lifts and swings forward.
+- **Walk in place.** The animal stays near the middle of the frame and walks on the spot over a static dark set
+  (a treadmill cycle). Crossing the frame is done by slowly moving the whole puppet, never by sliding a still.
+- **Secondary motion.** The body bobs slightly with the steps, the head nods, the tail is a chain of segments
+  (striped bands on the tiger) that sways in a wave. Soft ellipse shadow under the feet.
+- **Swim cycle (orca).** Flat body + white patch + dorsal fin + flipper; the tail flukes beat up and down, the
+  flipper paddles, the body drifts slowly forward with a gentle up/down. Same flat-fill look.
+- Implies an After Effects-style puppet rig (shape layers + joints / IK) with looping cycles per animal type.

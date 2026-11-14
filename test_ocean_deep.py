@@ -34,7 +34,7 @@ LINES = [
     "Like other sharks, it can feel the electric fields your body gives off.",
     "If you panic, you use air about 3 times faster.",
 ]
-EXPECT = {1: "temp_tag", 4: "year_anchor", 5: "latin_name", 6: "size_compare", 7: "ghost_size", 8: "map_pin",
+EXPECT = {1: "temp_tag", 4: "year_anchor", 5: "latin_name", 6: "size_compare", 7: "ghost_size", 8: "island_map",
           9: "hud_bars", 10: "question", 11: "icon_grid", 12: "stomach", 13: "stomach", 14: "above_below",
           15: "map_pin", 16: "anatomy", 17: "icon_grid", 18: "anatomy", 19: "hud_bars"}
 

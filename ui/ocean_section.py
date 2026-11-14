@@ -35,6 +35,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._oc_voice_var = ctk.StringVar(value="")
     app._oc_channel_var = ctk.StringVar(value="Ocean")
     app._oc_clips_var = ctk.BooleanVar(value=True)
+    app._oc_beats_var = ctk.StringVar(value="")   # beat CSV (ocean/beat_prompt.md): one picture / clip / graphic per beat
     app._oc_status_var = ctk.StringVar(value="")
     app._oc_cancel = threading.Event()
     app._oc_running = getattr(app, "_oc_running", False)
@@ -57,8 +58,11 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     tools.grid(row=2, column=0, sticky="w", pady=(6, 0))
     app._oc_prompt_status = ctk.StringVar(value="")
     make_button(tools, "Copy the script prompt", lambda: copy_script_prompt(app), size="sm", width=170).grid(row=0, column=0, padx=(0, 10))
+    make_button(tools, "Copy the beat prompt", lambda: copy_beat_prompt(app), size="sm", width=170).grid(row=0, column=1, padx=(0, 10))
     ctk.CTkLabel(tools, textvariable=app._oc_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(
-        row=0, column=1, sticky="w")
+        row=0, column=2, sticky="w")
+    app._path_row(3, "Beat CSV", app._oc_beats_var, lambda: _browse_beats(app), parent=body,
+                  placeholder_text="Optional: the beat list from the beat prompt (a picture, clip or graphic for every beat)")
 
     body = section(block, 1, 2, "Output")
     out = ctk.CTkFrame(body, fg_color="transparent")
@@ -85,7 +89,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  justify="left", wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
     block.grid_remove()
-    for v in (app._oc_voice_var, app._oc_channel_var, app._oc_clips_var):
+    for v in (app._oc_voice_var, app._oc_channel_var, app._oc_clips_var, app._oc_beats_var):
         v.trace_add("write", lambda *_a: _save(app))
 
 
@@ -126,6 +130,28 @@ def copy_script_prompt(app: Any) -> None:
         app._oc_prompt_status.set(f"Could not copy: {exc}")
 
 
+def copy_beat_prompt(app: Any) -> None:
+    """The beat prompt (ocean/beat_prompt.md): paste it with the script into an AI chat; save its CSV and pick it as Beat CSV."""
+    p = Path(__file__).resolve().parent.parent / "ocean" / "beat_prompt.md"
+    try:
+        app.clipboard_clear()
+        app.clipboard_append(p.read_text(encoding="utf-8"))
+        app._oc_prompt_status.set("Copied. Paste it into your AI chat with your script, save the CSV it writes, pick it as Beat CSV.")
+    except Exception as exc:  # noqa: BLE001
+        app._oc_prompt_status.set(f"Could not copy: {exc}")
+
+
+def _browse_beats(app: Any) -> None:
+    from tkinter import filedialog
+
+    path = filedialog.askopenfilename(title="Choose the beat CSV", filetypes=[("CSV", "*.csv *.txt"), ("All files", "*.*")])
+    if path:
+        app._oc_beats_var.set(path)   # remembered only: read at Generate
+        app._oc_planned = None
+        _save(app)
+        _sync_buttons(app)
+
+
 def _sig(path: str):
     try:
         st = Path(path).stat()
@@ -155,7 +181,8 @@ def _save(app: Any) -> None:
     try:
         planned = getattr(app, "_oc_planned", None)
         data = {"active": bool(getattr(app, "_oc_active", False)), "voice": app._oc_voice_var.get(),
-                "channel": app._oc_channel_var.get(), "clips": bool(app._oc_clips_var.get()), "planned": None}
+                "channel": app._oc_channel_var.get(), "clips": bool(app._oc_clips_var.get()),
+                "beats": app._oc_beats_var.get(), "planned": None}
         if planned:
             data["planned"] = {**planned, "sig_voice": _sig(planned["voice"])}
         f.parent.mkdir(parents=True, exist_ok=True)
@@ -182,6 +209,7 @@ def _restore(app: Any) -> None:
         app._oc_voice_var.set(d.get("voice", "") or "")
         app._oc_channel_var.set(d.get("channel", "") or "Ocean")
         app._oc_clips_var.set(bool(d.get("clips", True)))
+        app._oc_beats_var.set(d.get("beats", "") or "")
         p = d.get("planned")
         if p and p.get("voice") and (Path(str(p.get("work", ""))) / "plan.json").is_file():
             if p.get("sig_voice") is not None and _sig(p["voice"]) == p["sig_voice"]:
@@ -379,6 +407,10 @@ def on_generate(app: Any) -> None:
         return
     channel = app._oc_channel_var.get().strip() or "Ocean"
     want_clips = bool(app._oc_clips_var.get())
+    beats_csv = app._oc_beats_var.get().strip()
+    if beats_csv and not Path(beats_csv).is_file():
+        messagebox.showerror("Cannot start", f"The beat CSV is not there: {beats_csv}")
+        return
     work = str(_work_dir(app) / "film")
     import visual_bridge
 
@@ -412,13 +444,30 @@ def on_generate(app: Any) -> None:
             total = float(voiceover_duration(voice) or 0.0)
         except Exception:  # noqa: BLE001
             total = 0.0
-        scenes = RN.scenes_from_words(words, total)
-        log(f"{len(scenes)} sentences from the voice-over")
-        r = RN.plan_film(scenes, work, channel, log, real_clips=want_clips)
-        r["rows"], r["found"] = [], 0
-        r["art_made"], r["art_missing"] = _make_missing_art(app, RN.load_plan(work), log)
-        cs = RN.clip_scenes(RN.load_plan(work)) if want_clips else []
-        if cs and manager is not None:
+        if beats_csv:                                  # beat mode: the CSV says the picture for every beat
+            r = RN.plan_beats(beats_csv, words, total, work, channel, log)
+            r["rows"], r["found"] = [], 0
+            r["art_made"], r["art_missing"] = 0, 0
+            from ocean import beat_flow as BF
+            try:
+                mgr = app._get_flow_engine_manager() if hasattr(app, "_get_flow_engine_manager") else None
+                fs, accts = app._image_flow_run_settings() if hasattr(app, "_image_flow_run_settings") else ({}, None)
+                r["pics_made"] = len(BF.make(RN.load_plan(work)["clips"], images_dir, log, manager=mgr,
+                                             should_stop=app._oc_cancel.is_set, mode=fs.get("generationMode"),
+                                             account_ids=accts))
+            except Exception as exc:  # noqa: BLE001 - the stage stand-ins show instead
+                log(f"Flow pictures not made ({exc}); those beats show the animal on the stage")
+            cs = RN.clip_scenes(RN.load_plan(work))
+            if not want_clips:
+                cs = [c for c in cs if c.get("asset_type") == "flow_image"]
+        else:
+            scenes = RN.scenes_from_words(words, total)
+            log(f"{len(scenes)} sentences from the voice-over")
+            r = RN.plan_film(scenes, work, channel, log, real_clips=want_clips)
+            r["rows"], r["found"] = [], 0
+            r["art_made"], r["art_missing"] = _make_missing_art(app, RN.load_plan(work), log)
+            cs = RN.clip_scenes(RN.load_plan(work)) if want_clips else []
+        if cs and (manager is not None or all(c.get("asset_type") == "flow_image" for c in cs)):
             from cinematic_explainer.war.app_section import fetch_csv_footage
 
             M = sys.modules[type(app).__module__]
@@ -440,6 +489,18 @@ def on_generate(app: Any) -> None:
                                   director=False, library=False)
             finally:
                 app._style_fetch_manager = None
+            if beats_csv:                     # a clip that does not show its animal becomes a painted picture of the line
+                swapped = RN.swap_bad_clips(work, str(images_dir), log)
+                if swapped:
+                    from ocean import beat_flow as BF
+                    try:
+                        mgr = app._get_flow_engine_manager() if hasattr(app, "_get_flow_engine_manager") else None
+                        fs, accts = app._image_flow_run_settings() if hasattr(app, "_image_flow_run_settings") else ({}, None)
+                        BF.make([c for c in RN.load_plan(work)["clips"] if str(c["scene_no"]) in swapped], images_dir, log,
+                                manager=mgr, should_stop=app._oc_cancel.is_set, mode=fs.get("generationMode"), account_ids=accts)
+                    except Exception as exc:  # noqa: BLE001
+                        log(f"Flow pictures for the swapped clips not made ({exc}); the nearest painted scene stands in")
+                    cs = RN.clip_scenes(RN.load_plan(work))
             got, rows = fetch_csv_footage(cs, None, images_dir, log, fetch=False, ai_cap=0, director=False, library=False)
             r["rows"], r["found"] = rows, sum(1 for sc in got if sc.get("footage"))
         if app._oc_cancel.is_set():
@@ -507,6 +568,8 @@ def on_render(app: Any) -> None:
 
             got, _rows = fetch_csv_footage(cs, None, images_dir, _log(app), fetch=False, ai_cap=0, director=False, library=False)
             found = {str(sc["scene_no"]): {"path": sc["footage"], "meta": sc.get("footage_meta")} for sc in got if sc.get("footage")}
+            from ocean import clips as CL
+            found.update(CL.tab_pictures(RN.load_plan(plan["work"]) or {}, str(images_dir)))   # beat pictures: the stills themselves
         return RN.render_film(plan["work"], plan["voice"], str(out_path), found=found, progress=_progress(app),
                               cancel=app._oc_cancel.is_set, log=_log(app))
 

@@ -76,6 +76,10 @@ CARD_POS = {
     "latin_name": ((640, 80), 1.0), "temp_tag": ((1090, 110), 1.0), "verdict": ((1070, 90), 1.0), "question": ((640, 150), 1.0),
 }
 SCOREBOARD_FROM = 0.82
+SMALL_FAR_UNITS = {"cm", "mm", "km", "inch", "inches", "millimeter", "millimeters", "millimetre", "millimetres", "centimeter",
+                   "centimeters", "centimetre", "centimetres", "mile", "miles"}
+SIZE_WORDS = re.compile(r"\b(long|length|big|bigger|biggest|size|tall|measur\w*|grows? (?:up )?to|reach(?:es)? up to|wide|across)\b", re.I)
+NOT_A_COUNT = re.compile(r"\b(option|number|step|chapter|part|level|round|day)\s*$", re.I)
 LATE_SCENES = {"map_pin", "anatomy", "latin_name", "question"}
 FINAL = re.compile(r"\b(final (?:count|score|tally)|scoreboard|in total|add (?:it|them) up|so far|the score)\b", re.I)
 CAPTIONED = {"map_pin", "anatomy", "above_below", "stomach", "polaroid", "question", "temp_tag", "verdict", "latin_name"}
@@ -113,9 +117,30 @@ def _after(text: str, pos: int, n: int = 6) -> List[str]:
     return re.findall(r"[A-Za-z'][A-Za-z'\-]*", text[pos:])[:n]
 
 
-def _layout(n: int) -> List[Tuple[float, float, str]]:
+def _layout(n: int, land: bool = False) -> List[Tuple[float, float, str]]:
+    if land:                                     # standing on the ground line of the land sets
+        return {1: [(620.0, 470.0, "right")], 2: [(380.0, 480.0, "right"), (900.0, 480.0, "left")]}.get(
+            n, [(280.0, 485.0, "right"), (660.0, 495.0, "right"), (1020.0, 485.0, "left")])
     return {1: [(600.0, 400.0, "right")], 2: [(390.0, 410.0, "right"), (900.0, 400.0, "left")]}.get(
         n, [(300.0, 340.0, "right"), (690.0, 450.0, "right"), (1010.0, 330.0, "left")])
+
+
+LAND_FAMILIES = ("land",)
+LAND_ONLY = ("savanna", "burrow")
+
+
+def _land_world(feats: Sequence[R.Features]) -> bool:
+    """A land story (lions, honey badgers) when its land animals are named more than its sea animals."""
+    land = sea = 0
+    for f in feats:
+        for a in f.animals:
+            if a[0] in ("diver", "boat", "cage", "tooth"):
+                continue
+            if FAMILY.get(a[0]) in LAND_FAMILIES:
+                land += 1
+            elif FAMILY.get(a[0]) not in ("bird",):
+                sea += 1
+    return land > sea
 
 
 def _animal_args(a: Tuple, face: str, width: int = 520, **extra: Any) -> Dict[str, Any]:
@@ -194,6 +219,7 @@ class _Cards:
         self.era_now = ""
         self.verdicts: Dict[str, str] = {}      # era -> rules / survives / dies (the end scoreboard)
         self.scored = False
+        self.land = False                       # a land story: no island map
 
     def ok(self, kind: str, t: float) -> bool:
         if kind in GAGS and t - self.last_gag < GAG_GAP_S:
@@ -230,7 +256,7 @@ class _Cards:
             self.revealed += 1
             opts.append({"kind": "mystery", "args": {"slots": slots[:5], "animals": animals[:5], "lit": i}, "pos": 0})
         scenes = self._scenes(sc, f, ctx)
-        years_only = all(n.kind == "year" for n in f.numbers) and not f.month     # "In 2012, ... off Baffin": the map carries the year
+        years_only = all(n.kind == "year" or (n.kind == "count" and n.value < 3) for n in f.numbers) and not f.month     # "In 2012, ... off Baffin": the map carries the year
         is_late = lambda o: o["kind"] in LATE_SCENES and not (o["kind"] == "map_pin" and years_only)  # noqa: E731
         late = [o for o in scenes if is_late(o)]
         opts += [o for o in scenes if not is_late(o)]
@@ -248,7 +274,7 @@ class _Cards:
         nums = [n for n in f.numbers if n.value > 0 or n.kind == "count"]
         counts = [n for n in nums if n.kind == "count"]
         group_n = next((n for n in counts if 3 <= n.value <= 60), None)
-        if group_n is not None and GROUP_TRACK.search(text):          # "Researchers tracked 17 sharks ... not one came back"
+        if group_n is not None and GROUP_TRACK.search(text) and not self.land:   # the island map is a sea scene          # "Researchers tracked 17 sharks ... not one came back"
             who = next((a for a in f.animals if 0 <= a[3] - group_n.end <= 3), None)
             animal = who[0] if who else (f.animals[0][0] if f.animals else ctx.get("subject"))
             if animal and animal not in ("boat", "cage", "tooth", "diver"):
@@ -264,7 +290,8 @@ class _Cards:
                                                             "year": year, "place": place,
                                                             "leave_frac": 0.38 if LEAVE.search(text) else None},
                              "pos": group_n.pos})
-        size_n = next((n for n in nums if n.kind == "length" and n.unit not in ("cm", "mm", "km", "inch", "inches")), None)
+        size_n = next((n for n in nums if n.kind == "length" and n.unit not in SMALL_FAR_UNITS and
+                       (SIZE_WORDS.search(text) or any(0 <= a[3] - n.end <= 3 for a in f.animals))), None)
         size_who = (f.animals[0] if f.animals else None)
         if size_who is None and ctx.get("subject"):          # "The biggest one ever measured was 5.5 m": the story's animal
             size_who = (ctx["subject"], False, {}, 0, ctx.get("subject_word") or ctx["subject"])
@@ -299,14 +326,16 @@ class _Cards:
                                                           "left": [a.raw, " ".join(_after(text, a.end, 2))],
                                                           "right": [b.raw, " ".join(_after(text, b.end, 2))]},
                              "pos": a.pos})
-            else:
+            elif min(a.value, b.value) >= 3 and (a.unit == b.unit or len(f.animals) >= 2):
                 la = (f.animals[0][4] if f.animals else a.unit) or a.unit
                 lb = (f.animals[1][4] if len(f.animals) > 1 else b.unit) or b.unit
                 opts.append({"kind": "standoff", "args": {"left": [a.raw, la], "right": [b.raw, lb]}, "pos": a.pos})
         for n in nums:
-            if n.kind == "length" and f.animals and not any(o["kind"] == "size_compare" for o in opts):
+            if n.kind == "length" and f.animals and not any(o["kind"] == "size_compare" for o in opts) and \
+                    n.unit not in ("km", "mile", "miles") and (SIZE_WORDS.search(text) or any(0 <= a[3] - n.end <= 3 for a in f.animals)):
                 opts.append({"kind": "size_bar", "args": {"label": n.raw, "length": 460}, "pos": n.pos, "with_animal": True})
-            elif n.kind in ("count", "mass", "money", "length") and (n.unit or n.value >= 10 or n.pre):
+            elif n.kind in ("count", "mass", "money", "length") and (n.unit or n.value >= 10 or n.pre) and \
+                    not (n.kind == "count" and (n.value < 3 or NOT_A_COUNT.search(text[: n.pos]))):
                 who = next((a for a in f.animals if 0 <= a[3] - n.end <= 3), None)     # "8 great whites"
                 tail_from = (who[3] + len(who[4])) if who else n.end
                 if not who and n.kind == "count" and n.unit:
@@ -388,7 +417,15 @@ class _Cards:
             self.verdicts[self.era_now] = r.verdict
             out.append({"kind": "verdict", "args": {"verdict": r.verdict}, "pos": 0, "with_animal": True})
         counts = [n for n in f.numbers if n.kind == "count" and 6 <= n.value <= 500]
-        if r.fraction and (counts or who):
+        if r.fraction and not counts and not re.search(r"\b\d+ (?:in|out of) \d+\b", text):
+            lit_n, of_n = r.fraction
+            if not re.search(r"\bhalf (?:a|an) \w+|\b(?:quarter|half|third)s? of (?:a|an|one) (?:inch|cent\w*|milli\w*|foot|"
+                             r"feet|mile|met\w*|second|minute|hour|day|week|pound|kilo\w*|ton)\b", text, re.I):
+                # "half a second", "a quarter of an inch" are measures, not shares
+                out.append({"kind": "progress", "args": {"value": round(100 * lit_n / of_n), "label": f"~{round(100 * lit_n / of_n)}%",
+                                                         "note": " ".join(re.findall(r"[A-Za-z']+", text.split(",")[0])[-6:])},
+                            "pos": 0})
+        elif r.fraction and (counts or who):
             lit_n, of_n = r.fraction
             total_n = int(counts[0].value) if counts else of_n
             lit = int(round(total_n * lit_n / max(1, of_n)))
@@ -432,10 +469,14 @@ class _Cards:
             out.append({"kind": "year_anchor", "args": {"year": str(y), "event": ev,
                                                         "line": "it may already have been alive" if who else ""}, "pos": 0})
         if r.part and who:
+            pm = re.search(r"\b" + {"claw": "claw|paw", "sense": "electric"}.get(r.part, r.part[:3]), text, re.I)
+            part_who = who
+            if pm and real and real[0][3] > pm.start() and subj:      # "those claws ... gouging lions": the story's animal
+                part_who = subj
             clause = next((c for c in re.split(r"[,.;:!?]", text) if re.search(r"\b" + r.part[:3], c, re.I)), text)
             words = re.findall(r"[A-Za-z0-9'\-]+", clause)
             label = "electric sense" if r.part == "sense" else " ".join(words[-6:]) if len(words) > 2 else r.part
-            out.append({"kind": "anatomy", "args": {"animal": who, "part": r.part, "label": label}, "pos": 0})
+            out.append({"kind": "anatomy", "args": {"animal": part_who, "part": r.part, "label": label}, "pos": 0})
         if r.photo and who and not r.inside and not any(n.kind == "length" for n in f.numbers):
             mass = next((n.raw for n in f.numbers if n.kind == "mass"), "")
             cap = mass.upper() if mass else " ".join(re.findall(r"[A-Za-z0-9'\-]+", re.split(r"[,.;:!]", text)[0])[-6:])
@@ -503,6 +544,7 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
     chapters = sorted(float(c) for c in chapters)
     groups = _shots(scenes, feats, chapters)
     cards = _Cards(total, _list_items(scenes, feats))
+    cards.land = _land_world(feats)
     chapter_of = [sum(1 for c in chapters if c <= float(s["start"]) + 0.05) for s in scenes]
     you_count: Dict[int, int] = {}
     for i, f in enumerate(feats):
@@ -511,7 +553,9 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
 
     out = OceanPlan()
     seen_species: set = set()
-    last_set = "open_water"
+    land = _land_world(feats)
+    home = "savanna" if land else "open_water"
+    last_set = home
     carried = 0
     subject: Optional[Tuple] = None
     family_last: Dict[str, Tuple] = {}
@@ -530,12 +574,16 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
         st = OceanStage()
         new_chapter = g[0] in first_chapter_sent and gi > 0
         hint = next((feats[i].set_hint for i in g if feats[i].set_hint), "")
-        carry = last_set if (not new_chapter and (carried < CARRY_SET_SHOTS or last_set == "dark")) else "open_water"
+        carry = last_set if (not new_chapter and (carried < CARRY_SET_SHOTS or last_set == "dark")) else home
+        if land:                                    # a land story: water places become the plain, darkness is night on it
+            hint = {"dark": "savanna_night", "burrow": "burrow", "savanna": "savanna"}.get(hint, "savanna" if hint else "")
+        elif hint in LAND_ONLY:
+            hint = ""
         set_name = hint or carry
         carried = 0 if hint else carried + 1
         set_args: Dict[str, Any] = {}
         depth_n = next((n for i in g for n in feats[i].numbers if n.kind == "depth"), None)
-        if depth_n is not None and set_name not in ("dark", "ice_hole"):
+        if depth_n is not None and set_name not in ("dark", "ice_hole") and not land:
             set_name = "depth_column"
             set_args = {"marks": [[0, "surface"], [depth_n.value, depth_n.raw]], "max_m": depth_n.value * 1.25}
         if set_name == "split_columns":
@@ -586,7 +634,7 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                 for k in list(live):
                     if k not in keys:
                         drop(k, at)
-            slots = _layout(len(keys))
+            slots = _layout(len(keys), land)
             for (a, k), (x, y, face) in zip(zip(animals[:3], keys), slots):
                 yy, s = (y + (110 if set_name in LOW_TEXT_SETS else 70), 0.78) if shrink else (y, 1.0)
                 if a[0] == "boat":                        # boats float on the water line
@@ -604,13 +652,14 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                         enter = "slide_right"
                     group = a[1] and a[0] not in ("boat", "cage", "tooth", "diver")
                     live[k] = st.add("animal", at, _animal_args(a, face, int(width * (0.62 if group else 1.0))),
-                                     pos=(x, yy), scale=s, enter=enter)
+                                     pos=(x, yy), scale=s, enter=enter, float_=not land)
                     live_t[k] = a
                     if group:                       # a pod / school: the rest of the group behind the first ("two orcas" -> 2)
                         n_more = (_group_n(text, a) - 1) if text and a[3] >= 0 else 2
                         for dx, dy in ((-150, -70), (130, -110), (-260, 40), (220, 60))[: max(1, n_more)]:
-                            fid = st.add("animal", at + 0.15, _animal_args(a, face, int(width * 0.5)), pos=(x + dx, yy + dy),
-                                         scale=s, enter=enter, z=0)
+                            fid = st.add("animal", at + 0.15, _animal_args(a, face, int(width * 0.5)),
+                                         pos=(x + dx, yy + (dy * 0.25 if land else dy)), scale=s, enter=enter, z=0,
+                                         float_=not land)
                             followers.setdefault(k, []).append((fid, dx, dy))
                     shot_animals.append(a[0])
                     if k not in seen_species and a[0] not in ("boat", "cage", "tooth"):
@@ -633,13 +682,14 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                 x, y, face = live_pos[k]
                 nx = x + (90 if face == "right" else -90) * (1 if int(t) % 2 == 0 else -0.6)
                 nx = min(1080.0, max(200.0, nx))
-                glide(k, t, (nx, y + (12 if int(t) % 2 else -12)), dur=2.2)
+                glide(k, t, (nx, y + (0 if land else (12 if int(t) % 2 else -12))), dur=2.2)
                 live_pos[k] = (nx, y, face)
             elif not any(e["kind"].startswith("ocean_") and e["t0"] <= t < (e["t1"] or 1e9) and e["kind"][6:] in FULL
                          for e in st.params()["elements"]):
-                y = 210.0 + 60 * (int(t) % 3)
-                for j in range(3):
-                    sh = st.add("animal", t + j * 0.25, {"name": "dolphin", "width": 110, "silhouette": True},
+                y = (110.0 + 30 * (int(t) % 3)) if land else (210.0 + 60 * (int(t) % 3))
+                for j in range(3):                       # far shapes passing: dolphins in the sea, birds over the plain
+                    sh = st.add("animal", t + j * 0.25, {"name": "eagle" if land else "dolphin", "width": 70 if land else 110,
+                                                         "silhouette": True},
                                 pos=(-80.0 - j * 90, y + j * 26), enter="fade", z=0, float_=False)
                     st.move(sh, t + j * 0.25, pos=(1400.0 - j * 90, y + j * 26 - 30), dur=6.0)
                     st.remove(sh, t + j * 0.25 + 6.0, exit="none")
@@ -661,8 +711,9 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
             ctx = {"list_start": f.ordinal is not None, "subject": subject[0] if subject else None,
                    "subject_word": subject[4] if subject else None, "year": story_year, "measured": measured}
             card = cards.choose(sc, f, ctx)
-            animals = [a for a in _resolve(list(f.animals), family_last) if FAMILY.get(a[0]) != "land"]
-            in_you = f.you and you_count.get(chapter_of[i], 0) >= 2 and float(sc["start"]) > 30 and \
+            animals = [a for a in _resolve(list(f.animals), family_last)       # each world shows only its own animals
+                       if ((FAMILY.get(a[0]) in ("land", "bird")) if land else FAMILY.get(a[0]) != "land")]
+            in_you = not land and f.you and you_count.get(chapter_of[i], 0) >= 2 and float(sc["start"]) > 30 and \
                 bool(DIVER_YOU.search(f.text) or (f.rel is not None and f.rel.air))
             if in_you and not any(a[0] == "diver" for a in animals):
                 animals = [("diver", False, {}, 0, "diver")] + animals

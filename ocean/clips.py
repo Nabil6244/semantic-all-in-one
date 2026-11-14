@@ -53,7 +53,11 @@ def query_for(f: R.Features, set_name: str = "") -> str:
     q = QUERY.get(a[0], "")
     if not q:                                                 # any catalogue animal: "tiger shark", "manta ray", "vampire squid"
         word = re.sub(r"(?<!s)s$", "", a[4].lower().strip())
-        q = f"{word} {'deep sea' if 'squid' in word else 'underwater'}"
+        from . import species as _SP
+        if _SP.family(a[0]) in ("land", "bird"):          # a land story: the animal in the wild, not underwater
+            q = f"{word} wildlife"
+        else:
+            q = f"{word} {'deep sea' if 'squid' in word else 'underwater'}"
     if a[1] and a[0] in ("orca", "dolphin", "seal"):
         q += " group"
     place = PLACE.get(set_name)
@@ -177,8 +181,55 @@ def still(src: str, dst: str, at: float = 1.0) -> str:
 
 
 def visual_scenes(slots: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return [{"scene_no": s["scene_no"], "text": s["text"], "asset_type": "stock_video", "prompt": s["query"],
-             "stock": s["query"], "start": s["start"], "end": s["end"]} for s in slots]
+    """Visuals-tab rows: a beat picture is a Flow picture row (made by ocean/beat_flow.py), everything else a stock clip."""
+    return [{"scene_no": s["scene_no"], "text": s["text"],
+             "asset_type": "flow_image" if s.get("kind") in ("picture", "act") else "stock_video",
+             "prompt": s["query"], "stock": "" if s.get("kind") in ("picture", "act") else s["query"], "start": s["start"], "end": s["end"]}
+            for s in slots]
+
+
+GRADES = {"ocean": GRADE, "neutral": "eq=saturation=0.92:contrast=1.05:brightness=-0.02,vignette=PI/5", "none": "null"}
+IMAGE_EXT = (".png", ".jpg", ".jpeg", ".webp")
+MOTION_ALT = ("pull_out", "pan_left", "push_in_up", "pan_right")
+
+
+def motion(src: str, dst: str, seconds: float, move: str = "push_in", fps: int = 25) -> str:
+    """A still picture as a smooth camera move (sub-pixel, eased): push_in / pull_out / pan_left / pan_right /
+    push_in_up. Frames are drawn with an affine transform, so the move never steps like a resized sprite."""
+    from PIL import Image
+    from cinematic_explainer.render import H, W
+
+    im = Image.open(src).convert("RGB")
+    s0 = max(W / im.width, H / im.height)
+    base = im.resize((max(W, int(im.width * s0 * 1.2)), max(H, int(im.height * s0 * 1.2))), Image.LANCZOS)
+    bw, bh = base.size
+    n = max(2, int(round(seconds * fps)))
+    zoom = {"push_in": (1.0, 1.12), "pull_out": (1.12, 1.0), "pan_left": (1.1, 1.1), "pan_right": (1.1, 1.1),
+            "push_in_up": (1.0, 1.1)}.get(move, (1.0, 1.1))
+    proc = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(fps),
+                             "-i", "-", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", dst],
+                            stdin=subprocess.PIPE)
+    try:
+        for i in range(n):
+            k = i / (n - 1)
+            e = k * k * (3 - 2 * k)                               # ease in-out
+            z = zoom[0] + (zoom[1] - zoom[0]) * e
+            vw, vh = bw / 1.2 / z, bh / 1.2 / z                    # the visible window in base pixels
+            cx, cy = bw / 2, bh / 2
+            room_x, room_y = (bw - vw) / 2, (bh - vh) / 2
+            if move == "pan_left":
+                cx += room_x * (0.8 - 1.6 * e)
+            elif move == "pan_right":
+                cx += room_x * (-0.8 + 1.6 * e)
+            elif move == "push_in_up":
+                cy += room_y * (0.5 - 1.0 * e)
+            x0, y0 = cx - vw / 2, cy - vh / 2
+            fr = base.transform((W, H), Image.AFFINE, (vw / W, 0, x0, 0, vh / H, y0), resample=Image.BICUBIC)
+            proc.stdin.write(fr.tobytes())
+    finally:
+        proc.stdin.close()
+        proc.wait(timeout=600)
+    return dst
 
 
 # ---------------------------------------------------------------------------------------------------------------- render
@@ -208,13 +259,127 @@ def _duration(path: str) -> float:
         return 0.0
 
 
-def grade(src: str, dst: str, seek: float, seconds: float) -> str:
+def grade(src: str, dst: str, seek: float, seconds: float, look: str = "ocean", stretch: float = 1.0) -> str:
+    """Fit, colour-grade (look: ocean = the cool blue world, neutral = natural land footage) and, for a clip a bit short for
+    its beat, slow it down (stretch <= 1.8)."""
     from cinematic_explainer.render import H, W
 
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, seek):.3f}", "-t", f"{seconds + 0.6:.3f}", "-i", src, "-an",
-                    "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1,{GRADE}",
+    slow = f"setpts={stretch:.3f}*PTS," if stretch > 1.01 else ""
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, seek):.3f}", "-t", f"{seconds / max(1.0, stretch) + 0.6:.3f}",
+                    "-i", src, "-an",
+                    "-vf", f"{slow}scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1,"
+                           f"{GRADES.get(look, GRADE)}",
                     "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", dst], check=True, timeout=600)
     return dst
+
+
+DEPTH_MOVE = {  # action -> (parallax mode, amount): the near layer (the animal) moves against its own painted background
+    "walk": ("lateral", 1.7), "run": ("lateral", 2.3), "flee": ("lateral", 2.3), "swim": ("lateral", 1.7),
+    "attack": ("push", 1.6), "approach": ("push", 2.0), "fall": ("push", 1.2), "idle": ("lateral", 1.1), "": ("lateral", 1.0),
+}
+
+
+def docu_still(src: str, dst: str) -> str:
+    """The reference's look on a painted picture: less colour, darker, a little more contrast, heavy dark edges."""
+    from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
+    if Path(dst).is_file() and Path(dst).stat().st_mtime >= Path(src).stat().st_mtime:
+        return dst
+    im = Image.open(src).convert("RGB")
+    im = ImageEnhance.Color(im).enhance(0.72)
+    im = ImageEnhance.Brightness(im).enhance(0.78)
+    im = ImageEnhance.Contrast(im).enhance(1.08)
+    w, h = im.size
+    vig = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(vig).ellipse((-w * 0.12, -h * 0.16, w * 1.12, h * 1.16), fill=255)
+    vig = vig.filter(ImageFilter.GaussianBlur(max(w, h) * 0.09))
+    im = Image.composite(im, Image.new("RGB", (w, h), (4, 6, 9)), vig)
+    im.save(dst)
+    return dst
+
+
+def depth_move(src: str, dst: str, seconds: float, action: str = "", seed: int = 0) -> bool:
+    """One painted scene moved in real depth layers (health_cinema/puppet/layers.py: Depth Anything, far / mid / near cut-outs
+    of the same picture, the gaps filled): the animal travels against its own background, lit and painted with it.
+    False when the picture has no usable depth (a flat diagram): the caller moves the picture as a whole."""
+    try:
+        from cinematic_explainer.render import H, W
+        from health_cinema.puppet import layers as PL
+        mode, amount = DEPTH_MOVE.get(action, DEPTH_MOVE[""])
+        out = PL.render_parallax(src, dst, seconds, fps=25, size=(W, H), seed=seed, params={"amount": amount, "mode": mode})
+        return bool(out) and Path(dst).is_file()
+    except Exception:  # noqa: BLE001
+        return False
+
+
+GENERIC_OK = re.compile(r"\b(landscape|savann?ah?|bush|grassland|plain|sky|sunset|forest|ocean|sea|underwater|desert|river|"
+                        r"aerial|night|people|city|road)\b", re.I)
+
+
+def clip_matches(query: str, record: Optional[Dict[str, Any]]) -> bool:
+    """A stock clip is kept only when its own page names the animal it was searched for ('honey badger attack' must not
+    be a buffalo on a road). Searches with no animal in them (a landscape) are taken as they are."""
+    rec = record or {}
+    f = R.read(str(query or ""))
+    names = [a for a in f.animals if a[0] not in ("diver", "boat", "cage", "tooth")]
+    if not names:
+        return True
+    text = " ".join(str(rec.get(k) or "") for k in ("source_url", "page_url", "url", "title", "tags", "description", "alt", "name"))
+    text = re.sub(r"[-_/]+", " ", text.lower())
+    for a in names[:1]:                                  # the animal the search is about (the first one named) must be there
+        w = re.sub(r"(?<!s)s$", "", a[4].lower().strip())
+        keys = {w} if " " in w else {w, w.split()[-1]}           # "honey badger" must say honey badger, not just badger
+        if any(re.search(r"\b" + re.escape(k) + r"s?\b", text) for k in keys if len(k) > 2):
+            return True
+    return False
+
+
+def green_screen(path: str) -> bool:
+    """True for a picture still on its green screen (a cut-out source, never a finished scene)."""
+    try:
+        from PIL import Image
+        im = Image.open(path).convert("RGB").resize((64, 36))
+        px = list(im.getdata())
+        border = [px[i] for i in range(64)] + [px[i] for i in range(64 * 35, 64 * 36)]
+        return sum(1 for r, g, b in border if g > 150 and g > r + 60 and g > b + 60) > 0.6 * len(border)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def tab_pictures(plan: Dict[str, Any], images_dir: str) -> Dict[str, Dict[str, Any]]:
+    """{beat: {"path"}} for the beat pictures the Visuals tab holds, read from its own records (relative paths resolved,
+    green-screen sources left out)."""
+    from asset_manager import AssetManifest
+    d = Path(images_dir)
+    man = AssetManifest(d)
+    out: Dict[str, Dict[str, Any]] = {}
+    for s in plan.get("clips") or []:
+        if s.get("kind") not in ("picture", "act"):
+            continue
+        rec = man.get(str(s["scene_no"])) or {}
+        lp = rec.get("local_path") or ""
+        cands = [Path(lp), Path.cwd() / lp, d / Path(lp).name] if lp else []
+        pic = next((str(c.resolve()) for c in cands if c.is_file()), None) or _picture_of(str(d / "x"), str(s["scene_no"]))
+        if pic and str(pic).lower().endswith(IMAGE_EXT) and not green_screen(pic):
+            out[str(s["scene_no"])] = {"path": pic, "meta": {"provider": "flow"}}
+    return out
+
+
+def _picture_of(path: str, scene_no: str) -> Optional[str]:
+    """The still picture filed for a beat (NNN.png / .jpg next to the tab's own copy, or the manifest's local_path)."""
+    d = Path(path).parent
+    names = [f"{int(scene_no):03d}" if scene_no.isdigit() else scene_no, scene_no]
+    for n in names:
+        for ext in IMAGE_EXT:
+            if (d / f"{n}{ext}").is_file():
+                return str(d / f"{n}{ext}")
+    try:
+        from asset_manager import AssetManifest
+        lp = (AssetManifest(d).get(scene_no) or {}).get("local_path")
+        if lp and str(lp).lower().endswith(IMAGE_EXT) and Path(lp).is_file():
+            return str(lp)
+    except Exception:  # noqa: BLE001
+        pass
+    return None
 
 
 def keyed_backdrop(path: str, length: float = 0.0, share: float = 0.22) -> bool:
@@ -246,23 +411,54 @@ def apply(plan: Dict[str, Any], found: Dict[str, Dict[str, Any]], black: str, wo
 
     total = float(plan["total"])
     used: List[Dict[str, Any]] = []
+    pics: Dict[str, str] = {}
     wd = Path(work)
     for s in plan.get("clips") or []:
         f = found.get(str(s["scene_no"]))
         if not f or not f.get("path") or not Path(f["path"]).is_file():
             continue
         a, b = float(s["start"]), float(s["end"])
+        if s.get("kind") in ("picture", "act") and not str(f["path"]).lower().endswith(IMAGE_EXT):
+            pic = _picture_of(f["path"], str(s["scene_no"]))     # the tab may hand back its own moving copy: use the picture
+            if pic:
+                f = dict(f, path=pic)
+        if s.get("kind") in ("picture", "act") and green_screen(f["path"]):
+            log(f"beat {s['scene_no']}: its picture is still on a green screen; remake it in the Visuals tab")
+            continue
+        if s.get("kind") in ("picture", "act") or str(f["path"]).lower().endswith(IMAGE_EXT):
+            dst = wd / f"pic_{s['scene_no']}.mp4"
+            if plan.get("mode") == "beats":               # every painted picture in the reference's dark documentary grade
+                try:
+                    f = dict(f, path=docu_still(f["path"], str(wd / f"docu_{s['scene_no']}.png")))
+                except Exception:  # noqa: BLE001 - the picture as it was made
+                    pass
+            pics[str(s["scene_no"])] = str(f["path"])
+            try:
+                if not depth_move(f["path"], str(dst), b - a, str(s.get("action") or ""),
+                                  int(s["scene_no"]) if str(s["scene_no"]).isdigit() else 0):
+                    motion(f["path"], str(dst), b - a, str(s.get("move") or "push_in"))
+            except Exception as ex:  # noqa: BLE001 - the stage stand-in shows instead
+                log(f"picture for beat {s['scene_no']} skipped ({ex})")
+                continue
+            used.append({**s, "start": a, "end": b, "path": str(dst), "credit": ""})
+            continue
+        if s.get("kind") == "clip" and not clip_matches(str(s.get("query", "")), f.get("meta")):
+            log(f"clip for beat {s['scene_no']} skipped: it does not show '{s.get('query')}'")
+            continue
         src_len = _duration(f["path"])
         if src_len < 1.0:
             continue
         if keyed_backdrop(f["path"], src_len):
             log(f"clip for scene {s['scene_no']} skipped: green / blue screen (not real footage) - swap it in the Visuals tab")
             continue
-        b = min(b, a + max(1.0, src_len - 0.2))
-        seek = 0.0 if src_len < (b - a) + 2.0 else min(1.5, src_len - (b - a) - 0.5)
+        stretch = 1.0
+        if s.get("kind") == "clip" and src_len - 0.2 < b - a:          # a beat clip a little short: slow it to fill its beat
+            stretch = min(1.8, (b - a) / max(0.5, src_len - 0.2))
+        b = min(b, a + max(1.0, (src_len - 0.2) * stretch))
+        seek = 0.0 if src_len < (b - a) / stretch + 2.0 else min(1.5, src_len - (b - a) / stretch - 0.5)
         dst = wd / f"clip_{s['scene_no']}.mp4"
         try:
-            grade(f["path"], str(dst), seek, b - a)
+            grade(f["path"], str(dst), seek, b - a, str(s.get("grade") or "ocean"), stretch)
         except Exception as ex:  # noqa: BLE001 - a clip that cannot be graded keeps the drawn stage
             log(f"clip for scene {s['scene_no']} skipped ({ex})")
             continue
@@ -279,6 +475,37 @@ def apply(plan: Dict[str, Any], found: Dict[str, Dict[str, Any]], black: str, wo
             prints[str(s["scene_no"])] = still(f["path"], str(wd / f"photo_{s['scene_no']}.jpg"), min(1.5, src_len / 2))
         except Exception as ex:  # noqa: BLE001 - the print keeps its painted animal
             log(f"photo for print {s['scene_no']} skipped ({ex})")
+    for s in plan.get("drawn") or []:                    # flat library animals acting on legs (ocean/act.animate_cast)
+        a, b = float(s["start"]), float(s["end"])
+        dst = wd / f"drawn_{s['scene_no']}.mp4"
+        try:
+            from . import act as ACT
+            ACT.animate_cast(list(s["names"]), str(dst), b - a, str(s.get("action") or "idle"), str(s.get("set") or "savanna_night"),
+                             str(s.get("facing") or "right"), int(s.get("seed") or 0), list(s.get("widths") or []) or None)
+            used.append({**s, "start": a, "end": b, "path": str(dst), "credit": "", "kind": "drawn"})
+        except Exception as ex:  # noqa: BLE001 - the plain set shows instead
+            log(f"beat {s['scene_no']}: animal animation skipped ({ex})")
+    if plan.get("mode") == "beats" and pics:             # a beat with no picture / clip: the nearest painted scene again,
+        have = {str(u["scene_no"]) for u in used}         # with another move (never the drawn stand-in set)
+        order = [str(x["scene_no"]) for x in plan.get("clips") or []]
+        for s in plan.get("clips") or []:
+            no = str(s["scene_no"])
+            if no in have:
+                continue
+            i = order.index(no)
+            near = next((pics[order[j]] for d in range(1, len(order)) for j in (i - d, i + d)
+                         if 0 <= j < len(order) and order[j] in pics), None)
+            if not near:
+                continue
+            a, b = float(s["start"]), float(s["end"])
+            dst = wd / f"pic_{no}_near.mp4"
+            try:
+                motion(near, str(dst), b - a, MOTION_ALT[int(no) % len(MOTION_ALT)] if no.isdigit() else "pull_out")
+            except Exception as ex:  # noqa: BLE001
+                log(f"beat {no}: no stand-in picture ({ex})")
+                continue
+            used.append({**s, "start": a, "end": b, "path": str(dst), "credit": ""})
+            log(f"beat {no}: no picture of its own; the nearest painted scene stands in")
     used.sort(key=lambda u: u["start"])
     shots: List[Any] = []
     t = 0.0

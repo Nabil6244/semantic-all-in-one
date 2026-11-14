@@ -198,6 +198,36 @@ _LIST: List[Species] = [
     _s("reindeer", r"reindeers?|caribou", "reindeer standing: brown-grey coat, pale neck, large branching antlers", "seal", "land"),
     _s("horse", r"horses?", "horse standing: brown coat, dark mane and tail", "seal", "land"),
     _s("moose", r"moose", "moose standing: dark brown body, long legs, broad flat antlers, hanging dewlap", "seal", "land"),
+    # savanna / land stories ("why lions walk away from a honey badger"): drawn standing on the ground of the land sets
+    _s("lion", r"(?:male |alpha |african )?lions?", "adult male African lion: tawny coat, thick dark-brown mane, "
+       "muscular body", "seal", "land", True),
+    _s("lioness", r"lioness(?:es)?", "adult African lioness: sleek tawny coat, no mane, muscular", "seal", "land", True),
+    _s("honey_badger", r"honey badgers?|ratels?|badgers?", "honey badger: stocky low body, black legs and belly, broad "
+       "silver-white stripe from the head down the back, small eyes, long front claws", "seal", "land", True),
+    _s("cape_buffalo", r"(?:cape |african )?buffalo(?:es|s)?", "Cape buffalo: massive black bovine with thick curved horns "
+       "joined across the forehead", "seal", "land"),
+    _s("giraffe", r"giraffes?", "giraffe standing: very long neck and legs, orange-brown patches on cream", "seal", "land"),
+    _s("elephant", r"(?:african )?elephants?", "African elephant standing: grey wrinkled skin, big ears, long trunk, tusks",
+       "seal", "land"),
+    _s("zebra", r"zebras?", "plains zebra standing: black and white stripes, short upright mane", "seal", "land"),
+    _s("wildebeest", r"wildebeests?|gnus?", "blue wildebeest standing: dark grey body, curved horns, shaggy beard", "seal", "land"),
+    _s("gazelle", r"gazelles?|impalas?|antelopes?", "Thomson's gazelle standing: slim tan body, white belly, dark side "
+       "stripe, ringed horns", "seal", "land"),
+    _s("leopard", r"leopards?", "African leopard: golden coat with black rosettes, long tail, powerful body", "seal", "land", True),
+    _s("hyena", r"hyenas?", "spotted hyena: sloping back, spotted sandy coat, big rounded ears, heavy jaws", "seal", "land", True),
+    _s("cobra", r"(?:cape |king |spitting )?cobras?|snakes?", "Cape cobra: slender yellow-brown snake with its hood spread, "
+       "raised in strike pose", "sea_snake", "land", True),
+    _s("puff_adder", r"puff adders?|adders?|vipers?", "puff adder: thick short snake, brown with pale chevron bands, "
+       "coiled", "sea_snake", "land"),
+    _s("black_mamba", r"black mambas?|mambas?", "black mamba: very long slim grey-olive snake, head raised, mouth "
+       "slightly open", "sea_snake", "land"),
+    _s("bee", r"(?:african |killer |honey ?)?bees?|beehives?|swarms?", "a single African honey bee in flight, seen from "
+       "the side, wings open, detailed", "dolphin", "land"),
+    _s("eagle", r"eagles?|vultures?", "martial eagle flying: dark brown back, white spotted chest, wings spread wide", "dolphin", "bird"),
+    _s("tortoise", r"(?:leopard )?tortoises?", "leopard tortoise: high domed shell with black and yellow pattern", "seal", "land"),
+    _s("dog", r"dogs?|cocker spaniels?|spaniels?", "cocker spaniel dog standing: golden coat, long floppy ears", "seal", "land"),
+    _s("porcupine", r"porcupines?", "African porcupine: long black-and-white quills raised", "seal", "land"),
+    _s("skunk", r"skunks?", "striped skunk: black fur with white stripes, bushy raised tail", "seal", "land"),
 ]
 
 SPECIES: Dict[str, Species] = {s.key: s for s in _LIST}
@@ -221,6 +251,7 @@ PROP_DESC = {
     "tooth": "single fossil shark tooth, triangular, serrated edges, brown-grey enamel",
     "car": "ordinary silver four-door family sedan car (a man-made car, no animal), the whole car side-on",
     "bus": "ordinary yellow single-deck city bus (a man-made bus, no animal), the whole bus side-on",
+    "hiker": "adult hiker walking, side view facing right, backpack, hat, khaki clothes, full body from head to boots",
 }
 
 
@@ -233,6 +264,8 @@ LATIN = {
     "seal": "Phoca vitulina", "polar_bear": "Ursus maritimus", "walrus": "Odobenus rosmarus",
     "colossal_squid": "Mesonychoteuthis hamiltoni", "squid": "Architeuthis dux", "mosasaur": "Mosasaurus hoffmannii",
     "livyatan": "Livyatan melvillei", "dunkleosteus": "Dunkleosteus terrelli",
+    "lion": "Panthera leo", "lioness": "Panthera leo", "honey_badger": "Mellivora capensis", "leopard": "Panthera pardus",
+    "hyena": "Crocuta crocuta", "cobra": "Naja nivea", "cape_buffalo": "Syncerus caffer", "elephant": "Loxodonta africana",
 }
 
 

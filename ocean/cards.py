@@ -434,7 +434,7 @@ def mystery(a: Dict[str, Any]) -> Image.Image:
         if known:
             _centre(d, x + cw / 2, 22, str(lab).upper(), _fit(d, str(lab).upper(), "bold", 24, cw - 20), L.WHITE)
             if name:
-                _paste_c(im, _animal(name, cw - 40), x + cw / 2, 5 + ch * 0.55)
+                _paste_c(im, _animal(name, cw - 40, flat=bool(a.get("flat_art"))), x + cw / 2, 5 + ch * 0.55)
         else:
             _centre(d, x + cw / 2, 30, "?", F("heavy", 70), L.WHITE)
             if name:
@@ -839,7 +839,7 @@ def _bus(d: ImageDraw.ImageDraw, x: float, y: float, w: float) -> None:
         d.ellipse((x + cx * u - r, y - 6 * u - r, x + cx * u + r, y - 6 * u + r), fill=(22, 24, 28, 255))
 
 
-REF_SIZES = {"diver": 1.8, "car": 4.5, "bus": 12.0}
+REF_SIZES = {"diver": 1.8, "person": 1.8, "car": 4.5, "bus": 12.0}
 
 
 def size_compare(a: Dict[str, Any]) -> Image.Image:
@@ -855,10 +855,11 @@ def size_compare(a: Dict[str, Any]) -> Image.Image:
     d = ImageDraw.Draw(im)
     for y in range(720):
         k2 = y / 719
-        c = tuple(int(L.WATER_MID[i] * (1 - k2) + L.WATER_DEEP[i] * k2) for i in range(3)) + (255,)
+        top, bot = ((34, 38, 40), (14, 16, 18)) if a.get("land") else (L.WATER_MID, L.WATER_DEEP)   # land film: no water
+        c = tuple(int(top[i] * (1 - k2) + bot[i] * k2) for i in range(3)) + (255,)
         d.line((0, y, 1280, y), fill=c)
     aw = int(m * px_per_m)
-    animal = A.draw(str(a.get("animal", "great_white")), max(60, aw))
+    animal = A.draw(str(a.get("animal", "great_white")), max(60, aw), flat=bool(a.get("flat_art")))
     ax = 190
     ay = 200
     im.alpha_composite(animal, (ax, int(ay - animal.height / 2)))
@@ -874,6 +875,15 @@ def size_compare(a: Dict[str, Any]) -> Image.Image:
         _car(d, ax, gy, rw)
     elif ref == "bus":
         _bus(d, ax, gy, rw)
+    elif ref == "person":                                 # a land film: a standing person, to scale by height
+        man = A.draw("hiker", 200, flat=bool(a.get("flat_art")))
+        man = man.resize((max(1, int(man.width * rw / max(1, man.height))), max(1, int(rw))), Image.LANCZOS)
+        im.alpha_composite(man, (ax, int(gy - man.height)))
+        if k > 0.6:                                       # standing: the height is labelled beside the head, no width bar
+            ft = F("bold", 26)
+            d.text((ax + man.width + 24, gy - man.height), str(a.get("ref_label", "")), font=ft, fill=(240, 226, 160, 255))
+        a = dict(a, ref_label="")
+        rw = 0.0
     else:
         diver = A.draw("diver", max(40, int(rw)))
         im.alpha_composite(diver, (ax, int(gy - diver.height)))

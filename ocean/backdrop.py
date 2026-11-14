@@ -13,6 +13,9 @@ Sets (args in brackets, all optional):
     split_columns  two water columns side by side with a title over each                          [left/right {label, color}]
     dark           near-black cold water: what is there is seen only where the diver's torch points (ocean/stage.py)
     ice_hole       under sea ice: a dark ceiling with one bright square hole and its light shaft     [hole_x 0..1]
+    savanna        land stories: dusk sky, low sun glow, acacia silhouettes, dry grass ground (animals stand on it)
+    savanna_night  the same plain at night: deep blue sky, moon, stars, dark grass
+    burrow         cross-section of the ground: a strip of grass on top, earth layers and a tunnel below
 An unknown name draws open_water: a set never fails and never goes flat.
 Static parts are drawn once per (set, args, size) and cached; moving parts are quantised to PHASES steps per cycle and cached,
 so a frame is a couple of pastes plus a few dozen specks.
@@ -31,7 +34,10 @@ from PIL import Image, ImageDraw, ImageFilter
 from . import look as L
 
 W, H = L.W, L.H
-SETS = ("open_water", "surface", "seafloor", "kelp", "abyss", "depth_column", "split_columns", "dark", "ice_hole")
+SETS = ("open_water", "surface", "seafloor", "kelp", "abyss", "depth_column", "split_columns", "dark", "ice_hole", "savanna",
+        "savanna_night", "burrow", "plain")
+LAND_SETS = ("savanna", "savanna_night", "burrow")
+GROUND_Y = 0.80                    # the land sets' ground line (fraction of the height): animals stand on it
 PHASES = 32
 RAY_CYCLE_S = 14.0
 KELP_CYCLE_S = 6.0
@@ -210,7 +216,92 @@ def _base_ice_hole(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
     return img
 
 
-_BASES = {"dark": _base_dark, "ice_hole": _base_ice_hole, "surface": _base_surface, "seafloor": _base_seafloor, "abyss": _base_abyss,
+def _acacia(d: ImageDraw.ImageDraw, x: float, gy: float, s: float, col) -> None:
+    d.line((x, gy, x + 4 * s, gy - 60 * s), fill=col, width=max(2, int(5 * s)))
+    d.line((x + 4 * s, gy - 60 * s, x - 22 * s, gy - 84 * s), fill=col, width=max(2, int(3 * s)))
+    d.line((x + 4 * s, gy - 60 * s, x + 30 * s, gy - 88 * s), fill=col, width=max(2, int(3 * s)))
+    d.ellipse((x - 70 * s, gy - 104 * s, x + 80 * s, gy - 78 * s), fill=col)
+
+
+def _base_savanna(w: int, h: int, a: Dict[str, Any], night: bool = False) -> Image.Image:
+    sc = L.scale()
+    gy = int(h * GROUND_Y)
+    if night:
+        img = _vgrad(w, h, [(0.0, (6, 10, 24, 255)), (GROUND_Y, (22, 30, 52, 255)), (1.0, (6, 8, 12, 255))])
+    else:
+        img = _vgrad(w, h, [(0.0, (40, 36, 48, 255)), (0.45, (150, 92, 58, 255)), (GROUND_Y, (226, 150, 82, 255)),
+                            (1.0, (30, 22, 16, 255))])
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(9)
+    if night:
+        for _ in range(140):
+            x, y = rnd.uniform(0, w), rnd.uniform(0, gy * 0.8)
+            r = rnd.uniform(0.6, 1.8) * sc
+            d.ellipse((x - r, y - r, x + r, y + r), fill=(230, 236, 250, rnd.randint(90, 220)))
+        mx, my, mr = w * 0.78, h * 0.18, 34 * sc
+        glow = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(glow).ellipse((mx - mr * 3, my - mr * 3, mx + mr * 3, my + mr * 3), fill=90)
+        img.paste((180, 196, 230, 255), (0, 0), glow.filter(ImageFilter.GaussianBlur(w * 0.03)))
+        d = ImageDraw.Draw(img)
+        d.ellipse((mx - mr, my - mr, mx + mr, my + mr), fill=(236, 238, 226, 255))
+    else:
+        sx, sy, sr = w * 0.68, gy - 30 * sc, 70 * sc
+        glow = Image.new("L", (w, h), 0)
+        ImageDraw.Draw(glow).ellipse((sx - sr * 4, sy - sr * 2.5, sx + sr * 4, sy + sr * 2.5), fill=150)
+        img.paste((255, 196, 120, 255), (0, 0), glow.filter(ImageFilter.GaussianBlur(w * 0.05)))
+        d = ImageDraw.Draw(img)
+        d.ellipse((sx - sr, sy - sr, sx + sr, sy + sr), fill=(255, 226, 170, 255))
+    far = (24, 22, 30, 255) if night else (70, 42, 34, 255)
+    hills = [(x, gy - 18 * sc - 22 * sc * math.sin(x / w * 5.0 + 1.3) ** 2) for x in range(0, w + 20, 20)]
+    d.polygon(hills + [(w, gy), (0, gy)], fill=far)
+    for x, s_ in ((w * 0.12, 0.9), (w * 0.4, 0.6), (w * 0.9, 1.1), (w * 0.57, 0.45)):
+        _acacia(d, x, gy - 6 * sc, s_ * sc, (14, 12, 16, 255) if night else (40, 24, 20, 255))
+    ground = _vgrad(w, h - gy, [(0.0, (34, 34, 30, 255) if night else (150, 104, 56, 255)),
+                                (1.0, (8, 8, 8, 255) if night else (54, 34, 20, 255))])
+    img.paste(ground, (0, gy))
+    d = ImageDraw.Draw(img)
+    for _ in range(420):                                     # dry grass tufts along the ground line
+        x = rnd.uniform(0, w)
+        y = gy + rnd.uniform(-2, h - gy) ** 1.0 * rnd.random() * 0.5
+        l = rnd.uniform(6, 18) * sc
+        c = (52, 50, 42, 255) if night else (rnd.randint(170, 210), rnd.randint(120, 150), rnd.randint(60, 80), 255)
+        d.line((x, y, x + rnd.uniform(-4, 4) * sc, y - l), fill=c, width=max(1, int(sc)))
+    return img
+
+
+def _base_savanna_night(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
+    return _base_savanna(w, h, a, night=True)
+
+
+def _base_burrow(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
+    sc = L.scale()
+    top = int(h * 0.24)
+    img = _vgrad(w, h, [(0.0, (60, 46, 52, 255)), (0.2, (170, 104, 64, 255)), (0.24, (110, 74, 44, 255)),
+                        (0.6, (70, 46, 28, 255)), (1.0, (30, 20, 12, 255))])
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(12)
+    for i in range(5):                                       # earth layers
+        y = top + (h - top) * (0.15 + i * 0.18)
+        pts = [(x, y + 8 * sc * math.sin(x / w * 7 + i)) for x in range(0, w + 20, 20)]
+        d.line(pts, fill=(52, 34, 20, 255), width=max(2, int(3 * sc)))
+    for _ in range(90):
+        x, y, r = rnd.uniform(0, w), rnd.uniform(top + 10, h), rnd.uniform(2, 7) * sc
+        d.ellipse((x - r, y - r * 0.7, x + r, y + r * 0.7), fill=(96, 70, 48, 255))
+    tunnel = [(w * 0.08, top), (w * 0.2, h * 0.5), (w * 0.45, h * 0.66), (w * 0.75, h * 0.7), (w * 0.88, h * 0.62)]
+    d.line(tunnel, fill=(26, 16, 10, 255), width=int(70 * sc), joint="curve")
+    d.ellipse((w * 0.7, h * 0.56, w * 0.95, h * 0.82), fill=(26, 16, 10, 255))
+    for _ in range(160):
+        x = rnd.uniform(0, w)
+        d.line((x, top, x + rnd.uniform(-3, 3) * sc, top - rnd.uniform(6, 16) * sc), fill=(196, 150, 80, 255), width=max(1, int(sc)))
+    return img
+
+
+def _base_plain(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
+    """The graphics' backdrop in beat mode: a calm dark gradient, nothing moving behind the numbers."""
+    return _vgrad(w, h, [(0.0, (16, 26, 36, 255)), (0.6, (9, 15, 22, 255)), (1.0, (4, 7, 11, 255))])
+
+
+_BASES = {"plain": _base_plain, "savanna": _base_savanna, "savanna_night": _base_savanna_night, "burrow": _base_burrow, "dark": _base_dark, "ice_hole": _base_ice_hole, "surface": _base_surface, "seafloor": _base_seafloor, "abyss": _base_abyss,
           "depth_column": _base_depth_column, "split_columns": _base_split}
 
 
@@ -219,7 +310,7 @@ def _base(name: str, akey: str, w: int, h: int) -> Image.Image:
     a = json.loads(akey)
     fn = _BASES.get(name)
     img = fn(w, h, a) if fn else _water(w, h)
-    return _vignette(img, 190 if name in ("abyss", "dark", "ice_hole") else 165)      # heavy edge darkening: the documentary look
+    return _vignette(img, 190 if name in ("abyss", "dark", "ice_hole", "savanna_night") else 165)      # heavy edge darkening: the documentary look
 
 
 # ------------------------------------------------------------------------------------------------------------------ moving parts
@@ -313,6 +404,6 @@ def draw(name: str, t: float, args: Optional[Dict[str, Any]] = None, w: int = W,
             img.alpha_composite(rays)
     if name == "kelp":
         img.alpha_composite(_kelp(int(w), int(h), _phase(t, KELP_CYCLE_S), int(a.get("count", 9))))
-    if name not in ("split_columns",):
+    if name not in ("split_columns", "burrow", "savanna", "savanna_night", "plain"):
         _specks(img, t, name, float(a.get("sand_y", 0.62)) - 0.03 if name == "seafloor" else 1.0)
     return img

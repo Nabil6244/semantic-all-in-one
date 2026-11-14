@@ -74,6 +74,9 @@ def needs_for_plan(plan: Optional[Dict[str, Any]]) -> List[Tuple[str, str]]:
                         add(str(n), "side")
             elif isinstance(a.get("animal"), str) and a.get("animal"):
                 add(str(a["animal"]), "side")
+    land = any(SP.family(n) in ("land",) for n, _p in want)
+    if land:
+        add("hiker", "side")                          # the thumbnail's figure for scale in a land story
     return [(n, p) for n, p in want if path(n, p) is None]
 
 
@@ -84,8 +87,38 @@ BACKGROUND = (f"Plain flat solid bright green background ({GREEN}) filling the w
               "no shadow, no other objects. No text, no letters, no logos, no watermark.")
 
 
+VECTOR_STYLE = ("Flat 2D vector illustration in the style of a modern animated YouTube explainer: clean flat colour shapes "
+                "with soft subtle gradients, crisp smooth edges, simple stylised but accurate anatomy, bold readable "
+                "silhouette, markings (stripes, spots, mane, patches) drawn as clean tapered shapes, a lighter belly, "
+                "small clean face details. No outlines, no texture, no fur strands, no painterly brush work, no 3D render.")
+VECTOR_VIEW = ("Seen exactly from the side, facing right, walking slowly, head level, mid-stride: the near front leg "
+               "reaching forward and the far front leg back, the near hind leg back and the far hind leg forward, so all "
+               "FOUR paws stand apart on the ground with empty space between every leg and under the belly; no leg "
+               "hides another. The two far-side legs a slightly darker shade than the near-side legs. The tail fully "
+               "visible, held out behind, not touching the legs. Whole animal inside the frame with space around it.")
+
+
 def prompt(name: str, pose: str = "side") -> str:
     what = SUBJECT.get(name, name.replace("_", " "))
+    if pose == "vector":                              # the reference channel's flat puppet look (ocean/rig.py animates it)
+        sp = SP.get(name)
+        fam = sp.family if sp is not None else ""
+        if name in ("cobra", "puff_adder", "black_mamba") or "snake" in name or "adder" in name or "mamba" in name:
+            view = ("Seen exactly from the side, facing right, the body in a loose S-curve along the ground, head raised"
+                    + (" with the hood spread" if "cobra" in name else "") + ", the whole snake inside the frame.")
+        elif fam == "bird" or name in ("bee", "wasp", "hornet"):
+            view = "Seen exactly from the side, facing right, flying with wings spread, the whole animal inside the frame."
+        elif fam == "ray":
+            view = ("Seen from directly above like a map icon, nose pointing right, fins spread symmetrically, the whole "
+                    "animal inside the frame.")
+        elif fam in ("shark", "whale", "dolphin", "fish", "seal", "squid", "turtle"):
+            view = "Seen exactly from the side, facing right, swimming straight, mouth closed, the whole animal inside the frame."
+        elif name == "tiger" or fam in ("land", "bear", ""):
+            view = VECTOR_VIEW + (" The tail curves up and back, high above the ground, well away from the hind legs."
+                                  if name in ("tiger", "leopard", "cheetah", "lion", "lioness") else "")
+        else:
+            view = VECTOR_VIEW
+        return f"{VECTOR_STYLE} Exactly one {what}. {view} {BACKGROUND}"
     sp = SP.get(name)
     if pose == "side" and sp is not None and sp.family == "ray":
         pose = "top"                                  # a ray reads from above: its 'side' picture is the top view
@@ -97,8 +130,15 @@ def prompt(name: str, pose: str = "side") -> str:
     elif pose == "jaw":
         view = ("Seen exactly from the side, facing right, mouth wide open showing rows of teeth, attacking pose, "
                 "whole animal inside the frame with space around it.")
+    elif name == "hiker":
+        view = "Seen exactly from the side, facing right, walking, the whole person inside the frame with space around it."
     elif name == "tooth":
         view = "Seen from the front, point up, centred, the whole tooth inside the frame with space around it."
+    elif sp is not None and sp.family == "bird":
+        view = ("Seen exactly from the side, facing right, flying with wings spread, "
+                "whole animal inside the frame with space around it.")
+    elif sp is not None and sp.key in ("cobra", "puff_adder", "black_mamba"):
+        view = ("Seen exactly from the side, facing right, the whole snake inside the frame with space around it.")
     elif sp is not None and sp.family in ("land", "bear") and name != "polar_bear" or name == "polar_bear_land":
         view = ("Seen exactly from the side, facing right, standing on all four legs, "
                 "whole animal inside the frame with space around it.")
@@ -136,7 +176,7 @@ def cut_out(src: Any, pose: str = "side") -> Optional[Image.Image]:
     bw, bh = box[2] - box[0], box[3] - box[1]
     cover = sum(1 for v in a.crop(box).getdata() if v > 128) / max(1, bw * bh)
     edge_green = sum(1 for x in range(w) for y in (0, h - 1) if ap[x, y] == 0) / (2 * w)
-    tall_ok = pose == "side" and bh <= bw * 3.0          # the tooth stands up; animals lie along the frame
+    tall_ok = pose in ("side", "vector") and bh <= bw * 3.0          # the tooth stands up; animals lie along the frame
     if edge_green < 0.6 or cover < 0.10 or (bw < w * 0.25 and bh < h * 0.25) or (bh > bw * 0.9 and not tall_ok):
         return None
     out = rgb.convert("RGBA")

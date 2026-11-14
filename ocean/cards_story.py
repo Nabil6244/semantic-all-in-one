@@ -190,6 +190,19 @@ def map_pin(a: Dict[str, Any]) -> Image.Image:
         im = _dark_bg(grid=True)
     d = ImageDraw.Draw(im)
     x, y = 640, 360
+    n_dots = min(60, int(a.get("dots") or 0))           # a cluster of red dots: the attacks / sightings around the place
+    if n_dots:
+        import random as _rnd
+        rg = _rnd.Random(str(a.get("place", "")))
+        layer = Image.new("RGBA", im.size, (0, 0, 0, 0))
+        ld = ImageDraw.Draw(layer)
+        for i in range(int(n_dots * min(1.0, k * 1.4))):
+            dx, dy = rg.gauss(0, 120), rg.gauss(0, 80)
+            rr = rg.uniform(7, 14)
+            ld.ellipse((x + dx - rr, y + dy - rr, x + dx + rr, y + dy + rr), fill=(226, 60, 60, 150))
+        im.alpha_composite(layer.filter(ImageFilter.GaussianBlur(2)))
+        if a.get("count_label") and k > 0.5:
+            _centre(d, 640, 90, str(a["count_label"]).upper(), F("heavy", 64), L.WHITE)
     r = 10 + 40 * (1 - k)
     d.ellipse((x - r, y - r, x + r, y + r), outline=(255, 255, 255, int(255 * k)), width=3)
     d.ellipse((x - 8, y - 8, x + 8, y + 8), fill=L.RED)
@@ -214,7 +227,7 @@ def icon_grid(a: Dict[str, Any]) -> Image.Image:
     rows = math.ceil(n / cols)
     cw = min(150, 1100 / cols)
     ch = min(90, 440 / rows)
-    icon = _fit_w(_animal(str(a.get("animal", "great_white")), 300), cw * 0.86, ch * 0.8)
+    icon = _fit_w(_animal(str(a.get("animal", "great_white")), 300, flat=bool(a.get("flat_art"))), cw * 0.86, ch * 0.8)
     grey = icon.copy()
     grey.putalpha(icon.getchannel("A").point(lambda v: int(v * 0.35)))
     x0 = 640 - cols * cw / 2 + cw / 2
@@ -294,7 +307,7 @@ def hud_bars(a: Dict[str, Any]) -> Image.Image:
         w = max(8.0, 560 * float(r[1]) / vmax * k)
         c = cols[i % len(cols)]
         d.rectangle((x_bar, y, x_bar + w, y + 40), fill=c[:3] + (230,), outline=c[:3] + (255,), width=2)
-        if k > 0.85:
+        if k > 0.5:                                       # the value shows while the bar is still growing
             d.text((x_bar + w + 18, y + 6), str(r[2] if len(r) > 2 else r[1]).upper(), font=F("heavy", 26), fill=L.WHITE)
     return im
 
@@ -354,17 +367,32 @@ def year_anchor(a: Dict[str, Any]) -> Image.Image:
 PART_AT = {  # where a body part sits on a side view facing right (fraction of width, height)
     "eye": (0.86, 0.46), "mouth": (0.92, 0.60), "nose": (0.97, 0.48), "gills": (0.76, 0.52), "fin": (0.55, 0.12),
     "tail": (0.07, 0.40), "liver": (0.58, 0.60), "skin": (0.42, 0.45), "brain": (0.84, 0.36), "heart": (0.72, 0.64),
-    "sense": (0.95, 0.52),
+    "sense": (0.95, 0.52), "claw": (0.80, 0.92),
 }
+
+
+PART_AT_LAND = {  # a standing four-legged animal facing right: the head is high at the front
+    "eye": (0.86, 0.24), "mouth": (0.93, 0.40), "nose": (0.97, 0.32), "gills": (0.80, 0.42), "fin": (0.5, 0.12),
+    "tail": (0.04, 0.40), "liver": (0.55, 0.50), "skin": (0.52, 0.38), "brain": (0.85, 0.18), "heart": (0.68, 0.52),
+    "sense": (0.96, 0.32), "claw": (0.78, 0.96),
+}
+PART_AT_SNAKE = {"eye": (0.9, 0.12), "mouth": (0.93, 0.16), "nose": (0.95, 0.12), "skin": (0.5, 0.75), "sense": (0.95, 0.14),
+                 "tail": (0.05, 0.85), "heart": (0.5, 0.7), "liver": (0.5, 0.75), "brain": (0.9, 0.1), "claw": (0.5, 0.75)}
 
 
 def anatomy(a: Dict[str, Any]) -> Image.Image:
     k = _ease(_k(a))
     part = str(a.get("part", "eye"))
-    fx, fy = PART_AT.get(part, (0.5, 0.5))
+    from . import species as _SPX
+    fam = _SPX.family(str(a.get("animal", "")))
+    land = fam in ("land", "bear", "bird")
+    snake = str(a.get("animal", "")) in ("cobra", "puff_adder", "black_mamba")
+    table = PART_AT_SNAKE if snake else PART_AT_LAND if land else PART_AT
+    fx, fy = table.get(part, (0.5, 0.5))
     zoom = 1.0 + 1.1 * k if part not in ("tail", "fin", "skin") else 1.0 + 0.4 * k
     im = _dark_bg()
-    sp = _animal(str(a.get("animal", "great_white")), int(900 * zoom), jaw=part == "mouth" and k > 0.5)
+    sp = _animal(str(a.get("animal", "great_white")), int(900 * zoom), jaw=part == "mouth" and k > 0.5 and not land,
+                 flat=bool(a.get("flat_art")))
     px = 640 - fx * sp.width * k - 0.5 * sp.width * (1 - k)          # glide the part to the centre while zooming
     py = 380 - fy * sp.height * k - 0.5 * sp.height * (1 - k)
     im.alpha_composite(sp, (int(px), int(py)))
@@ -496,12 +524,141 @@ def verdict(a: Dict[str, Any]) -> Image.Image:
     return im
 
 
+# ------------------------------------------------------------------ ApexMorph cards (docs/ocean/PATTERNS.md, land video #7)
+
+def title_banner(a: Dict[str, Any]) -> Image.Image:
+    """"THE TSAVO LIONS" on a slanted orange bar, "Kenya, 1898" under it; the animal small above (glowing eyes in the dark
+    when no animal is given). args: title, sub, animal."""
+    k = _ease(_k(a))
+    im = _dark_bg()
+    d = ImageDraw.Draw(im)
+    if a.get("animal"):
+        sp = _fit_w(_animal(str(a["animal"]), 420, flat=bool(a.get("flat_art"))), 360, 170)
+        sp.putalpha(sp.getchannel("A").point(lambda v: int(v * min(1.0, k * 1.5))))
+        _paste_c(im, sp, 640, 205)
+    else:
+        for x in (612, 668):
+            r = 7 * min(1.0, k * 2)
+            d.ellipse((x - r, 200 - r, x + r, 200 + r), fill=(236, 230, 120, 255))
+    title = str(a.get("title", "")).upper()
+    f = _fit(d, title, "heavy", 58, 760)
+    tw = _tw(d, title, f)
+    bw = (tw + 120) * min(1.0, k * 1.6)
+    if bw > 4:
+        bar = Image.new("RGBA", (int(bw) + 40, 130), (0, 0, 0, 0))
+        ImageDraw.Draw(bar).polygon([(20, 22), (int(bw) + 40, 0), (int(bw) + 20, 108), (0, 130)], fill=(232, 112, 56, 255))
+        im.alpha_composite(bar, (int(640 - (bw + 40) / 2), 300))
+    if k > 0.45:
+        _centre(d, 640, 365 - f.size * 0.62, title, f, (20, 20, 22, 255))
+    if a.get("sub") and k > 0.7:
+        _centre(d, 640, 455, str(a["sub"]), F("regular", 24), L.SOFT)
+    return im
+
+
+def checklist(a: Dict[str, Any]) -> Image.Image:
+    """"TRIED: x soldiers x traps x poison" and an "ALL FAILED" stamp, or "SURVIVED: v gunfire"; the items tick in one by
+    one. args: title, items [[text, ok]], stamp."""
+    k = _ease(_k(a))
+    items = [list(x) for x in (a.get("items") or [])][:6]
+    im = _dark_bg()
+    d = ImageDraw.Draw(im)
+    fi, ft = F("bold", 30), F("heavy", 36)
+    w = max([_tw(d, str(x[0]), fi) for x in items] + [_tw(d, str(a.get("title", "")).upper(), ft)]) + 140
+    h = 90 + 58 * len(items)
+    x0, y0 = 640 - w / 2 - 120, 360 - h / 2
+    d.rounded_rectangle((x0, y0, x0 + w, y0 + h), radius=10, fill=(22, 30, 38, 235))
+    d.text((x0 + 34, y0 + 26), str(a.get("title", "")).upper(), font=ft, fill=L.WHITE)
+    shown = int(len(items) * min(1.0, k * 1.35) + 0.999) if items else 0
+    for i, (text, ok) in enumerate(items[:shown]):
+        y = y0 + 90 + i * 58
+        cx, cy = x0 + 50, y + 18
+        if ok:
+            d.line((cx - 12, cy, cx - 3, cy + 10, cx + 14, cy - 12), fill=(110, 210, 140, 255), width=5)
+        else:
+            d.line((cx - 11, cy - 11, cx + 11, cy + 11), fill=L.RED, width=5)
+            d.line((cx - 11, cy + 11, cx + 11, cy - 11), fill=L.RED, width=5)
+        d.text((x0 + 86, y), str(text), font=fi, fill=(214, 220, 226, 255))
+    if a.get("stamp") and k > 0.85:
+        st = str(a["stamp"]).upper()
+        fs = F("heavy", 44)
+        sw = int(_tw(d, st, fs) + 40)
+        stamp = Image.new("RGBA", (sw + 10, 86), (0, 0, 0, 0))
+        sd = ImageDraw.Draw(stamp)
+        sd.rectangle((4, 4, sw + 4, 80), outline=L.RED, width=5)
+        sd.text((24, 14), st, font=fs, fill=L.RED)
+        stamp = stamp.rotate(8, expand=True, resample=Image.BICUBIC)
+        im.alpha_composite(stamp, (int(x0 + w + 30), int(y0 + h / 2 - stamp.height / 2)))
+    return im
+
+
+def statement(a: Dict[str, Any]) -> Image.Image:
+    """A short line in big heavy letters, the last word red ("FOUR HUNDRED.", "ONE KILL."). args: text."""
+    k = _ease(_k(a))
+    im = _dark_bg()
+    d = ImageDraw.Draw(im)
+    words = str(a.get("text", "")).upper().split()
+    if not words:
+        return im
+    head, last = " ".join(words[:-1]), words[-1]
+    f = _fit(d, " ".join(words), "heavy", 96, 1100)
+    wh = _tw(d, head + " ", f) if head else 0
+    wl = _tw(d, last, f)
+    x = 640 - (wh + wl) / 2
+    y = 360 - f.size * 0.6 + 30 * (1 - min(1.0, k * 2))
+    col = lambda c: c[:3] + (int(255 * min(1.0, k * 2)),)
+    if head:
+        d.text((x, y), head, font=f, fill=col(L.WHITE))
+    d.text((x + wh, y), last, font=f, fill=col(L.RED))
+    return im
+
+
+def labels(a: Dict[str, Any]) -> Image.Image:
+    """The whole animal from the side with thin pointer lines to its named parts ("MASSIVE SHOULDERS", "NO MANE").
+    args: animal, labels [text, ...] (a label naming a body part points at it)."""
+    from . import relations as REL
+    from . import species as _SPX
+    k = _ease(_k(a))
+    im = _dark_bg()
+    d = ImageDraw.Draw(im)
+    name = str(a.get("animal", "great_white"))
+    land = _SPX.family(name) in ("land", "bear", "bird")
+    snake = name in ("cobra", "puff_adder", "black_mamba")
+    table = PART_AT_SNAKE if snake else PART_AT_LAND if land else PART_AT
+    sp = _fit_w(_animal(name, 760, flat=bool(a.get("flat_art"))), 640, 360)
+    ax, ay = 640 - sp.width / 2, 430 - sp.height / 2
+    im.alpha_composite(sp, (int(ax), int(ay)))
+    spots = [(0.35, 0.2), (0.8, 0.2), (0.15, 0.55), (0.6, 0.75)]
+    labs = [str(x) for x in (a.get("labels") or [])][:4]
+    placed: List[Tuple[bool, bool]] = []
+    for i, lab in enumerate(labs):
+        q = max(0.0, min(1.0, k * (len(labs) + 1) - i - 0.6))
+        if q <= 0:
+            continue
+        part = next((n for rx, n in REL._PARTS if rx.search(lab)), None)
+        fx, fy = table.get(part, spots[i % len(spots)]) if part else spots[i % len(spots)]
+        px, py = ax + fx * sp.width, ay + fy * sp.height
+        right, low = fx >= 0.5, fy >= 0.6                 # the label sits on its part's side, so lines never cross the body
+        used = sum(1 for j in range(i) if placed[j] == (right, low))
+        placed.append((right, low))
+        tx = 1060 if right else 220
+        ty = (600 + used * 46) if low else (120 + used * 46)
+        f = F("bold", 26)
+        t = lab.upper()
+        tw = _tw(d, t, f)
+        d.line((px, py, px + (tx - px) * q, py + (ty + 34 - py) * q), fill=(200, 206, 212, int(255 * q)), width=2)
+        d.ellipse((px - 5, py - 5, px + 5, py + 5), fill=L.WHITE)
+        if q > 0.8:
+            d.text((tx - tw / 2, ty), t, font=f, fill=L.WHITE)
+    return im
+
+
 KINDS = {
+    "title_banner": title_banner, "checklist": checklist, "statement": statement, "labels": labels,
     "stomach": stomach, "above_below": above_below, "map_pin": map_pin, "icon_grid": icon_grid, "ghost_size": ghost_size,
     "hud_bars": hud_bars, "polaroid": polaroid, "year_anchor": year_anchor, "anatomy": anatomy, "era": era,
     "scoreboard": scoreboard, "latin_name": latin_name, "temp_tag": temp_tag, "question": question, "verdict": verdict,
 }
-FULL = {"stomach", "above_below", "map_pin", "icon_grid", "ghost_size", "hud_bars", "polaroid", "year_anchor", "anatomy",
+FULL = {"title_banner", "checklist", "statement", "labels", "stomach", "above_below", "map_pin", "icon_grid", "ghost_size", "hud_bars", "polaroid", "year_anchor", "anatomy",
         "era", "scoreboard"}
-ANIMATED = ("stomach", "above_below", "map_pin", "icon_grid", "ghost_size", "hud_bars", "year_anchor", "anatomy", "era",
+ANIMATED = ("title_banner", "checklist", "statement", "labels", "stomach", "above_below", "map_pin", "icon_grid", "ghost_size", "hud_bars", "year_anchor", "anatomy", "era",
             "scoreboard")

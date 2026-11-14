@@ -70,7 +70,7 @@ def _norm(w: str) -> str:
 
 def words_from_text(text: str, start: float, end: float) -> List[Word]:
     """Even spread of words over [start, end] by character length (used when no word timings exist)."""
-    toks = text.split()
+    toks = [w for w in re.sub(r"\s*[\u2014\u2013]\s*", " ", text).split() if w]
     if not toks:
         return []
     total = sum(len(t) + 1 for t in toks)

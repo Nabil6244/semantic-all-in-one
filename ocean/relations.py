@@ -33,8 +33,8 @@ from typing import Any, List, Optional, Sequence, Tuple
 
 THIS_YEAR = 2026
 
-INSIDE = re.compile(r"\b(inside (?:it|its|them|their|one|the)|in (?:its|their|the) (?:stomach|belly|gut)s?|stomachs?|"
-                    r"swallowed|had eaten|found in (?:its|their)|bellies|belly)\b", re.I)
+INSIDE = re.compile(r"\b(in (?:its|their|the) (?:stomach|belly|gut)s?|stomachs?|swallowed|had eaten|eaten whole|"
+                    r"found in (?:its|their)|bellies|belly|(?:had|found|with) [\w\s\-]{0,30}inside (?:it|them|one))\b", re.I)
 ON_TOP = re.compile(r"\b((?:up )?on (?:the )?(ice|sea ice|ice floes?|land|beach|shore|surface|rocks?|boat)|above (?:the )?water)\b",
                     re.I)
 BELOW = re.compile(r"\b(in the water|below|beneath|under(?:neath)?|underwater|down there)\b", re.I)
@@ -50,19 +50,21 @@ PARTS = [  # (pattern, part) first wins
     (r"\b(liver)\b", "liver"),
     (r"\b(skin|scales|denticles)\b", "skin"),
     (r"\b(dorsal fin|fins?)\b", "fin"),
+    (r"\b(claws?|paws?|talons?)\b", "claw"),
     (r"\b(brain)\b", "brain"),
     (r"\b(heart|heartbeat)\b", "heart"),
     (r"\b(electric(?:al)? fields?|electroreception|ampullae)\b", "sense"),
 ]
 _PARTS = [(re.compile(p, re.I), n) for p, n in PARTS]
 PART_ASK = re.compile(r"\b(those|its|their|the|his|her|this|that|an?)\s+\w*\s*(eyes?|teeth|jaws?|mouth|nose|snout|tail|gills?|"
-                      r"liver|skin|fins?|brain|heart|retinas?|electric(?:al)? fields?)\b", re.I)
+                      r"liver|skin|fins?|brain|heart|retinas?|claws?|paws?|electric(?:al)? fields?)\b", re.I)
 PHOTO = re.compile(r"\b(photograph(?:ed|s)?|photos?|pictures? of|pulled (?:one|it|a|out)|hauled|landed|caught (?:one|a|in)|"
                    r"washed up|weighed|on (?:the )?dock|in a net|bycatch)\b", re.I)
 SPEED_RE = re.compile(r"(?P<num>\d+(?:\.\d+)?)\s*(?P<unit>km/h|kph|mph|knots?|(?:km|kilomet(?:er|re)s?|miles?)\s*(?:an|per|/)\s*hour)",
                       re.I)
-TEMP_RE = re.compile(r"(?P<neg>-|−|minus\s+)?(?P<num>\d+(?:\.\d+)?(?:\s*1/2)?)\s*(?:°\s*(?P<u1>[CF])?|degrees?(?:\s+(?P<u2>celsius|"
+TEMP_RE = re.compile(r"(?P<neg>-|−|minus\s+)?(?P<num>\d+(?:\.\d+)?(?:\s*1/2)?)[\s\-]*(?:°\s*(?P<u1>[CF])?|degrees?(?:\s+(?P<u2>celsius|"
                      r"fahrenheit|c\b|f\b))?)", re.I)
+HUMAN = re.compile(r"\b(you|humans?|a person|people|athletes?|runners?|sprinters?)\b", re.I)
 AIR = re.compile(r"\b(air|breath(?:ing)?|oxygen|tank)\b", re.I)
 PANIC = re.compile(r"\b(panic\w*|stress\w*|scared|fear|frighten\w*)\b", re.I)
 TIMES = re.compile(r"\b(\d+(?:\.\d+)?|two|three|four|five|twice)\s*(?:times|x)\b", re.I)
@@ -202,14 +204,21 @@ def read(text: str, animals: Sequence[Tuple] = (), numbers: Sequence[Any] = ()) 
         r.speed_pos = sp[0].start()
         r.speed_title = "TOP SPEED" if re.search(r"\b(top|fastest|burst|max\w*)\b", t, re.I) else (
             "CRUISING SPEED" if re.search(r"\b(cruis\w*|normal|usual|average)\b", t, re.I) else "SPEED")
-        who = next((a for a in animals if a[0] not in ("diver", "boat")), None)
-        label = (who[4].upper() if who else "IT")
+        def owner(at: int) -> str:
+            """Whose speed: the last animal or person named before the number in its clause."""
+            clause_from = max([0] + [i + 1 for i, ch in enumerate(t[:at]) if ch in ".;"])
+            cands = [(a[3], a[4].upper()) for a in animals if clause_from <= a[3] < at and a[0] not in ("boat",)]
+            for hm in HUMAN.finditer(t, clause_from, at):
+                cands.append((hm.start(), "YOU" if hm.group(0).lower() == "you" else "A HUMAN"))
+            return max(cands)[1] if cands else "IT"
         for m2 in sp[:2]:
             v = _kmh(float(m2.group("num")), m2.group("unit"))
             u = m2.group("unit").lower()
             shown = f"{m2.group('num')} " + ("MPH" if u.startswith(("mph", "mile")) else "KNOTS" if u.startswith("knot") else "KM/H")
+            label = owner(m2.start())
+            if any(x[0] == label for x in r.speed):
+                label = "TOP BURST"
             r.speed.append((label, v, shown))
-            label = "TOP BURST" if len(sp) > 1 else label
         if re.search(r"\byou (?:can )?swim\b|\bswimmer", t, re.I):
             r.speed.append(SPEEDS["swim"] + ("~2.5 KM/H",))
         elif len(r.speed) == 1:                  # one speed alone still gets a yardstick: you walking, or a car in town
@@ -228,10 +237,11 @@ def read(text: str, animals: Sequence[Tuple] = (), numbers: Sequence[Any] = ()) 
         mt = TIMES.search(t)
         r.air = (1.0, max(1.5, _num(mt.group(1)) if mt else 3.0))
     m = TEMP_RE.search(t)
-    if m and (m.group("u1") or m.group("u2") or "°" in m.group(0) or re.search(r"degrees?", m.group(0), re.I)):
+    turn = re.search(r"\b(around|turns?|turned|twists?|twisted|rotat\w*|spins?|angle)\b", t, re.I)
+    if m and not turn and (m.group("u1") or m.group("u2") or "°" in m.group(0) or re.search(r"degrees?", m.group(0), re.I)):
         num = m.group("num").replace(" 1/2", ".5").replace("1/2", "0.5")
         neg = "-" if m.group("neg") else ""
-        u = (m.group("u1") or m.group("u2") or "C")[:1].upper()
+        u = (m.group("u1") or m.group("u2") or ("F" if re.search(r"\b(heat|hot|summer|savanna|desert)\b", t, re.I) else "C"))[:1].upper()
         r.temp, r.temp_span = f"{neg}{num} °{u}", (m.start(), m.end())
     for rx, title, ago, order in _ERAS:
         if rx.search(t):
@@ -290,7 +300,9 @@ OCEAN_PLACES = {  # (lat, lon) for sea places the country / region data has no s
     "north sea": (56.0, 3.0), "hawaii": (20.8, -156.3), "florida": (27.8, -81.7), "california": (36.8, -121.0),
     "south africa": (-30.6, 22.9), "australia": (-25.3, 133.8), "new zealand": (-41.0, 174.0), "norway": (64.5, 11.0),
     "iceland": (64.9, -18.6), "greenland": (72.0, -40.0), "newfoundland": (49.0, -56.0), "nova scotia": (45.0, -63.0),
-    "alaska": (63.6, -152.0), "japan": (36.2, 138.3), "mexico": (23.6, -102.5), "canada": (56.1, -106.3), "chile": (-35.7, -71.5),
+    "alaska": (63.6, -152.0), "kalahari": (-23.0, 22.0), "the kalahari": (-23.0, 22.0), "serengeti": (-2.3, 34.8),
+    "southern africa": (-25.0, 25.0), "africa": (2.0, 20.0), "east africa": (0.0, 37.0), "sahara": (23.0, 13.0),
+    "masai mara": (-1.5, 35.1), "okavango delta": (-19.3, 22.9), "kruger": (-24.0, 31.5), "japan": (36.2, 138.3), "mexico": (23.6, -102.5), "canada": (56.1, -106.3), "chile": (-35.7, -71.5),
 }
 
 

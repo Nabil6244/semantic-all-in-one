@@ -27,12 +27,17 @@ _NUM_RE = re.compile(
     r"(?P<num>\$?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)(?:\s*(?:-|to)\s*(?P<num2>\d+(?:\.\d+)?))?"
     r"\s*(?P<scale>%|percent\b|million\b|billion\b|thousand\b|hundred\b)?"
     r"\s*(?P<unit>[a-zA-Z/]+)?", re.I)
-LENGTH_UNITS = {"m", "meter", "meters", "metre", "metres", "ft", "feet", "foot", "cm", "km", "mm", "inch", "inches"}
+LENGTH_UNITS = {"m", "meter", "meters", "metre", "metres", "ft", "feet", "foot", "cm", "km", "mm", "inch", "inches",
+                "millimeter", "millimeters", "millimetre", "millimetres", "centimeter", "centimeters", "centimetre", "centimetres",
+                "mile", "miles"}
 TIME_UNITS = {"hours", "hour", "hrs", "minutes", "minute", "mins", "seconds", "days", "weeks"}
-MASS_UNITS = {"kg", "tons", "tonnes", "ton", "tonne", "lb", "lbs", "pounds", "kilograms"}
+MASS_UNITS = {"kg", "tons", "tonnes", "ton", "tonne", "lb", "lbs", "pounds", "pound", "kilograms", "kilos", "kilo"}
 
 SETS = [  # (pattern, set) first match wins
     (r"\b(torch(?:beam)?|flashlight|murky|zero visibility|can'?t see|cannot see|in the dark|darkness|edge of the light)\b", "dark"),
+    (r"\b(burrows?|dens?|underground|subterranean|tunnels?|dig(?:s|ging)? (?:down|into|through|under|a |out)|dug)\b", "burrow"),
+    (r"\b(after dark|at night|at dusk|nocturnal|single night|moonlight)\b", "dark"),
+    (r"\b(savann?ah?|bush|grasslands?|kalahari|serengeti|plains?|desert sand|scrubland|termite mound|acacia)\b", "savanna"),
     (r"\b(sea ice|under the ice|the ice above|ice above|hole in the ice|ice hole|ceiling of ice|through the ice)\b", "ice_hole"),
     (r"\b(abyss|abyssal|trench(es)?|midnight zone|hadal|pitch[- ]black|no light|deep sea|deep-sea|deepest)\b", "abyss"),
     (r"\b(kelp|seaweed|forest of)\b", "kelp"),
@@ -55,13 +60,13 @@ QUESTION_OR = re.compile(r"\b(?:do you|would you|should you|you could|you can|ca
 COMMENT = re.compile(r"\b(comments?|let (?:me|us) know|tell us|which animal|what do you think)\b", re.I)
 GAGS = [  # (pattern, card) the joke prop a sentence's shape asks for
     (r"\b(blame|guilty|culprit|crime|criminal|wanted|suspect|murder(ed|er)?|evidence|caught red)\b", "wanted"),
-    (r"\b(scene of|body|bodies|remains|carcass|no witnesses)\b", "crime_tape"),
+    (r"\b(scene of|dead body|bodies|remains|no witnesses)\b", "crime_tape"),
     (r"\b(hero|heroes|rescue[sd]?|saves?|saved|protect(s|ed|ing)?|guard(s|ed|ing)?|bodyguards?|selfless|altruis\w*)\b", "halo"),
     (r"\b(birthday|celebrat\w*|party|newborn|calf|calves|baby|babies|pups?)\b", "bunting"),
     (r"\b(buy|bought|sell|sold|price|collectors?|for sale|online|\$\d)\b", "shop"),
     (r"\b(plan|strategy|tactics?|team ?work|coordinat\w*|play ?book|separate the|work together|cooperat\w*|in shifts|"
      r"take turns)\b", "playbook"),
-    (r"\b(myth|misconception|wrong|people think|everyone thinks|turns out|actually)\b", "quiz"),
+    (r"\b(myth|misconception|people (?:think|assume)|everyone thinks|turns out|most people)\b", "quiz"),
     (r"\b(versus|vs\.?|against|rival(s|ry)?|fight(s|ing)?|showdown|clash(es|ed)?|face[sd]? off|predator|prey|victim)\b", "duel"),
 ]
 _GAGS = [(re.compile(p, re.I), g) for p, g in GAGS]
@@ -123,6 +128,49 @@ SPELLED = {w: i for i, w in enumerate("zero one two three four five six seven ei
 SPELLED.update({"thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90})
 
 
+_UNITS_W = {w: i for i, w in enumerate("zero one two three four five six seven eight nine ten eleven twelve thirteen "
+                                         "fourteen fifteen sixteen seventeen eighteen nineteen".split())}
+_TENS_W = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+_SCALE_W = {"hundred": 100, "thousand": 1000, "million": 1_000_000}
+_NUMWORD = r"(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|" \
+           r"seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million)"
+_RUN = re.compile(r"\b(?:an?\s+)?" + _NUMWORD + r"(?:(?:\s+and\s+|[\s\-]+)" + _NUMWORD + r")*\b", re.I)
+
+
+def words_to_digits(text: str) -> str:
+    """'four hundred and twenty pounds' -> '420 pounds', 'a thousand pounds' -> '1000 pounds', 'twenty-five-pound' ->
+    '25-pound', 'fifteen hundred calories' -> '1500 calories'. A lone 'one' stays a word ('one of them', 'one afternoon')
+    and a lone 'hundreds' / 'thousands' (no number before it) stays as it is."""
+    def conv(m: "re.Match") -> str:
+        raw = m.group(0)
+        words = [w for w in re.split(r"[\s\-]+", raw.lower()) if w and w != "and"]
+        lead_a = words and words[0] in ("a", "an")
+        if lead_a:
+            words = words[1:]
+        keep_a = ""
+        if lead_a and words and words[0] not in _SCALE_W:      # "a twenty-five-pound badger": the article stays a word
+            keep_a, lead_a = raw[: raw.lower().index(" ") + 1], False
+        if not words or (len(words) == 1 and words[0] == "one"):
+            return raw
+        if words[0] in _SCALE_W and not lead_a:
+            return raw
+        total, cur = 0, 1 if lead_a else 0
+        for w in words:
+            if w in _UNITS_W:
+                cur += _UNITS_W[w]
+            elif w in _TENS_W:
+                cur += _TENS_W[w]
+            elif w == "hundred":
+                cur = max(1, cur) * 100
+            else:
+                total += max(1, cur) * _SCALE_W[w]
+                cur = 0
+        n = total + cur
+        sep = "-" if raw.rstrip().endswith("-") else ""
+        return keep_a + (f"{n:,}" if n >= 1000 else str(n)) + sep
+    return _RUN.sub(conv, text)
+
+
 def spelled_to_digits(text: str) -> str:
     """'seventeen of them' -> '17 of them', 'two hundred' -> '2 hundred' (same length is not kept; positions are re-read)."""
     def rep(m: "re.Match") -> str:
@@ -136,7 +184,8 @@ def spelled_to_digits(text: str) -> str:
 
 def _numbers(text: str) -> List[Number]:
     out: List[Number] = []
-    text = re.sub(r"(\d)-(?=(meters?|metres?|foot|feet|ft|m|tons?|tonnes?|kg)\b)", r"\1 ", text, flags=re.I)   # "5-meter": same length
+    text = re.sub(r"(\d)-(?=(meters?|metres?|foot|feet|ft|m|tons?|tonnes?|kg|pounds?|inch(?:es)?|(?:milli|centi)met(?:er|re)s?|"
+                  r"miles?|years?|seconds?|minutes?|hours?|days?)\b)", r"\1 ", text, flags=re.I)   # "5-meter": same length
     for m in _NUM_RE.finditer(text):
         num, unit = m.group("num"), (m.group("unit") or "").lower()
         scale = (m.group("scale") or "").lower()
@@ -182,7 +231,7 @@ def _numbers(text: str) -> List[Number]:
 
 
 def read(text: str) -> Features:
-    t = str(text or "")
+    t = words_to_digits(str(text or ""))
     f = Features(text=t)
     taken: List[Tuple[int, int]] = []
     hits = [(m.start(), m.end(), i, name, args, m) for i, (rx, name, args) in enumerate(_ANIMAL_RE) for m in rx.finditer(t)]

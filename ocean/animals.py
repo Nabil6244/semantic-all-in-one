@@ -17,11 +17,14 @@ from __future__ import annotations
 
 import math
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw
 
 from . import look as L
+
+FLAT_CACHE = Path.home() / ".cache" / "video_generator" / "ocean_flat"    # flat 2D copies of the library pictures
 
 PHASES = 8
 SS = 3                                   # supersampling
@@ -393,14 +396,61 @@ def _art_src(path: str) -> Image.Image:
     return Image.open(path).convert("RGBA")
 
 
-def _painted(name: str, width: int, ph: int, face: str, jaw: bool, silhouette: bool, color: Tuple[int, ...]) -> Optional[Image.Image]:
+@lru_cache(maxsize=64)
+def _flat_src(path: str) -> Image.Image:
+    """The painted library animal as the reference's flat 2D shape: three flat colours, smooth edges, no fur or 3D
+    shading (ApexMorph draws its animals flat). Made once per picture and kept on disk next to the cache."""
+    from PIL import ImageFilter
+    src = Path(path)
+    out = FLAT_CACHE / f"{src.stem}_{int(src.stat().st_mtime)}.png"
+    if out.is_file():
+        return Image.open(out).convert("RGBA")
+    im = Image.open(path).convert("RGBA")
+    im.thumbnail((900, 900))
+    alpha = im.getchannel("A").filter(ImageFilter.GaussianBlur(2)).point(lambda v: 255 if v > 140 else 0)
+    rgb = im.convert("RGB").filter(ImageFilter.GaussianBlur(5))
+    pq = rgb.quantize(colors=3, method=Image.Quantize.MEDIANCUT, kmeans=5)
+    pal = pq.getpalette()[:9]
+    cols = [tuple(pal[i * 3: i * 3 + 3]) for i in range(3)]
+    idx = list(pq.getdata())
+    body = [i for i, a in zip(idx, alpha.getdata()) if a]
+    share = [body.count(c) / max(1, len(body)) for c in range(3)]
+    keep = [c for c in range(3) if share[c] >= 0.07] or [max(range(3), key=lambda c: share[c])]
+    remap = {c: (c if c in keep else min(keep, key=lambda k: sum((x - y) ** 2 for x, y in zip(cols[c], cols[k]))))
+             for c in range(3)}                           # a sliver colour (dark specks in a mane) joins its nearest
+    pq.putdata([remap[i] for i in idx])                   # main colour: flat shapes, no holes
+    q = pq.convert("RGB")
+    for _ in range(2):
+        q = q.filter(ImageFilter.ModeFilter(13))
+    flat = q.convert("RGBA")
+    flat.putalpha(alpha)
+    try:
+        FLAT_CACHE.mkdir(parents=True, exist_ok=True)
+        flat.save(out)
+    except OSError:
+        pass
+    return flat
+
+
+def _painted(name: str, width: int, ph: int, face: str, jaw: bool, silhouette: bool, color: Tuple[int, ...],
+             flat: bool = False) -> Optional[Image.Image]:
     """The library's painted animal (ocean/art_flow.py), or None to fall back to the code drawing. A named colour variant
     ('blue whale' drawn as a recoloured humpback) keeps the code drawing so it never shows the wrong animal."""
     from . import art_flow as AF
-    p = (AF.path(name, "jaw") if jaw else None) or AF.path(name, "side")
+    from . import puppet as PU
+    if flat and AF.path(name, "vector") is not None:         # the flat vector picture (the reference look)
+        src = _art_src(str(AF.path(name, "vector")))
+        p = "puppet"
+    elif flat and PU.has(name):                              # the vector puppet, standing (same look as when it walks)
+        src = PU.puppet(PU.ALIASES.get(name, name), 600).pose(0.0, "idle")
+        src = src.crop(src.getbbox() or (0, 0, src.width, src.height))
+        p = "puppet"
+    else:
+        p = (AF.path(name, "jaw") if jaw else None) or AF.path(name, "side")
     if p is None:
         return None
-    src = _art_src(str(p))
+    if p != "puppet":
+        src = _flat_src(str(p)) if flat else _art_src(str(p))
     h = max(1, int(src.height * width / max(1, src.width)))
     img = src.resize((max(1, int(width)), h), Image.LANCZOS)
     if silhouette:
@@ -417,8 +467,8 @@ def _painted(name: str, width: int, ph: int, face: str, jaw: bool, silhouette: b
 
 @lru_cache(maxsize=512)
 def _draw_cached(name: str, width: int, ph: int, face: str, jaw: bool, silhouette: bool, color: Tuple[int, ...],
-                 eye: str, scars: bool) -> Image.Image:
-    painted = _painted(name, width, ph, face, jaw, silhouette, color)
+                 eye: str, scars: bool, flat: bool = False) -> Image.Image:
+    painted = _painted(name, width, ph, face, jaw, silhouette, color, flat)
     if painted is not None:
         return painted
     args: Dict[str, Any] = {"scars": scars}
@@ -527,7 +577,8 @@ def _draw_cached(name: str, width: int, ph: int, face: str, jaw: bool, silhouett
 def draw(name: str, width: int = 520, ph: int = 0, **args: Any) -> Image.Image:
     color = tuple(int(c) for c in (args.get("color") or ())[:3])
     return _draw_cached(str(name), int(width), int(ph) % PHASES, str(args.get("face", "right")), bool(args.get("jaw")),
-                        bool(args.get("silhouette")), color, str(args.get("eye") or ""), bool(args.get("scars")))
+                        bool(args.get("silhouette")), color, str(args.get("eye") or ""), bool(args.get("scars")),
+                        bool(args.get("flat")))
 
 
 def phase_at(name: str, t: float, seed: str = "") -> int:

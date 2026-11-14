@@ -63,7 +63,8 @@ def align_script(script: str, words: Sequence[Any]) -> List[tuple]:
     punctuation in the timed words (Edge voices, some transcripts) sentences could not be found; with this they can."""
     import difflib
 
-    toks = str(script or "").split()
+    toks = re.sub(r"\s*[\u2014\u2013]\s*", " \u2014 ", str(script or "")).split()   # "Africa—latches": two words
+    toks = [w for w in toks if w != "\u2014"]
     ws = [(str(w[0]), float(w[1]), float(w[2])) if not isinstance(w, dict) else
           (str(w.get("word") or w.get("text") or ""), float(w.get("start", 0)), float(w.get("end", 0))) for w in words or []]
     if not toks or not ws:
@@ -137,6 +138,61 @@ def plan_film(scenes: Sequence[Dict[str, Any]], work: str, channel: str = "Ocean
         f"{len(chapters)} chapters, {r['species']} animals, {len(data['clips'])} real-clip slots; longest still {r['longest_still_s']} s")
     return {"shots": r["shots"], "cards": sum(r["cards"].values()), "captions": r["captions"], "chapters": len(chapters),
             "duration": data["total"], "species": r["species"], "clips": len(data["clips"]), "report": r}
+
+
+def plan_beats(beat_csv: Any, words: Sequence[Any], total_s: float, work: str, channel: str = "Ocean",
+               log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
+    """Beat mode: the beat CSV (ocean/beat_prompt.md) timed to the voice-over -> work/plan.json. Every beat is a Flow
+    picture, a stock clip or a drawn graphic (ocean/beats.py)."""
+    from . import beats as BT
+
+    cast, beats = BT.read(beat_csv)
+    if not beats:
+        raise RuntimeError("the beat CSV has no beat rows (type,text,visual,prompt)")
+    total = float(total_s or (float(words[-1][2]) + 0.6 if words else 0.0))
+    tb = BT.timed(beats, words, total)
+    data = BT.plan(tb, cast, total, channel or "Ocean", words=words)
+    wd = Path(work)
+    wd.mkdir(parents=True, exist_ok=True)
+    tmp = wd / (PLAN_FILE + ".tmp")
+    tmp.write_text(json.dumps(data, default=list), encoding="utf-8")
+    tmp.replace(wd / PLAN_FILE)
+    r = data["report"]
+    log(f"planned {len(tb)} beats (avg {r['shot_avg_s']} s): {r['pictures']} pictures, {r['clips']} clips, "
+        f"{r['cards']['graphic']} graphics; {len(cast)} cast looks")
+    return {"shots": r["shots"], "cards": r["cards"]["graphic"], "captions": r["captions"], "chapters": 0, "duration": total,
+            "species": len(cast), "clips": r["clips"] + r["pictures"], "pictures": r["pictures"], "report": r, "beats": True}
+
+
+def swap_bad_clips(work: str, images_dir: str, log: Callable[[str], None] = lambda m: None) -> List[str]:
+    """Beat mode, after the clips are fetched: a clip beat whose clip does not show its animal (or found none) becomes a
+    painted picture of that line (made next by ocean/beat_flow.py). Returns the beats changed; plan.json is updated."""
+    from asset_manager import AssetManifest
+    from . import beats as BT
+
+    plan = load_plan(work)
+    if not plan or plan.get("mode") != "beats":
+        return []
+    man = AssetManifest(Path(images_dir))
+    cast = plan.get("cast") or {}
+    changed: List[str] = []
+    for s in plan.get("clips") or []:
+        if s.get("kind") != "clip":
+            continue
+        rec = man.get(str(s["scene_no"])) or {}
+        ok = rec.get("status") == "complete" and CL.clip_matches(str(s.get("query", "")), rec)
+        if ok:
+            continue
+        s["kind"] = "picture"
+        s["query"] = BT.picture_prompt(f"{s.get('query', '')}, showing exactly this: {s.get('text', '')}", cast)
+        s["grade"] = "none"
+        if rec:
+            man.set(str(s["scene_no"]), {**rec, "status": "replaced", "error": "clip did not show its animal"})
+        changed.append(str(s["scene_no"]))
+    if changed:
+        log(f"{len(changed)} stock clip(s) did not show their animal (beats {', '.join(changed)}): painted pictures instead")
+        (Path(work) / PLAN_FILE).write_text(json.dumps(plan, default=list), encoding="utf-8")
+    return changed
 
 
 def clip_scenes(plan: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
