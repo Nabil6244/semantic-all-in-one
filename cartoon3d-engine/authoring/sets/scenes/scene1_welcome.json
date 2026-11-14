@@ -1,0 +1,7 @@
+{"lead_in": 0.8, "gap": 0.4, "tail": 1.5,
+ "lines": [
+  {"who": "host", "text": "Hi friends! Welcome to Rainbow Playland!", "voice": "en-US-AvaNeural", "rate": "-4%", "pitch": "+6Hz"},
+  {"who": "host", "text": "Are you ready to play with Hoorain and Noraiz?", "voice": "en-US-AvaNeural", "rate": "-4%", "pitch": "+6Hz", "gap_after": 0.3},
+  {"who": "hoorain", "text": "Yay! Let's play!", "voice": "en-US-AnaNeural", "rate": "+0%", "pitch": "+0Hz", "gap_after": 0.25},
+  {"who": "noraiz", "text": "One, two, three... jump!", "voice": "en-US-AnaNeural", "rate": "+8%", "pitch": "-14Hz"}
+ ]}
