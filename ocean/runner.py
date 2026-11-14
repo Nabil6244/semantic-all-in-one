@@ -32,7 +32,7 @@ PLAN_FILE = "plan.json"
 CHAPTER_MAX_S = 90.0
 CHAPTER_MIN_S = 25.0
 DEEP_SETS = ("abyss", "depth_column")
-BEDS_CALM = ("long_note_four", "echoes_of_time_v2")
+BEDS_CALM = ("echoes_of_time_v2",)
 BEDS_DEEP = ("dark_fog",)
 BED_LUFS = -33.0
 STAGE_SOUND = {"pop": "pop", "rise": "whoosh_soft", "slide_left": "whoosh_soft", "slide_right": "whoosh_soft", "drop": "thud_soft"}
@@ -128,6 +128,7 @@ def plan_film(scenes: Sequence[Dict[str, Any]], work: str, channel: str = "Ocean
             "layers": pl.layers, "shots": pl.shots, "report": pl.report,
             "total": max(float(s["end"]) for s in scenes)}
     data["clips"] = CL.choose(data["scenes"], pl.layers, data["total"], pl.shots) if real_clips else []
+    data["photos"] = CL.photo_slots(pl.layers) if real_clips else []     # polaroid prints: a real photo each (Visuals tab)
     tmp = wd / (PLAN_FILE + ".tmp")
     tmp.write_text(json.dumps(data, default=list), encoding="utf-8")
     tmp.replace(wd / PLAN_FILE)
@@ -139,7 +140,7 @@ def plan_film(scenes: Sequence[Dict[str, Any]], work: str, channel: str = "Ocean
 
 
 def clip_scenes(plan: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    return CL.visual_scenes((plan or {}).get("clips") or [])
+    return CL.visual_scenes(((plan or {}).get("clips") or []) + ((plan or {}).get("photos") or []))
 
 
 def load_plan(work: str) -> Optional[Dict[str, Any]]:
@@ -304,6 +305,13 @@ def render_film(work: str, voice: str, out: str, *, found: Optional[Dict[str, Di
     for u in used:
         Path(u["path"]).unlink(missing_ok=True)
     _write_description(plan, Path(out), used)
+    try:
+        from . import thumbnail as TH
+        th = TH.make_for_plan(plan, str(Path(out).with_name(Path(out).stem + "_thumbnail.jpg")))
+        if th:
+            log(f"thumbnail: {Path(th).name}")
+    except Exception as ex:  # noqa: BLE001 - a thumbnail never fails the render
+        log(f"thumbnail skipped ({ex})")
     progress(1.0, "done")
     return {"seconds": total, "chunks": len(chunks), "sound": bool(mixed.get("path")), "clips": len(used)}
 

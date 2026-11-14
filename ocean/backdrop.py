@@ -11,6 +11,8 @@ Sets (args in brackets, all optional):
     abyss          near-black deep with a purple glow and slow falling marine snow
     depth_column   darkening water with a depth ruler and labelled marks                          [marks [[m, label]], max_m]
     split_columns  two water columns side by side with a title over each                          [left/right {label, color}]
+    dark           near-black cold water: what is there is seen only where the diver's torch points (ocean/stage.py)
+    ice_hole       under sea ice: a dark ceiling with one bright square hole and its light shaft     [hole_x 0..1]
 An unknown name draws open_water: a set never fails and never goes flat.
 Static parts are drawn once per (set, args, size) and cached; moving parts are quantised to PHASES steps per cycle and cached,
 so a frame is a couple of pastes plus a few dozen specks.
@@ -29,7 +31,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from . import look as L
 
 W, H = L.W, L.H
-SETS = ("open_water", "surface", "seafloor", "kelp", "abyss", "depth_column", "split_columns")
+SETS = ("open_water", "surface", "seafloor", "kelp", "abyss", "depth_column", "split_columns", "dark", "ice_hole")
 PHASES = 32
 RAY_CYCLE_S = 14.0
 KELP_CYCLE_S = 6.0
@@ -179,7 +181,36 @@ def _base_split(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
     return img
 
 
-_BASES = {"surface": _base_surface, "seafloor": _base_seafloor, "abyss": _base_abyss,
+def _base_dark(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
+    return _vgrad(w, h, [(0.0, (12, 22, 30, 255)), (0.5, (6, 12, 18, 255)), (1.0, (2, 4, 8, 255))])
+
+
+def _base_ice_hole(w: int, h: int, a: Dict[str, Any]) -> Image.Image:
+    img = _vgrad(w, h, [(0.0, (16, 30, 40, 255)), (0.45, (7, 14, 20, 255)), (1.0, (2, 4, 8, 255))])
+    sc = L.scale()
+    ice = int(h * 0.075)
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(4)
+    edge = [(x, ice + rnd.uniform(-4, 6) * sc) for x in range(0, w + 16, 16)]
+    d.polygon([(0, 0), (w, 0)] + edge[::-1], fill=(150, 170, 182, 255))
+    d.line(edge, fill=(196, 214, 222, 255), width=max(2, int(3 * sc)))
+    hx = w * float(a.get("hole_x", 0.5))
+    hw = w * 0.07
+    shaft = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(shaft).polygon([(hx - hw / 2, ice), (hx + hw / 2, ice), (hx + hw * 1.1, h), (hx - hw * 1.1, h)], fill=200)
+    shaft = shaft.filter(ImageFilter.GaussianBlur(w * 0.02))
+    from PIL import ImageChops
+    shaft = ImageChops.multiply(shaft, Image.linear_gradient("L").resize((w, h)).point(lambda v: 255 - int(v * 0.85)))
+    img.paste((214, 236, 246, 255), (0, 0), shaft)
+    d = ImageDraw.Draw(img)
+    d.rectangle((hx - hw / 2, 0, hx + hw / 2, ice + 2 * sc), fill=(250, 252, 255, 255))
+    glow = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(glow).ellipse((hx - hw * 1.6, -ice, hx + hw * 1.6, ice * 2.6), fill=255)
+    img.paste((240, 248, 255, 255), (0, 0), glow.filter(ImageFilter.GaussianBlur(w * 0.02)).point(lambda v: v * 150 // 255))
+    return img
+
+
+_BASES = {"dark": _base_dark, "ice_hole": _base_ice_hole, "surface": _base_surface, "seafloor": _base_seafloor, "abyss": _base_abyss,
           "depth_column": _base_depth_column, "split_columns": _base_split}
 
 
@@ -188,7 +219,7 @@ def _base(name: str, akey: str, w: int, h: int) -> Image.Image:
     a = json.loads(akey)
     fn = _BASES.get(name)
     img = fn(w, h, a) if fn else _water(w, h)
-    return _vignette(img, 165 if name != "abyss" else 190)      # heavy edge darkening: the documentary look
+    return _vignette(img, 190 if name in ("abyss", "dark", "ice_hole") else 165)      # heavy edge darkening: the documentary look
 
 
 # ------------------------------------------------------------------------------------------------------------------ moving parts

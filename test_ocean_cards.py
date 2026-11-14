@@ -40,6 +40,21 @@ SAMPLE = {
     "watch_next": {"channel": "Ocean", "line": "more apex predators"},
     "island_map": {"count": 16, "label": "tagged sharks", "animal": "great_white", "year": "2009", "dur": 6.0, "leave": 2.5},
     "size_compare": {"animal": "great_white", "metres": 5.0, "label": "5 M", "ref_label": "CAR 4.5 M"},
+    "stomach": {"predator": "great_white", "prey": ["seal", "dolphin"]},
+    "above_below": {"top": "polar_bear", "bottom": "seal", "surface": "ice", "sleep": True},
+    "map_pin": {"place": "Svalbard", "lat": 78.2, "lon": 15.6, "line": "2012"},
+    "icon_grid": {"animal": "great_white", "count": 45, "lit": 15, "title": "45 sharks", "sub": "a third had eaten seal"},
+    "ghost_size": {"animal": "great_white", "real_m": 5.5, "claim_m": 7.0},
+    "hud_bars": {"title": "cruising speed", "rows": [["shark", 1.2, "1.2 km/h"], ["you, walking", 5, "~5 km/h"]]},
+    "polaroid": {"animal": "great_white", "caption": "you could outswim it?"},
+    "year_anchor": {"year": "1776", "event": "The United States declares independence"},
+    "anatomy": {"animal": "great_white", "part": "eye", "label": "a parasite on each eye"},
+    "era": {"title": "Cretaceous period", "ago": "94 million years ago", "order": 0.8, "prev": 1.0},
+    "scoreboard": {"rules": 2, "survives": 5, "dies": 3},
+    "latin_name": {"latin": "Carcharodon carcharias", "means": "jagged tooth"},
+    "temp_tag": {"text": "-1.5 °C"},
+    "question": {},
+    "verdict": {"verdict": "dies"},
 }
 
 

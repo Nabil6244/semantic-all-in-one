@@ -43,14 +43,19 @@ STILL_MAX_S = 3.6
 CARD_HOLD_S = 2.6
 FULL = {"island_map", "size_compare", "dot_grid", "mystery", "paper", "choose_move", "quiz", "playbook", "wanted", "shop", "comments", "watch_next",
         "duel", "silhouettes", "icon_rows", "bar_race", "strata", "name_chips"}
-TEXT_CARDS = FULL | {"number_hero", "standoff", "progress", "calendar", "clock", "meters", "counter"}
+from . import cards_story as _CS  # noqa: E402
+from . import relations as _REL  # noqa: E402
+FULL |= _CS.FULL                              # sentence scenes (stomach x-ray, map pin, era dial ...) fill the frame
+TEXT_CARDS = FULL | {"number_hero", "standoff", "progress", "calendar", "clock", "meters", "counter", "latin_name", "temp_tag",
+                     "verdict"}
 GAGS = {"wanted", "crime_tape", "halo", "bunting", "shop", "playbook", "quiz", "duel"}
 from . import species as _SP  # noqa: E402
 FAMILY = {k: s.family for k, s in _SP.SPECIES.items() if s.family}    # "sharks" in a tiger-shark film means tiger sharks
 PAPER_GAP_S = 60.0
 FULL_MAX_S = 4.4
 END_CARD_MIN_S = 120.0                        # a short test / Short ends on its last line, not on the end screen
-LONG_FULL = {"island_map": 7.5}               # scenes that play out (the group circles, then leaves) hold longer
+LONG_FULL = {"island_map": 7.5, "era": 5.0, "stomach": 5.0, "icon_grid": 5.0, "anatomy": 4.8, "polaroid": 4.2,
+             "above_below": 5.0, "year_anchor": 4.6}               # scenes that play out (the group circles, then leaves) hold longer
 GROUP_TRACK = re.compile(r"\b(tracked|tagged|counted|vanish(ed|es)?|disappear(ed|s)?|fled|left|came back|gone|islands?|"
                          r"gathered|circled|patrolled)\b", re.I)
 LEAVE = re.compile(r"\b(not one|none|nobody|vanish(ed|es)?|disappear(ed|s)?|fled|ran|left|gone|swam away|never came back)\b",
@@ -59,7 +64,7 @@ OPENING_YOU = re.compile(r"\b(below|beneath|under)\s+you\b|\byou'?re\s+(floating
 FEET_M = 0.3048
 GAG_REPEAT_S = 120.0
 CARRY_SET_SHOTS = 0
-SIDE_CARDS = {"calendar", "clock", "counter", "meters", "diver_hud", "name_tag"}   # corner cards: captions still show
+SIDE_CARDS = {"calendar", "clock", "counter", "meters", "diver_hud", "name_tag", "temp_tag", "verdict", "question"}   # corner cards: captions still show
 LOW_TEXT_SETS = {"surface"}                 # sets with a horizon up top: text cards sit below the water line
 GROUP_WORDS = {"two": 2, "pair": 2, "both": 2, "three": 3, "four": 4, "five": 5}
 CONJ = {"and", "but", "so", "then", "which", "while", "yet"}
@@ -68,7 +73,17 @@ CARD_POS = {
     "clock": ((1060, 240), 0.62), "calendar": ((1060, 230), 0.7), "counter": ((230, 80), 1.0),
     "bunting": ((640, 70), 1.0), "crime_tape": ((640, 360), 1.0), "diver_hud": ((330, 110), 1.0),
     "name_tag": ((300, 64), 1.0), "meters": ((900, 250), 0.8),
+    "latin_name": ((640, 80), 1.0), "temp_tag": ((1090, 110), 1.0), "verdict": ((1070, 90), 1.0), "question": ((640, 150), 1.0),
 }
+SCOREBOARD_FROM = 0.82
+LATE_SCENES = {"map_pin", "anatomy", "latin_name", "question"}
+FINAL = re.compile(r"\b(final (?:count|score|tally)|scoreboard|in total|add (?:it|them) up|so far|the score)\b", re.I)
+CAPTIONED = {"map_pin", "anatomy", "above_below", "stomach", "polaroid", "question", "temp_tag", "verdict", "latin_name"}
+MAP_FROM_S = 15.0                             # the cold open stays on the animal and "you", no map
+SCENE_MIN_S = 2.2                             # one sentence scene cuts straight to the next, like the reference
+REPEAT_OK = {"mystery", "stomach", "map_pin", "hud_bars", "anatomy", "icon_grid", "era", "verdict"}   # new content each time
+DIVER_YOU = re.compile(r"\byou(?:'re| are| were|'d| would| will)?\s+(?:\w+\s+)?(?:swim\w*|div\w*|hang\w*|float\w*|panic\w*|"
+                       r"breath\w*|sink\w*|kick\w*|use air|run out|surface|go down|descend\w*)", re.I)                        # the era tally shows in the last part of a "survive every era" film
 ENTERS = ("slide_left", "slide_right", "pop", "rise")
 
 
@@ -168,12 +183,17 @@ class _Cards:
         self.total = total
         self.last_end = -1e9
         self.last_kind = ""
+        self.last_start = -1e9
         self.last_gag = -1e9
         self.last_paper = -1e9
         self.gag_times: Dict[str, float] = {}
         self.list_items = list_items
         self.revealed = 0
         self.counts: Dict[str, int] = {}
+        self.era_order = 1.0                    # the time dial starts at today
+        self.era_now = ""
+        self.verdicts: Dict[str, str] = {}      # era -> rules / survives / dies (the end scoreboard)
+        self.scored = False
 
     def ok(self, kind: str, t: float) -> bool:
         if kind in GAGS and t - self.last_gag < GAG_GAP_S:
@@ -182,12 +202,14 @@ class _Cards:
             return False
         if kind in GAGS and t - self.gag_times.get(kind, -1e9) < GAG_REPEAT_S:
             return False
-        if kind == self.last_kind and kind != "mystery" and t - self.last_end < 20:
+        if kind == self.last_kind and kind not in REPEAT_OK and t - self.last_end < 20:
             return False
+        if kind in _CS.FULL and self.last_kind in FULL:    # a sentence scene cuts the one before short (seen >= SCENE_MIN_S)
+            return t - self.last_start >= SCENE_MIN_S
         return t - self.last_end >= CARD_GAP_S or kind == "mystery"
 
     def took(self, kind: str, t0: float, t1: float) -> None:
-        self.last_end, self.last_kind = t1, kind
+        self.last_end, self.last_kind, self.last_start = t1, kind, t0
         if kind in GAGS:
             self.last_gag = t0
             self.gag_times[kind] = t0
@@ -207,13 +229,18 @@ class _Cards:
             animals = [self.list_items[k] if k <= i else "" for k in range(len(self.list_items))]
             self.revealed += 1
             opts.append({"kind": "mystery", "args": {"slots": slots[:5], "animals": animals[:5], "lit": i}, "pos": 0})
+        scenes = self._scenes(sc, f, ctx)
+        years_only = all(n.kind == "year" for n in f.numbers) and not f.month     # "In 2012, ... off Baffin": the map carries the year
+        is_late = lambda o: o["kind"] in LATE_SCENES and not (o["kind"] == "map_pin" and years_only)  # noqa: E731
+        late = [o for o in scenes if is_late(o)]
+        opts += [o for o in scenes if not is_late(o)]
         paper_opt: List[Dict[str, Any]] = []
         if f.study:
             year = next((n.raw for n in f.numbers if n.kind == "year"), "")
             title = " ".join(re.findall(r"[A-Za-z0-9',\-]+", text)[:12])
             paper_opt.append({"kind": "paper", "args": {"journal": ("Field study, " + year) if year else "Field study",
                                                    "title": title}, "pos": 0})
-        if paper_opt and not any(n.kind == "count" for n in f.numbers):
+        if paper_opt and not any(n.kind == "count" for n in f.numbers) and not (f.rel is not None and f.rel.place):
             opts += paper_opt
             paper_opt = []
         if f.choice and f.you:
@@ -239,6 +266,8 @@ class _Cards:
                              "pos": group_n.pos})
         size_n = next((n for n in nums if n.kind == "length" and n.unit not in ("cm", "mm", "km", "inch", "inches")), None)
         size_who = (f.animals[0] if f.animals else None)
+        if size_who is None and ctx.get("subject"):          # "The biggest one ever measured was 5.5 m": the story's animal
+            size_who = (ctx["subject"], False, {}, 0, ctx.get("subject_word") or ctx["subject"])
         if size_n is not None and size_who is not None and size_who[0] not in ("boat", "cage", "tooth", "diver"):
             metres = size_n.value * (FEET_M if size_n.unit in ("ft", "feet", "foot") else 1.0)
             if 0.5 <= metres <= 40:
@@ -288,6 +317,7 @@ class _Cards:
                 big = n.raw + ((" " + unit_word) if unit_word and n.kind == "count" else "")
                 opts.append({"kind": "number_hero", "args": {"number": big.upper() if n.unit else big, "line": plain,
                                                              "key": key, "size": 110 if len(big) < 8 else 84}, "pos": n.pos})
+        opts += late                                 # the place / body part / photo / name when no number claims the line
         opts += paper_opt                            # a study with a count: the number first, the paper if it cannot show
         if f.gag:
             gargs: Dict[str, Any] = {}
@@ -322,10 +352,109 @@ class _Cards:
             at = _t_at(sc, o["pos"])
             if self.ok(o["kind"], at):
                 return o
-            later = self.last_end + CARD_GAP_S         # blocked only by the gap: come in later in the same sentence
+            later = (self.last_start + SCENE_MIN_S) if (o["kind"] in _CS.FULL and self.last_kind in FULL) \
+                else self.last_end + CARD_GAP_S         # blocked only by the gap: come in later in the same sentence
             if later < float(sc["end"]) - 1.2 and self.ok(o["kind"], later):
                 return dict(o, at=later)
         return None
+
+
+    def _scenes(self, sc: Dict[str, Any], f: R.Features, ctx: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """The sentence's own scene from what it says about its nouns (ocean/relations.py), most specific first."""
+        r = f.rel
+        if r is None:
+            return []
+        text = f.text
+        t0 = float(sc["start"])
+        subj = ctx.get("subject")
+        real = [a for a in f.animals if a[0] not in ("boat", "cage", "tooth", "diver")]
+        who = real[0][0] if real else subj
+        if who and real and real[0][2].get("generic") and subj and FAMILY.get(subj) == real[0][2]["generic"]:
+            who = subj
+        word = (real[0][4] if real else ctx.get("subject_word")) or ""
+        out: List[Dict[str, Any]] = []
+        if self.verdicts and len(self.verdicts) >= 2 and not self.scored and (t0 > self.total * SCOREBOARD_FROM or FINAL.search(text)):
+            tally = {"rules": 0, "survives": 0, "dies": 0}
+            for v in self.verdicts.values():
+                tally[v] += 1
+            out.append({"kind": "scoreboard", "args": tally, "pos": 0})
+        if r.era:
+            title, ago, order = r.era
+            if title != self.era_now and (title or ago) != self.era_now:
+                out.append({"kind": "era", "args": {"title": title, "ago": ago, "order": order, "prev": self.era_order},
+                            "pos": 0})
+            self.era_order, self.era_now = order, title or ago     # the story is in this era now, card shown or not
+        if r.verdict and self.era_now:
+            self.verdicts[self.era_now] = r.verdict
+            out.append({"kind": "verdict", "args": {"verdict": r.verdict}, "pos": 0, "with_animal": True})
+        counts = [n for n in f.numbers if n.kind == "count" and 6 <= n.value <= 500]
+        if r.fraction and (counts or who):
+            lit_n, of_n = r.fraction
+            total_n = int(counts[0].value) if counts else of_n
+            lit = int(round(total_n * lit_n / max(1, of_n)))
+            place = f" · {r.place}" if r.place else ""
+            noun = (word if word.endswith("s") else word + "s") if word else "animals"
+            out.append({"kind": "icon_grid", "args": {"animal": who or "great_white", "count": total_n, "lit": lit,
+                                                      "title": f"{total_n} {noun}{place}",
+                                                      "sub": " ".join(re.findall(r"[A-Za-z0-9']+", text)[-6:])},
+                        "pos": counts[0].pos if counts else 0})
+        if r.inside and (who or real):
+            pred = who if who not in r.inside else (subj or "great_white")
+            out.append({"kind": "stomach", "args": {"predator": pred, "prey": r.inside}, "pos": 0})
+        if r.above:
+            out.append({"kind": "above_below", "args": {"top": r.above[0], "bottom": r.above[1], "surface": r.above[2],
+                                                        "sleep": bool(re.search(r"\bsleep\w*|asleep|rest\w*", text, re.I))},
+                        "pos": 0})
+        if r.place and t0 >= MAP_FROM_S:
+            ll = _REL.place_latlon(r.place)
+            if ll:
+                year = next((n.raw for n in f.numbers if n.kind == "year"), "")
+                out.append({"kind": "map_pin", "args": {"place": r.place, "lat": ll[0], "lon": ll[1], "line": year},
+                            "pos": max(0, r.place_pos)})
+        if r.unverified and who:
+            lens = [n for n in f.numbers if n.kind == "length"]
+            if lens:
+                claim = lens[0].value * (FEET_M if lens[0].unit in ("ft", "feet", "foot") else 1.0)
+                real_m = float(ctx.get("measured") or claim / 1.3)
+                out.append({"kind": "ghost_size", "args": {"animal": who, "real_m": round(min(real_m, claim * 0.95), 2),
+                                                           "claim_m": round(claim, 2)}, "pos": lens[0].pos})
+        if len(r.speed) >= 2:
+            rows = [[(ctx.get("subject_word") or "it").upper() if lab == "IT" else lab, v, txt] for lab, v, txt in r.speed]
+            out.append({"kind": "hud_bars", "args": {"title": r.speed_title or "speed", "rows": rows},
+                        "pos": max(0, r.speed_pos)})
+        if r.air:
+            calm, mult = r.air
+            out.append({"kind": "hud_bars", "args": {"title": "air used per minute", "rows": [["calm", calm, "1x"],
+                                                                                           ["panicking", mult, f"up to {mult:g}x"]],
+                                                     "colors": [list(_CS.GREEN_BAR), list(_CS.RED_BAR)]}, "pos": 0})
+        if r.age:
+            y, ev = r.age
+            out.append({"kind": "year_anchor", "args": {"year": str(y), "event": ev,
+                                                        "line": "it may already have been alive" if who else ""}, "pos": 0})
+        if r.part and who:
+            clause = next((c for c in re.split(r"[,.;:!?]", text) if re.search(r"\b" + r.part[:3], c, re.I)), text)
+            words = re.findall(r"[A-Za-z0-9'\-]+", clause)
+            label = "electric sense" if r.part == "sense" else " ".join(words[-6:]) if len(words) > 2 else r.part
+            out.append({"kind": "anatomy", "args": {"animal": who, "part": r.part, "label": label}, "pos": 0})
+        if r.photo and who and not r.inside and not any(n.kind == "length" for n in f.numbers):
+            mass = next((n.raw for n in f.numbers if n.kind == "mass"), "")
+            cap = mass.upper() if mass else " ".join(re.findall(r"[A-Za-z0-9'\-]+", re.split(r"[,.;:!]", text)[0])[-6:])
+            out.append({"kind": "polaroid", "args": {"animal": who, "caption": cap, "photo": "",
+                                                     "query": (word or who.replace("_", " ")) + " photo"}, "pos": 0})
+        from . import species as _SPX
+        if r.latin and who and _SPX.LATIN.get(who):
+            m = re.search(r"\bmeans?\s+(.+?)(?:[,.;!?]|$)", text, re.I)
+            means = " ".join(re.findall(r"[A-Za-z'\-]+", m.group(1))[:4]) if m else ""
+            out.append({"kind": "latin_name", "args": {"latin": _SPX.LATIN[who], "means": means}, "pos": 0, "with_animal": True})
+        if r.temp:
+            out.append({"kind": "temp_tag", "args": {"text": r.temp}, "pos": r.temp_span[0], "with_animal": True})
+        if r.question and not f.choice and (real or subj):
+            out.append({"kind": "question", "args": {}, "pos": 0, "with_animal": True})
+        return out
+
+    def took_scene(self, kind: str, args: Dict[str, Any]) -> None:
+        if kind == "scoreboard":
+            self.scored = True
 
 
 # ------------------------------------------------------------------------------------------------------------------ plan
@@ -390,6 +519,8 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
     events: List[float] = []
     enter_i = 0
     story_year = ""
+    measured = 0.0
+    prev_full: Optional[Tuple[Any, str, float]] = None
     first_chapter_sent = {min((i for i, c in enumerate(chapter_of) if c == ch), default=-1) for ch in set(chapter_of)}
 
     for gi, g in enumerate(groups):
@@ -399,18 +530,25 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
         st = OceanStage()
         new_chapter = g[0] in first_chapter_sent and gi > 0
         hint = next((feats[i].set_hint for i in g if feats[i].set_hint), "")
-        carry = last_set if (not new_chapter and carried < CARRY_SET_SHOTS) else "open_water"
+        carry = last_set if (not new_chapter and (carried < CARRY_SET_SHOTS or last_set == "dark")) else "open_water"
         set_name = hint or carry
         carried = 0 if hint else carried + 1
         set_args: Dict[str, Any] = {}
         depth_n = next((n for i in g for n in feats[i].numbers if n.kind == "depth"), None)
-        if depth_n is not None:
+        if depth_n is not None and set_name not in ("dark", "ice_hole"):
             set_name = "depth_column"
             set_args = {"marks": [[0, "surface"], [depth_n.value, depth_n.raw]], "max_m": depth_n.value * 1.25}
         if set_name == "split_columns":
             set_args = {"left": {"label": "here"}, "right": {"label": "everywhere else", "color": [236, 120, 40, 255]}}
         st.set(0.0, set_name, set_args)
         last_set = set_name
+        if set_name == "dark":                      # the viewer's torch: the beam finds whatever swims in (ocean/stage.py)
+            st.add("animal", 0.0, {"name": "diver", "width": 150, "face": "right", "torch": True}, pos=(170.0, 230.0),
+                   enter="fade", z=2)
+        elif set_name == "ice_hole":                # hanging under the hole in the ice, in its light
+            me = st.add("animal", 0.0, {"name": "diver", "width": 130, "face": "right", "silhouette": True},
+                        pos=(640.0, 170.0), enter="fade", z=0)
+            st.move(me, 0.0, pos=(640.0, 215.0), dur=max(2.0, s1 - s0))
         live: Dict[str, str] = {}                   # animal key -> element id
         live_t: Dict[str, Tuple] = {}               # animal key -> the reader's animal tuple
         live_pos: Dict[str, Tuple[float, float, str]] = {}
@@ -516,16 +654,21 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
             yr = next((n.raw for n in f.numbers if n.kind == "year"), "")
             if yr:
                 story_year = yr
+            if f.rel is not None and not f.rel.unverified:
+                ln = next((n for n in f.numbers if n.kind == "length" and n.unit in ("m", "meter", "meters", "metre", "metres")), None)
+                if ln is not None:
+                    measured = ln.value
             ctx = {"list_start": f.ordinal is not None, "subject": subject[0] if subject else None,
-                   "subject_word": subject[4] if subject else None, "year": story_year}
+                   "subject_word": subject[4] if subject else None, "year": story_year, "measured": measured}
             card = cards.choose(sc, f, ctx)
-            animals = _resolve(list(f.animals), family_last)
-            in_you = f.you and you_count.get(chapter_of[i], 0) >= 2 and float(sc["start"]) > 30
+            animals = [a for a in _resolve(list(f.animals), family_last) if FAMILY.get(a[0]) != "land"]
+            in_you = f.you and you_count.get(chapter_of[i], 0) >= 2 and float(sc["start"]) > 30 and \
+                bool(DIVER_YOU.search(f.text) or (f.rel is not None and f.rel.air))
             if in_you and not any(a[0] == "diver" for a in animals):
                 animals = [("diver", False, {}, 0, "diver")] + animals
             if not animals and not live:
                 if subject is not None:
-                    animals = [subject]
+                    animals = [(subject[0], False, subject[2], subject[3], subject[4])]   # the story's animal: one of it
             named = [a for a in animals if a[0] != "diver" and a[3] >= 0 and a in f.animals]
             enter_at = max(0.0, rs)
             if named:                                    # the animal swims in when its name is said, not at the sentence start
@@ -544,7 +687,7 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                         enter_at = reveal
                     else:
                         animals = []
-            if OPENING_YOU.search(f.text) and float(sc["start"]) < 25 and not in_you:
+            if OPENING_YOU.search(f.text) and float(sc["start"]) < 25 and not in_you and set_name not in ("dark", "ice_hole"):
                 if set_name == "surface":            # "you're floating ... below you": seen from under the water, the diver above
                     st.set(rs, "open_water")
                     set_name = "open_water"
@@ -566,10 +709,11 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                 if real:
                     subject = real[0]
                 if not full_card:                        # a full-screen card first: the animals come in after it
-                    shrink = bool(card) and card["kind"] not in ("halo", "size_bar", "crime_tape")
+                    shrink = bool(card) and card["kind"] not in ("halo", "size_bar", "crime_tape", "question", "temp_tag",
+                                                                 "verdict", "latin_name")
                     place(animals, enter_at, shrink, keep=f.flee is not None, text=f.text)
                     events.append(s0 + enter_at)
-            if in_you:
+            if in_you and not full_card:
                 n = next((n for n in f.numbers if n.kind in ("depth", "length")), None)
                 hud = st.add("ocean_diver_hud", rs + 0.2, {"depth": n.raw if n else "5 m", "air": 0.7 if i % 2 else 0.4,
                                                           "tip": ""}, pos=CARD_POS["diver_hud"][0], enter="fade")
@@ -577,6 +721,12 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
             if card:
                 kind = card["kind"]
                 at = max(rs, (card["at"] if "at" in card else _t_at(sc, card["pos"]) - 0.15) - s0)
+                if kind in FULL and "at" not in card:
+                    at = min(at, rs + 0.15)              # a full scene is the whole sentence's picture: it starts with it
+                if kind in FULL and live:                # ... but never a blink after an animal swam in
+                    newest = max(float(st._get(live[k])["t0"]) for k in live)
+                    if newest > at - 0.6:
+                        at = min(max(at, newest + 0.6), max(at, re_ - 1.0))
                 end = min(s1 - s0, max(re_, at + CARD_HOLD_S))
                 if kind in FULL:
                     hold = LONG_FULL.get(kind, FULL_MAX_S)
@@ -584,6 +734,8 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                         end = min(s1 - s0, max(end, at + hold - 1.5))      # let the scene play out past its sentence
                     end = min(end, at + hold)
                 if kind in FULL:
+                    if prev_full and prev_full[0] is st and prev_full[2] > at:
+                        st._get(prev_full[1])["t1"] = at              # the earlier scene gives way to this sentence's
                     for k in list(live):
                         drop(k, at)
                     live_pos.clear()
@@ -594,6 +746,13 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                         el = st.add("ocean_island_map", at, args, pos=(640, 360), enter="fade", anim=dur, float_=False)
                         next(e for e in st._els if e["id"] == el)["anim_steps"] = int(dur * 12)
                         next(e for e in st._els if e["id"] == el)["anim_delay"] = 0.0
+                    elif kind in _CS.FULL and kind != "polaroid":   # a sentence scene fills the frame and plays out its time
+                        dur = max(1.0, end - at - 0.5)
+                        el = st.add("ocean_" + kind, at, dict(card["args"], _flat=True), pos=(640, 360), enter="fade",
+                                    anim=dur, float_=False)
+                        e_ = st._get(el)
+                        e_["anim_steps"] = int(dur * 12)
+                        e_["anim_delay"] = 0.0
                     else:
                         el = st.add("ocean_" + kind, at, dict(card["args"], _flat=True), pos=(640, 360),
                                     scale=0.9 if kind in ("paper", "shop", "wanted") else 1.0,
@@ -613,21 +772,30 @@ def plan(scenes: Sequence[Dict[str, Any]], chapters: Sequence[float] = (), chann
                     if kind == "size_bar" and live_pos:
                         lx, ly, _ = next(iter(live_pos.values()))
                         x, y = lx, ly + 120
-                    if kind == "halo" and live_pos:
+                    if kind in ("halo", "question") and live_pos:
                         lx, ly, _ = next(iter(live_pos.values()))
-                        x, y = lx, ly - 140
+                        x, y = lx, max(110, ly - (140 if kind == "halo" else 190))
+                    if kind == "latin_name":                # the Latin name takes the top line: a name tag there steps aside
+                        for tid, t_off in tags:
+                            if t_off > at:
+                                st._get(tid)["t1"] = at
                     el = st.add("ocean_" + kind, at, dict(card["args"], _flat=True), pos=(x, y), scale=sc_,
                                 enter="fade" if kind == "crime_tape" else "pop", anim=1.0)
                 st.remove(el, end, exit="fade")
+                if kind in FULL:
+                    prev_full = (st, el, end)
                 back = [a for a in animals if a[0] != "diver"] or ([subject] if subject is not None else [])
-                if kind in FULL and back and end < (s1 - s0) - 1.0:
+                if kind in _CS.FULL and subject is not None:
+                    back = [subject]                      # what was eaten / what sits on the ice stays in the card
+                if kind in FULL and back and end < (s1 - s0) - 1.0 and end < re_ - 0.3:   # else the next line casts the stage
                     place(back, end + 0.1, text=f.text)   # this sentence's animals (or the story's) come in after the card
                     events.append(s0 + end + 0.1)
                 cards.took(kind, s0 + at, s0 + end)
+                cards.took_scene(kind, card["args"])
                 shot_cards.append(kind)
                 events.append(s0 + at)
                 if kind in TEXT_CARDS:
-                    text_windows.append((s0 + at, s0 + end, kind in SIDE_CARDS))
+                    text_windows.append((s0 + at, s0 + end, kind in SIDE_CARDS or kind in CAPTIONED))
                 sev.append(at)
             if f.flee is not None and live:
                 said = [a for a in f.animals if a[3] <= f.flee]        # the one named before "fled" is the one that runs

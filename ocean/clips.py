@@ -145,6 +145,37 @@ def choose(scenes: Sequence[Dict[str, Any]], layers: Sequence[Dict[str, Any]], t
     return sorted(picked, key=lambda s: s["start"])
 
 
+PHOTO_SLOT_BASE = 9000                         # polaroid photo rows sit after the film's own scene numbers in the Visuals tab
+
+
+def photo_slots(layers: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """One Visuals-tab row per polaroid print in the plan (its `photo_slot` is written into the card's args): the tab
+    fetches a short real clip and Render prints one still frame of it; no clip -> the painted animal in the print."""
+    out: List[Dict[str, Any]] = []
+    for ly in layers:
+        if ly.get("name") != "ocean.lay_ocean":
+            continue
+        s0 = float(ly["start"])
+        for e in (ly.get("params") or {}).get("elements") or []:
+            if e.get("kind") != "ocean_polaroid":
+                continue
+            a = e.setdefault("args", {})
+            slot = str(PHOTO_SLOT_BASE + len(out) + 1)
+            a["photo_slot"] = slot
+            q = str(a.get("query") or str(a.get("animal", "shark")).replace("_", " ")).replace(" photo", "") + " underwater"
+            t0 = s0 + float(e.get("t0", 0.0))
+            out.append({"scene_no": slot, "start": round(t0, 3), "end": round(t0 + 4.0, 3), "query": q,
+                        "text": str(a.get("caption", "")), "why": "photo"})
+    return out
+
+
+def still(src: str, dst: str, at: float = 1.0) -> str:
+    """One graded still frame of a clip for a polaroid print."""
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, at):.2f}", "-i", src, "-frames:v", "1",
+                    "-vf", "scale=960:-2," + GRADE.split(",vignette")[0], str(dst)], check=True, timeout=120)
+    return dst
+
+
 def visual_scenes(slots: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [{"scene_no": s["scene_no"], "text": s["text"], "asset_type": "stock_video", "prompt": s["query"],
              "stock": s["query"], "start": s["start"], "end": s["end"]} for s in slots]
@@ -236,6 +267,18 @@ def apply(plan: Dict[str, Any], found: Dict[str, Dict[str, Any]], black: str, wo
             log(f"clip for scene {s['scene_no']} skipped ({ex})")
             continue
         used.append({**s, "start": a, "end": b, "path": str(dst), "credit": credit(f.get("meta"))})
+    prints: Dict[str, str] = {}
+    for s in plan.get("photos") or []:            # polaroid prints: one still frame of the clip the tab found
+        f = found.get(str(s["scene_no"]))
+        if not f or not f.get("path") or not Path(f["path"]).is_file():
+            continue
+        try:
+            src_len = _duration(f["path"])
+            if keyed_backdrop(f["path"], src_len):
+                continue
+            prints[str(s["scene_no"])] = still(f["path"], str(wd / f"photo_{s['scene_no']}.jpg"), min(1.5, src_len / 2))
+        except Exception as ex:  # noqa: BLE001 - the print keeps its painted animal
+            log(f"photo for print {s['scene_no']} skipped ({ex})")
     used.sort(key=lambda u: u["start"])
     shots: List[Any] = []
     t = 0.0
@@ -254,5 +297,9 @@ def apply(plan: Dict[str, Any], found: Dict[str, Dict[str, Any]], black: str, wo
             holes = [[u["start"] - a, u["end"] - a, u["credit"]] for u in used if u["end"] > a and u["start"] < b]
             if holes:
                 p["holes"] = holes
+            if prints:
+                p["elements"] = [dict(e, args=dict(e.get("args") or {}, photo=prints[str((e.get("args") or {}).get("photo_slot"))]))
+                                 if str((e.get("args") or {}).get("photo_slot")) in prints else e
+                                 for e in p.get("elements") or []]
         layers.append(Layer(ly["name"], a, b, p))
     return shots, layers, used

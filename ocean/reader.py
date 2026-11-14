@@ -32,6 +32,8 @@ TIME_UNITS = {"hours", "hour", "hrs", "minutes", "minute", "mins", "seconds", "d
 MASS_UNITS = {"kg", "tons", "tonnes", "ton", "tonne", "lb", "lbs", "pounds", "kilograms"}
 
 SETS = [  # (pattern, set) first match wins
+    (r"\b(torch(?:beam)?|flashlight|murky|zero visibility|can'?t see|cannot see|in the dark|darkness|edge of the light)\b", "dark"),
+    (r"\b(sea ice|under the ice|the ice above|ice above|hole in the ice|ice hole|ceiling of ice|through the ice)\b", "ice_hole"),
     (r"\b(abyss|abyssal|trench(es)?|midnight zone|hadal|pitch[- ]black|no light|deep sea|deep-sea|deepest)\b", "abyss"),
     (r"\b(kelp|seaweed|forest of)\b", "kelp"),
     (r"\b(twilight zone|(meters|metres|feet|m) (down|deep|below)|dive[sd]? to|depths?|sink(s|ing)?|deeper)\b", "depth_column"),
@@ -102,6 +104,7 @@ class Features:
     except_: bool = False
     month: str = ""
     question: bool = False
+    rel: Any = None                 # ocean/relations.py: what the sentence says about its nouns
 
     @property
     def names(self) -> List[str]:
@@ -211,6 +214,10 @@ def read(text: str) -> Features:
                 n.end = m.end()
                 n.pos = max(0, m.start() - (len(n.pre) + 1 if n.pre else 0))
                 f.numbers.append(n)
+    from . import relations as REL
+    f.rel = REL.read(t, f.animals, f.numbers)
+    spans = [m.span() for m in REL.SPEED_RE.finditer(t)] + ([f.rel.temp_span] if f.rel.temp else [])
+    f.numbers = [n for n in f.numbers if not any(n.pos < b and n.end > a for a, b in spans)]   # speeds / temperatures have their own cards
     for rx, s in _SETS:
         if rx.search(t):
             f.set_hint = s

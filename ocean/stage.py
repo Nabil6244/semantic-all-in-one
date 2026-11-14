@@ -12,7 +12,8 @@ Aviation stage's own, so both styles keep one motion language; only the world be
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence
+import math
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image
 
@@ -108,18 +109,88 @@ def lay_ocean(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
                     x, y, s, rot, alpha = tr
                     AV._paste(img, AV.sprite(e, s, AV.anim_k(e, t)), x * sc, y * sc, rot, alpha)
             return img
-    canvas = world(p.get("sets") or [[0.0, "open_water", {}]], t)
+    sets = p.get("sets") or [[0.0, "open_water", {}]]
+    canvas = world(sets, t)
     sc = L.scale()
-    for e in sorted(p.get("elements") or [], key=lambda e: e.get("z", 0)):
+    cur, prev, k = set_at(sets, t)
+    dark = cur[1] == "dark" and (prev is None or k >= 1 or prev[1] == "dark")
+    els = sorted(p.get("elements") or [], key=lambda e: e.get("z", 0))
+    lit_by_torch = [e for e in els if dark and e.get("kind") == "animal" and not (e.get("args") or {}).get("torch")]
+    rest = [e for e in els if e not in lit_by_torch]
+    for group in (lit_by_torch, rest):
+        for e in group:
+            tr = AV.transform(e, t)
+            if tr is None:
+                continue
+            x, y, s, rot, alpha = tr
+            if e.get("kind") == "animal":            # keeps swimming: tail / arms / fins at this moment's phase
+                a = e.get("args") or {}
+                e = dict(e, args=dict(a, _ph=A.phase_at(str(a.get("name", "")), t, e.get("id", ""))))
+            AV._paste(canvas, AV.sprite(e, s, AV.anim_k(e, t)), x * sc, y * sc, rot, alpha)
+        if group is lit_by_torch and dark:
+            canvas = torch(canvas, els, t)       # only what the beam touches is seen; the diver and the cards stay on top
+    return canvas
+
+
+TORCH_HALF_DEG = 13.0
+TORCH_LEN = 1100.0
+TORCH_AMBIENT = 22                              # 0..255: how much of the dark water shows outside the beam
+
+
+def torch_aim(els: Sequence[Dict[str, Any]], t: float) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+    """(origin, aim) in 1280 units. The beam starts at the torch diver's hands (or bottom-left) and sweeps the dark;
+    when an animal is in the water it swings onto it over 1.5 s and follows it."""
+    ox, oy = 150.0, 230.0
+    for e in els:
+        a = e.get("args") or {}
+        if e.get("kind") == "animal" and a.get("torch"):
+            tr = AV.transform(e, t)
+            if tr is not None:
+                face = 1 if str(a.get("face", "right")) == "right" else -1
+                ox, oy = tr[0] + face * 0.32 * float(a.get("width", 160)) * tr[2], tr[1] - 6.0
+    sweep = (760.0 + 230.0 * math.sin(t * 0.45), 430.0 + 90.0 * math.sin(t * 0.31 + 1.0))
+    best = None
+    for e in els:
+        a = e.get("args") or {}
+        if e.get("kind") != "animal" or a.get("torch") or a.get("silhouette"):
+            continue
         tr = AV.transform(e, t)
         if tr is None:
             continue
-        x, y, s, rot, alpha = tr
-        if e.get("kind") == "animal":            # keeps swimming: tail / arms / fins at this moment's phase
-            a = e.get("args") or {}
-            e = dict(e, args=dict(a, _ph=A.phase_at(str(a.get("name", "")), t, e.get("id", ""))))
-        AV._paste(canvas, AV.sprite(e, s, AV.anim_k(e, t)), x * sc, y * sc, rot, alpha)
-    return canvas
+        since = t - float(e.get("t0", 0.0))
+        if best is None or since < best[0]:
+            best = (since, (tr[0], tr[1]))
+    if best is None:
+        return (ox, oy), sweep
+    k = M.ease_in_out(M.clamp01(best[0] / 1.5))
+    return (ox, oy), (sweep[0] + (best[1][0] - sweep[0]) * k, sweep[1] + (best[1][1] - sweep[1]) * k)
+
+
+def torch(canvas: Image.Image, els: Sequence[Dict[str, Any]], t: float) -> Image.Image:
+    from PIL import ImageDraw, ImageFilter
+    w, h = canvas.size
+    q = 4                                        # the mask is soft: build it at quarter size
+    sc = L.scale() / q
+    (ox, oy), (ax, ay) = torch_aim(els, t)
+    ang = math.atan2(ay - oy, ax - ox)
+    m = Image.new("L", (max(1, w // q), max(1, h // q)), TORCH_AMBIENT)
+    d = ImageDraw.Draw(m)
+    half = math.radians(TORCH_HALF_DEG)
+    pts = [(ox * sc, oy * sc)]
+    for j in range(9):
+        a = ang - half + 2 * half * j / 8
+        pts.append(((ox + math.cos(a) * TORCH_LEN) * sc, (oy + math.sin(a) * TORCH_LEN) * sc))
+    d.polygon(pts, fill=150)
+    dist = math.hypot(ax - ox, ay - oy)
+    r = max(120.0, dist * math.tan(half) * 1.2)
+    d.ellipse(((ax - r) * sc, (ay - r) * sc, (ax + r) * sc, (ay + r) * sc), fill=255)       # the hot spot where it points
+    m = m.filter(ImageFilter.GaussianBlur(max(2, int(28 * sc)))).resize((w, h), Image.BILINEAR)
+    black = Image.new("RGBA", (w, h), (2, 5, 9, 255))
+    out = Image.composite(canvas, black, m)
+    glow = Image.new("RGBA", (w, h), (210, 230, 240, 0))
+    glow.putalpha(m.point(lambda v: v * 20 // 255))
+    out.alpha_composite(glow)
+    return out
 
 
 CARDS = {"ocean.lay_ocean": lay_ocean}

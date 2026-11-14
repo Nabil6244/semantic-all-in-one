@@ -907,5 +907,7 @@ FULL_FRAME = ("crime_tape",)
 
 def register_all() -> None:
     from aviation import stage as AV
+    from . import cards_story as CS                 # sentence scenes (stomach x-ray, map pin, era dial, ...)
+    KINDS.update(CS.KINDS)
     for name, fn in KINDS.items():
         AV.register("ocean_" + name, fn)

@@ -64,6 +64,14 @@ def needs_for_plan(plan: Optional[Dict[str, Any]]) -> List[Tuple[str, str]]:
                     add(str(a["animal"]), "side")
                 if a.get("ref") in ("car", "bus"):
                     add(str(a["ref"]), "side")
+            elif k == "ocean_stomach":                       # the eater and everything shown inside it
+                for n in [a.get("predator")] + list(a.get("prey") or []):
+                    if n:
+                        add(str(n), "side")
+            elif k == "ocean_above_below":
+                for n in (a.get("top"), a.get("bottom")):
+                    if n:
+                        add(str(n), "side")
             elif isinstance(a.get("animal"), str) and a.get("animal"):
                 add(str(a["animal"]), "side")
     return [(n, p) for n, p in want if path(n, p) is None]
@@ -91,6 +99,9 @@ def prompt(name: str, pose: str = "side") -> str:
                 "whole animal inside the frame with space around it.")
     elif name == "tooth":
         view = "Seen from the front, point up, centred, the whole tooth inside the frame with space around it."
+    elif sp is not None and sp.family in ("land", "bear") and name != "polar_bear" or name == "polar_bear_land":
+        view = ("Seen exactly from the side, facing right, standing on all four legs, "
+                "whole animal inside the frame with space around it.")
     else:
         view = ("Seen exactly from the side, facing right, swimming straight, mouth closed, "
                 "whole animal inside the frame with space around it.")

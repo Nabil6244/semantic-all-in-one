@@ -194,6 +194,10 @@ _LIST: List[Species] = [
     _s("dunkleosteus", r"dunkleosteus", "Dunkleosteus: prehistoric armoured fish with a bony plated head and blade-like jaws",
        "megalodon", "fish", True),
     _s("livyatan", r"livyatans?", "Livyatan melvillei: prehistoric sperm whale with huge teeth in both jaws", "sperm_whale", "whale", True),
+    # land animals a story names as prey or as the thing on the ice / shore (stomach contents, cross-sections)
+    _s("reindeer", r"reindeers?|caribou", "reindeer standing: brown-grey coat, pale neck, large branching antlers", "seal", "land"),
+    _s("horse", r"horses?", "horse standing: brown coat, dark mane and tail", "seal", "land"),
+    _s("moose", r"moose", "moose standing: dark brown body, long legs, broad flat antlers, hanging dewlap", "seal", "land"),
 ]
 
 SPECIES: Dict[str, Species] = {s.key: s for s in _LIST}
@@ -217,6 +221,18 @@ PROP_DESC = {
     "tooth": "single fossil shark tooth, triangular, serrated edges, brown-grey enamel",
     "car": "ordinary silver four-door family sedan car (a man-made car, no animal), the whole car side-on",
     "bus": "ordinary yellow single-deck city bus (a man-made bus, no animal), the whole bus side-on",
+}
+
+
+# scientific names for the name card ("its scientific name means small head")
+LATIN = {
+    "great_white": "Carcharodon carcharias", "greenland_shark": "Somniosus microcephalus", "tiger_shark": "Galeocerdo cuvier",
+    "bull_shark": "Carcharhinus leucas", "hammerhead": "Sphyrna mokarran", "whale_shark": "Rhincodon typus",
+    "megalodon": "Otodus megalodon", "orca": "Orcinus orca", "humpback": "Megaptera novaeangliae",
+    "sperm_whale": "Physeter macrocephalus", "blue_whale": "Balaenoptera musculus", "dolphin": "Tursiops truncatus",
+    "seal": "Phoca vitulina", "polar_bear": "Ursus maritimus", "walrus": "Odobenus rosmarus",
+    "colossal_squid": "Mesonychoteuthis hamiltoni", "squid": "Architeuthis dux", "mosasaur": "Mosasaurus hoffmannii",
+    "livyatan": "Livyatan melvillei", "dunkleosteus": "Dunkleosteus terrelli",
 }
 
 

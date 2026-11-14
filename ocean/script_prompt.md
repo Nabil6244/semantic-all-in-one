@@ -38,6 +38,24 @@ WRITE FOR THE PICTURE (the video draws exactly what you say, when you say it)
   "out of 90 attacks, only 5 ...", "1,000 metres down".
 - Say "researchers", "a study" or "scientists" when you cite one.
 - Place words change the scene: surface, coast, island, sea floor, kelp forest, the deep, the abyss.
+- Give EVERY sentence one concrete picture; the video draws a scene for each of these shapes:
+  - darkness: "your torch beam", "in the dark", "zero visibility" (the screen goes black, a torch finds the animal)
+  - under ice: "under the sea ice", "the hole in the ice"
+  - temperature: "the water is -1.5 degrees"
+  - real places: "off Svalbard", "in Newfoundland", "near the Farallon Islands" (a map pin)
+  - speed with a comparison: "about 1.2 km an hour. You walk faster than that." / "seals swim twice as fast"
+  - what it ate: "two harp seals inside it", "a reindeer in its stomach" (an x-ray of the stomach)
+  - above / below: "seals sleep in the water, away from polar bears up on the ice"
+  - counts with a share: "of 45 sharks, a third had eaten seal", "nine in 10 have one"
+  - claims vs facts: "the 7 m monsters online were never verified"
+  - one body part: "Now, about those eyes." / "its nose" / "the electric fields your body gives off"
+  - age: "already swimming before the United States existed", "over 300 years old"
+  - names: "its scientific name means small head"
+  - photos: "two men pulled one out / photographed / weighed it" (a polaroid print of a real photo)
+  - divers: "if you panic, you use air 3 times faster"
+  - eras (for "survive every era" videos): "In the Cretaceous ...", "94 million years ago ...", and a clear
+    verdict each time ("it would survive", "it wouldn't survive", "it would rule").
+  - a question the next lines answer: "So how does the slowest shark catch anything?"
 
 VOICE-OVER (Voiceover tab)
 - A calm, warm, adult narrator voice; speed normal or slightly slow (-5 %). Not excited, not robotic.
