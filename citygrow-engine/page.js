@@ -40,9 +40,9 @@ async function main() {
   const REAL = cfg.look === 'real';
   // the ground turns urban only where the year's houses stand (both looks), unless a ground picture is asked for
   const URBAN = !REAL || !cfg.ground;
-  if (REAL) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2; }
+  if (REAL) { renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0; }
   const scene = new THREE.Scene();
-  const HAZE = new THREE.Color(REAL ? (cfg.climate && cfg.climate.sand ? 0xd9d2c3 : 0xbcd0de) : 0xc4d3dc);
+  const HAZE = new THREE.Color(REAL ? (cfg.climate && cfg.climate.sand ? 0xd6d0c4 : 0xc3cfd6) : 0xc6d0d6);   // a soft grey-blue haze on the horizon
   scene.background = HAZE; scene.fog = REAL ? new THREE.Fog(HAZE, 1200, 7000) : new THREE.Fog(HAZE, 2000, 9000);
   const camera = new THREE.PerspectiveCamera(cfg.fov || 38, W / H, 1, 30000);
 
@@ -72,7 +72,7 @@ async function main() {
     const { M, sp, x0, hs, n } = T;
     const pos = new Float32Array(M * M * 18), col = new Float32Array(M * M * 18);
     const L = cfg.climate || {}, c = new THREE.Color(), grassA = new THREE.Color(L.grassA ?? 0x7f9f52), grassB = new THREE.Color(L.grassB ?? 0x9aae5e), dry = new THREE.Color(L.dry ?? 0xb6ad78),
-      greenA = new THREE.Color(0x5e9a34), greenB = new THREE.Color(0x7aae42), built = new THREE.Color(0xb9ae98), rock = new THREE.Color(L.rock ?? 0x9b9583), sand = new THREE.Color(L.sand ?? 0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
+      greenA = new THREE.Color(0x4c8030), greenB = new THREE.Color(0x5f9038), built = new THREE.Color(0xb9ae98), rock = new THREE.Color(L.rock ?? 0x9b9583), sand = new THREE.Color(L.sand ?? 0xd8c99a), wet = new THREE.Color(0x9fb9a4), deep = new THREE.Color(0x4f7f8c);
     // Ground that is (or will be) built over: the lowest house rank within ~90 m, so the ground turns urban as the city reaches it.
     // Parks (land use "green") and water stay as they are.
     // ... once the town is built up there: the ground goes pale when KTH houses stand within ~70 m, so a sparse village
@@ -300,9 +300,10 @@ async function main() {
     roofMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0 });
     wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, metalness: 0.05 });
     wallMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uWin = winU.uWin;
       sh.vertexShader = 'varying vec3 vWP; varying vec3 vWN;\n' + sh.vertexShader.replace('#include <begin_vertex>',
         '#include <begin_vertex>\n vWP = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz; vWN = normalize(mat3(instanceMatrix) * normal);');
-      sh.fragmentShader = 'varying vec3 vWP; varying vec3 vWN;\nfloat h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\n' + sh.fragmentShader.replace(
+      sh.fragmentShader = 'uniform float uWin; varying vec3 vWP; varying vec3 vWN;\nfloat h21(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\n' + sh.fragmentShader.replace(
         'vec4 diffuseColor = vec4( diffuse, opacity );',
         `vec4 diffuseColor = vec4( diffuse, opacity );
          float side = 1.0 - step(0.5, abs(vWN.y));
@@ -310,9 +311,10 @@ async function main() {
          vec2 g = vec2(f / 3.6, vWP.y / 3.3), cell = fract(g);
          float win = step(0.2, cell.x) * step(cell.x, 0.8) * step(0.26, cell.y) * step(cell.y, 0.74) * step(2.4, vWP.y);
          vec3 glass = vec3(0.13, 0.17, 0.22) * (0.75 + 0.5 * h21(floor(g)));
-         diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * side * 0.88);`);
+         diffuseColor.rgb = mix(diffuseColor.rgb, glass, win * side * clamp(uWin * 1.1, 0.0, 0.88));`);   // old houses: few small dark openings
     };
   }
+  if (REAL) wallMat = footShade(wallMat, 0.28);   // contact shading at the foot of real-look walls too
   const walls = new THREE.InstancedMesh(wallGeo, wallMat, NL), roofs = new THREE.InstancedMesh(roofGeo, roofMat, NL);
   // flat roofs are not bare: a stair hut or a water tank on most of them (the busy rooftops of a real town from the air)
   const bits = new THREE.InstancedMesh(wallGeo, footShade(new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }), 0.25), NL);
@@ -358,18 +360,31 @@ async function main() {
         if (f < 0.01 && s > 0.01 && burningAt(cfg.events, x, z, year, prog)) ruin = true; else s *= f;
       }
       if (s <= 0.01) continue;
+      // a house is built: first a bare earth plot, then the walls rise (the city visibly building, as in the reference films)
+      const plot = !ruin && s < 0.35; if (!ruin) s = plot ? 0.02 : (s - 0.35) / 0.65;
       const hs = lotsA[o + 7], S = hs < mixK ? SB : SA;
       if (LS > 11 && lotsA[o + 11] > 0 && !S.dense && !S.infill) continue;   // block infill belongs to the packed old town only
       const rh = lotsA[o + 10];   // a real building's own height (m), or 0 for a generated house
       // real look: today's big footprints (schools, hospitals, warehouses) are not drawn as giant houses in an old town
       if (REAL && rh === 0 && S.maxFoot && lotsA[o + 3] * lotsA[o + 4] > S.maxFoot) continue;
       // variety: a few big public buildings and mansions, taller houses in the old core, district-by-district roof tones
-      const big = !REAL && rh === 0 && hash(i, 31) < 0.03, core = rh === 0 ? 1 + 0.55 * clamp(1 - rank / Math.max(1, need * 0.3), 0, 1) : 1;
-      const flat = rh > 0 ? (rh >= 9 || hash(i, 5) < 0.55) : hash(i, 5) < S.flat;
-      const hgt = rh > 0 ? rh * s : (S.h[0] + (S.h[1] - S.h[0]) * hash(i, 9)) * (flat ? 1.15 : 1) * (1 + 0.45 * (dens - 1) * (0.5 + hash(i, 13))) * core * (big ? 1.5 : 1) * s;
+      // variety: villas and big houses, and in an old town its churches, basilicas and halls (a red-roofed civic building
+      // every hundred-odd houses), taller houses in the old core
+      const civic = S.dense && rh === 0 && hash(i, 33) < 0.009;
+      const big = civic || (rh === 0 && hash(i, 31) < 0.03), core = rh === 0 ? 1 + 0.55 * clamp(1 - rank / Math.max(1, need * 0.3), 0, 1) : 1;
+      const flat = !civic && (rh > 0 ? (rh >= 9 || hash(i, 5) < 0.55) : hash(i, 5) < S.flat);
+      const hgt = rh > 0 ? rh * s : (S.h[0] + (S.h[1] - S.h[0]) * hash(i, 9)) * (flat ? 1.15 : 1) * (1 + 0.45 * (dens - 1) * (0.5 + hash(i, 13))) * core * (civic ? 1.9 : big ? 1.5 : 1) * s;
       // real look in an old town: today's footprints trimmed to house size (the small, even houses of the reference films)
       const ms = REAL && S.maxSide ? S.maxSide * (0.8 + 0.4 * hash(i, 71)) : Infinity;
-      const a = -lotsA[o + 2], cos = Math.cos(a), sin = Math.sin(a), fs = big ? 1.75 : 1, w = Math.min(ms, lotsA[o + 3]) * fs, d = Math.min(ms, lotsA[o + 4]) * fs, y = lotsA[o + 5] - 0.6;
+      // ... and a little fuller (at least 9 m a side), so an old town reads as a packed carpet of roofs
+      const fill = (v) => (REAL && S.dense ? Math.max(9, Math.min(ms, v) * 1.15) : Math.min(ms, v));
+      const a = -lotsA[o + 2], cos = Math.cos(a), sin = Math.sin(a), fs = civic ? 2.6 : big ? 1.75 : 1, w = fill(lotsA[o + 3]) * fs, d = fill(lotsA[o + 4]) * fs, y = lotsA[o + 5] - 0.6;
+      if (plot) {
+        writeM(wm, k * 16, cos, sin, w * 1.1, 0.9, d * 1.1, x, y, z); writeM(rm, k * 16, 1, 0, 0, 0, 0, x, y, z);
+        wallC.setHex(0x8a6a48).multiplyScalar(0.85 + hash(i, 2) * 0.3);
+        wc[k * 3] = wallC.r; wc[k * 3 + 1] = wallC.g; wc[k * 3 + 2] = wallC.b; rc[k * 3] = rc[k * 3 + 1] = rc[k * 3 + 2] = 0;
+        k++; continue;
+      }
       if (ruin) {
         writeM(wm, k * 16, cos, sin, w * 0.9, 1.2 + hgt * 0.25 * hash(i, 41), d * 0.9, x, y, z); writeM(rm, k * 16, 1, 0, 0, 0, 0, x, y, z);
         wallC.setHex(0x3b3531).multiplyScalar(0.8 + hash(i, 2) * 0.4);
@@ -378,9 +393,9 @@ async function main() {
       }
       writeM(wm, k * 16, cos, sin, w, hgt + 0.6, d, x, y, z);
       if (flat) writeM(rm, k * 16, 1, 0, 0, 0, 0, x, y, z);   // a flat roof is the wall's own top: no roof piece at all
-      else writeM(rm, k * 16, cos, sin, w * 1.06, Math.min(w, d) * S.roofH * s * (big ? 1.1 : 1.6), d * 1.06, x, y + hgt + 0.6, z);
+      else writeM(rm, k * 16, cos, sin, w * 1.06, Math.min(w, d) * S.roofH * s * (big ? 0.8 : 1.05), d * 1.06, x, y + hgt + 0.6, z);
       wallC.setHex(big ? BIG_WALLS[Math.floor(hash(i, 1) * 4)] : S.walls[Math.floor(hash(i, 1) * S.walls.length)]).multiplyScalar(0.86 + hash(i, 2) * 0.2);
-      if (flat && hgt > 3.5 && hash(i, 61) < (S.bits ?? 0.6)) {
+      if (flat && hgt > 3.5 && hash(i, 61) < (S.bits ?? (S.dense ? 0 : 0.6))) {   // tanks and stair huts are modern rooftops only
         const tank = hash(i, 62) < 0.45, bw = tank ? 1.8 : Math.min(w, d) * (0.3 + 0.15 * hash(i, 63)), bh = tank ? 1.5 : 2.4, bd = tank ? 1.8 : bw * 1.2;
         const lx = (hash(i, 64) - 0.5) * (w - bw) * 0.8, lz = (hash(i, 65) - 0.5) * (d - bd) * 0.8;
         writeM(bm, nb * 16, cos, sin, bw, bh * s, bd, x + lx * cos + lz * sin, y + hgt + 0.6, z - lx * sin + lz * cos);
@@ -409,7 +424,7 @@ async function main() {
     const m = new THREE.InstancedMesh(treeGeos[kind], treeMat, Math.max(1, list.length));
     m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.userData.list = list;
     m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, list.length) * 3), 3);
-    const cc = new THREE.Color(), greens = cfg.climate?.trees || [0x3f7a2c, 0x4f8c33, 0x356b2a, 0x5f9a3a, 0x467f30];
+    const cc = new THREE.Color(), greens = cfg.climate?.trees || [0x2f5e24, 0x3b6e2a, 0x2a5420, 0x46782f, 0x355f26];
     list.forEach((ti, j) => { cc.setHex(greens[Math.floor(hash(ti, 21) * greens.length)]).multiplyScalar(0.85 + hash(ti, 22) * 0.25); cc.toArray(m.instanceColor.array, j * 3); });
     scene.add(m); return m;
   });
@@ -554,15 +569,15 @@ async function main() {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.computeVertexNormals(); return g;
   })();
   const flagGeo = (() => { const a = new THREE.CylinderGeometry(0.2, 0.2, 9, 4).translate(0, 4.5, 0).toNonIndexed(), b = new THREE.BoxGeometry(4.5, 2.8, 0.15).translate(2.3, 7.4, 0).toNonIndexed(); const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([...a.attributes.position.array, ...b.attributes.position.array], 3)); g.computeVertexNormals(); return g; })();
-  const campMeshes = [[tentGeo, 0xe6dcc4], [engineGeo, 0x7a5a3c], [flagGeo, 0xb3202a]].map(([geo, c]) => {
+  const campMeshes = [[tentGeo, 0xece4d0], [engineGeo, 0x7a5a3c], [flagGeo, 0xb3202a], [tentGeo, 0xb02a24]].map(([geo, c]) => {
     const m = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: c, flatShading: true }), Math.max(1, NC)); m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.count = 0; scene.add(m); return m;
   });
   function updateCamps(fxK) {
-    const cnt = [0, 0, 0];
+    const cnt = [0, 0, 0, 0];
     camps.forEach((list, j) => {
       const v = fxK[j]?.camp || 0; if (v <= 0.02) return;
       // tents and guns big enough to read in the siege shot
-      for (const [x, y, z, rot, kind] of list) { const m = campMeshes[kind], s = (kind === 0 ? 2.4 + hash(cnt[kind], 9) * 1.1 : 3.0) * v; writeM(m.instanceMatrix.array, cnt[kind]++ * 16, Math.cos(rot), Math.sin(rot), s, s, s, x, y - 0.2, z); }
+      for (const [x, y, z, rot, kind] of list) { const m = campMeshes[kind], s = (kind === 0 ? 2.4 + hash(cnt[kind], 9) * 1.1 : kind === 3 ? 4.6 : 3.0) * v; writeM(m.instanceMatrix.array, cnt[kind]++ * 16, Math.cos(rot), Math.sin(rot), s, s, s, x, y - 0.2, z); }
     });
     campMeshes.forEach((m, i) => { m.count = cnt[i]; m.instanceMatrix.needsUpdate = true; });
   }
@@ -579,10 +594,16 @@ async function main() {
     const p = new THREE.Points(geo, pointMat(additive)); p.frustumCulled = false; p.renderOrder = additive ? 3 : 2; scene.add(p); return p;
   };
   const smokeP = mkPoints(false), fireP = mkPoints(true);
+  // flame tongues: bright orange cones that flicker over every burning house
+  const NFL = cfg.events.reduce((n, e) => n + (e.kind === 'fire' ? 700 : 0), 0);
+  const flames = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 1, 6).translate(0, 0.5, 0), new THREE.MeshBasicMaterial({ color: 0xff6a12 }), Math.max(1, NFL));
+  flames.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, NFL) * 3), 3);
+  flames.frustumCulled = false; flames.count = 0; scene.add(flames);
   const seeds = cfg.events.map((e) => eventSeeds(e, e.kind === 'siege' ? 90 : e.kind === 'fire' ? 650 : 420).map((sd) => ({ ...sd, y: T.heightAt(sd.x, sd.z) })));
   function updateParticles(t, fxK) {
     const sp = smokeP.geometry.attributes, fp = fireP.geometry.attributes; let ns = 0, nf = 0;
     const smoke = (x, y, z, size, r, g, b, a) => { if (ns >= MAXP) return; sp.position.array.set([x, y, z], ns * 3); sp.aSize.array[ns] = size; sp.aCol.array.set([r, g, b, a], ns * 4); ns++; };
+    let nfl = 0;
     const fire = (x, y, z, size, a) => { if (nf >= MAXP) return; fp.position.array.set([x, y, z], nf * 3); fp.aSize.array[nf] = size; fp.aCol.array.set([1.0, 0.36 + 0.24 * a, 0.07, a], nf * 4); nf++; };   // deep orange glow, not yellow-white
     cfg.events.forEach((e, j) => {
       const k = fxK[j]; if (!k || k.fx <= 0.01) return;
@@ -600,15 +621,14 @@ async function main() {
           const burn = k.fx * clamp(1 - since / 0.8, 0, 1);
           if (burn > 0.02) {
             // a solid orange flame body (drawn like smoke, so it reads on pale ground too) under the added glow
-            smoke(sd.x, sd.y + 5, sd.z, (24 + sd.h * 18) * flick, 1.0, 0.42 + 0.12 * sd.h, 0.08, burn * 0.9);
-            smoke(sd.x, sd.y + 12, sd.z, (15 + sd.h * 10) * flick, 1.0, 0.62, 0.16, burn * 0.75);
-            fire(sd.x, sd.y + 6, sd.z, (34 + sd.h * 28) * flick, burn * 0.8); fire(sd.x, sd.y + 16, sd.z, (20 + sd.h * 14) * flick, burn * 0.5);
+            if (nfl < NFL) { const fw = (3.5 + sd.h * 3) * (0.6 + 0.4 * burn), fh = (10 + sd.h * 12) * flick * (0.5 + 0.5 * burn); writeM(flames.instanceMatrix.array, nfl * 16, 1, 0, fw, fh, fw, sd.x, sd.y + 2, sd.z); flames.instanceColor.array.set([1, 0.32 + 0.3 * sd.h * flick, 0.05], nfl * 3); nfl++; }
+            fire(sd.x, sd.y + 6, sd.z, (26 + sd.h * 20) * flick, burn * 0.5);
           }
         }
         for (let q = 0; q < (quake ? 1 : 2); q++) {   // puffs rise, grow and fade; the wind leans them into a column
           const age = (t * (quake ? 0.5 : 0.2) + sd.h * 3.7 + q * 0.5) % 1, a = k.fx * (1 - age * age) * (quake ? 0.4 : 0.72) * clamp(since * 6, 0, 1);
           if (a < 0.02) continue;
-          const g = quake ? 0.72 : 0.1 + age * 0.3;   // dark columns of smoke over a fire, greying as they rise
+          const g = quake ? 0.72 : 0.05 + age * 0.22;   // black columns of smoke over a fire, greying as they rise
           smoke(sd.x + age * (quake ? 12 : 110), sd.y + 8 + age * (quake ? 22 : 220), sd.z - age * 40, (quake ? 34 : 40) + age * (quake ? 40 : 140), quake ? 0.76 : g, quake ? 0.68 : g * 0.98, quake ? 0.55 : g * 0.95, a);
         }
       }
@@ -621,6 +641,7 @@ async function main() {
       }
     });
     smokeP.geometry.setDrawRange(0, ns); fireP.geometry.setDrawRange(0, nf);
+    flames.count = nfl; flames.instanceMatrix.needsUpdate = true; if (flames.instanceColor) flames.instanceColor.needsUpdate = true;
     for (const a of [sp.position, sp.aSize, sp.aCol, fp.position, fp.aSize, fp.aCol]) a.needsUpdate = true;
   }
   /** Where each event is on screen at t: prog (how far the destruction has spread, 0..1), fx (fire and smoke), camp. */
@@ -631,12 +652,26 @@ async function main() {
   }));
 
   // ---------------------------------------------------------------- post: tilt-shift, grade, vignette
-  const rt = new THREE.WebGLRenderTarget(W, H, { samples: 4, type: THREE.HalfFloatType });
+  const rt = new THREE.WebGLRenderTarget(W, H, { samples: 4, type: THREE.HalfFloatType, depthTexture: new THREE.DepthTexture(W, H) });
+  const focal = H * 0.5 / Math.tan(((cfg.fov || 38) * Math.PI) / 360);
   const post = new THREE.ShaderMaterial({
-    uniforms: { tDiffuse: { value: rt.texture }, uRes: { value: new THREE.Vector2(W, H) }, uBlur: { value: (cfg.tiltShift ?? 1) * 7 * (H / 1080) } },
+    uniforms: { tDiffuse: { value: rt.texture }, tDepth: { value: rt.depthTexture }, uNear: { value: 1 }, uFar: { value: 1000 }, uFocal: { value: focal }, uAO: { value: cfg.ao ?? 0.55 },
+      uRes: { value: new THREE.Vector2(W, H) }, uBlur: { value: (cfg.tiltShift ?? 1) * 7 * (H / 1080) } },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uBlur; varying vec2 vUv;
+      uniform sampler2D tDiffuse; uniform sampler2D tDepth; uniform vec2 uRes; uniform float uBlur, uNear, uFar, uFocal, uAO; varying vec2 vUv;
+      float lin(vec2 uv) { float z = texture2D(tDepth, uv).r * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
+      // soft contact shading (screen-space ambient occlusion): darker where walls meet the ground and houses crowd
+      float ao(vec2 uv) {
+        float dc = lin(uv); if (dc > uFar * 0.98) return 1.0;
+        float rpx = clamp(7.0 * uFocal / dc, 2.0, 26.0), occ = 0.0;
+        for (int i = 0; i < 12; i++) {
+          float a = float(i) * 2.39996 + 0.7, rr = sqrt((float(i) + 0.5) / 12.0) * rpx;
+          float ds = lin(uv + vec2(cos(a), sin(a)) * rr / uRes), dd = dc - ds;
+          occ += smoothstep(0.15, 2.5, dd) * (1.0 - smoothstep(9.0, 30.0, dd));
+        }
+        return 1.0 - uAO * occ / 12.0;
+      }
       void main() {
         float band = smoothstep(0.12, 0.48, abs(vUv.y - 0.47));   // a miniature: sharp middle band, soft top and bottom
         float r = uBlur * band;
@@ -647,9 +682,10 @@ async function main() {
           acc += texture2D(tDiffuse, vUv + o).rgb; wsum += 1.0;
         }
         vec3 c = acc / wsum;
-        c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 1.34);         // rich, saturated colour, as in the reference films
+        c *= ao(vUv);
+        c = mix(vec3(dot(c, vec3(0.299, 0.587, 0.114))), c, 1.1);          // natural colour: rich but not neon
         c = pow(max(c, 0.0), vec3(0.97)) * vec3(1.02, 1.0, 0.97);          // warm
-        c = c * (1.0 + 0.22 * (c - 0.5));                                   // a firmer S-curve: deeper shadows, brighter roofs
+        c = c * (1.0 + 0.16 * (c - 0.5)) * 0.94;                            // a gentle S-curve, a touch darker overall
         vec2 q = vUv - 0.5; c *= 1.0 - 0.38 * dot(q, q) * 1.6;              // vignette
         gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
         #include <colorspace_fragment>
@@ -697,12 +733,15 @@ async function main() {
     const c = cameraAt(tl.camera, t), pl = placeCamera(c, T.heightAt);
     camera.position.set(pl.pos.x, pl.pos.y, pl.pos.z); camera.lookAt(pl.target.x, pl.target.y, pl.target.z);
     camera.near = Math.max(1, c.dist * 0.02); camera.far = c.dist * 12 + 6000; camera.updateProjectionMatrix();
+    post.uniforms.uNear.value = camera.near; post.uniforms.uFar.value = camera.far;
     // window rows read up close; from high up they would only grey the whole town
     winBase = winU.uWin.value; winU.uWin.value = winBase * clamp(1.5 - c.dist / 1400, 0.15, 1);
-    scene.fog.near = c.dist * 1.7; scene.fog.far = c.dist * 7 + 2500;
+    scene.fog.near = c.dist * 1.25; scene.fog.far = c.dist * 5.5 + 2000;   // aerial haze: the far city softens into the horizon
     roadU.uWide.value = clamp(c.dist / 900, 1, 2.6);
     // an old town stands among its gardens (grass between the houses); a modern city on paved ground
-    groundU.uUrbanK.value = (mixK < 0.5 ? styleOf(prevStyle) : styleOf(curStyle)).dense ? 0.3 : 0.8;
+    const oldTown = (mixK < 0.5 ? styleOf(prevStyle) : styleOf(curStyle)).dense;
+    groundU.uUrbanK.value = oldTown ? 0.45 : 0.8;
+    groundU.uUrban.value.setHex(oldTown ? 0x8e9064 : (cfg.climate && cfg.climate.sand ? 0xb9b1a2 : 0xb7ae9c));   // an old town's lanes and yards: trodden earth and grass
     // shadows follow the view: a box around the focus sized to what is on screen
     const ext = clamp(c.dist * 1.25, 160, 6000);
     sun.position.set(pl.target.x + sunDir.x * 8000, pl.target.y + sunDir.y * 8000, pl.target.z + sunDir.z * 8000);

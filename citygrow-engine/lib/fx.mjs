@@ -133,19 +133,27 @@ export function fieldShown(f, need, ramp) {
 /**
  * What an event shows. A siege: the attackers' camp at the event's focus (tents, siege engines that fire, banners) and,
  * when there is water within reach, a fleet; fire and quake are drawn in the page from the event's centre and radius.
- * Returns {camp: [[x, y, z, rot, kind]], fleet: [[x, z, rot]]}; kind 0 tent, 1 engine, 2 banner.
+ * Returns {camp: [[x, y, z, rot, kind]], fleet: [[x, z, rot]]}; kind 0 tent, 1 engine, 2 banner, 3 command tent.
  */
 export function planEvent(T, D, ev, { seed = 3 } = {}) {
   const R = rng(seed + Math.round(ev.x * 7 + ev.z * 13)), camp = [], fleet = [];
   if (ev.kind !== 'siege') return { camp, fleet };
-  const r = clamp(ev.r * 0.7, 120, 700), want = [90, 12, 14];
-  for (let kind = 0; kind < 3; kind++) {
-    let n = 0;
-    for (let tries = 0; tries < want[kind] * 30 && n < want[kind]; tries++) {
-      const a = R() * Math.PI * 2, d = Math.sqrt(R()) * r * (kind === 1 ? 0.6 : 1), x = ev.x + Math.cos(a) * d, z = ev.z + Math.sin(a) * d;
-      const y = T.heightAt(x, z); if (y < 1.5 || T.waterAt?.(x, z) || T.slopeAt(x, z, 10) > 0.25) continue;
-      camp.push([x, y, z, R() * Math.PI * 2, kind]); n++;
+  // an army's camp: round clusters of tents (each regiment round its red command tent), banners, and the guns in front
+  const r = clamp(ev.r * 1.1, 160, 900), ok = (x, z) => { const y = T.heightAt(x, z); return y >= 1.5 && !T.waterAt?.(x, z) && T.slopeAt(x, z, 10) <= 0.25 ? y : null; };
+  const nc = 10 + Math.floor(R() * 5);
+  for (let c = 0; c < nc; c++) {
+    const a = R() * Math.PI * 2, d = Math.sqrt(R()) * r, cx = ev.x + Math.cos(a) * d, cz = ev.z + Math.sin(a) * d, cy = ok(cx, cz);
+    if (cy == null) continue;
+    camp.push([cx, cy, cz, R() * 6.28, 3]); camp.push([cx + 6, cy, cz + 4, 0, 2]);
+    const n = 40 + Math.floor(R() * 50), cr = 30 + R() * 45;
+    for (let q = 0; q < n; q++) {
+      const ring = Math.sqrt((q + 1) / n) * cr, ang = q * 2.39996 + R() * 0.3, x = cx + Math.cos(ang) * ring, z = cz + Math.sin(ang) * ring, y = ok(x, z);
+      if (y != null) camp.push([x, y, z, R() * 6.28, R() < 0.06 ? 3 : 0]);
     }
+  }
+  for (let q = 0, n = 0; q < 300 && n < 16; q++) {   // the great guns, between the camp and the city
+    const a = R() * Math.PI * 2, d = Math.sqrt(R()) * r * 0.5, x = ev.x + Math.cos(a) * d * 0.6 - ev.x * 0.0, z = ev.z + Math.sin(a) * d, y = ok(x, z);
+    if (y != null) { camp.push([x, y, z, R() * 6.28, 1]); n++; }
   }
   // the fleet: open water nearest the camp (up to ~3.5 km away), ships at least 30 m apart
   const cand = [];

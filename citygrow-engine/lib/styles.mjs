@@ -1,8 +1,8 @@
 // How houses look in each period. Walls and roofs are picked per house from these lists (by the house's own hash), so
 // a district has variety but the same house keeps its colours. Heights in metres; `flat` = share of flat roofs.
 export const STYLES = {
-  ancient:      { walls: [0xe9e0cc, 0xdcd0b6, 0xefe8d8, 0xd6c3a0], roofs: [0xc8562c, 0xb94b29, 0xd3683a, 0xab4529], h: [3.5, 6], roofH: 0.32, flat: 0.25, road: 0xc9b48e, dense: true , maxFoot: 650, maxSide: 13 },
-  medieval:     { walls: [0xd9c7a4, 0xcbb38b, 0xe2d4b6, 0xbfa27a, 0xa98c66], roofs: [0xb94d2f, 0xa6432d, 0xc65d35, 0x95452f], h: [5, 9], roofH: 0.4, flat: 0.05, road: 0xbfae8c, dense: true , maxFoot: 650, maxSide: 13 },
+  ancient:      { walls: [0xe9e0cc, 0xdcd0b6, 0xefe8d8, 0xd6c3a0, 0xe3c9a0, 0xcfb38c], roofs: [0xc8562c, 0xb94b29, 0xd3683a, 0xab4529, 0x9c5a3c, 0xd98049, 0xa8603f], h: [3.5, 6], roofH: 0.32, flat: 0.25, road: 0xc9b48e, dense: true , maxFoot: 650, maxSide: 13 },
+  medieval:     { walls: [0xd9c7a4, 0xcbb38b, 0xe2d4b6, 0xbfa27a, 0xa98c66], roofs: [0xb94d2f, 0xa6432d, 0xc65d35, 0x95452f, 0x8c5238, 0xc9733f], h: [5, 9], roofH: 0.4, flat: 0.05, road: 0xbfae8c, dense: true , maxFoot: 650, maxSide: 13 },
   ottoman:      { walls: [0xe6dcc8, 0xd8c4a2, 0xc9a77f, 0xb98d66, 0xe9e3d6], roofs: [0xc25a33, 0xb04c30, 0xcf6b3f], h: [6, 10], roofH: 0.33, flat: 0.03, road: 0xc4b392, dense: true , maxFoot: 650, maxSide: 13 },
   nordic:       { walls: [0xc9a46b, 0xb5523b, 0xe0c27a, 0xd9cbb0, 0x9e3b2c], roofs: [0x7b3b2f, 0x5c5552, 0x8a4535, 0x4f4a48], h: [6, 11], roofH: 0.5, flat: 0.02, road: 0xb8ac94, dense: true , maxFoot: 650, maxSide: 13 },
   early_modern: { walls: [0xe4d8c0, 0xd5c2a0, 0xc8b391, 0xece4d2, 0xb89f80], roofs: [0x9c4a36, 0x7d6a60, 0xa65a40, 0x5e5a58], h: [8, 13], roofH: 0.38, flat: 0.06, road: 0xb7ad9a, dense: true , maxFoot: 650, maxSide: 13 },

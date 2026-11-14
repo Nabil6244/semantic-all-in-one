@@ -2,8 +2,8 @@
 // The story can say it ("climate":"arid" or "temperate" in the plan row's extra); without that it follows the city centre.
 
 export const CLIMATES = {
-  // deep, saturated greens (the reference films' look), not a washed meadow
-  temperate: { grassA: 0x67a03a, grassB: 0x82b246, dry: 0xb3a96a, rock: 0x9b9583, sand: 0xe0cf98, trees: [0x3f7a2c, 0x4f8c33, 0x356b2a, 0x5f9a3a, 0x467f30], treeDensity: 1 },
+  // deep natural greens (the reference films' look): neither washed out nor neon
+  temperate: { grassA: 0x5a8a34, grassB: 0x6c9a3e, dry: 0xa8a067, rock: 0x948e7c, sand: 0xd8c896, trees: [0x2f5e24, 0x3b6e2a, 0x2a5420, 0x46782f, 0x355f26], treeDensity: 1 },
   // dry land: sand and tan, bare rock, a few grey-olive trees (date palms, ghaf, acacia) instead of woods
   arid: { grassA: 0xd6bb83, grassB: 0xe0c98f, dry: 0xcaa874, rock: 0xa8977c, sand: 0xe6d6a8, trees: [0x6f7f45, 0x7d8a4e, 0x5f7040, 0x8a9455, 0x6b7a47], treeDensity: 0.12 },
 };

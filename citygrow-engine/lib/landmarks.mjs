@@ -227,7 +227,10 @@ export function buildLandmark(THREE, spec, groundY) {
       break;
     }
     case 'lighthouse': { const H = S || 60; cyl(H * 0.12, H, PALETTE.marble, 0, 0, 0, 10, H * 0.07); cyl(H * 0.08, H * 0.1, PALETTE.gold, 0, H, 0, 8); break; }
-    case 'column': { const H = S || 35; box(H * 0.2, H * 0.1, H * 0.2, PALETTE.marble); cyl(H * 0.06, H, PALETTE.marble, 0, H * 0.1, 0, 10); break; }
+    case 'column': {   // an honorific column: a marble base, a porphyry shaft, a statue on top (reads from the air)
+      const H = S || 35; box(H * 0.3, H * 0.14, H * 0.3, PALETTE.marble); cyl(H * 0.1, H, colour('color', 0x7b3a3c), 0, H * 0.14, 0, 12);
+      box(H * 0.16, H * 0.05, H * 0.16, PALETTE.marble, 0, H * 1.14); cyl(H * 0.04, H * 0.12, PALETTE.gold, 0, H * 1.19, 0, 6); break;
+    }
     case 'tower': { const H = S || 60; cyl(H * 0.14, H, wallC, 0, 0, 0, 12); cone(H * 0.16, H * 0.3, roofC, 0, H, 0, 12); break; }
     case 'skyscraper': {
       const H = spec.extra?.height ?? S ?? 180;   // metres: use the real height (Burj Khalifa 828, Shanghai Tower 632)
@@ -287,8 +290,8 @@ export function buildLandmark(THREE, spec, groundY) {
     case 'wall': case 'harbour': case 'aqueduct': case 'bridge': {
       const pts = spec.points || [];
       // walls are drawn a little bolder than life so they still ring the city in wide views, as in the reference films
-      const h = spec.extra?.height ?? (spec.kind === 'wall' ? 17 : spec.kind === 'aqueduct' ? 22 : spec.kind === 'bridge' ? 9 : 4);
-      const thick = spec.extra?.thickness ?? (spec.kind === 'wall' ? 8.5 : spec.kind === 'harbour' ? 14 : spec.kind === 'bridge' ? 12 : 5);
+      const h = spec.extra?.height ?? (spec.kind === 'wall' ? 17 : spec.kind === 'aqueduct' ? 26 : spec.kind === 'bridge' ? 9 : 4);
+      const thick = spec.extra?.thickness ?? (spec.kind === 'wall' ? 8.5 : spec.kind === 'harbour' ? 14 : spec.kind === 'bridge' ? 12 : 8);   // an aqueduct broad enough to read from the air
       const wall = spec.kind === 'wall', towerEvery = spec.extra?.towers ?? (wall ? 55 : 0);
       const bandC = colour('band', PALETTE.brick), gates = (spec.gates || []).map(([x, z]) => ({ x, z, done: false }));
       // a wall tower: square, taller, banded like the wall, crenellated, every other one flies the era's banner

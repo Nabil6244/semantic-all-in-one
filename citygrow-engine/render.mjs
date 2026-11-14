@@ -106,6 +106,22 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
   const lmCores = story.landmarks.filter((l) => l.lon != null && !l.extra?.path && l.year != null && l.year > firstYear)
     .map((l) => ({ ...toXZ(l.lon, l.lat), year: l.year, weight: 0.5 }));
   if (!lots) lots = makeLots(roads, T, { seed, infill: story.plan.infill !== false, cores });
+  else if (story.plan.pack !== false) {
+    // real look: today's footprints sit far apart along modern streets, an old town was a packed carpet of houses.
+    // Generated houses fill the gaps between them (marked infill: drawn only in the old, dense house styles)
+    const B = 24, grid = new Map(), key = (i, j) => i * 100003 + j;
+    for (const l of lots) { const k = key(Math.floor(l.x / B), Math.floor(l.z / B)); (grid.get(k) || grid.set(k, []).get(k)).push(l); }
+    const free = (g) => {
+      for (let i = Math.floor(g.x / B) - 1; i <= Math.floor(g.x / B) + 1; i++) for (let j = Math.floor(g.z / B) - 1; j <= Math.floor(g.z / B) + 1; j++) {
+        for (const l of grid.get(key(i, j)) || []) if (Math.hypot(l.x - g.x, l.z - g.z) < g.rad + Math.max(l.w, l.d) * 0.5 + 1) return false;
+      }
+      return true;
+    };
+    const gen = makeLots(roads, T, { seed, infill: true, cores }).filter(free);
+    for (const g of gen) g.infill = true;
+    lots = lots.concat(gen);
+    warnings.push(`real look: ${gen.length.toLocaleString('en-US')} generated houses pack the old town between them`);
+  }
   cores = [...cores, ...lmCores];
   rankLots(lots, cores, { firstYear, lastYear, seed });
   const climate = climateOf(story.plan, meta);
@@ -142,8 +158,17 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
   covered(lots); covered(trees);
   const landmarkXZ = Object.fromEntries(landmarks.map((l) => [l.id, { x: l.x, z: l.z }]));
   const extentCache = new Map();
+  const frontCache = new Map();
   const city = {
     toXZ, landmarkXZ,
+    // where the city is growing: the newest houses (ranks just under the count at this population, up to the next stop's)
+    front: (year, pop, style, nextPop) => {
+      const k = `${year}|${pop}|${style}|${nextPop}`; if (frontCache.has(k)) return frontCache.get(k);
+      const pph = styleOf(style).pph, n0 = needed(pop, year, lots.length, pph), n1 = nextPop ? needed(nextPop, year, lots.length, pph) : n0 * 1.15;
+      const lo = Math.min(n0 * 0.88, n1), hi = Math.max(n0, Math.min(n1, n0 * 1.6));
+      let sx = 0, sz = 0, m = 0; for (const l of lots) if (l.rank >= lo && l.rank < hi) { sx += l.x; sz += l.z; m++; }
+      const r = m > 30 ? { x: sx / m, z: sz / m } : null; frontCache.set(k, r); return r;
+    },
     extent: (year, pop, style) => { const k = `${year}|${pop}|${style}`; if (!extentCache.has(k)) extentCache.set(k, cityExtent(lots, needed(pop, year, lots.length, styleOf(style).pph))); return extentCache.get(k); },
   };
   // no heading given: look towards the sea (or the biggest water), so the coast is the backdrop of the town as in the
@@ -248,7 +273,7 @@ async function main() {
   const wantGround = String(plan.story.plan.ground || '').toLowerCase();
   const groundFile = { satellite: 'ground_sat.jpg', landuse: 'landuse.png' }[wantGround];
   const groundKind = plan.realLook && groundFile && fs.existsSync(path.join(worldDir, groundFile)) ? wantGround : null;
-  const config = { W, H, fps, tl, world: { w: meta.w, h: meta.h, cell: meta.cell, borderWater: meta.border_water ?? 1, hasLevel: fs.existsSync(path.join(worldDir, 'water_level.f32')), hasLanduse: plan.hasLanduse }, terrainStep: 2, climate: CLIMATES[plan.climate], look: plan.realLook ? 'real' : 'low', ground: groundKind, roads, landmarks, events, fields, ships, lotStride: LOT_STRIDE, sun: plan.story.plan.sun, tiltShift: plan.story.plan.tilt_shift ?? (plan.realLook ? 0.25 : 1) };
+  const config = { W, H, fps, tl, world: { w: meta.w, h: meta.h, cell: meta.cell, borderWater: meta.border_water ?? 1, hasLevel: fs.existsSync(path.join(worldDir, 'water_level.f32')), hasLanduse: plan.hasLanduse }, terrainStep: 2, climate: CLIMATES[plan.climate], look: plan.realLook ? 'real' : 'low', ground: groundKind, roads, landmarks, events, fields, ships, lotStride: LOT_STRIDE, sun: plan.story.plan.sun, tiltShift: plan.story.plan.tilt_shift ?? 1 };   // the miniature look in both looks
   const server = await serve(config, { '/world/height.f32': plan.worldHeight, ...(plan.hasLanduse ? { '/world/landuse_cls.u8': path.join(worldDir, 'landuse_cls.u8') } : {}), '/world/water.u8': plan.worldWater, '/world/water_level.f32': path.join(worldDir, 'water_level.f32'), ...(groundKind ? { '/world/ground.img': path.join(worldDir, groundFile) } : {}), '/data/lots.bin': packLots(lots), '/data/trees.bin': packTrees(trees) });
   const { chromium } = loadPlaywright();
   const soft = process.env.CITY_GL === 'software';

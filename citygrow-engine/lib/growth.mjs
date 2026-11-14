@@ -200,7 +200,7 @@ export function needed(pop, year, total, pph = null) {
 
 /** 0..1: how far lot of `rank` has risen when `need` lots stand (a soft edge, so growth reads as a wave). */
 export function riseOf(rank, need, total) {
-  const ramp = Math.max(25, total * 0.012);
+  const ramp = Math.max(25, total * 0.02);   // a wide building front: plots, rising walls, finished houses all on screen
   return Math.max(0, Math.min(1, (need - rank) / ramp));
 }
 
@@ -268,7 +268,8 @@ export function makeTrees(terrain, lots, { seed = 11, spacing = 15, max = 170000
       for (let a = i - 1; a <= i + 1; a++) for (let b = j - 1; b <= j + 1; b++) {
         for (const l of near.get(a * 100003 + b) || []) if (l.rank < rank && Math.hypot(l.x - px, l.z - pz) < 22) rank = l.rank;
       }
-      out.push({ x: px, z: pz, y, kind: dens > 0.62 ? 0 : R() < 0.25 ? 2 : R() < 0.5 ? 1 : 0, s: 0.75 + R() * 0.6, rank });
+      // mostly round broadleaf crowns of mixed sizes, a few cypresses and pines (not a carpet of little cones)
+      out.push({ x: px, z: pz, y, kind: R() < 0.84 ? 0 : R() < 0.5 ? 2 : 1, s: 0.8 + R() * R() * 1.1, rank });
       if (out.length >= max) return out;
     }
   }
