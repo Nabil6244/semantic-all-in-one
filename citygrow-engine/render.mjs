@@ -14,9 +14,9 @@ import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { parseStory } from './lib/story.mjs';
-import { buildTimeline } from './lib/timeline.mjs';
-import { makeTerrain } from './lib/terrain.mjs';
-import { makeLots, rankLots, makeTrees, roadRanks, needed, cityExtent, fallbackLanes, hash } from './lib/growth.mjs';
+import { buildTimeline, addBeats } from './lib/timeline.mjs';
+import { makeTerrain, tidyWater } from './lib/terrain.mjs';
+import { attachRoads, makeLots, rankLots, makeTrees, roadRanks, needed, cityExtent, fallbackLanes, hash } from './lib/growth.mjs';
 import { pathToXZ, footprint } from './lib/landmarks.mjs';
 import { styleOf } from './lib/styles.mjs';
 import { climateOf, CLIMATES, landClassAt, treeFactor } from './lib/climate.mjs';
@@ -43,8 +43,24 @@ export function args(argv) {
 export const slug = (s) => String(s || '').toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '') || 'city';
 
 /** Everything that does not need a browser: world, lots, trees, streets, timeline. */
+/** Compass heading (deg, 0 = looking north) from the town towards the water around it, or null when there is none near. */
+export function waterHeading(T, ext) {
+  let vx = 0, vz = 0, n = 0;
+  for (const rr of [1.2, 2, 3, 4.5]) {
+    const r = Math.min(T.half * 0.95, Math.max(400, ext.r * rr));
+    for (let a = 0; a < 48; a++) {
+      const ang = (a / 48) * Math.PI * 2, x = ext.x + Math.sin(ang) * r, z = ext.z - Math.cos(ang) * r;
+      if (Math.abs(x) > T.half || Math.abs(z) > T.half) continue;
+      if (T.heightAt(x, z) < 0 || T.waterAt?.(x, z)) { vx += Math.sin(ang) / rr; vz -= Math.cos(ang) / rr; n++; }
+    }
+  }
+  if (n < 4 || Math.hypot(vx, vz) < 1e-6) return null;
+  return Math.round((Math.atan2(vx, -vz) * 180) / Math.PI);
+}
+
 export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), worldId = null, terrainStep = 2 } = {}) {
   const story = parseStory(storyText);
+  if (story.plan.beats !== false && story.eras.length > 1) story.eras = addBeats(story.eras);
   const id = worldId || story.plan.world || slug(story.plan.city);
   const dir = path.join(worldsDir, id);
   if (!fs.existsSync(path.join(dir, 'meta.json'))) {
@@ -58,7 +74,9 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
   const wb = fs.readFileSync(path.join(dir, 'water.u8')), water = new Uint8Array(wb.buffer, wb.byteOffset, wb.byteLength);
   const lf = path.join(dir, 'water_level.f32');
   const level = fs.existsSync(lf) ? (() => { const b = fs.readFileSync(lf); return new Float32Array(b.buffer, b.byteOffset, b.byteLength / 4); })() : null;
-  const T = makeTerrain(heights, meta.w, meta.h, meta.cell, { step: terrainStep, water, level });
+  // a clean map: no park ponds or mud-flat specks (the page is served these same tidied arrays)
+  const tidy = story.plan.tidy_water === false ? { height: heights, water } : tidyWater(heights, water, meta.w, meta.h, meta.cell);
+  const T = makeTerrain(tidy.height, meta.w, meta.h, meta.cell, { step: terrainStep, water: tidy.water, level });
   const [lon0, lat0] = meta.center, kx = M_LON * Math.cos((lat0 * Math.PI) / 180);
   const toXZ = (lon, lat) => ({ x: (lon - lon0) * kx, z: -(lat - lat0) * M_LAT });
   let roads = fs.existsSync(path.join(dir, 'roads.json')) ? JSON.parse(fs.readFileSync(path.join(dir, 'roads.json'), 'utf8')) : [];
@@ -74,7 +92,7 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
     warnings.push(`real look: ${lots.length.toLocaleString('en-US')} real buildings`);
   } else {
     if (realLook) warnings.push(`look "real" needs real buildings: run python3 tools/build_real.py --id ${id}; using generated houses`);
-    lots = makeLots(roads, T, { seed, infill: story.plan.infill !== false });
+    lots = null;
   }
   const firstYear = story.eras[0].year, lastYear = story.eras[story.eras.length - 1].year;
   let cores = story.districts.map((d) => ({ ...toXZ(d.lon, d.lat), year: d.year ?? firstYear, weight: d.weight }));
@@ -83,6 +101,12 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
     cores = [{ ...(f ? toXZ(f.lon, f.lat) : { x: 0, z: 0 }), year: firstYear, weight: 1 }];
     warnings.push('no district rows: the city grows from one centre');
   }
+  // a landmark is never built in empty country: from its year it draws a small neighbourhood round itself (a church, a
+  // market, a station had streets of houses round them), so its hero shot shows it in its town
+  const lmCores = story.landmarks.filter((l) => l.lon != null && !l.extra?.path && l.year != null && l.year > firstYear)
+    .map((l) => ({ ...toXZ(l.lon, l.lat), year: l.year, weight: 0.5 }));
+  if (!lots) lots = makeLots(roads, T, { seed, infill: story.plan.infill !== false, cores });
+  cores = [...cores, ...lmCores];
   rankLots(lots, cores, { firstYear, lastYear, seed });
   const climate = climateOf(story.plan, meta);
   // land use (built with the world): trees follow parks, farmland and woods; ground colour follows it in the page
@@ -96,6 +120,7 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
   clearTreesForFields(trees, fields);
   const shore = shoreDistance(T);
   const ships = story.plan.ships === false ? [] : makeShips(T, shore, { seed: seed + 8 });
+  if (realLook) attachRoads(lots, roads);   // real buildings: their streets appear with them
   const rr = roadRanks(roads, lots);
   roads.forEach((r, i) => { r.rank = rr[i]; });
   const landmarks = story.landmarks.map((l) => ({ ...l, ...(l.lon != null ? toXZ(l.lon, l.lat) : { x: 0, z: 0 }), points: l.extra.path ? pathToXZ(l.extra.path, toXZ) : null }));
@@ -121,22 +146,44 @@ export function planCity(storyText, { worldsDir = path.join(HERE, 'worlds'), wor
     toXZ, landmarkXZ,
     extent: (year, pop, style) => { const k = `${year}|${pop}|${style}`; if (!extentCache.has(k)) extentCache.set(k, cityExtent(lots, needed(pop, year, lots.length, styleOf(style).pph))); return extentCache.get(k); },
   };
-  const tl = buildTimeline(story, city);
+  // no heading given: look towards the sea (or the biggest water), so the coast is the backdrop of the town as in the
+  // reference films, not the empty inland edge
+  if (story.plan.heading == null) {
+    const e0 = story.eras[0], ext = city.extent(e0.year, e0.population, e0.style || styleForYear(e0.year));
+    story.plan.heading = waterHeading(T, ext) ?? 20;
+  }
   const events = story.events.map((e) => {
     const ev = { ...toXZ(e.lon, e.lat), kind: e.kind, r: e.radius, year: e.year, regrow: e.regrow ?? 25, down: e.down ?? 2 };
     return { ...ev, ...planEvent(T, shore, ev, { seed }) };
   });
+  // where each event's fleet lies (the climax films it)
+  city.eventFleet = events.map((e) => (e.fleet && e.fleet.length ? { x: e.fleet.reduce((s, f) => s + f[0], 0) / e.fleet.length, z: e.fleet.reduce((s, f) => s + f[1], 0) / e.fleet.length } : null));
+  const tl = buildTimeline(story, city);
   // a siege camp clears its own ground: the trees there are felled for the camp and grow back after
   for (const e of events) if (e.kind === 'siege') {
-    const r = Math.max(160, e.r * 0.8);
-    for (const t of trees) if (Math.hypot(t.x - e.x, t.z - e.z) < r && !Number.isFinite(t.block)) { t.block = e.year - 1; t.unblock = e.year + 3; }
+    const r = Math.max(260, e.r * 1.3);   // a wide camp ground: tents, guns and banners must read from the air
+    // and the open ground between the camp and the walls it attacks (the guns' field of fire) is clear too
+    let wp = null, wd = Infinity;
+    for (const l of landmarks) if (l.kind === 'wall' && l.points && (l.year ?? -1e9) <= e.year && (l.until ?? Infinity) > e.year) {
+      for (let i = 0; i + 1 < l.points.length; i++) {
+        const [ax, az] = l.points[i], [bx, bz] = l.points[i + 1], vx = bx - ax, vz = bz - az, L2 = vx * vx + vz * vz || 1;
+        const k = Math.max(0, Math.min(1, ((e.x - ax) * vx + (e.z - az) * vz) / L2)), x = ax + vx * k, z = az + vz * k, d = Math.hypot(x - e.x, z - e.z);
+        if (d < wd) { wd = d; wp = { x, z }; }
+      }
+    }
+    const inField = (t) => {
+      if (!wp || wd > 3000) return false;
+      const vx = wp.x - e.x, vz = wp.z - e.z, L2 = vx * vx + vz * vz || 1, k = ((t.x - e.x) * vx + (t.z - e.z) * vz) / L2;
+      return k > 0 && k < 0.97 && Math.hypot(t.x - (e.x + vx * k), t.z - (e.z + vz * k)) < r * 0.8;
+    };
+    for (const t of trees) if ((Math.hypot(t.x - e.x, t.z - e.z) < r || inField(t)) && !Number.isFinite(t.block)) { t.block = e.year - 1; t.unblock = e.year + 3; }
   }
   for (const e of tl.captions) if (e.text.split(/\s+/).length > 28) warnings.push(`caption too long to read comfortably: "${e.text.slice(0, 40)}…"`);
   for (const h of tl.holds) {
     const n = needed(h.pop, h.year, lots.length, styleOf(h.style).pph);
     if (n >= lots.length * 0.999) warnings.push(`era ${h.year}: population fills every lot in the area (${lots.length.toLocaleString('en-US')}); a bigger --size world would show more`);
   }
-  return { story, meta, climate, hasLanduse, realLook, worldDir: dir, worldId: id, T, lots, trees, fields, ships, roads, landmarks, events, tl, warnings };
+  return { story, meta, climate, hasLanduse, realLook, worldDir: dir, worldId: id, T, worldHeight: tidy.height, worldWater: tidy.water, lots, trees, fields, ships, roads, landmarks, events, tl, warnings };
 }
 
 export const LOT_STRIDE = 12;   // x z rot w d y rank styleHash block unblock realHeight infill
@@ -196,11 +243,13 @@ async function main() {
     return;
   }
   // ground picture for the real look: "satellite" (ground_sat.jpg) or "landuse" (landuse.png), whichever the story asks for and the world has
-  const wantGround = String(plan.story.plan.ground || (plan.realLook ? 'landuse' : '')).toLowerCase();
+  // default: no picture: the land-use picture is today's map (built-up land grey in 1839); the drawn ground turns urban
+  // only where the houses of the year on screen stand
+  const wantGround = String(plan.story.plan.ground || '').toLowerCase();
   const groundFile = { satellite: 'ground_sat.jpg', landuse: 'landuse.png' }[wantGround];
   const groundKind = plan.realLook && groundFile && fs.existsSync(path.join(worldDir, groundFile)) ? wantGround : null;
   const config = { W, H, fps, tl, world: { w: meta.w, h: meta.h, cell: meta.cell, borderWater: meta.border_water ?? 1, hasLevel: fs.existsSync(path.join(worldDir, 'water_level.f32')), hasLanduse: plan.hasLanduse }, terrainStep: 2, climate: CLIMATES[plan.climate], look: plan.realLook ? 'real' : 'low', ground: groundKind, roads, landmarks, events, fields, ships, lotStride: LOT_STRIDE, sun: plan.story.plan.sun, tiltShift: plan.story.plan.tilt_shift ?? (plan.realLook ? 0.25 : 1) };
-  const server = await serve(config, { '/world/height.f32': path.join(worldDir, 'height.f32'), ...(plan.hasLanduse ? { '/world/landuse_cls.u8': path.join(worldDir, 'landuse_cls.u8') } : {}), '/world/water.u8': path.join(worldDir, 'water.u8'), '/world/water_level.f32': path.join(worldDir, 'water_level.f32'), ...(groundKind ? { '/world/ground.img': path.join(worldDir, groundFile) } : {}), '/data/lots.bin': packLots(lots), '/data/trees.bin': packTrees(trees) });
+  const server = await serve(config, { '/world/height.f32': plan.worldHeight, ...(plan.hasLanduse ? { '/world/landuse_cls.u8': path.join(worldDir, 'landuse_cls.u8') } : {}), '/world/water.u8': plan.worldWater, '/world/water_level.f32': path.join(worldDir, 'water_level.f32'), ...(groundKind ? { '/world/ground.img': path.join(worldDir, groundFile) } : {}), '/data/lots.bin': packLots(lots), '/data/trees.bin': packTrees(trees) });
   const { chromium } = loadPlaywright();
   const soft = process.env.CITY_GL === 'software';
   const browser = await launchChromium(chromium, { headless: true, args: soft ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=metal', '--hide-scrollbars'] }, { flowDir: path.join(REPO, 'flow-engine'), emit });

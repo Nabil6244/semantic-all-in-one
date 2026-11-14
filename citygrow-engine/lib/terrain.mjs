@@ -6,6 +6,46 @@
 
 export const EXAG = 1.25;          // vertical exaggeration: low hills read better from the air
 
+/**
+ * A clean map, the way a hand-made reconstruction draws it: one sea with a clear coastline and real rivers, not dozens of
+ * park ponds, flooded quarries and mud-flat specks. Inland water bodies (not joined to the world's edge) smaller than
+ * `minLake` m² become land; specks of land in the sea smaller than `minIsland` m² go under water. Returns new arrays;
+ * the world files on disk are left as they are.
+ */
+export function tidyWater(height, water, w, h, cell, { minLake = 120000, minIsland = 40000 } = {}) {
+  if (!water) return { height, water, lakes: 0, islands: 0 };
+  const H = new Float32Array(height), Wt = new Uint8Array(water), N = w * h, lab = new Int32Array(N).fill(-1), q = new Int32Array(N);
+  const area = cell * cell;
+  let lakes = 0, islands = 0;
+  for (let s = 0; s < N; s++) {
+    if (lab[s] !== -1) continue;
+    const wet = Wt[s] === 1;
+    let qh = 0, qt = 0, edge = false;
+    q[qt++] = s; lab[s] = s;
+    while (qh < qt) {
+      const c = q[qh++], x = c % w, y = (c - x) / w;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) edge = true;
+      for (const nb of [x > 0 ? c - 1 : -1, x < w - 1 ? c + 1 : -1, y > 0 ? c - w : -1, y < h - 1 ? c + w : -1]) {
+        if (nb < 0 || lab[nb] !== -1 || (Wt[nb] === 1) !== wet) continue;
+        lab[nb] = s; q[qt++] = nb;
+      }
+    }
+    if (edge) continue;
+    const m2 = qt * area;
+    if (wet && m2 < minLake) {   // a pond: dry land at the height of its banks
+      for (let k = 0; k < qt; k++) { Wt[q[k]] = 0; H[q[k]] = Math.max(H[q[k]], 1.0); }
+      lakes++;
+    } else if (!wet && m2 < minIsland) {   // a speck in the water: under the water it stands in
+      let sea = false;
+      for (let k = 0; k < qt && !sea; k++) { const c = q[k]; for (const nb of [c - 1, c + 1, c - w, c + w]) if (nb >= 0 && nb < N && Wt[nb] === 1 && height[nb] < 0) { sea = true; break; } }
+      if (!sea) continue;   // an island in a river or lake keeps its ground
+      for (let k = 0; k < qt; k++) { Wt[q[k]] = 1; H[q[k]] = Math.min(H[q[k]], -1.5); }
+      islands++;
+    }
+  }
+  return { height: H, water: Wt, lakes, islands };
+}
+
 export function makeTerrain(height, w, h, cell, { step = 2, exag = EXAG, water = null, level = null } = {}) {
   const M = Math.floor((w - 1) / step);          // quads per side
   const n = M + 1;                               // vertices per side

@@ -93,7 +93,7 @@ export function parseStory(text) {
       const at = parseLonLat(r.focus), year = parseYear(r.year);
       if (!at || year == null) { warn(`line ${line}: event needs a year and focus "lon,lat" — skipped`); return; }
       story.events.push({ line, kind: (r.kind || 'fire').toLowerCase(), year, ...at, radius: num(r.radius) || 600,
-        caption: r.caption, regrow: extra.regrow, down: extra.down });
+        caption: r.caption, regrow: extra.regrow, down: extra.down, extra });
     } else warn(`line ${line}: unknown row type "${r.row}" — skipped`);
   });
   if (!story.eras.length) throw new Error('story has no era rows');

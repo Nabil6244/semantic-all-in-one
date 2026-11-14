@@ -29,7 +29,9 @@ from PIL import Image, ImageDraw
 
 HERE = Path(__file__).resolve().parent.parent
 TILE_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
-OVERPASS_URLS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+OVERPASS_URLS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
+                 "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
+OVERPASS_WAITS = (0, 6, 15)   # seconds before each round over all mirrors: a busy server (429/504) is often free again soon
 UA = "SemanticYTStudio-citygrow/0.1 (one-time cached fetch)"
 CREDITS = [
     "Elevation: Terrain Tiles on AWS Open Data (Mapzen Terrarium; sources include SRTM, GMTED2010, ETOPO1)",
@@ -157,24 +159,37 @@ def overpass_query(bbox) -> str:
             f");out geom;")
 
 
-def fetch_osm(world_id: str, bbox) -> dict:
-    path = HERE / "cache" / "osm" / f"{world_id}.json"
+def overpass(query: str, path: Path, timeout: int = 180) -> dict:
+    """One Overpass answer, cached at `path` only when it is complete. Every mirror, a few rounds with waits between."""
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
-    data = urllib.parse.urlencode({"data": overpass_query(bbox)}).encode()
+    data = urllib.parse.urlencode({"data": query}).encode()
     last = None
-    for url in OVERPASS_URLS:
-        try:
+    for wait in OVERPASS_WAITS:
+        if wait:
+            time.sleep(wait)
+        for url in OVERPASS_URLS:
             tmp = path.with_suffix(".part")
-            if tmp.exists():
-                tmp.unlink()
-            download(url, tmp, data=data, timeout=120)
-            doc = json.loads(tmp.read_text(encoding="utf-8"))
-            os.replace(tmp, path)
-            return doc
-        except Exception as e:   # try the next mirror
-            last = e
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+                download(url, tmp, data=data, timeout=timeout)
+                doc = json.loads(tmp.read_text(encoding="utf-8"))
+                if "elements" not in doc:
+                    raise RuntimeError(str(doc.get("remark") or "no elements")[:120])
+                if "remark" in doc and "runtime error" in str(doc["remark"]).lower():   # timed out on the server: partial answer
+                    raise RuntimeError(str(doc["remark"])[:120])
+                os.replace(tmp, path)
+                return doc
+            except Exception as e:   # try the next mirror
+                last = e
+                if tmp.exists():
+                    tmp.unlink()
     raise RuntimeError(f"Overpass unreachable: {last}")
+
+
+def fetch_osm(world_id: str, bbox) -> dict:
+    return overpass(overpass_query(bbox), HERE / "cache" / "osm" / f"{world_id}.json", timeout=120)
 
 
 def _way_line(el) -> list[tuple[float, float]]:
@@ -245,6 +260,11 @@ def sea_mask(elev: np.ndarray, barrier: np.ndarray, deep: float = -2.0) -> np.nd
     """Flood-fill the sea from deep cells, never crossing the coastline barrier or land above 3 m."""
     open_ = (~barrier) & (elev < 3.0)
     sea = flood(open_, elev < deep)
+    # elevation tiles often put the sea at 0 m with only a few deep specks: when the fill from those found almost none of
+    # the sea-level ground, start it again from every cell at or under sea level (the coastline still fences the land)
+    low = (elev <= 0.0) & ~barrier
+    if low.sum() > 50 and sea.sum() < 0.5 * low.sum():
+        sea = flood(open_, low | (elev < deep))
     if barrier.any():   # barrier cells join the side most of their open neighbours are on
         n = np.zeros(elev.shape, np.int32)
         k = np.zeros(elev.shape, np.int32)
@@ -348,22 +368,28 @@ def roads_query(bbox) -> str:
 
 
 def fetch_roads(world_id: str, bbox) -> dict:
+    """All streets in the box. A big city can be too much for one Overpass answer: then it comes as 2 x 2 (then 3 x 3) tiles."""
     path = HERE / "cache" / "osm" / f"{world_id}_roads.json"
-    if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
-    data = urllib.parse.urlencode({"data": roads_query(bbox)}).encode()
-    last = None
-    for url in OVERPASS_URLS:
+    try:
+        return overpass(roads_query(bbox), path, timeout=240)
+    except Exception as whole:   # noqa: BLE001
+        last = whole
+    w, s, e, n = bbox
+    for k in (2, 3):
         try:
-            tmp = path.with_suffix(".part")
-            if tmp.exists():
-                tmp.unlink()
-            download(url, tmp, data=data, timeout=240)
-            doc = json.loads(tmp.read_text(encoding="utf-8"))
-            os.replace(tmp, path)
+            seen, els = set(), []
+            for i in range(k):
+                for j in range(k):
+                    tb = (w + (e - w) * i / k, s + (n - s) * j / k, w + (e - w) * (i + 1) / k, s + (n - s) * (j + 1) / k)
+                    doc = overpass(roads_query(tb), path.with_name(f"{world_id}_roads_{k}x{k}_{i}{j}.json"), timeout=240)
+                    for el in doc.get("elements", []):
+                        if el.get("id") not in seen:
+                            seen.add(el.get("id")); els.append(el)
+            doc = {"elements": els}
+            path.write_text(json.dumps(doc), encoding="utf-8")
             return doc
-        except Exception as e:
-            last = e
+        except Exception as ex:   # noqa: BLE001
+            last = ex
     raise RuntimeError(f"Overpass unreachable: {last}")
 
 
@@ -422,7 +448,7 @@ def build(world_id: str, center: tuple[float, float], size_km: float = 8.0, cell
     out = (out_root or HERE / "worlds") / world_id
     out.mkdir(parents=True, exist_ok=True)
     elev = elevation(grid, zoom, fetch_tile, on_tile)
-    warnings = []
+    warnings, missing = [], []   # missing: what a download failure left out (the next Generate offers to fetch it again)
     try:
         coast, areas = water_features(osm_fetch(world_id, grid.bbox(pad=200)))
         barrier, inland = rasterize_water(grid, coast, areas)
@@ -438,6 +464,7 @@ def build(world_id: str, center: tuple[float, float], size_km: float = 8.0, cell
         source = "osm"
     except Exception as e:
         warnings.append(f"OSM water unavailable ({e}); sea = low ground connected to the edge")
+        missing.append("water")
         water = edge_sea(elev)
         sea, inland = water, np.zeros_like(water)
         source = "elevation"
@@ -450,7 +477,7 @@ def build(world_id: str, center: tuple[float, float], size_km: float = 8.0, cell
         roads = road_lines(roads_fetch(world_id, grid.bbox()), grid, water)
     except Exception as e:
         warnings.append(f"OSM streets unavailable ({e}); the city will lay out its own lanes")
-        roads = []
+        roads, missing = [], missing + ["streets"]
     (out / "roads.json").write_text(json.dumps(roads, separators=(",", ":")), encoding="utf-8")
     img = hillshade(elev, water, cell)
     d = ImageDraw.Draw(img)
@@ -470,7 +497,9 @@ def build(world_id: str, center: tuple[float, float], size_km: float = 8.0, cell
             warnings.append("land use unavailable: the ground colour follows the climate rule")
     except Exception as e:  # noqa: BLE001
         warnings.append(f"land use unavailable ({str(e)[:80]}): the ground colour follows the climate rule")
-    meta = {"id": world_id, "center": [center[0], center[1]], "size_m": grid.w * cell, "cell": cell, "landuse": landuse,
+    if not landuse and landuse_fetch is not False:
+        missing.append("landuse")
+    meta = {"missing": missing,"id": world_id, "center": [center[0], center[1]], "size_m": grid.w * cell, "cell": cell, "landuse": landuse,
             "w": grid.w, "h": grid.h, "zoom": zoom, "water_source": source, "warnings": warnings,
             "elev_min": float(elev.min()), "elev_max": float(elev.max()),
             "water_share": round(float(water.mean()), 4), "inland_share": round(float(inland.mean()), 4),

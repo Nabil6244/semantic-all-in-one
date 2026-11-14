@@ -386,7 +386,20 @@ def on_generate(app: Any) -> None:
             raise ValueError("The story has errors:\n" + "\n".join(c["errors"][:8]))
         return c
 
-    def after_check(c) -> None:
+    def after_check(c, repaired: bool = False) -> None:
+        wr = None if repaired else c.get("world_repair")
+        if wr:      # an earlier build lost streets or water to a busy OpenStreetMap server: fetch them again
+            if messagebox.askyesno("Download the missing map data?", f"The world \"{wr['id']}\" was built without its {wr['what']}: "
+                                   "OpenStreetMap was busy when it was built, so the city is laid out on guessed streets and coast.\n\n"
+                                   "Download them again now? The elevation is already saved; this is only the OpenStreetMap part."):
+                app._ct_status_var.set(f"Downloading the missing data for \"{wr['id']}\"…")
+                _start(app, "city-timelapse-world", lambda: (ct.build_world(wr, progress=_progress(app), cancel=app._ct_cancel.is_set, log=_log(app)), job())[1],
+                       lambda c2: after_check(c2, repaired=True))
+                return
+            try:
+                ct.skip_repair(wr["id"])
+            except Exception:  # noqa: BLE001
+                pass
         wb = c.get("world_build")
         if wb:      # the city has no world yet: build it once (one download), then check again
             if not messagebox.askyesno("Build the city's world?", f"The story's city \"{wb['id']}\" has no world yet.\n\n"

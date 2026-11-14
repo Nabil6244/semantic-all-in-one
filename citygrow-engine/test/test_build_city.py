@@ -133,6 +133,31 @@ class BuildTest(unittest.TestCase):
             self.assertEqual(meta["water_source"], "elevation")
             self.assertTrue(meta["warnings"])
             self.assertGreater(meta["water_share"], 0.3)
+            self.assertEqual(sorted(meta["missing"]), ["streets", "water"], "a failed download is recorded, so it can be fetched again")
+
+    def test_streets_come_in_tiles_when_the_whole_box_is_too_big(self):
+        calls = []
+
+        def fake_overpass(query, path, timeout=180):
+            calls.append(query)
+            if len(calls) == 1:
+                raise RuntimeError("504 Gateway Timeout")
+            return {"elements": [{"id": len(calls) % 3, "geometry": []}]}
+        orig = bc.overpass
+        bc.overpass = fake_overpass
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                orig_here = bc.HERE
+                bc.HERE = Path(d)
+                (Path(d) / "cache" / "osm").mkdir(parents=True)
+                try:
+                    doc = bc.fetch_roads("t", (10.0, 45.0, 10.1, 45.1))
+                finally:
+                    bc.HERE = orig_here
+        finally:
+            bc.overpass = orig
+        self.assertEqual(len(calls), 5, "one whole-box try, then 2 x 2 tiles")
+        self.assertEqual(len(doc["elements"]), 3, "a street in two tiles is kept once")
 
 
 if __name__ == "__main__":

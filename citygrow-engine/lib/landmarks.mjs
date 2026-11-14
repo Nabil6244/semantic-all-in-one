@@ -2,8 +2,8 @@
 // many cities: a dome church is Hagia Sophia in Istanbul and a cathedral elsewhere; a wall follows any path.
 // Units: metres, origin at the landmark's centre on the ground, x east, z south. build(THREE, spec, groundY) -> Group.
 
-export const KINDS = ['dome_church', 'mosque', 'cathedral', 'temple', 'forum', 'amphitheatre', 'hippodrome', 'castle',
-  'palace', 'station', 'wall', 'harbour', 'aqueduct', 'bridge', 'lighthouse', 'tower', 'skyscraper', 'column', 'church', 'market'];
+export const KINDS = ['mausoleum', 'dome_church', 'mosque', 'cathedral', 'temple', 'forum', 'amphitheatre', 'hippodrome', 'castle',
+  'palace', 'station', 'wall', 'harbour', 'aqueduct', 'bridge', 'lighthouse', 'tower', 'skyscraper', 'column', 'church', 'market', 'road', 'avenue'];
 
 export const PALETTE = {
   stone: 0xd8ccb2, marble: 0xefe9dc, sand: 0xcdb48a, brick: 0xa9643f, terracotta: 0xb4553b, lead: 0x8e999f,
@@ -85,6 +85,19 @@ export function buildLandmark(THREE, spec, groundY) {
       }
       break;
     }
+    case 'mausoleum': {   // a square hall on a raised terrace, tall arches on every face, one great dome (Mazar-e-Quaid, Gol Gumbaz)
+      const L = S || 75, H = L * 0.33, wc = colour('color', PALETTE.marble);
+      box(L * 1.9, 1.2, L * 1.9, PALETTE.plaza); box(L * 1.3, L * 0.05, L * 1.3, wc, 0, 1.2, 0);
+      const base = 1.2 + L * 0.05;
+      box(L, H, L, wc, 0, base, 0);
+      for (const f of [-L / 2, L / 2]) { windows(1, L * 0.3, base, H * 0.78, L * 0.16, f); windows(1, L * 0.3, base, H * 0.78, L * 0.16, f, true); }
+      for (const f of [-L / 2, L / 2]) { windows(2, L * 0.75, base + H * 0.2, H * 0.4, L * 0.05, f); windows(2, L * 0.75, base + H * 0.2, H * 0.4, L * 0.05, f, true); }
+      box(L * 1.02, H * 0.05, L * 1.02, wc, 0, base + H, 0);
+      cyl(L * 0.27, L * 0.05, wc, 0, base + H, 0, 24);
+      dome(L * 0.26, colour('dome', PALETTE.marble), 0, base + H + L * 0.05, 0, 24);
+      cyl(L * 0.01, L * 0.05, PALETTE.gold, 0, base + H + L * 0.3, 0, 6);
+      break;
+    }
     case 'church': {
       const L = S || 34; box(L, L * 0.38, L * 0.45, wallC); gable(L, L * 0.2, L * 0.47, roofC, 0, L * 0.38, 0);
       box(L * 0.2, L * 0.75, L * 0.2, wallC, -L * 0.55, 0, 0); cone(L * 0.15, L * 0.35, roofC, -L * 0.55, L * 0.75, 0, 4);
@@ -135,13 +148,14 @@ export function buildLandmark(THREE, spec, groundY) {
       break;
     }
     case 'hippodrome': {   // open sand track, long stands on both sides, a curved end, the starting gates, the spine
-      const L = S || 440, W = L * 0.27, sh = L * 0.03, sw = W * 0.2, straight = L - W / 2;
+      const L = S || 440, W = L * 0.27, sh = L * 0.05, sw = W * 0.2, straight = L - W / 2;
       box(straight, 0.6, W, PALETTE.sand, -W / 4, 0, 0);
       for (const sz of [-1, 1]) {
         box(straight, sh, sw, wallC, -W / 4, 0, sz * (W / 2 - sw / 2));
         // the stands step down to the track in three tiers, an arcade runs along the outside
         for (let k = 0; k < 3; k++) box(straight * 0.98, sh * (0.75 - k * 0.22), sw * 0.26, k % 2 ? PALETTE.marble : PALETTE.stone, -W / 4, sh * 0.1, sz * (W / 2 - sw * (1.05 + k * 0.28)));
-        windows(Math.round(straight / 9), straight * 0.95, sh * 0.15, sh * 0.5, 3.2, sz * W / 2, false, -W / 4);
+        // two tiers of arches along the outside, as the great circuses were built
+        for (const [y0, hh] of [[sh * 0.08, sh * 0.36], [sh * 0.52, sh * 0.32]]) windows(Math.round(straight / 8), straight * 0.95, y0, hh, 3.4, sz * W / 2, false, -W / 4);
       }
       box(L * 0.06, sh * 1.5, sw * 0.9, wallC, -W / 4, 0, -(W / 2 + sw * 0.3));   // the emperor's box
       for (const ox of [-0.32, -0.2, 0.1, 0.22]) cone(W * 0.02, L * 0.05, PALETTE.marble, ox * L, 2.2, 0, 4);
@@ -166,6 +180,25 @@ export function buildLandmark(THREE, spec, groundY) {
     }
     case 'palace': {
       const L = S || 120, h = L * 0.1;
+      if (L >= 220) {   // a palace quarter (Great Palace, Topkapi, the Forbidden City): a grid of courts, halls and gardens
+        const D = L * 0.9, nx = Math.max(2, Math.round(L / 85)), nz = Math.max(2, Math.round(D / 85)), sx = L / nx, sz = D / nz;
+        box(L, 0.5, D, PALETTE.plaza);
+        for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) {
+          const cx = -L / 2 + (i + 0.5) * sx, cz = -D / 2 + (j + 0.5) * sz, k = (i * 7 + j * 3) % 5;
+          if (k === 4) {   // a garden court: lawn and cypresses
+            box(sx * 0.86, 0.6, sz * 0.86, PALETTE.green, cx, 0.5, cz);
+            for (let q = 0; q < 5; q++) { const a = q * 1.26 + i; cone(3, 11, 0x3f6b35, cx + Math.cos(a) * sx * 0.28, 0.6, cz + Math.sin(a) * sz * 0.28, 6); }
+            continue;
+          }
+          const wh = 9 + ((i + j) % 3) * 3.5, ww = Math.min(sx, sz) * 0.17, w = sx * 0.88, d = sz * 0.88;
+          for (const [bw, bd, bx, bz] of [[w, ww, cx, cz - d / 2 + ww / 2], [w, ww, cx, cz + d / 2 - ww / 2], [ww, d - 2 * ww, cx - w / 2 + ww / 2, cz], [ww, d - 2 * ww, cx + w / 2 - ww / 2, cz]]) {
+            box(bw, wh, bd, wallC, bx, 0.5, bz); gable(Math.max(bw, bd), ww * 0.45, Math.min(bw, bd) * 1.04, roofC, bx, 0.5 + wh, bz, bw > bd ? 0 : Math.PI / 2);
+          }
+          if (k === 0) { box(w * 0.36, wh * 1.2, d * 0.36, wallC, cx, 0.5, cz); dome(Math.min(w, d) * 0.16, domeC, cx, 0.5 + wh * 1.2, cz, 10); }
+          else if (k === 2) for (let q = 0; q < 4; q++) cyl(0.9, wh * 0.7, PALETTE.marble, cx - w * 0.2 + q * w * 0.13, 0.5, cz, 6);
+        }
+        break;
+      }
       for (const [w, d, x, z] of [[L, L * 0.16, 0, -L * 0.42], [L, L * 0.16, 0, L * 0.42], [L * 0.16, L * 0.68, -L * 0.42, 0], [L * 0.16, L * 0.68, L * 0.42, 0]]) {
         box(w, h, d, wallC, x, 0, z); gable(Math.max(w, d), L * 0.05, Math.min(w, d) * 1.02, roofC, x, h, z, w > d ? 0 : Math.PI / 2);
       }
@@ -198,21 +231,64 @@ export function buildLandmark(THREE, spec, groundY) {
     case 'tower': { const H = S || 60; cyl(H * 0.14, H, wallC, 0, 0, 0, 12); cone(H * 0.16, H * 0.3, roofC, 0, H, 0, 12); break; }
     case 'skyscraper': {
       const H = spec.extra?.height ?? S ?? 180;   // metres: use the real height (Burj Khalifa 828, Shanghai Tower 632)
-      if (H >= 250) {   // a supertall: stepped, tapering shaft and a spire, not a box
-        const col = colour('color', PALETTE.glass), steps = 7;
+      const shape = skyShape(spec, H), col = colour('color', PALETTE.glass), BAND = 0x2f3a44;
+      if (shape === 'needle') {   // Burj Khalifa / Merdeka 118: stepped, tapering shaft and a long spire (only when asked or 500 m+)
+        const steps = 7;
         let w = spec.extra?.width ?? H * 0.075, y = 0;
         for (let i = 0; i < steps; i++) { const h = (H * 0.76) / steps; box(w, h, w, col, 0, y, 0); y += h; w *= 0.8; }
         cyl(w * 0.9, H - y, PALETTE.concrete, 0, y, 0, 8, w * 0.1);
         break;
       }
-      const W = spec.extra?.width ?? H * 0.22;
-      box(W, H, W, colour('color', PALETTE.glass)); box(W * 0.7, H * 0.08, W * 0.7, PALETTE.concrete, 0, H, 0);
+      const tower = (H, x, z) => {
+        if (shape === 'slab') {   // a tall glass slab: podium, banded shaft, a set-back top and a sloped crown (most 200-450 m towers)
+          const W = spec.extra?.width ?? H * 0.16, D = W * 0.62, P = Math.min(16, H * 0.06);
+          box(W * 1.7, P, D * 2.2, PALETTE.concrete, x, 0, z);
+          box(W, H * 0.8, D, col, x, 0, z);
+          for (let y = P + 3; y < H * 0.79; y += 4.5) box(W * 1.01, 1.4, D * 1.01, BAND, x, y, z);
+          box(W * 0.86, H * 0.1, D * 0.9, col, x, H * 0.8, z);
+          gable(D * 0.9, H * 0.1, W * 0.86, col, x, H * 0.9, z, Math.PI / 2);
+          return;
+        }
+        // a tower block: a podium, floor bands of dark glass, a set-back crown and plant room
+        const W = spec.extra?.width ?? H * 0.22;
+        box(W * 1.5, Math.min(12, H * 0.1), W * 1.3, PALETTE.concrete, x, 0, z);
+        box(W, H * 0.9, W, col, x, 0, z);
+        for (let y = Math.min(12, H * 0.1) + 3; y < H * 0.88; y += 4) box(W * 1.02, 1.3, W * 1.02, BAND, x, y, z);
+        box(W * 0.78, H * 0.1, W * 0.78, col, x, H * 0.9, z);
+        box(W * 0.45, H * 0.05, W * 0.45, PALETTE.concrete, x, H, z);
+      };
+      tower(H, 0, 0);
+      // a second, lower tower on the same plot ("twin": its height in metres)
+      if (spec.extra?.twin) tower(Number(spec.extra.twin), H * 0.28, H * 0.12);
       break;
+    }
+    case 'road': case 'avenue': {   // a historic road (pale earth or paving); an avenue is lined with red-roofed colonnades (the Mese)
+      const pts = spec.points || [], av = spec.kind === 'avenue', wd = spec.extra?.width ?? (av ? 14 : 7);
+      const pave = av ? 0xd9ccb0 : 0xcdb892, colC = PALETTE.marble, rC = roofC;
+      for (let i = 0; i + 1 < pts.length; i++) {
+        const [ax, az] = pts[i], [bx, bz] = pts[i + 1], len = Math.hypot(bx - ax, bz - az); if (len < 0.5) continue;
+        const n = Math.max(1, Math.ceil(len / 16)), ang = -Math.atan2(bz - az, bx - ax), ux = (bx - ax) / len, uz = (bz - az) / len;
+        for (let k = 0; k < n; k++) {
+          const f = (k + 0.5) / n, x = ax + (bx - ax) * f, z = az + (bz - az) * f, gy = groundY(x, z), seg = len / n + 0.8;
+          if (gy < 0.3) continue;   // a road never runs across open water (a rough path from the story may touch the sea)
+          box(seg, 1.2, wd, pave, x, gy - 0.9, z, ang);
+          if (!av) continue;
+          for (const sd of [-1, 1]) {   // a portico on each side: a red tiled roof on a marble back wall
+            const ox = -uz * sd * (wd / 2 + 2.5), oz = ux * sd * (wd / 2 + 2.5);
+            box(seg, 0.8, 5.5, rC, x + ox, gy + 5.2, z + oz, ang);
+            box(seg, 5.4, 0.8, colC, x + ox - uz * sd * 2.4, gy - 0.2, z + oz + ux * sd * 2.4, ang);
+          }
+        }
+      }
+      mergeChildren(THREE, g);
+      g.userData.banner = bannerMat;
+      return g;   // path pieces carry their own heights: no plinth, no placing
     }
     case 'wall': case 'harbour': case 'aqueduct': case 'bridge': {
       const pts = spec.points || [];
-      const h = spec.extra?.height ?? (spec.kind === 'wall' ? 14 : spec.kind === 'aqueduct' ? 22 : spec.kind === 'bridge' ? 9 : 4);
-      const thick = spec.extra?.thickness ?? (spec.kind === 'wall' ? 6 : spec.kind === 'harbour' ? 14 : spec.kind === 'bridge' ? 12 : 5);
+      // walls are drawn a little bolder than life so they still ring the city in wide views, as in the reference films
+      const h = spec.extra?.height ?? (spec.kind === 'wall' ? 17 : spec.kind === 'aqueduct' ? 22 : spec.kind === 'bridge' ? 9 : 4);
+      const thick = spec.extra?.thickness ?? (spec.kind === 'wall' ? 8.5 : spec.kind === 'harbour' ? 14 : spec.kind === 'bridge' ? 12 : 5);
       const wall = spec.kind === 'wall', towerEvery = spec.extra?.towers ?? (wall ? 55 : 0);
       const bandC = colour('band', PALETTE.brick), gates = (spec.gates || []).map(([x, z]) => ({ x, z, done: false }));
       // a wall tower: square, taller, banded like the wall, crenellated, every other one flies the era's banner
@@ -324,20 +400,36 @@ export function buildScaffold(THREE, bb, material) {
 }
 
 /** Ground a landmark covers, as circles {x, z, r} in metres (the city clears houses and trees there once it stands). */
-const SHAPE = { hippodrome: [1, 0.3], dome_church: [1.35, 1.05], mosque: [1.4, 1.3], cathedral: [1.15, 0.75], temple: [1.15, 0.6],
+const SHAPE = { mausoleum: [1.9, 1.9], hippodrome: [1, 0.3], dome_church: [1.35, 1.05], mosque: [1.4, 1.3], cathedral: [1.15, 0.75], temple: [1.15, 0.6],
   forum: [1, 0.65], market: [1, 0.65], station: [1.3, 0.5], palace: [1.05, 0.9], castle: [1.25, 1.25], amphitheatre: [1, 0.85], church: [1.3, 0.6] };
-const DEFAULT_SIZE = { dome_church: 72, mosque: 72, church: 34, cathedral: 90, temple: 50, forum: 120, market: 120, amphitheatre: 170,
+const DEFAULT_SIZE = { mausoleum: 75, dome_church: 72, mosque: 72, church: 34, cathedral: 90, temple: 50, forum: 120, market: 120, amphitheatre: 170,
   hippodrome: 440, station: 110, castle: 70, palace: 120, lighthouse: 20, column: 8, tower: 18, skyscraper: 45 };
+/** How a skyscraper is drawn: extra.shape ("needle" | "slab" | "block"), else a needle only at 500 m+ (Burj Khalifa,
+ *  Shanghai Tower), a glass slab from 200 m, a tower block below. */
+export function skyShape(spec, H) {
+  const s = String(spec.extra?.shape || '').toLowerCase();
+  if (['needle', 'slab', 'block'].includes(s)) return s;
+  return H >= 500 ? 'needle' : H >= 200 ? 'slab' : 'block';
+}
+
 export function footprint(spec) {
   if (spec.points) {
-    const r = ((spec.extra?.thickness ?? 6) / 2) + 5, out = [];
+    const tk = spec.extra?.thickness ?? (spec.kind === 'avenue' ? (spec.extra?.width ?? 14) + 12 : spec.kind === 'road' ? (spec.extra?.width ?? 7) : 6);
+    const r = tk / 2 + 5, out = [];
     for (let i = 0; i + 1 < spec.points.length; i++) {
       const [ax, az] = spec.points[i], [bx, bz] = spec.points[i + 1], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / (r * 1.2)));
       for (let k = 0; k <= n; k++) out.push({ x: ax + (bx - ax) * k / n, z: az + (bz - az) * k / n, r });
     }
     return out;
   }
-  const size = spec.extra?.size ?? DEFAULT_SIZE[spec.kind] ?? 40, [fl, fw] = SHAPE[spec.kind] || [1, 1];
+  let size = spec.extra?.size ?? DEFAULT_SIZE[spec.kind] ?? 40;
+  const [fl, fw] = SHAPE[spec.kind] || [1, 1];
+  // for these kinds `size` is the height: the ground they clear is only their base (a 273 m tower stands on ~30 m, not a
+  // 280 m empty plaza)
+  const Hs = spec.extra?.height ?? spec.extra?.size;
+  if (Hs != null && spec.kind === 'skyscraper') { const sh = skyShape(spec, Hs); size = spec.extra?.width ?? (sh === 'needle' ? Hs * 0.09 : sh === 'slab' ? Hs * 0.3 : Hs * 0.33); }
+  else if (Hs != null && (spec.kind === 'tower' || spec.kind === 'lighthouse')) size = Hs * 0.3;
+  else if (Hs != null && spec.kind === 'column') size = Hs * 0.2;
   const L = size * fl, Wd = size * fw, rot = ((spec.extra?.rot ?? 0) * Math.PI) / 180;
   const n = Math.max(1, Math.round(L / Wd)), r = Wd / 2 + 6, out = [];
   // the model's long axis is local x; rotation.y turns local x to (cos, -sin) in x/z

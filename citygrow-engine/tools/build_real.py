@@ -311,7 +311,9 @@ def overture_height(height, floors, cls, area: float) -> float:
         return max(2.5, float(height))
     if floors and floors > 0:
         return max(3.0, floors * 3.3 + 1.0)
-    return height_of({"building": cls or "yes"}, area)
+    # no measured height or floor count: 0 = unknown, the engine's house style for the era on screen decides (a guess here
+    # would make a whole city one flat 7 m layer)
+    return 0.0
 
 
 def overture_buildings_from_rows(w: World, rows) -> tuple[list, dict]:

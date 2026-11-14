@@ -105,6 +105,17 @@ export function drawHud(g, W, H, h) {
     }
     g.restore();
   }
+  // a landmark's name: spaced serif capitals with a thin rule either side, above the captions
+  if (h.label && h.label.alpha > 0) {
+    g.save(); g.globalAlpha = h.label.alpha * 0.92; g.fillStyle = '#fbf6ea'; g.strokeStyle = '#fbf6ea';
+    g.font = `500 ${Math.round(46 * u)}px CitySerif, serif`;
+    const y = H * 0.68, sp = 7 * u;
+    const tw = g.measureText(h.label.text).width + sp * h.label.text.length;
+    spaced(g, h.label.text, W / 2, y, sp, 'center');
+    g.lineWidth = 1.5 * u; g.shadowColor = 'rgba(0,0,0,0.45)'; g.shadowBlur = 6 * u;
+    for (const sd of [-1, 1]) { g.beginPath(); g.moveTo(W / 2 + sd * (tw / 2 + 24 * u), y - 14 * u); g.lineTo(W / 2 + sd * (tw / 2 + 150 * u), y - 14 * u); g.stroke(); }
+    g.restore();
+  }
   // caption
   if (h.caption && h.caption.alpha > 0) {
     g.save(); g.globalAlpha = h.caption.alpha; g.fillStyle = '#fbf6ea'; g.textAlign = 'center';

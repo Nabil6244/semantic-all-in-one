@@ -60,5 +60,30 @@ class RunnerTest(unittest.TestCase):
         self.assertIn("Kevin MacLeod", music_bed.credit("ascending_the_vale"))
 
 
+class WorldRepair(unittest.TestCase):
+    def test_old_worlds_read_missing_parts_from_their_warnings(self):
+        self.assertEqual(runner.world_missing({"warnings": ["OSM streets unavailable (504)", "OSM water unavailable (x)"]}), ["streets", "water"])
+        self.assertEqual(runner.world_missing({"missing": ["landuse"], "warnings": ["OSM streets unavailable"]}), ["landuse"])
+        self.assertEqual(runner.world_missing({"warnings": []}), [])
+
+    def test_a_world_missing_streets_is_offered_a_repair_until_skipped(self):
+        with tempfile.TemporaryDirectory() as d:
+            orig = runner.HERE
+            runner.HERE = Path(d)
+            try:
+                w = Path(d) / "worlds" / "x"
+                w.mkdir(parents=True)
+                (w / "meta.json").write_text(json.dumps({"center": [10, 45], "size_m": 6000, "missing": ["streets", "landuse"]}))
+                r = runner._repair_request("x")
+                self.assertEqual((r["missing"], r["size"], r["repair"]), (["streets"], 6.0, True))
+                runner.skip_repair("x")
+                self.assertIsNone(runner._repair_request("x"), "not asked again the same day")
+                (w / "meta.json").write_text(json.dumps({"center": [10, 45], "size_m": 6000, "missing": ["landuse"]}))
+                (w / "repair_skipped").unlink()
+                self.assertIsNone(runner._repair_request("x"), "land use alone has its own offer")
+            finally:
+                runner.HERE = orig
+
+
 if __name__ == "__main__":
     unittest.main()

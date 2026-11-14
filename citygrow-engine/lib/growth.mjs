@@ -33,7 +33,7 @@ export function burningAt(events, x, z, year, prog) {
 }
 
 export const ROAD_HALF = { 1: 8, 2: 5.5, 3: 3 };   // street half-widths (m) by class (1 main, 2 secondary, 3 lane)
-const MAX_LOTS = 130000, MAX_INFILL = 60000;
+const MAX_LOTS = 200000, MAX_INFILL = 90000;   // a metropolis fills its blocks, not only its street fronts
 
 /** Lanes for a world with no street data: a wobbly grid over dry, gentle land. */
 export function fallbackLanes(terrain, seed = 1) {
@@ -54,7 +54,9 @@ export function fallbackLanes(terrain, seed = 1) {
 }
 
 /** House lots along the streets, up to `rows` deep on each side. Each lot: {x, z, rot, w, d, y, cls, road}. */
-export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS, infill = false } = {}) {
+export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS, infill = false, cores = null } = {}) {
+  // a packed old town needs room for its block infill: street frontage may not take every lot when infill is on
+  if (infill) max = Math.min(max, MAX_LOTS - MAX_INFILL / 2);
   const R = rng(seed), lots = [];
   const B = 16, grid = new Map();                       // circle-overlap test in 16 m buckets
   const key = (i, j) => i * 100003 + j;
@@ -101,14 +103,14 @@ export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS, i
             if (y < 1.0 || terrain.slopeAt(x, z, Math.max(ww, dd)) > 0.32 || (terrain.waterAt && (terrain.waterAt(x, z) || terrain.waterAt(x + dd * 0.5 * (tz * side), z - dd * 0.5 * (tx * side))))) break;
             if (!fits(x, z, rad)) { if (row === 0) break; else continue; }
             add({ x, z, rot: rot + (R() - 0.5) * 0.08, w: ww, d: dd, y, cls: rd.c, road: ri, rad });
-            if (lots.length >= max) return lots;
+            if (lots.length >= max) { if (infill) fillBlocks(lots, terrain, R, fits, add, B, grid, key, cores); return lots; }
           }
         }
         s += w + 1 + R() * 2;
       }
     }
   }
-  if (infill) fillBlocks(lots, terrain, R, fits, add, B, grid, key);
+  if (infill) fillBlocks(lots, terrain, R, fits, add, B, grid, key, cores);
   return lots;
 }
 
@@ -117,7 +119,7 @@ export function makeLots(roads, terrain, { seed = 7, rows = 3, max = MAX_LOTS, i
  * 10.5 m grid inside 40 m cells that already have street houses, take the nearest street house's direction and street,
  * and are marked `infill` (the page shows them only in pre-modern house styles, where alleys were a few metres wide).
  */
-function fillBlocks(lots, terrain, R, fits, add, B, grid, key) {
+function fillBlocks(lots, terrain, R, fits, add, B, grid, key, cores = null) {
   const C = 40, cells = new Set(), n0 = lots.length;
   // the cells with street houses and the ring round them: the blocks' insides
   for (let i = 0; i < n0; i++) { const ci = Math.floor(lots[i].x / C), cj = Math.floor(lots[i].z / C); for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) cells.add((ci + a) * 100003 + cj + b); }
@@ -129,7 +131,15 @@ function fillBlocks(lots, terrain, R, fits, add, B, grid, key) {
     }
     return best;
   };
-  for (const ck of [...cells].sort((a, b) => a - b)) {
+  // the oldest quarters first (the cap may stop the infill before the whole map is filled)
+  const first = cores && cores.length ? Math.min(...cores.map((c) => c.year ?? 0)) : 0;
+  const cellD = (ck) => {
+    if (!cores || !cores.length) return ck;
+    const ci = Math.round(ck / 100003), cj = ck - ci * 100003, x = (ci + 0.5) * C, z = (cj + 0.5) * C;
+    return Math.min(...cores.map((c) => Math.hypot(x - c.x, z - c.z) * (1 + Math.max(0, (c.year ?? first) - first) / 40) / (c.weight || 1)));
+  };
+  const order = [...cells].map((ck) => [ck, cellD(ck)]).sort((a, b) => a[1] - b[1] || a[0] - b[0]).map((a) => a[0]);
+  for (const ck of order) {
     const ci = Math.round(ck / 100003), cj = ck - ci * 100003, x0 = ci * C, z0 = cj * C;
     for (let gz = 0; gz < C; gz += 10.5) for (let gx = 0; gx < C; gx += 10.5) {
       const x = x0 + gx + R() * 3, z = z0 + gz + R() * 3, w = 6.5 + R() * 4, d = 6.5 + R() * 4, rad = Math.min(w, d) * 0.5;
@@ -216,11 +226,27 @@ export function eventFactor(events, x, z, year, prog = null) {
 
 /** Where the standing city is in a year: its centre of mass and a radius holding ~85% of its houses. */
 export function cityExtent(lots, need) {
-  let sx = 0, sz = 0, n = 0;
-  for (const l of lots) if (l.rank < need) { sx += l.x; sz += l.z; n++; }
+  const L = lots.filter((l) => l.rank < need), n = L.length;
   if (!n) return { x: 0, z: 0, r: 300, n: 0 };
-  const cx = sx / n, cz = sz / n, ds = [];
-  for (const l of lots) if (l.rank < need) ds.push(Math.hypot(l.x - cx, l.z - cz));
+  // The view frames the town itself, not the middle of the map: two small towns kilometres apart (an old port and a new
+  // cantonment) have their centroid on empty ground. Start at the densest 250 m cell and mean-shift with a window that
+  // widens as the city grows, so a young town is framed on its own and a metropolis as a whole.
+  const B = 250, cells = new Map();
+  for (const l of L) { const k = Math.floor(l.x / B) * 100003 + Math.floor(l.z / B); cells.set(k, (cells.get(k) || 0) + 1); }
+  let best = -1, cx = 0, cz = 0;
+  for (const [k, v] of cells) {
+    const i = Math.round(k / 100003), j = k - i * 100003;
+    let s = 0; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) s += cells.get((i + a) * 100003 + j + b) || 0;
+    if (s > best) { best = s; cx = (i + 0.5) * B; cz = (j + 0.5) * B; }
+  }
+  const bw = Math.max(600, 16 * Math.sqrt(n));
+  for (let it = 0; it < 6; it++) {
+    let sx = 0, sz = 0, m = 0;
+    for (const l of L) if (Math.hypot(l.x - cx, l.z - cz) < bw) { sx += l.x; sz += l.z; m++; }
+    if (!m) break; cx = sx / m; cz = sz / m;
+  }
+  const ds = [];
+  for (const l of L) { const d = Math.hypot(l.x - cx, l.z - cz); if (d < bw * 1.6) ds.push(d); }
   ds.sort((a, b) => a - b);
   return { x: cx, z: cz, r: Math.max(220, ds[Math.floor(ds.length * 0.85)] || 0), n };
 }
@@ -250,6 +276,31 @@ export function makeTrees(terrain, lots, { seed = 11, spacing = 15, max = 170000
 }
 
 /** Each street segment takes the rank of the first house along it: a street appears when its first house does. */
+/** Real buildings come without a street: give each the nearest street within `maxD` m, so the street appears with them. */
+export function attachRoads(lots, roads, maxD = 60) {
+  const B = 40, grid = new Map(), key = (i, j) => i * 100003 + j;
+  roads.forEach((rd, ri) => {
+    for (let k = 0; k + 1 < rd.p.length; k++) {
+      const [ax, az] = rd.p[k], [bx, bz] = rd.p[k + 1], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 15));
+      for (let s = 0; s <= n; s++) {
+        const x = ax + (bx - ax) * s / n, z = az + (bz - az) * s / n, kk = key(Math.floor(x / B), Math.floor(z / B));
+        (grid.get(kk) || grid.set(kk, []).get(kk)).push([x, z, ri]);
+      }
+    }
+  });
+  const r = Math.ceil(maxD / B);
+  for (const l of lots) {
+    if (l.road != null) continue;
+    let best = maxD * maxD, bi = null;
+    const i0 = Math.floor(l.x / B), j0 = Math.floor(l.z / B);
+    for (let i = i0 - r; i <= i0 + r; i++) for (let j = j0 - r; j <= j0 + r; j++) {
+      for (const [x, z, ri] of grid.get(key(i, j)) || []) { const d = (x - l.x) ** 2 + (z - l.z) ** 2; if (d < best) { best = d; bi = ri; } }
+    }
+    if (bi != null) l.road = bi;
+  }
+  return lots;
+}
+
 export function roadRanks(roads, lots) {
   const first = new Map();
   for (const l of lots) if (!first.has(l.road) || first.get(l.road) > l.rank) first.set(l.road, l.rank);

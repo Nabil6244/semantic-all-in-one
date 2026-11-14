@@ -126,7 +126,10 @@ test('timeline: skips, holds, captions, titles and the camera never stop', () =>
   for (let i = 1; i < tl.holds.length; i++) {
     const h = tl.holds[i];
     assert.ok(h.tr1 - h.tr0 >= 2.5 && h.h1 > h.h0);
-    assert.ok(Math.abs(stateAt(tl, h.h0 + 0.1).year - h.year) < 1e-6, 'the year holds during the hold');
+    // the clock never freezes in a stop: it starts at the era's year and creeps on slowly
+    const y0 = stateAt(tl, h.h0 + 0.05).year, y1 = stateAt(tl, h.h1 - 0.05).year;
+    assert.ok(Math.abs(y0 - h.year) < 0.5, 'a stop opens in its own year');
+    if (i < tl.holds.length - 1) assert.ok(y1 > y0 && y1 - y0 <= (h.h1 - h.h0) * 1.6 + 1e-6, 'and runs on slowly');
   }
   const mid = (tl.holds[1].tr0 + tl.holds[1].tr1) / 2;
   const y = stateAt(tl, mid).year;
@@ -134,7 +137,7 @@ test('timeline: skips, holds, captions, titles and the camera never stop', () =>
   assert.ok(tl.captions.some((c) => c.text === 'A great fire.'), 'event captions join the next era');
   assert.ok(tl.titles.some((t) => t.title === 'THE GOLDEN AGE'));
   assert.ok(tl.adPrefix);
-  assert.equal(hudAt(tl, tl.holds[1].h0 + 1).year, 'AD 100');
+  assert.equal(hudAt(tl, tl.holds[1].h0 + 0.05).year, 'AD 100');
   assert.ok(timeOfYear(tl, 50) > tl.holds[0].h1 && timeOfYear(tl, 50) < tl.holds[1].tr1);
   assert.ok(tl.landmarkTimes.Temple.tIn > 0);
   // the camera keeps moving everywhere (no still screens)
@@ -154,7 +157,7 @@ test('a new landmark becomes the era\'s close shot', () => {
   const h = tl.holds[1];
   const seg = tl.camera.find((c) => c.type === 'move' && c.t0 === h.h0);
   assert.ok(Math.hypot(seg.from.x - 40, seg.from.z + 55) < 1, 'focus on the temple');
-  assert.ok(seg.from.dist < 400);
+  assert.ok(seg.from.dist < 500);   // close, but wide enough that the town reads round it
 });
 
 test('labels, skips and flags', () => {
@@ -272,12 +275,12 @@ test('streets crossing a wall make gates', () => {
   assert.deepEqual(g.map(([x, z]) => [Math.round(x), Math.round(z)]), [[0, 0]], 'main streets only');
 });
 
-test('an event between eras stops the clock in its own year and the camera flies to it', () => {
+test('an event between eras slows the clock to its own year and the camera flies to it', () => {
   const s = parseStory(CSV);
   const tl = buildTimeline(s, testCity());
   assert.equal(tl.stops.length, 1);
   const st = tl.stops[0];
-  assert.equal(stateAt(tl, (st.t0 + st.t1) / 2).year, 1100);
+  assert.ok(Math.abs(stateAt(tl, st.t0 + 0.01).year - 1100) < 0.05 && stateAt(tl, st.t1 - 0.01).year - 1100 <= 1.0001, 'the event plays out in its own year');
   assert.ok(st.t1 - st.t0 >= 5.5);
   assert.ok(tl.captions.some((c) => c.text === 'A great fire.' && c.t0 >= st.t0 && c.t1 <= st.t1));
   assert.ok(tl.camera.some((c) => c.type === 'move' && c.t0 === st.t0));
@@ -289,4 +292,69 @@ test('lots: block infill packs the old town and is marked', () => {
   const roads = [{ c: 3, p: [[-300, 0], [300, 0]] }, { c: 3, p: [[-300, 90], [300, 90]] }];
   const plain = makeLots(roads, T, { seed: 2 }), packed = makeLots(roads, T, { seed: 2, infill: true });
   assert.ok(packed.length > plain.length && packed.some((l) => l.infill) && !plain.some((l) => l.infill));
+});
+
+test('beats: far-apart eras get in-between stops on the geometric population path', async () => {
+  const { addBeats } = await import('../lib/timeline.mjs');
+  const eras = [{ year: 1872, population: 50000, name: 'A', flag: 'f', style: 's' }, { year: 1951, population: 1100000, name: 'B' }];
+  const out = addBeats(eras);
+  assert.ok(out.length >= 4 && out.length <= 6);
+  const mid = out.filter((e) => e.beat);
+  for (let i = 1; i < out.length; i++) { assert.ok(out[i].year > out[i - 1].year); assert.ok(out[i].population > out[i - 1].population); }
+  assert.ok(mid.every((e) => e.name === 'A' && e.style === 's' && !e.caption));
+  assert.equal(addBeats([{ year: 1900, population: 1 }, { year: 1910, population: 2 }]).length, 2);   // a short gap: no beat
+});
+
+test('tidy water: ponds dry out, sea specks sink, the sea and big lakes stay', async () => {
+  const { tidyWater } = await import('../lib/terrain.mjs');
+  const w = 60, h = 60, H = new Float32Array(w * h).fill(5), W = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < 15; x++) { W[y * w + x] = 1; H[y * w + x] = -3; }   // sea on the west edge
+  W[5 * w + 4] = 0; H[5 * w + 4] = 1;                                                          // a speck in the sea
+  for (let y = 30; y < 32; y++) for (let x = 40; x < 42; x++) W[y * w + x] = 1;                // a pond
+  for (let y = 10; y < 25; y++) for (let x = 30; x < 50; x++) W[y * w + x] = 1;                // a big lake
+  const r = tidyWater(H, W, w, h, 8, { minLake: 1000, minIsland: 500 });
+  assert.equal(r.water[30 * w + 40], 0);
+  assert.equal(r.water[5 * w + 4], 1); assert.ok(r.height[5 * w + 4] < 0);
+  assert.equal(r.water[15 * w + 35], 1); assert.equal(r.water[20 * w + 2], 1);
+  assert.equal(W[30 * w + 40], 1, 'the input is left as it was');
+});
+
+test('city extent frames the town, not the empty middle between two towns', async () => {
+  const { cityExtent } = await import('../lib/growth.mjs');
+  const lots = [];
+  for (let i = 0; i < 600; i++) lots.push({ x: -2000 + (i % 25) * 12, z: Math.floor(i / 25) * 12, rank: i * 2 });
+  for (let i = 0; i < 300; i++) lots.push({ x: 2000 + (i % 15) * 12, z: Math.floor(i / 15) * 12, rank: i * 2 + 1 });
+  const e = cityExtent(lots, 1e9);
+  assert.ok(e.x < -1700, `focus ${e.x}`); assert.ok(e.r < 600);
+});
+
+test('a hero landmark gets its name on screen; a siege finds the wall it attacks', async () => {
+  const { nearestWall } = await import('../lib/timeline.mjs');
+  const s = parseStory(CSV);
+  const tl = buildTimeline(s, testCity());
+  assert.ok(tl.labels.length >= 1 && tl.labels.every((l) => l.t1 > l.t0 && l.text === l.text.toUpperCase()));
+  const lb = tl.labels[0];
+  assert.ok(hudAt(tl, (lb.t0 + lb.t1) / 2).label.text === lb.text);
+  const story = { landmarks: [{ kind: 'wall', year: 400, extra: { path: [[0, 0], [0, 1]] } }] };
+  const city = { toXZ: (lon, lat) => ({ x: lon * 1000, z: -lat * 1000 }) };
+  const w = nearestWall(story, city, { x: 300, z: -500 }, 1453);
+  assert.ok(Math.abs(w.x) < 1e-6 && Math.abs(w.z + 500) < 1e-6);
+  assert.equal(nearestWall(story, city, { x: 300, z: -500 }, 300), null);   // not built yet
+});
+
+test('road and avenue rows clear a strip along their path', () => {
+  const fp = footprint({ kind: 'avenue', points: [[0, 0], [200, 0]], extra: {} });
+  assert.ok(fp.length > 3 && fp[0].r > 12 && fp.every((c) => Math.abs(c.z) < 1e-9));
+});
+
+test('the climax event freezes the year, runs a chain of beats and changes the flag', () => {
+  const csv = CSV.replace(/(event,[^\n]*)$/m, (row) => row);
+  const s = parseStory(csv);
+  s.events[0].extra = { climax: true, captions: ['One.', 'Two.', 'Three.'] };
+  const tl = buildTimeline(s, testCity());
+  const st = tl.stops[0];
+  assert.ok(st.climax && st.t1 - st.t0 >= 6 * 8.5 - 1e-6);
+  assert.equal(stateAt(tl, st.t0 + 1).year, stateAt(tl, st.t1 - 1).year);
+  assert.equal(tl.captions.filter((c) => c.t0 >= st.t0 && c.t1 <= st.t1).length, 3);
+  assert.ok(tl.badges.some((b) => b.t > st.t0 && b.t < st.t1));
 });

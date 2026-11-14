@@ -32,9 +32,13 @@ class CityTimelapseWiring(unittest.TestCase):
     def test_world_download_only_after_asking(self):
         src = (ROOT / "ui" / "city_timelapse_section.py").read_text(encoding="utf-8")
         self.assertRegex(src, r'askyesno\("Build the city\'s world\?"')
-        self.assertEqual(len(re.findall(r"ct\.build_world\(", src)), 1)
-        ask = src.index("askyesno(\"Build the city's world?\""); build = src.index("ct.build_world(")
-        self.assertLess(ask, build)
+        self.assertRegex(src, r'askyesno\("Download the missing map data\?"')
+        builds = [m.start() for m in re.finditer(r"ct\.build_world\(", src)]
+        self.assertEqual(len(builds), 2, "a first build and a repair of a world that lost its OpenStreetMap data")
+        for b in builds:   # each download sits right after its own question, inside its 'yes'
+            ask = src.rfind("askyesno(", 0, b)
+            self.assertGreater(ask, 0)
+            self.assertLess(b - ask, 900)
 
     def test_no_gemini(self):
         for f in [ROOT / "ui" / "city_timelapse_section.py", *sorted((ROOT / "citygrow-engine").rglob("*.py")), *sorted((ROOT / "citygrow-engine").rglob("*.mjs"))]:

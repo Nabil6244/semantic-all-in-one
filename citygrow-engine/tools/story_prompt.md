@@ -39,15 +39,29 @@ Rows (the `row` column says which kind):
 4. 6–14 `landmark` rows: the buildings that make this city recognisable.
    - year = when it was completed and open (not when it was planned or begun); until = when destroyed (empty if it still stands);
      era_name = its name; focus = "lon,lat" of the building's own centre on land (exact to about 50 m; not the district's centre)
-   - kind: dome_church, mosque, church, cathedral, temple, forum, market, amphitheatre, hippodrome, castle, palace, station, tower,
-     lighthouse, column, skyscraper (its size is the real height in metres: Burj Khalifa 828; 250 m and above is drawn as a tapering tower with a spire), or a path kind: wall, harbour, aqueduct, bridge
+   - kind: mausoleum (square domed tomb on a terrace), dome_church, mosque, church, cathedral, temple, forum, market, amphitheatre, hippodrome, castle, palace, station, tower,
+     lighthouse, column, road, avenue, skyscraper (its size is the real height in metres: Burj Khalifa 828; drawn as a tower block under 200 m, a glass slab with a sloped crown from 200 m, a needle with a spire only from 500 m — or set extra.shape "needle"/"slab"/"block"; extra.twin = height of a second, lower tower on the plot), or a path kind: wall, harbour, aqueduct, bridge
    - extra JSON: {"size": metres, "rot": degrees the long side is turned (0 = east–west), "minarets": n,
      "color": "marble"|"stone"|"brick"|"#hex", "roof": "terracotta"|"slate"|"lead"|"#hex", "dome": "lead"|"gold"}
    - what "size" means depends on the kind, and it must be the REAL figure from a reliable source:
        HEIGHT in metres:  skyscraper, tower, lighthouse, column      (Burj Khalifa 828, Eiffel Tower 330, Pharos 100)
        LENGTH of the long side in metres:  every other kind          (Colosseum 188, Hagia Sophia 82, Dubai Mall 300)
-     a skyscraper under 250 m is drawn as a box and at 250 m or more as a stepped, tapering tower with a spire; if its
+     a skyscraper under 200 m is drawn as a tower block, 200-499 m as a glass slab with a sloped crown, 500 m+ as a needle
+     with a spire (extra "shape" overrides: needle | slab | block); if its
      size is smaller than the ordinary buildings around it, it will not be seen, so never write a width or a guess.
+   - WALLS FOR EVERY ERA: a walled city gets a wall row for each circuit it had, each with its own year and "until"
+     (the town wall, the bigger later wall that replaced it, ...), so the city is ringed by its walls in every era; add
+     harbours (moles) and aqueducts as path rows too. Give big complexes their real size (a palace quarter 300-400 m is
+     drawn as a grid of courts and gardens). Landmarks get their name shown on screen during their close shot
+     (extra "label": "SHORTER NAME" to change it, false for none)
+   - HISTORIC ROADS: for a pre-modern city add its few great roads as path rows, kind "road" (pale earth) or "avenue"
+     (paved, lined with red-roofed colonnades, e.g. the Mese, a Roman decumanus); with these rows the old eras show
+     only them and no modern street grid ("width" in metres, "label": false to keep the name off screen)
+   - THE CLIMAX: give the film's one greatest event extra {"climax": true, "captions": ["...", "...", ...]} (4-6 short
+     captions): it becomes a long sequence of shots (the city, the fleet, the camp and guns, along the walls, the fall,
+     the city after) with the year frozen and the next era's flag going up during the fall. Every other stop lets the
+     clock run on slowly, so there is no need for many rows: the clock never freezes elsewhere
+   - a SIEGE event is filmed with the nearest standing wall in frame: put the event point where the camp stood, outside it
    - path kinds give the line as extra {"path": [[lon,lat],[lon,lat],...], "height": metres} and leave focus empty
 
 5. 0–3 `event` rows: fires, sieges, earthquakes that destroyed part of the city.

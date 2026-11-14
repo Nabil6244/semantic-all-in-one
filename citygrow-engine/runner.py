@@ -115,7 +115,11 @@ def check(csv: str, *, cancel=None, log=print) -> dict:
         else:
             res["errors"].append(e.get("message"))
     p = r.get("plan") or {}
-    if not e and p.get("world") and p.get("landuse") is False and not (HERE / "worlds" / str(p["world"]) / "landuse_skipped").exists():
+    if not e and p.get("world"):
+        rep = _repair_request(str(p["world"]))
+        if rep:
+            res["world_repair"] = rep
+    if not e and p.get("world") and not res.get("world_repair") and p.get("landuse") is False and not (HERE / "worlds" / str(p["world"]) / "landuse_skipped").exists():
         res["landuse_build"] = _landuse_request(str(p["world"]))
     return res
 
@@ -127,6 +131,41 @@ def _landuse_request(world_id: str) -> Optional[dict]:
         return {"id": world_id, "center": meta["center"], "size_m": meta["size_m"]}
     except Exception:  # noqa: BLE001
         return None
+
+
+WORLD_PARTS = {"streets": "streets", "water": "coast, rivers and lakes", "landuse": "parks, fields and built-up ground"}
+
+
+def world_missing(meta: dict) -> list:
+    """What a world's build could not download. Worlds built before `missing` was recorded are read from their warnings."""
+    if isinstance(meta.get("missing"), list):
+        return [m for m in meta["missing"] if m in WORLD_PARTS]
+    out, w = [], " ".join(str(x) for x in meta.get("warnings") or [])
+    if "OSM streets unavailable" in w:
+        out.append("streets")
+    if "OSM water unavailable" in w:
+        out.append("water")
+    return out
+
+
+def _repair_request(world_id: str) -> Optional[dict]:
+    """A world whose build lost streets or water to a busy OpenStreetMap server: what to download again (once per day at most)."""
+    d = HERE / "worlds" / world_id
+    try:
+        meta = json.loads((d / "meta.json").read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    miss = [m for m in world_missing(meta) if m != "landuse"]   # land use alone has its own smaller offer
+    skipped = d / "repair_skipped"
+    if not miss or (skipped.exists() and time.time() - skipped.stat().st_mtime < 86400):
+        return None
+    return {"id": world_id, "center": meta["center"], "size": float(meta.get("size_m", 8000)) / 1000.0, "missing": miss,
+            "what": ", ".join(WORLD_PARTS[m] for m in miss), "repair": True}
+
+
+def skip_repair(world_id: str) -> None:
+    """The user said no: do not ask again today."""
+    (HERE / "worlds" / world_id / "repair_skipped").write_text("skipped", encoding="utf-8")
 
 
 def skip_landuse(world_id: str) -> None:
@@ -193,8 +232,15 @@ def build_world(wb: dict, *, progress=None, cancel=None, log=print) -> str:
         if progress:
             progress(0.85 * done / max(1, total), f"Building world '{wid}': elevation {done}/{total}")
 
-    log(f"{TAG} building world '{wid}' around {wb['center']} ({wb.get('size', 8)} km)")
+    log(f"{TAG} {'repairing' if wb.get('repair') else 'building'} world '{wid}' around {wb['center']} ({wb.get('size', 8)} km)")
     mod.build(wid, (float(wb["center"][0]), float(wb["center"][1])), float(wb.get("size", 8)), on_tile=on_tile)
+    try:
+        left = world_missing(json.loads((HERE / "worlds" / wid / "meta.json").read_text(encoding="utf-8")))
+        (HERE / "worlds" / wid / "repair_skipped").unlink(missing_ok=True)
+        if left:
+            log(f"{TAG} world '{wid}': still missing {', '.join(WORLD_PARTS[m] for m in left)} (OpenStreetMap busy); the next Generate offers it again")
+    except Exception:  # noqa: BLE001
+        pass
     if progress:
         progress(1.0, f"World '{wid}' built")
     return wid

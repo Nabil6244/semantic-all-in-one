@@ -13,9 +13,38 @@ const smooth = (k) => { k = clamp(k, 0, 1); return k * k * (3 - 2 * k); };
 const lerp = (a, b, k) => a + (b - a) * k;
 const angLerp = (a, b, k) => a + ((((b - a) % 360) + 540) % 360 - 180) * k;
 
-export const INTRO = 4.5, OUTRO = 3.5, TITLE_HOLD = 3.4, CAPTION_WPS = 2.7, EVENT_HOLD = 5.5;
-const SHOT_CYCLE = ['orbit', 'push', 'flyover', 'street', 'pullback', 'low_track', 'orbit', 'push', 'street', 'pullback'];
-const MIN_DIST = 90, MAX_DIST = 7000;
+export const INTRO = 4.5, OUTRO = 3.5, TITLE_HOLD = 3.4, CAPTION_WPS = 2.7, EVENT_HOLD = 5.5, BEAT_HOLD = 4.2;
+// the clock keeps running through a stop (as in the reference films the year never freezes, it slows down): a stop with
+// text or a new building drifts at most HOLD_RATE years a second and a third of the way to what comes next; a filler
+// stop half of the way. Only the film's climax freezes the year.
+export const HOLD_RATE = 1.6, CLIMAX_BEAT = 8.5;
+/** Easing of a key segment: linear while a stop drifts, a soft ease (never at rest) through a skip. */
+const keyEase = (a, u) => (a.lin ? clamp(u, 0, 1) : 0.45 * clamp(u, 0, 1) + 0.55 * ease(u));
+// mostly high, slanted views over the whole town; down among the roofs only now and then
+const SHOT_CYCLE = ['orbit', 'push', 'flyover', 'pullback', 'street', 'orbit', 'low_track', 'push', 'flyover', 'pullback'];
+const MIN_DIST = 90, MAX_DIST = 7000, WIDE_MIN = 420, OPENING_MIN = 1150;
+
+/**
+ * Steady growth between far-apart eras: the reference films never jump 80 years in one cut, the year stops every couple
+ * of decades on a new view of the bigger town. Adds `beat` eras (same name, flag and style as the era before, no text,
+ * population on the geometric path) every ~`every` years, at most `max` per gap.
+ */
+export function addBeats(eras, { every = 25, max = 4 } = {}) {
+  const out = [];
+  eras.forEach((e, i) => {
+    const p = eras[i - 1];
+    if (p && !e.beat && Number.isFinite(p.year) && Number.isFinite(e.year)) {
+      const dy = e.year - p.year, k = Math.min(max, Math.floor(dy / every) - (dy % every < every * 0.4 ? 1 : 0));
+      for (let j = 1; j <= k; j++) {
+        const f = j / (k + 1), year = Math.round(p.year + dy * f);
+        const population = p.population > 0 && e.population > 0 ? Math.round(Math.exp(Math.log(p.population) + (Math.log(e.population) - Math.log(p.population)) * f)) : Math.round(p.population + (e.population - p.population) * f);
+        out.push({ line: p.line, year, name: p.name, flag: p.flag, population, caption: '', title: '', kicker: '', style: p.style, shot: null, focus: null, focusId: null, hold: BEAT_HOLD, extra: {}, beat: true });
+      }
+    }
+    out.push(e);
+  });
+  return out;
+}
 
 export const readSeconds = (text) => (text ? text.trim().split(/\s+/).length / CAPTION_WPS + 1.3 : 0);
 export function skipSeconds(dy) { return clamp(2.4 + 0.85 * Math.log2(1 + Math.abs(dy) / 25), 2.6, 7.5); }
@@ -33,7 +62,7 @@ export function buildTimeline(story, city) {
   const eras = story.eras;
   const adPrefix = eras[0].year < 0 && eras.some((e) => e.year > 0 && e.year < 1000);
   const keys = [], titles = [], captions = [], badges = [], holds = [], stops = [];
-  let t = INTRO;
+  let t = INTRO, prevEnd = { year: eras[0].year, pop: eras[0].population };
   // the opening: the city's name over its first view
   const first = eras[0], last = eras[eras.length - 1];
   titles.push({ t0: 0.6, t1: INTRO + 1.2, title: (story.plan.city || story.plan.title || '').toUpperCase(),
@@ -53,16 +82,30 @@ export function buildTimeline(story, city) {
     let tr0 = t, tr1 = t;
     if (i > 0) {
       const p = eras[i - 1];
-      let from = { year: p.year, pop: p.population };
+      let from = { year: prevEnd.year, pop: prevEnd.pop };
       for (const j of (mid.get(i) || []).sort((a, b) => story.events[a].year - story.events[b].year)) {
         const ev = story.events[j], k = (ev.year - p.year) / (e.year - p.year);
         const pop = p.population > 0 && e.population > 0 ? Math.exp(lerp(Math.log(p.population), Math.log(e.population), k)) : lerp(p.population, e.population, k);
         const s0 = t;
+        if (ev.year <= from.year) continue;   // the clock already drifted past it
         keys.push({ t, ...from }); t += skipSeconds(ev.year - from.year); keys.push({ t, year: ev.year, pop });
-        const hold = Math.max(EVENT_HOLD, readSeconds(ev.caption) + 2);
-        stops.push({ era: i, ev: j, s0, t0: t, t1: t + hold, year: ev.year, pop });
-        if (ev.caption) captions.push({ t0: t + 0.6, t1: t + hold - 0.3, text: ev.caption });
-        t += hold; from = { year: ev.year, pop };
+        const climax = !!ev.extra?.climax, caps = climax && Array.isArray(ev.extra?.captions) ? ev.extra.captions : ev.caption ? [ev.caption] : [];
+        // the climax is a chain of shots (the city, the fleet, the camp and guns, the walls, the fall, the city after),
+        // each about CLIMAX_BEAT s, with the year frozen; any other event lets the clock creep on by up to a year
+        const hold = climax ? Math.max(6 * CLIMAX_BEAT, caps.reduce((s2, x) => s2 + readSeconds(x), 0) + 4) : Math.max(EVENT_HOLD, readSeconds(ev.caption) + 2);
+        const drift = climax ? 0 : Math.min(1, Math.max(0, e.year - ev.year - 1));
+        stops.push({ era: i, ev: j, s0, t0: t, t1: t + hold, year: ev.year, pop, climax });
+        if (climax) {
+          let c0 = t + 0.8; const each = (hold - 1.6) / Math.max(1, caps.length);
+          for (const x of caps) { captions.push({ t0: c0, t1: c0 + Math.min(each - 0.4, readSeconds(x) + 2.5), text: x }); c0 += each; }
+          // the city changes hands during the fall: the next era's flag goes up two thirds of the way in
+          badges.push({ t: t + hold * 0.64, name: e.name || '', flag: e.flag || '' });
+        } else {
+          let c0 = t + 0.6;
+          for (const x of caps) { captions.push({ t0: c0, t1: t + hold - 0.3, text: x }); c0 = t + hold; }
+        }
+        keys.push({ t, year: ev.year, pop, lin: true }); t += hold;
+        from = { year: ev.year + drift, pop };
       }
       tr0 = t; tr1 = t + skipSeconds(e.year - from.year);
       keys.push({ t: tr0, ...from });
@@ -70,8 +113,12 @@ export function buildTimeline(story, city) {
     }
     const texts = [...(evCap.get(e) || []), ...(e.caption ? [e.caption] : [])];
     const titleT = e.title ? TITLE_HOLD : 0;
-    const need = 1.0 + titleT + texts.reduce((s, x) => s + readSeconds(x), 0) + 0.8;
-    const hold = Math.max(e.hold ?? 0, need, 5.5);
+    // a stop where a landmark arrives holds a little longer, so its name can show after the title card
+    const prevY = i ? eras[i - 1].year : -Infinity;
+    const lmHere = (story.landmarks || []).some((l) => l.lon != null && l.year != null && l.year > prevY && l.year <= e.year);
+    const trHere = (story.landmarks || []).some((l) => trackable(l) && l.year != null && l.year > prevY && l.year <= e.year);   // a wall built along its length needs time
+    const need = Math.max(1.0 + titleT + texts.reduce((s, x) => s + readSeconds(x), 0) + 0.8 + (lmHere ? 2.5 : 0), trHere ? 8 : 0);
+    const hold = e.beat ? Math.max(BEAT_HOLD, need) : Math.max(e.hold ?? 0, need, 5.5);
     const h0 = tr1, h1 = tr1 + hold;
     badges.push({ t: i === 0 ? 0 : (tr0 + tr1) / 2, name: e.name || '', flag: e.flag || '' });
     if (e.title) titles.push({ t0: h0 + 0.2, t1: h0 + 0.2 + TITLE_HOLD, title: e.title.toUpperCase(), kicker: e.kicker || '' });
@@ -79,6 +126,18 @@ export function buildTimeline(story, city) {
     const each = texts.length ? (h1 - 0.4 - c0) / texts.reduce((s, x) => s + readSeconds(x), 0) : 0;
     for (const x of texts) { const d = readSeconds(x) * each; captions.push({ t0: c0, t1: c0 + d, text: x }); c0 += d; }
     holds.push({ era: i, tr0, tr1, h0, h1, year: e.year, pop: e.population, style: e.style || styleForYear(e.year) });
+    // the clock runs on through the stop towards what comes next (the next era or an event in between)
+    const nx = eras[i + 1];
+    if (nx) {
+      const evNext = story.events.filter((ev) => ev.year > e.year && ev.year < nx.year).map((ev) => ev.year);
+      const toY = Math.min(nx.year, ...evNext), gap = toY - e.year;
+      const drift = gap <= 1 ? 0 : e.beat ? gap * 0.5 : Math.min(gap / 3, hold * HOLD_RATE);
+      const k = drift / Math.max(1e-9, nx.year - e.year);
+      const pop = e.population > 0 && nx.population > 0 ? Math.exp(lerp(Math.log(e.population), Math.log(nx.population), k)) : lerp(e.population, nx.population, k);
+      keys.push({ t: h0, year: e.year, pop: e.population, lin: true });
+      prevEnd = { year: e.year + drift, pop };
+      keys.push({ t: h1, ...prevEnd });
+    }
     t = h1;
   });
   const duration = t + OUTRO;
@@ -88,11 +147,22 @@ export function buildTimeline(story, city) {
   tl.landmarkTimes = Object.fromEntries(story.landmarks.map((l) => {
     const tIn = l.year == null || l.year <= first.year ? -1e9 : timeOfYear(tl, l.year);
     // the era's hero building is still a construction site when the camera arrives, and is finished while it circles
-    const host = holds.find((h) => h.fresh === l.id);
+    // only the first stop after its year builds it on screen; a later hero shot shows it finished
+    const firstHold = holds.find((h) => h.year >= l.year), host = firstHold && firstHold.fresh === l.id ? firstHold : null;
+    if (host && host.track) return [l.id, { tIn: host.h0 + 0.2, tDone: host.h1 - 0.6, tOut: l.until == null ? 1e9 : timeOfYear(tl, l.until) }];
     const tDone = host ? Math.max(tIn + 2.2, host.h0 + 0.5 * (host.h1 - host.h0)) : tIn + 2.2;
     // never a building site for longer than ~8 s: one finished in a later era breaks ground just before that era's view
     return [l.id, { tIn: Math.max(tIn, tDone - 8), tDone, tOut: l.until == null ? 1e9 : timeOfYear(tl, l.until) }];
   }));
+  // the hero building's name on screen while the camera circles it (after the era's title card, if there is one)
+  tl.labels = [];
+  for (const h of holds) {
+    if (!h.fresh) continue;
+    const l = story.landmarks.find((x) => x.id === h.fresh);
+    if (!l || l.extra?.label === false) continue;
+    const tt = tl.titles.find((x) => x.t1 > h.h0 && x.t0 < h.h1), t0 = Math.max(h.h0 + 0.8, tt ? tt.t1 + 0.3 : 0), t1 = h.h1 - 0.4;
+    if (t1 - t0 > 1.5) tl.labels.push({ t0, t1, text: String(l.extra?.label || l.id).toUpperCase() });
+  }
   tl.eventTimes = story.events.map((ev) => timeOfYear(tl, ev.year));
   // when each event plays on screen: its own stop, or a few seconds from the moment the clock reaches it
   tl.eventWindows = story.events.map((ev, j) => {
@@ -108,9 +178,9 @@ export function stateAt(tl, t) {
   let i = 0; while (i + 1 < k.length && k[i + 1].t <= t) i++;
   const a = k[i], b = k[Math.min(k.length - 1, i + 1)];
   if (b.t <= a.t || a.year === b.year && a.pop === b.pop) return { year: a.year, pop: a.pop, skip: 0 };
-  const e = ease((t - a.t) / (b.t - a.t));
+  const e = keyEase(a, (t - a.t) / (b.t - a.t));
   const pop = a.pop > 0 && b.pop > 0 ? Math.exp(lerp(Math.log(a.pop), Math.log(b.pop), e)) : lerp(a.pop, b.pop, e);
-  return { year: lerp(a.year, b.year, e), pop, skip: Math.sin(Math.PI * clamp((t - a.t) / (b.t - a.t), 0, 1)) };
+  return { year: lerp(a.year, b.year, e), pop, skip: a.lin ? 0 : Math.sin(Math.PI * clamp((t - a.t) / (b.t - a.t), 0, 1)) };
 }
 
 /** The screen time at which the story reaches a year (first crossing; before the story -> 0, after it -> the end). */
@@ -122,7 +192,7 @@ export function timeOfYear(tl, y) {
     if (y >= a.year && y <= b.year && b.year > a.year) {
       // invert the eased year: bisection
       let lo = 0, hi = 1;
-      for (let n = 0; n < 30; n++) { const m = (lo + hi) / 2; if (lerp(a.year, b.year, ease(m)) < y) lo = m; else hi = m; }
+      for (let n = 0; n < 30; n++) { const m = (lo + hi) / 2; if (lerp(a.year, b.year, keyEase(a, m)) < y) lo = m; else hi = m; }
       return a.t + (b.t - a.t) * hi;
     }
   }
@@ -149,6 +219,7 @@ export function hudAt(tl, t) {
     badge: cur, badgePrev: prev, badgeSwap: swap,
     title: title ? { ...title, alpha: fadeIn(title.t0, title.t1, 0.8) } : null,
     caption: cap ? { text: cap.text, alpha: fadeIn(cap.t0, cap.t1, 0.5) } : null,
+    label: (() => { const lb = (tl.labels || []).find((x) => t >= x.t0 && t <= x.t1); return lb ? { text: lb.text, alpha: fadeIn(lb.t0, lb.t1, 0.7) } : null; })(),
     black: Math.max(1 - smooth(t / 1.2), smooth((t - (tl.duration - 1.4)) / 1.4)),
     hudAlpha: smooth((t - INTRO + 1.0) / 1.0),
   };
@@ -160,37 +231,121 @@ export function hudAt(tl, t) {
 
 function shotStates(kind, f, R, heading) {
   const H = heading, rad = (H * Math.PI) / 180, fx = Math.sin(rad), fz = -Math.cos(rad);
-  const d = (v) => clamp(v, MIN_DIST, MAX_DIST);
+  const d = (v) => clamp(v, WIDE_MIN, MAX_DIST);   // a wide view always shows the town as a town
   switch (kind) {
-    case 'establishing': return [{ ...f, dist: d(R * 2.4), tilt: 40, heading: H }, { ...f, dist: d(R * 1.9), tilt: 46, heading: H + 14 }];
-    case 'push': return [{ ...f, dist: d(R * 1.5), tilt: 48, heading: H }, { ...f, dist: d(R * 0.7), tilt: 57, heading: H + 10 }];
-    case 'pullback': return [{ ...f, dist: d(R * 0.55), tilt: 60, heading: H }, { ...f, dist: d(R * 1.5), tilt: 46, heading: H - 10 }];
+    // the opening: the young town small in its landscape, the coast or river beyond it
+    case 'establishing': return [{ ...f, dist: d(Math.max(R * 2.6, OPENING_MIN)), tilt: 52, heading: H }, { ...f, dist: d(Math.max(R * 2.1, OPENING_MIN * 0.8)), tilt: 56, heading: H + 14 }];
+    case 'push': return [{ ...f, dist: d(R * 1.6), tilt: 52, heading: H }, { ...f, dist: d(R * 0.9), tilt: 58, heading: H + 10 }];
+    case 'pullback': return [{ ...f, dist: d(R * 0.75), tilt: 60, heading: H }, { ...f, dist: d(R * 1.6), tilt: 50, heading: H - 10 }];
     case 'landmark': {   // a low, close orbit round a new building (R is its size here): the hero shot
-      const D = clamp(R * 2.8, 150, 560);
-      return [{ ...f, dist: D * 1.3, tilt: 60, heading: H }, { ...f, dist: D, tilt: 65, heading: H + 42 }];
+      // a big or tall one (a 270 m tower, a hippodrome) is seen from further back and more level, top in frame
+      const big = R > 150, D = clamp(R * (big ? 3.2 : 2.8), 330, big ? 1300 : 680), T0 = big ? 52 : 60;
+      return [{ ...f, dist: D * 1.3, tilt: T0, heading: H }, { ...f, dist: D, tilt: T0 + 5, heading: H + 42 }];
     }
     case 'event': {   // the fire, the siege: close enough to see the smoke and the camp, wide enough to see the city
       const D = clamp(R * 1.9, 240, 1500);
       return [{ ...f, dist: D * 1.15, tilt: 55, heading: H }, { ...f, dist: D * 0.85, tilt: 61, heading: H + 26 }];
     }
     case 'street': {   // down among the roofs, drifting along
-      const D = clamp(R * 0.16, 110, 220);
-      return [{ x: f.x - fx * D * 0.5, z: f.z - fz * D * 0.5, dist: D, tilt: 68, heading: H }, { x: f.x + fx * D * 0.5, z: f.z + fz * D * 0.5, dist: D * 0.92, tilt: 69, heading: H + 12 }];
+      const D = clamp(R * 0.24, 260, 420);   // close, but the town still reads as a town around it
+      return [{ x: f.x - fx * D * 0.5, z: f.z - fz * D * 0.5, dist: D, tilt: 63, heading: H }, { x: f.x + fx * D * 0.5, z: f.z + fz * D * 0.5, dist: D * 0.92, tilt: 64, heading: H + 12 }];
     }
     case 'flyover': return [
       { x: f.x - fx * R * 0.45, z: f.z - fz * R * 0.45, dist: d(R * 0.75), tilt: 60, heading: H },
       { x: f.x + fx * R * 0.45, z: f.z + fz * R * 0.45, dist: d(R * 0.7), tilt: 60, heading: H + 6 }];
     case 'low_track': {
-      const sx = -fz, sz = fx, D = clamp(R * 0.28, 130, 340);
+      const sx = -fz, sz = fx, D = clamp(R * 0.4, 280, 520);
       return [{ x: f.x - sx * D * 0.6, z: f.z - sz * D * 0.6, dist: D, tilt: 66, heading: H }, { x: f.x + sx * D * 0.6, z: f.z + sz * D * 0.6, dist: D, tilt: 64, heading: H + 4 }];
     }
     default: return [{ ...f, dist: d(R * 1.15), tilt: 50, heading: H }, { ...f, dist: d(R * 1.0), tilt: 53, heading: H + 30 }];   // orbit
   }
 }
 
+/** The nearest point (x, z) on a wall standing in `year` to `at`, or null (no wall in the story). */
+export function nearestWall(story, city, at, year) {
+  let best = null, bd = Infinity;
+  for (const l of story.landmarks || []) {
+    if (l.kind !== 'wall' || !Array.isArray(l.extra?.path)) continue;
+    if ((l.year != null && l.year > year) || (l.until != null && l.until <= year)) continue;
+    const pts = l.extra.path.map(([lon, lat]) => city.toXZ(lon, lat));
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1], vx = b.x - a.x, vz = b.z - a.z, L2 = vx * vx + vz * vz || 1;
+      const k = clamp(((at.x - a.x) * vx + (at.z - a.z) * vz) / L2, 0, 1), x = a.x + vx * k, z = a.z + vz * k, d = Math.hypot(x - at.x, z - at.z);
+      if (d < bd) { bd = d; best = { x, z }; }
+    }
+  }
+  return best && bd < 3000 ? best : null;
+}
+
+const TRACK_KINDS = new Set(['wall', 'aqueduct', 'avenue']);
+const trackable = (l) => TRACK_KINDS.has(l.kind) && Array.isArray(l.extra?.path) && l.extra.path.length > 1;
+const pathXZ = (l, city) => l.extra.path.map(([lon, lat]) => city.toXZ(lon, lat));
+function pathLength(l, city) { const P = pathXZ(l, city); let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i].x - P[i - 1].x, P[i].z - P[i - 1].z); return L; }
+
+/** A wall, aqueduct or avenue going up: the camera travels alongside it, start to end, as it is built. */
+function trackStates(l, city) {
+  const P = pathXZ(l, city), A = P[0], B = P[P.length - 1], L = pathLength(l, city);
+  const dir = (Math.atan2(B.x - A.x, -(B.z - A.z)) * 180) / Math.PI, D = clamp(L * 0.3, 380, 1600);
+  const H = dir + 62;   // looking across it at a slant, so the new work runs away into the frame
+  const k = 0.12, a = { x: A.x + (B.x - A.x) * k, z: A.z + (B.z - A.z) * k }, b = { x: B.x - (B.x - A.x) * k, z: B.z - (B.z - A.z) * k };
+  return [{ ...a, dist: D, tilt: 57, heading: H }, { ...b, dist: D * 0.92, tilt: 59, heading: H + 8 }];
+}
+
+/** The climax as a chain of shots: the city wide, the fleet, the camp and guns, along the walls, the walls up close as
+ *  the city falls, then the city after. Beats without what they need (no fleet, no wall) are left out. */
+function climaxBeats(story, city, tl, st, ev, at, wp, camp) {
+  const ext = city.extent(st.year, st.pop, tl.holds[Math.max(0, st.era - 1)]?.style), H0 = camp[0].heading;
+  const beats = [[{ x: ext.x, z: ext.z, dist: clamp(ext.r * 2.6, 900, MAX_DIST), tilt: 50, heading: H0 - 30 }, { x: ext.x, z: ext.z, dist: clamp(ext.r * 2.2, 800, MAX_DIST), tilt: 53, heading: H0 - 5 }]];
+  const fl = city.eventFleet?.[st.ev];
+  if (fl) beats.push([{ x: fl.x, z: fl.z, dist: 700, tilt: 58, heading: H0 + 40 }, { x: fl.x, z: fl.z, dist: 520, tilt: 62, heading: H0 + 70 }]);
+  beats.push(camp);
+  if (wp) {
+    beats.push([{ x: wp.x, z: wp.z, dist: 520, tilt: 60, heading: H0 + 35 }, { x: wp.x + (at.z - wp.z) * 0.6, z: wp.z - (at.x - wp.x) * 0.6, dist: 480, tilt: 62, heading: H0 + 55 }]);
+    beats.push([{ x: wp.x, z: wp.z, dist: 330, tilt: 63, heading: H0 - 20 }, { x: wp.x, z: wp.z, dist: 280, tilt: 66, heading: H0 + 15 }]);
+  }
+  const big = (story.landmarks || []).filter((l) => l.lon != null && city.landmarkXZ?.[l.id] && (l.year ?? -1e9) <= st.year && (l.until ?? Infinity) > st.year)
+    .sort((a, b) => (b.extra?.size ?? 60) - (a.extra?.size ?? 60))[0];
+  const c = big ? city.landmarkXZ[big.id] : { x: ext.x, z: ext.z };
+  beats.push([{ ...c, dist: 420, tilt: 60, heading: H0 + 120 }, { ...c, dist: clamp(ext.r * 2.4, 900, MAX_DIST), tilt: 50, heading: H0 + 150 }]);
+  return beats;
+}
+
+/** Keyframes for one smooth flight through every shot (no stopping and jumping between them). */
+function splineKeys(segs) {
+  const K = [];
+  const put = (t, st) => { while (K.length && K[K.length - 1].t >= t - 1e-6) K.pop(); K.push({ t, x: st.x, z: st.z, ld: Math.log(st.dist), tilt: st.tilt, hd: st.heading }); };
+  for (const sg of segs) {
+    put(sg.t0, sg.from);
+    if (sg.type === 'fly' && sg.t1 - sg.t0 > 0.6) {   // the middle of a flight: a little higher and leaning to the town
+      const m = mix(sg.from, sg.to, 0.5), up = Math.min(Math.log(sg.peak || m.dist), Math.log(Math.max(sg.from.dist, sg.to.dist) * 1.5));
+      if (sg.via) { m.x += (sg.via.x - m.x) * 0.5; m.z += (sg.via.z - m.z) * 0.5; }
+      put((sg.t0 + sg.t1) / 2, { ...m, dist: Math.exp(Math.max(Math.log(m.dist), up)), tilt: m.tilt - 6 });
+    }
+    put(sg.t1, sg.to);
+  }
+  for (let i = 1; i < K.length; i++) { let d = K[i].hd - K[i - 1].hd; d = ((d % 360) + 540) % 360 - 180; K[i].hd = K[i - 1].hd + d; }
+  return K;
+}
+
+function hermite(K, t, f) {
+  if (t <= K[0].t) return K[0][f];
+  const n = K.length; if (t >= K[n - 1].t) return K[n - 1][f];
+  let i = 0; while (K[i + 1].t < t) i++;
+  const a = K[i], b = K[i + 1], h = b.t - a.t, u = (t - a.t) / h;
+  const slope = (p, q) => (q[f] - p[f]) / Math.max(1e-6, q.t - p.t);
+  const tan = (j) => {
+    if (j <= 0 || j >= n - 1) return 0;
+    const s0 = slope(K[j - 1], K[j]), s1 = slope(K[j], K[j + 1]);
+    return s0 * s1 <= 0 ? 0 : (s0 + s1) / 2;   // no overshoot where the motion turns back
+  };
+  const m0 = tan(i) * h, m1 = tan(i + 1) * h, u2 = u * u, u3 = u2 * u;
+  return (2 * u3 - 3 * u2 + 1) * a[f] + (u3 - 2 * u2 + u) * m0 + (-2 * u3 + 3 * u2) * b[f] + (u3 - u2) * m1;
+}
+
 export function cameraPath(story, city, tl) {
   const segs = [];
   let heading = story.plan.heading ?? 20, prevKind = null, prevEnd = null, cyc = 0;
+  const waiting = [], shown = new Set();
   tl.holds.forEach((h, i) => {
     const e = story.eras[h.era];
     const ext = city.extent(h.year, h.pop, h.style);
@@ -201,38 +356,66 @@ export function cameraPath(story, city, tl) {
     let R = ext.r;
     // a building that appears with this era is what the era is about: fly in close to it (largest one first)
     const prevYear = i ? story.eras[h.era - 1].year : -Infinity;
+    const heroOk = (l) => l.year != null && l.year > prevYear && l.year <= h.year && ((city.landmarkXZ?.[l.id] && l.lon != null) || trackable(l));
+    const heroSize = (l) => (trackable(l) ? Math.min(400, pathLength(l, city)) : l.extra?.size ?? 60);
     const fresh = !e.shot && !e.focus && !e.focusId && i > 0 && story.landmarks
-      .filter((l) => l.year != null && l.year > prevYear && l.year <= h.year && city.landmarkXZ?.[l.id] && l.lon != null)
-      .sort((a, b) => (b.extra?.size ?? 60) - (a.extra?.size ?? 60))[0];
-    if (fresh) { kind = 'landmark'; f = city.landmarkXZ[fresh.id]; R = fresh.extra?.size ?? 60; h.fresh = fresh.id; }
+      .filter(heroOk).sort((a, b) => heroSize(b) - heroSize(a))[0];
+    // landmarks that arrived together and lost the shot to a bigger one wait for the next stop without its own
+    if (!e.shot && !e.focus && !e.focusId && i > 0 && story.landmarks) {
+      for (const l of story.landmarks) if (l !== fresh && heroOk(l) && !shown.has(l.id)) waiting.push(l);
+    }
+    let hero = fresh;
+    if (!hero && !e.shot && !e.focus && !e.focusId && i > 0) {
+      while (waiting.length && !hero) { const l = waiting.shift(); if (l.until == null || l.until > h.year) hero = l; }
+    }
+    let trackAB = null;
+    if (hero && trackable(hero)) { kind = 'track'; trackAB = trackStates(hero, city); h.fresh = hero.id; h.track = true; shown.add(hero.id); }
+    else if (hero) { kind = 'landmark'; f = city.landmarkXZ[hero.id]; R = hero.extra?.size ?? 60; h.fresh = hero.id; shown.add(hero.id); }
     if (!kind) { do { kind = SHOT_CYCLE[cyc++ % SHOT_CYCLE.length]; } while (kind === prevKind); }
-    let [a, b] = shotStates(kind, f, R, heading);
+    let [a, b] = trackAB || shotStates(kind, f, R, heading);
     if (i === 0) {   // the opening drifts in over the title
       const pre = { ...a, dist: clamp(a.dist * 1.35, MIN_DIST, MAX_DIST), tilt: a.tilt - 6, heading: a.heading - 10 };
       segs.push({ type: 'move', t0: 0, t1: h.h0, from: pre, to: a, ease: 'linear' });
     } else {
       // an event on the way: fly to it, watch it, then go on
       for (const st of (tl.stops || []).filter((x) => x.era === i)) {
-        const ev = story.events[st.ev], at = city.toXZ(ev.lon, ev.lat), ef = eventFocus({ ...at, kind: ev.kind, r: ev.radius || 600 });
+        const ev = story.events[st.ev], at = city.toXZ(ev.lon, ev.lat);
+        let ef = eventFocus({ ...at, kind: ev.kind, r: ev.radius || 600 }), er = (ev.radius || 600) * (ev.kind === 'siege' ? 0.75 : 1);
         // a siege is seen from behind the camp, looking over the tents and guns at the walls
-        const sh = ev.kind === 'siege' ? (Math.atan2(-at.x, at.z) * 180) / Math.PI - 13 : heading;
-        const [ea, eb] = shotStates('event', ef, (ev.radius || 600) * (ev.kind === 'siege' ? 0.75 : 1), sh);
-        const peak = clamp(Math.max(prevEnd.dist, ea.dist, Math.hypot(ea.x - prevEnd.x, ea.z - prevEnd.z) * 1.1), MIN_DIST, MAX_DIST);
-        segs.push({ type: 'fly', t0: st.s0, t1: st.t0, from: prevEnd, to: ea, peak });
-        segs.push({ type: 'move', t0: st.t0, t1: st.t1, from: ea, to: eb, ease: 'linear' });
-        prevEnd = eb; heading = eb.heading; prevKind = 'event';
-        [a, b] = shotStates(kind, f, R, heading);
+        let sh = ev.kind === 'siege' ? (Math.atan2(-at.x, at.z) * 180) / Math.PI - 13 : heading;
+        const wp = ev.kind === 'siege' ? nearestWall(story, city, at, ev.year) : null;
+        if (wp) {   // the walls under attack in the same frame as the camp: aim between them, wide enough for both
+          const dx = wp.x - at.x, dz = wp.z - at.z, d = Math.hypot(dx, dz);
+          ef = { x: at.x + dx * 0.45, z: at.z + dz * 0.45 }; er = Math.max(er, d * 0.55);
+          sh = (Math.atan2(dx, -dz) * 180) / Math.PI - 10;
+        }
+        const [ea, eb] = shotStates('event', ef, er, sh);
+        const beats = st.climax ? climaxBeats(story, city, tl, st, ev, at, wp, [ea, eb]) : [[ea, eb]];
+        const peak = clamp(Math.max(prevEnd.dist, beats[0][0].dist, Math.hypot(beats[0][0].x - prevEnd.x, beats[0][0].z - prevEnd.z) * 1.1), MIN_DIST, MAX_DIST);
+        segs.push({ type: 'fly', t0: st.s0, t1: st.t0, from: prevEnd, to: beats[0][0], peak });
+        // each beat: a move of three quarters of its time, then a short flight on to the next beat
+        const bd = (st.t1 - st.t0) / beats.length;
+        beats.forEach(([ba, bb], k) => {
+          const t0 = st.t0 + k * bd, last = k === beats.length - 1, t1 = last ? st.t1 : t0 + bd * 0.74;
+          segs.push({ type: 'move', t0, t1, from: ba, to: bb, ease: 'linear' });
+          if (!last) segs.push({ type: 'fly', t0: t1, t1: t0 + bd, from: bb, to: beats[k + 1][0], peak: Math.max(bb.dist, beats[k + 1][0].dist) * 1.15 });
+        });
+        if (st.climax) st.beats = beats.length;
+        prevEnd = beats[beats.length - 1][1]; heading = prevEnd.heading; prevKind = 'event';
+        if (!trackAB) [a, b] = shotStates(kind, f, R, heading);
       }
       // the skip: rise to see the whole city change, then settle into the new view
       const travel = Math.hypot(a.x - prevEnd.x, a.z - prevEnd.z);
       const peak = clamp(Math.max(prevEnd.dist, a.dist, travel * 1.1, ext.r * 1.6), MIN_DIST, MAX_DIST);
-      segs.push({ type: 'fly', t0: h.tr0, t1: h.tr1, from: prevEnd, to: a, peak });
+      // on the way the view leans towards the town itself, so a long flight never shows only the empty land between
+      segs.push({ type: 'fly', t0: h.tr0, t1: h.tr1, from: prevEnd, to: a, peak, via: { x: ext.x, z: ext.z } });
     }
     segs.push({ type: 'move', t0: h.h0, t1: h.h1, from: a, to: b, ease: 'linear' });
     prevEnd = b; prevKind = kind; heading = b.heading;
   });
   const end = prevEnd, last = tl.holds[tl.holds.length - 1];
   segs.push({ type: 'move', t0: last.h1, t1: tl.duration, from: end, to: { ...end, dist: clamp(end.dist * 1.6, MIN_DIST, MAX_DIST), tilt: end.tilt - 8, heading: end.heading + 8 }, ease: 'linear' });
+  segs.keys = splineKeys(segs);
   return segs;
 }
 
@@ -249,6 +432,11 @@ function mix(a, b, e, distE = e) {
 }
 
 export function cameraAt(path, t) {
+  if (path.keys && path.keys.length > 1) {
+    const K = path.keys, c = { x: hermite(K, t, 'x'), z: hermite(K, t, 'z'), dist: Math.exp(hermite(K, t, 'ld')), tilt: hermite(K, t, 'tilt'), heading: hermite(K, t, 'hd') };
+    const s = Math.sin(t * 0.19) * 0.6 + Math.sin(t * 0.077 + 1.1) * 0.4;
+    return { ...c, heading: c.heading + s * 1.6, x: c.x + Math.sin(t * 0.13) * c.dist * 0.008, z: c.z + Math.cos(t * 0.11) * c.dist * 0.007 };
+  }
   let seg = path[0];
   for (const s of path) { if (s.t0 <= t) seg = s; else break; }
   const k = seg.t1 > seg.t0 ? clamp((t - seg.t0) / (seg.t1 - seg.t0), 0, 1) : 1;
@@ -259,6 +447,7 @@ export function cameraAt(path, t) {
     const bump = Math.max(0, Math.log(seg.peak) - Math.max(Math.log(seg.from.dist), Math.log(seg.to.dist)));
     c.dist = Math.exp(lerp(Math.log(seg.from.dist), Math.log(seg.to.dist), e) + bump * Math.sin(Math.PI * e));
     c.tilt -= 8 * Math.sin(Math.PI * e);
+    if (seg.via) { const w = 0.65 * Math.sin(Math.PI * e); c.x += (seg.via.x - c.x) * w; c.z += (seg.via.z - c.z) * w; }
   } else c = mix(seg.from, seg.to, seg.ease === 'linear' ? softLinear(k) : ease(k));
   // never a frozen frame: a slow sway, scaled to distance
   const s = Math.sin(t * 0.19) * 0.6 + Math.sin(t * 0.077 + 1.1) * 0.4;
