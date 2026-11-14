@@ -257,6 +257,23 @@ class CsvSourcesWin(unittest.TestCase):
         self.assertIn("kept the CSV's own source", r.scenes[0].change)
         self.assertLessEqual(flow_counts(p)["ai_scenes"], before["ai_scenes"])
 
+    def test_a_flow_image_the_mix_turned_into_video_goes_back_to_an_image(self):
+        rows = [{"scene_number": "1", "script_segment": "He stood before a throne of fire.",
+                 "asset_type": "flow_image", "prompt": "a lone figure before a throne of fire"},
+                {"scene_number": "2", "script_segment": "Snow lay on the summit of Mount Hermon.",
+                 "asset_type": "stock_image", "prompt": "Mount Hermon"}]
+        p = plan_from([(rows[0]["script_segment"], "video"), (rows[1]["script_segment"], "stock_image")])
+        p.scenes[0].fallbacks = ["flow_video", "stock_video"]
+        before = flow_counts(p)
+        r = refine_plan(p, style=STYLE, pack=PACK, csv_rows=rows, ai_ceiling=1.0)
+        self.assertEqual(p.scenes[0].asset_type, "image")
+        self.assertEqual(p.scenes[0].provider_preference, "flow_image")
+        self.assertEqual(p.scenes[0].visual_description, rows[0]["prompt"])
+        self.assertNotIn("flow_video", p.scenes[0].fallbacks)
+        self.assertIn("kept the CSV's own source", r.scenes[0].change)
+        self.assertEqual(p.scenes[1].asset_type, "stock_image")
+        self.assertLessEqual(flow_counts(p)["ai_scenes"], before["ai_scenes"])
+
 
 class Motifs(unittest.TestCase):
     def test_deliberate_motif_reuse_is_allowed_and_close_repeats_reported(self):

@@ -252,8 +252,9 @@ def refine_plan(plan, *, style, pack: Optional[SubjectPack] = None, ledger: Opti
     cards are planned (spec recorded) but not installed, and the scene keeps its previous source.
     csv_rows: the imported CSV as written (CSV path only). Where the CSV chose a real (non-AI) source and an earlier step
     replaced it (the asset mix's provider quotas, or the CSV-to-plan conversion that turns map/archive/commons rows into
-    stock video), the CSV's own choice is restored: in this style the plan's evidence choice wins. Only non-AI sources are
-    restored, so this can never add Flow work.
+    stock video), the CSV's own choice is restored: in this style the plan's evidence choice wins. A CSV still
+    (flow_image) that the mix turned into Flow video is put back to an image. A row the mix already made real is never
+    turned back into AI, and this pass never adds Flow video.
     """
     before = flow_counts(plan)
     restored = _restore_csv_sources(plan, csv_rows) if csv_rows else {}
@@ -487,6 +488,19 @@ def _restore_csv_sources(plan, rows: Sequence[dict]) -> Dict[int, str]:
             continue
         at = str(r.get("asset_type") or "").strip().lower()
         prompt = str(r.get("prompt") or "").strip()
+        current = (sc.asset_type or "").lower()
+        # The mix spends Flow video credits to hit its video %. A still the CSV
+        # already asked for stays a still: this removes video, it does not add AI.
+        if at in ("flow_image", "image") and current in ("video", "flow_video") and prompt:
+            prev = sc.asset_type
+            sc.asset_type = "image"
+            sc.provider_preference = "flow_image"
+            sc.visual_description = prompt
+            sc.fallbacks = [f for f in (sc.fallbacks or []) if f not in ("flow_video", "video")]
+            out[int(sc.scene_id)] = (
+                f"kept the CSV's own source (flow_image: {prompt[:50]!r}); an earlier step had changed it to {prev}"
+            )
+            continue
         if not at or not prompt or at in AI_TYPES or at.startswith("flow") or at.startswith("local"):
             continue
         queries = [] if at == "map" else [q.strip() for q in prompt.split("||") if q.strip()]
