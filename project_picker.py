@@ -11,7 +11,9 @@ from __future__ import annotations
 from typing import Any, Callable, Optional
 
 import customtkinter as ctk
+from tkinter import messagebox
 
+from ui.icons import icon as _icon
 from ui import theme as _ui_theme
 
 __all__ = ["ProjectPickerDialog", "project_dicts_from_workspaces"]
@@ -27,6 +29,7 @@ _MUTED = _ui_theme.MUTED
 _ACCENT = _ui_theme.ACCENT
 _ACCENT_HOV = _ui_theme.ACCENT_HOV
 _ACCENT_DARK = _ui_theme.ACCENT_DARK
+_DANGER = _ui_theme.DANGER
 
 _EMPTY_HINT = "No projects yet — create one to start."
 _TITLE_PLACEHOLDER = "Video title (optional)"
@@ -106,6 +109,7 @@ class ProjectPickerDialog(ctk.CTkToplevel):
         on_create,          # (title: str) -> None
         on_select,          # (project_id: str) -> None
         on_open_folder,     # () -> None
+        on_delete=None,     # (project_id: str) -> Optional[str]  None = deleted, str = error
         on_settings=None,   # () -> None
         on_dismiss=None,    # () -> None
     ) -> None:
@@ -113,11 +117,13 @@ class ProjectPickerDialog(ctk.CTkToplevel):
         self._on_create: Callable[[str], None] = on_create
         self._on_select: Callable[[str], None] = on_select
         self._on_open_folder: Callable[[], None] = on_open_folder
+        self._on_delete = on_delete
         self._on_settings = on_settings
         self._on_dismiss = on_dismiss
         self._acted = False
         self._closed = False
         self._wrap_labels: list[ctk.CTkLabel] = []
+        self._rows_by_id: dict[str, ctk.CTkFrame] = {}
 
         self.title("Choose a project")
         self.configure(fg_color=_BG)
@@ -336,6 +342,7 @@ class ProjectPickerDialog(ctk.CTkToplevel):
         row.grid(row=index, column=0, sticky="ew", padx=8, pady=4)
         row.grid_columnconfigure(0, weight=1)
         row.configure(cursor="hand2")
+        self._rows_by_id[pid] = row
 
         text_col = ctk.CTkFrame(row, fg_color="transparent")
         text_col.grid(row=0, column=0, sticky="ew", padx=12, pady=10)
@@ -363,6 +370,20 @@ class ProjectPickerDialog(ctk.CTkToplevel):
                 anchor="w",
             )
             hint.grid(row=1, column=0, sticky="w", pady=(2, 0))
+
+        if self._on_delete is not None and pid:
+            delete_btn = ctk.CTkButton(
+                row,
+                text=_icon("delete"),
+                width=36,
+                height=32,
+                fg_color="transparent",
+                hover_color=_CARD_HOVER,
+                text_color=_DANGER,
+                font=ctk.CTkFont(size=16),
+                command=lambda i=pid, label=f"#{seq}  {title}": self._handle_delete(i, label),
+            )
+            delete_btn.grid(row=0, column=1, padx=(0, 8), pady=8, sticky="e")
 
         widgets = [row, text_col, title_label]
         if hint is not None:
@@ -436,6 +457,50 @@ class ProjectPickerDialog(ctk.CTkToplevel):
             self._acted = False
             raise
         self._safe_destroy()
+
+    def _handle_delete(self, project_id: str, label: str) -> None:
+        if self._on_delete is None or self._acted or self._closed:
+            return
+        if not messagebox.askyesno(
+            "Delete project",
+            f"Delete {label}?\n\nThis removes the project folder and everything in it.",
+            parent=self,
+        ):
+            return
+        try:
+            error = self._on_delete(str(project_id))
+        except Exception:
+            messagebox.showerror(
+                "Delete project",
+                "That project could not be deleted.",
+                parent=self,
+            )
+            return
+        if error:
+            messagebox.showerror("Delete project", str(error), parent=self)
+            return
+        self._remove_project_row(str(project_id))
+
+    def _remove_project_row(self, project_id: str) -> None:
+        row = self._rows_by_id.pop(project_id, None)
+        if row is not None:
+            try:
+                row.destroy()
+            except Exception:
+                pass
+        if self._rows_by_id:
+            return
+        empty = ctk.CTkLabel(
+            self._list,
+            text=_EMPTY_HINT,
+            font=ctk.CTkFont(size=13),
+            text_color=_MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=360,
+        )
+        empty.grid(row=0, column=0, sticky="ew", padx=12, pady=16)
+        self._wrap_labels.append(empty)
 
     def _handle_select(self, project_id: str) -> None:
         if self._acted:

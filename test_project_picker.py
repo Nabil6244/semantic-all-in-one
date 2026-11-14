@@ -186,6 +186,52 @@ class TestProjectPickerDialogSmoke(unittest.TestCase):
         empty._safe_destroy()
         self.assertEqual(events, [])
 
+    def test_delete_icon_removes_the_row_and_leaves_the_dialog_open(self):
+        from unittest.mock import patch
+
+        from ui.icons import icon
+
+        removed: list[str] = []
+        projects = [
+            {"id": "p1", "title": "Alpha", "display_seq": "001", "last_used": False},
+            {"id": "p2", "title": "Beta", "display_seq": "002", "last_used": True},
+        ]
+        dlg = self.ProjectPickerDialog(
+            self.root,
+            projects=projects,
+            on_create=lambda _t: None,
+            on_select=lambda pid: removed.append(f"select:{pid}"),
+            on_open_folder=lambda: None,
+            on_delete=lambda pid: removed.append(pid) or None,
+        )
+        self.addCleanup(lambda: dlg._safe_destroy())
+        self.root.update_idletasks()
+
+        def has_trash(widget) -> bool:
+            for child in widget.winfo_children():
+                try:
+                    text = str(child.cget("text") or "")
+                except Exception:
+                    text = ""
+                if text == icon("delete") or has_trash(child):
+                    return True
+            return False
+
+        self.assertEqual(set(dlg._rows_by_id), {"p1", "p2"})
+        for row in dlg._rows_by_id.values():
+            self.assertTrue(has_trash(row))
+        with patch("project_picker.messagebox.askyesno", return_value=False):
+            dlg._handle_delete("p2", "#002  Beta")
+        self.assertEqual(removed, [])
+        self.assertIn("p2", dlg._rows_by_id)
+        with patch("project_picker.messagebox.askyesno", return_value=True):
+            dlg._handle_delete("p1", "#001  Alpha")
+        self.root.update_idletasks()
+        self.assertEqual(removed, ["p1"])
+        self.assertNotIn("p1", dlg._rows_by_id)
+        self.assertIn("p2", dlg._rows_by_id)
+        self.assertTrue(dlg.winfo_exists())
+
 
 if __name__ == "__main__":
     unittest.main()

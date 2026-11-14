@@ -7,13 +7,16 @@ import json
 import shutil
 import tempfile
 import unittest
+import unittest.mock
 from datetime import date
 from pathlib import Path
 
 from asset_manager import AssetManager, AssetManifest
 from project_workspace import (
+    ProjectWorkspace,
     asset_belongs_to_project,
     create_project,
+    delete_project,
     find_project,
     list_projects,
     load_project,
@@ -198,6 +201,44 @@ class TestProjectLifecycle(unittest.TestCase):
         create_project("Two", projects_root=self.tmp)
         names = [p.title for p in list_projects(self.tmp)]
         self.assertEqual(names, ["One", "Two"])
+
+    def test_delete_project_removes_only_that_folder(self):
+        one = create_project("One", projects_root=self.tmp)
+        two = create_project("Two", projects_root=self.tmp)
+        marker = one.root / "script" / "narration.txt"
+        marker.write_text("keep me out", encoding="utf-8")
+        self.assertTrue(delete_project(self.tmp, one.project_id))
+        self.assertFalse(one.root.exists())
+        self.assertTrue(two.root.is_dir())
+        self.assertEqual([p.project_id for p in list_projects(self.tmp)], [two.project_id])
+        self.assertFalse(delete_project(self.tmp, one.project_id))
+        self.assertTrue(self.tmp.is_dir())
+
+    def test_delete_project_refuses_projects_root_and_outside_folders(self):
+        keep = create_project("Keep", projects_root=self.tmp)
+        rooted = ProjectWorkspace(
+            project_id="root",
+            title="Root",
+            seq=1,
+            root=self.tmp,
+        )
+        outside = Path(tempfile.mkdtemp(prefix="vg_outside_"))
+        self.addCleanup(lambda: shutil.rmtree(outside, ignore_errors=True))
+        outsider = ProjectWorkspace(
+            project_id="out",
+            title="Out",
+            seq=2,
+            root=outside,
+        )
+        with unittest.mock.patch("project_workspace.find_project", return_value=rooted):
+            with self.assertRaises(ValueError):
+                delete_project(self.tmp, "root")
+        self.assertTrue(self.tmp.is_dir())
+        self.assertTrue(keep.root.is_dir())
+        with unittest.mock.patch("project_workspace.find_project", return_value=outsider):
+            with self.assertRaises(ValueError):
+                delete_project(self.tmp, "out")
+        self.assertTrue(outside.is_dir())
 
 
 class TestAssetIsolation(unittest.TestCase):

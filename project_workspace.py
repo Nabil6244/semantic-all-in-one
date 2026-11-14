@@ -754,6 +754,24 @@ def find_project(projects_root: Path, project_id: str) -> Optional[ProjectWorksp
     return None
 
 
+def delete_project(projects_root: Path, project_id: str) -> bool:
+    """Remove one project folder under ``projects_root``. Returns False if it is already gone.
+
+    Refuses to delete the projects folder itself or anything outside it.
+    """
+    ws = find_project(projects_root, project_id)
+    if ws is None:
+        return False
+    root = Path(projects_root).resolve()
+    target = Path(ws.root).resolve()
+    if target == root or not path_is_inside(target, root):
+        raise ValueError("refusing to delete a folder outside the projects folder")
+    if not (target / META_NAME).is_file():
+        raise ValueError("not a project folder")
+    shutil.rmtree(target)
+    return True
+
+
 def list_projects(projects_root: Path) -> List[ProjectWorkspace]:
     root = Path(projects_root)
     if not root.is_dir():

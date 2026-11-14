@@ -67,6 +67,7 @@ from project_workspace import (
     asset_belongs_to_project,
     create_project,
     default_projects_root,
+    delete_project,
     find_project,
     list_projects,
     load_project,
@@ -7882,6 +7883,7 @@ class VideoGeneratorApp(ctk.CTk):
             on_create=self._picker_on_create,
             on_select=self._picker_on_select,
             on_open_folder=self._picker_on_open_folder,
+            on_delete=self._picker_on_delete,
             on_settings=self._open_settings,
             on_dismiss=self._picker_on_dismiss,
         )
@@ -7957,6 +7959,52 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception as exc:
             self._append_log(f"[STYLE] Resolve skipped ({exc})\n")
             return None
+
+    def _picker_on_delete(self, project_id: str):
+        """Delete one project folder. None means it is gone; a string is an error to show."""
+        pid = str(project_id or "")
+        if self._project_delete_blocked(pid):
+            return "Wait until generation finishes before deleting this project."
+        ws = find_project(self._projects_root_path(), pid)
+        if ws is None:
+            self._refresh_project_menu()
+            return None
+        if getattr(self, "_script_save_job", None) and self._workspace is not None and self._workspace.project_id == pid:
+            try:
+                self.after_cancel(self._script_save_job)
+            except Exception:
+                pass
+            self._script_save_job = None
+        try:
+            delete_project(self._projects_root_path(), pid)
+        except Exception as exc:
+            return f"That project could not be deleted.\n\n{exc}"
+        if self._workspace is not None and self._workspace.project_id == pid:
+            self._workspace = None
+            self._settings["active_project_id"] = ""
+            try:
+                save_settings(self._settings)
+            except Exception:
+                pass
+            self._reset_project_session_ui()
+            try:
+                self.script_box.delete("1.0", "end")
+                self._sync_script_watermark()
+            except Exception:
+                pass
+            self._update_project_indicator()
+            self._sync_primary_cta()
+        self._refresh_project_menu()
+        return None
+
+    def _project_delete_blocked(self, project_id: str) -> bool:
+        ws = self._workspace
+        if ws is None or ws.project_id != project_id:
+            return False
+        if getattr(self, "_running", False):
+            return True
+        job = getattr(self, "_export_job", None)
+        return bool(getattr(job, "running", False))
 
     def _picker_on_select(self, project_id: str) -> None:
         ws = find_project(self._projects_root_path(), project_id)

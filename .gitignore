@@ -36,6 +36,7 @@ script.csv
 voiceover.mp3
 _pluto_script_from_plan.txt
 Images/
+videos_data/
 # (Images/.asset_manifest.json and .stock_used_assets.json are covered by Images/ above)
 
 # Runtime leftovers
