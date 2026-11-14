@@ -13,15 +13,15 @@ from aviation import style as _AV
 
 W, H = _AV.W, _AV.H
 
-WATER_TOP = (34, 92, 122, 255)
-WATER_MID = (16, 56, 82, 255)
-WATER_DEEP = (6, 18, 30, 255)
+WATER_TOP = (24, 72, 98, 255)
+WATER_MID = (12, 42, 62, 255)
+WATER_DEEP = (4, 12, 20, 255)
 ABYSS_TOP = (14, 22, 40, 255)
 ABYSS_DEEP = (4, 5, 12, 255)
 ABYSS_TINT = (54, 26, 78, 255)       # the purple glow of the deep sets
-SKY_TOP = (150, 170, 182, 255)
-SKY_LOW = (196, 206, 210, 255)
-ISLAND = (30, 40, 48, 255)
+SKY_TOP = (52, 68, 82, 255)        # overcast dusk: the surface set stays moody
+SKY_LOW = (104, 120, 130, 255)
+ISLAND = (18, 24, 30, 255)
 SAND_TOP = (214, 182, 128, 255)
 SAND_LOW = (176, 140, 92, 255)
 KELP = (58, 92, 54, 255)

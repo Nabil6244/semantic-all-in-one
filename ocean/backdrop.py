@@ -188,7 +188,7 @@ def _base(name: str, akey: str, w: int, h: int) -> Image.Image:
     a = json.loads(akey)
     fn = _BASES.get(name)
     img = fn(w, h, a) if fn else _water(w, h)
-    return _vignette(img, 110 if name != "abyss" else 160)
+    return _vignette(img, 165 if name != "abyss" else 190)      # heavy edge darkening: the documentary look
 
 
 # ------------------------------------------------------------------------------------------------------------------ moving parts

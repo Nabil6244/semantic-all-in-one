@@ -26,8 +26,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 from . import reader as R
 
 CLIP_MIN_S, CLIP_MAX_S = 3.0, 5.5
-CLIP_GAP_S = 30.0
-CLIP_EVERY_S = 40.0
+CLIP_GAP_S = 12.0
+CLIP_EVERY_S = 22.0
+OPENING_S, OPENING_GAP_S = 60.0, 6.0        # the reference cold open is ~1/3 real footage: clips come much closer there
 REAL = re.compile(r"\b(film(ed|ing|s)?|footage|camera|cameras|drones?|spotted|photograph(ed|s)?|caught|real|really|actually|"
                   r"first time|first ever|for the first|seen|recorded|observed|witness(ed)?|video)\b", re.I)
 QUERY = {
@@ -49,8 +50,8 @@ def query_for(f: R.Features, set_name: str = "") -> str:
     if not names:
         return ""
     a = names[0]
-    q = QUERY.get(a[0], a[4] + " underwater")
-    if a[2].get("color") and not a[2].get("generic"):        # a named variant: "blue whale", "tiger shark", "vampire squid"
+    q = QUERY.get(a[0], "")
+    if not q:                                                 # any catalogue animal: "tiger shark", "manta ray", "vampire squid"
         word = re.sub(r"(?<!s)s$", "", a[4].lower().strip())
         q = f"{word} {'deep sea' if 'squid' in word else 'underwater'}"
     if a[1] and a[0] in ("orca", "dolphin", "seal"):
@@ -59,7 +60,7 @@ def query_for(f: R.Features, set_name: str = "") -> str:
     if a[0] == "boat":
         return q
     if place == "surface":
-        q = q.replace(" underwater", "").replace(" swimming", "") + " ocean surface"
+        pass                                     # the drawn surface set is the frame, not the subject: keep the animal underwater
     elif place and not any(w in q for w in place.split()):
         q += " " + place
     return re.sub(r"\s+", " ", q).strip()
@@ -67,7 +68,7 @@ def query_for(f: R.Features, set_name: str = "") -> str:
 
 def _busy(layers: Sequence[Dict[str, Any]]) -> List[Tuple[float, float]]:
     """Absolute windows where a full-screen or text card is up (no clip there)."""
-    from .planner import FULL, TEXT_CARDS
+    from .planner import FULL
 
     out = []
     for ly in layers:
@@ -76,7 +77,7 @@ def _busy(layers: Sequence[Dict[str, Any]]) -> List[Tuple[float, float]]:
         s0 = float(ly["start"])
         for e in (ly.get("params") or {}).get("elements") or []:
             k = e.get("kind", "")
-            if k.startswith("ocean_") and (k[6:] in FULL or k[6:] in TEXT_CARDS):
+            if k.startswith("ocean_") and k[6:] in FULL:          # small number cards are drawn over the clip instead
                 t1 = e.get("t1")
                 out.append((s0 + float(e["t0"]), s0 + float(t1 if t1 is not None else float(ly["end"]) - s0)))
     return out
@@ -92,17 +93,26 @@ def _shot_at(layers: Sequence[Dict[str, Any]], t: float) -> Optional[Dict[str, A
 def choose(scenes: Sequence[Dict[str, Any]], layers: Sequence[Dict[str, Any]], total: float,
            shots: Sequence[Dict[str, Any]] = ()) -> List[Dict[str, Any]]:
     busy = _busy(layers)
-    want = max(1, int(round(total / CLIP_EVERY_S))) if total >= 20 else 0
+    want = (max(1, int(round(total / CLIP_EVERY_S))) + (2 if total >= 60 else 1)) if total >= 20 else 0
     cands: List[Tuple[float, Dict[str, Any]]] = []
     set_at = {round(float(s["start"]), 3): s.get("set", "") for s in shots}
+    last_f = None
     for i, sc in enumerate(scenes):
         a, b = float(sc["start"]), float(sc["end"])
-        if b - a < CLIP_MIN_S - 0.6 or a < 4.0 or b > total - 6.0:
+        f0 = R.read(str(sc.get("text", "")))
+        if query_for(f0, ""):
+            last_f = f0
+        if b - a < CLIP_MIN_S - 0.6 or a < 1.5 or b > total - 6.0:
             continue
         f = R.read(str(sc.get("text", "")))
         ly = _shot_at(layers, a + 0.05)
         set_name = next((v for k, v in sorted(set_at.items()) if k <= a + 0.05), "") if set_at else ""
         q = query_for(f, set_name)
+        carried = False
+        if q:
+            last_f = f
+        elif last_f is not None:                       # "It has about 300 teeth": the story's animal is still the subject
+            q, carried = query_for(last_f, set_name), True
         if not q or ly is None:
             continue
         start = a + 0.15
@@ -114,7 +124,8 @@ def choose(scenes: Sequence[Dict[str, Any]], layers: Sequence[Dict[str, Any]], t
                 continue
         if any(min(end, y) - max(start, x) > 0 for x, y in busy):
             continue
-        score = (2.0 if REAL.search(f.text) else 0.0) + 1.0 + (0.5 if f.group else 0.0) + (0.3 if set_name == "surface" else 0.0)
+        score = (2.0 if REAL.search(f.text) else 0.0) + 1.0 + (0.5 if f.group else 0.0) + (0.3 if set_name == "surface" else 0.0) \
+            + (1.0 if a < OPENING_S else 0.0) - (0.6 if carried else 0.0)   # the cold open leans on real footage
         cands.append((score, {"scene_no": str(sc.get("scene_no", i + 1)), "start": round(start, 3), "end": round(end, 3),
                               "query": q, "text": str(sc.get("text", "")), "why": "real" if score >= 3 else "animal"}))
     cands.sort(key=lambda c: (-c[0], c[1]["start"]))
@@ -123,10 +134,12 @@ def choose(scenes: Sequence[Dict[str, Any]], layers: Sequence[Dict[str, Any]], t
     for score, s in cands:
         if len(picked) >= want:
             break
-        if any(abs(s["start"] - p["start"]) < CLIP_GAP_S for p in picked):
+        gap = OPENING_GAP_S if s["start"] < OPENING_S and all(p["start"] < OPENING_S for p in picked
+                                                               if abs(s["start"] - p["start"]) < CLIP_GAP_S) else CLIP_GAP_S
+        if any(abs(s["start"] - p["start"]) < gap for p in picked):
             continue
-        if used_q.get(s["query"], 0) >= 2 and score < 3:
-            continue                                  # the same search at most twice unless the line says it is real footage
+        if used_q.get(s["query"], 0) >= 4 and score < 3:
+            continue                                  # the same search at most four times unless the line says it is real footage
         picked.append(s)
         used_q[s["query"]] = used_q.get(s["query"], 0) + 1
     return sorted(picked, key=lambda s: s["start"])
@@ -173,6 +186,28 @@ def grade(src: str, dst: str, seek: float, seconds: float) -> str:
     return dst
 
 
+def keyed_backdrop(path: str, length: float = 0.0, share: float = 0.22) -> bool:
+    """True for a green- or blue-screen clip (a cut-out render, not real footage): in 3 sampled frames more than `share`
+    of the pixels are one flat, saturated key colour."""
+    from PIL import Image
+    import io
+    hits = 0
+    for k in (0.2, 0.5, 0.8):
+        try:
+            out = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{max(0.0, length * k):.2f}", "-i", path, "-frames:v", "1",
+                                  "-vf", "scale=96:54", "-f", "image2pipe", "-vcodec", "png", "-"],
+                                 capture_output=True, timeout=60).stdout
+            im = Image.open(io.BytesIO(out)).convert("RGB")
+        except Exception:  # noqa: BLE001
+            continue
+        px = list(im.getdata())
+        green = sum(1 for r, g, b in px if g > 120 and g > r + 50 and g > b + 50)
+        blue = sum(1 for r, g, b in px if b > 170 and b > r + 90 and b > g + 40 and g < 120)
+        if max(green, blue) > share * len(px):
+            hits += 1
+    return hits >= 2
+
+
 def apply(plan: Dict[str, Any], found: Dict[str, Dict[str, Any]], black: str, work: str,
           log=lambda m: None) -> Tuple[List[Any], List[Any], List[Dict[str, Any]]]:
     """(shots, layers, used) with every slot whose clip was found cut in; `found` = {scene_no: {"path", "meta"}}."""
@@ -188,6 +223,9 @@ def apply(plan: Dict[str, Any], found: Dict[str, Dict[str, Any]], black: str, wo
         a, b = float(s["start"]), float(s["end"])
         src_len = _duration(f["path"])
         if src_len < 1.0:
+            continue
+        if keyed_backdrop(f["path"], src_len):
+            log(f"clip for scene {s['scene_no']} skipped: green / blue screen (not real footage) - swap it in the Visuals tab")
             continue
         b = min(b, a + max(1.0, src_len - 0.2))
         seek = 0.0 if src_len < (b - a) + 2.0 else min(1.5, src_len - (b - a) - 0.5)

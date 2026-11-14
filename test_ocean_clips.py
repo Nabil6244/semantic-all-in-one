@@ -40,7 +40,7 @@ def _testclip(path, seconds=8):
 
 class QueryAndCredit(unittest.TestCase):
     def test_queries_follow_the_animal_and_place(self):
-        self.assertEqual(CL.query_for(R.read("A great white shark swims."), "surface"), "great white shark ocean surface")
+        self.assertEqual(CL.query_for(R.read("A great white shark swims."), "surface"), "great white shark underwater")   # the animal, not waves
         self.assertEqual(CL.query_for(R.read("Orcas hunt in pods."), ""), "orca killer whale swimming group")
         self.assertEqual(CL.query_for(R.read("A blue whale feeds."), ""), "blue whale underwater")
         self.assertEqual(CL.query_for(R.read("The vampire squid drifts."), "abyss"), "vampire squid deep sea")
@@ -69,9 +69,10 @@ class Slots(unittest.TestCase):
     def test_slots_are_spaced_sized_and_numbered(self):
         clips = self.plan["clips"]
         self.assertTrue(clips)
-        self.assertLessEqual(len(clips), max(1, round(self.plan["total"] / CL.CLIP_EVERY_S)))
+        self.assertLessEqual(len(clips), max(1, round(self.plan["total"] / CL.CLIP_EVERY_S)) + 2)
         for a, b in zip(clips, clips[1:]):
-            self.assertGreaterEqual(b["start"] - a["start"], CL.CLIP_GAP_S)
+            gap = CL.OPENING_GAP_S if b["start"] < CL.OPENING_S else CL.CLIP_GAP_S     # the cold open is denser
+            self.assertGreaterEqual(b["start"] - a["start"], gap)
         for c in clips:
             self.assertGreaterEqual(c["end"] - c["start"], CL.CLIP_MIN_S - 1e-6)
             self.assertLessEqual(c["end"] - c["start"], CL.CLIP_MAX_S + 0.6)
@@ -176,3 +177,14 @@ class Wiring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeyedBackdrop(unittest.TestCase):
+    def test_green_screen_is_not_footage(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            g = str(Path(td) / "g.mp4")
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=0x22cc33:size=320x180:rate=30:duration=2",
+                            "-c:v", "libx264", "-pix_fmt", "yuv420p", g], check=True, timeout=60)
+            self.assertTrue(CL.keyed_backdrop(g, 2.0))
+            self.assertFalse(CL.keyed_backdrop(_testclip(Path(td) / "t.mp4", 2), 2.0))

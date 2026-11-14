@@ -4,8 +4,8 @@
 
 Everything is read from the sentence's SHAPE (a number with a unit, "N of M", a percent, "N hours", "in 1997", "N meters
 down", "researchers found", second person, a list ordinal, "X or Y?") plus the animals it names, so any new topic works;
-there are no topic constants. Animals map to the code-drawn kit (ocean/animals.py); an animal the kit has no drawing for
-is left out rather than drawn wrong.
+there are no topic constants. Animals come from the sea-animal catalogue (ocean/species.py); an animal it does not know is
+left out rather than drawn wrong.
 """
 
 from __future__ import annotations
@@ -14,33 +14,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
-# (pattern, kit name, extra args) longest first; plural forms are matched by the trailing s?
-ANIMALS: List[Tuple[str, str, Dict[str, Any]]] = [
-    (r"colossal squids?", "colossal_squid", {}),
-    (r"giant squids?", "colossal_squid", {"color": [190, 70, 60]}),
-    (r"vampire squids?", "squid", {"color": [120, 40, 70]}),
-    (r"glass squids?", "squid", {"color": [190, 210, 220]}),
-    (r"great whites?|white sharks?", "great_white", {}),
-    (r"megalodons?|megatooth sharks?|otodus(?: \w+)?", "megalodon", {}),
-    (r"killer whales?|orcas?", "orca", {}),
-    (r"humpbacks?(?: whales?)?", "humpback", {}),
-    (r"sperm whales?", "sperm_whale", {}),
-    (r"pilot whales?", "dolphin", {"color": [44, 48, 56]}),
-    (r"blue whales?", "humpback", {"color": [92, 112, 136]}),
-    (r"(?:fin|minke|sei|grey|gray|right|bowhead) whales?", "humpback", {"color": [96, 104, 114]}),
-    (r"whales?", "humpback", {"generic": "whale"}),
-    (r"dolphins?|porpoises?", "dolphin", {}),
-    (r"sea lions?|seals?|elephant seals?|fur seals?", "seal", {}),
-    (r"tiger sharks?", "shark", {"color": [128, 118, 96]}),
-    (r"bull sharks?", "shark", {"color": [116, 118, 112]}),
-    (r"hammerheads?(?: sharks?)?", "shark", {"color": [118, 128, 136]}),
-    (r"sharks?", "shark", {"generic": "shark"}),
-    (r"squids?|cuttlefish|octopus(?:es)?", "squid", {"generic": "squid"}),
-    (r"scuba divers?|divers?|snorkell?ers?|swimmers?", "diver", {}),
-    (r"boats?|ships?|vessels?|tour operators?", "boat", {}),
-    (r"cages?", "cage", {}),
-    (r"fossil(?:ised|ized)? teeth|fossil tooth|tooth", "tooth", {}),
-]
+# (pattern, animal key, extra args): the sea-animal catalogue (ocean/species.py) + generic family words + props
+from . import species as SP  # noqa: E402
+
+ANIMALS: List[Tuple[str, str, Dict[str, Any]]] = SP.patterns()
 _ANIMAL_RE = [(re.compile(r"\b(" + p + r")\b", re.I), n, a) for p, n, a in ANIMALS]
 
 MONTHS = ("january february march april may june july august september october november december "
@@ -156,6 +133,7 @@ def spelled_to_digits(text: str) -> str:
 
 def _numbers(text: str) -> List[Number]:
     out: List[Number] = []
+    text = re.sub(r"(\d)-(?=(meters?|metres?|foot|feet|ft|m|tons?|tonnes?|kg)\b)", r"\1 ", text, flags=re.I)   # "5-meter": same length
     for m in _NUM_RE.finditer(text):
         num, unit = m.group("num"), (m.group("unit") or "").lower()
         scale = (m.group("scale") or "").lower()
@@ -204,16 +182,16 @@ def read(text: str) -> Features:
     t = str(text or "")
     f = Features(text=t)
     taken: List[Tuple[int, int]] = []
-    for rx, name, args in _ANIMAL_RE:
-        for m in rx.finditer(t):
-            if any(a <= m.start() < b for a, b in taken):
-                continue
-            taken.append((m.start(), m.end()))
-            word = m.group(1).lower()
-            plural = word.endswith("s") and not word.endswith(("ss", "us")) or word.endswith("teeth")
-            if name == "tooth" and not re.search(r"fossil|tooth\b", word):
-                continue
-            f.animals.append((name, plural, dict(args), m.start(), m.group(1)))
+    hits = [(m.start(), m.end(), i, name, args, m) for i, (rx, name, args) in enumerate(_ANIMAL_RE) for m in rx.finditer(t)]
+    for a0, b0, _i, name, args, m in sorted(hits, key=lambda h: (-(h[1] - h[0]), h[2])):   # the longest name wins
+        if any(a0 < b and a < b0 for a, b in taken):
+            continue
+        taken.append((a0, b0))
+        word = m.group(1).lower()
+        plural = word.endswith("s") and not word.endswith(("ss", "us")) or word.endswith("teeth")
+        if name == "tooth" and not re.search(r"fossil|tooth\b", word):
+            continue
+        f.animals.append((name, plural, dict(args), a0, m.group(1)))
     f.animals.sort(key=lambda a: a[3])
     seen: List[str] = []
     uniq = []

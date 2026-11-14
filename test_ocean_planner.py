@@ -60,7 +60,8 @@ class ReaderTest(unittest.TestCase):
         f = R.read("Great whites hunt seals, but sharks avoid killer whales.")
         self.assertEqual(f.names, ["great_white", "seal", "shark", "orca"])
         self.assertEqual(f.animals[2][2].get("generic"), "shark")
-        self.assertEqual(R.read("A vampire squid drifts.").animals[0][2]["color"], [120, 40, 70])
+        self.assertEqual(R.read("A vampire squid drifts.").animals[0][0], "vampire_squid")     # its own catalogue animal
+        self.assertEqual([a[0] for a in R.read("A manta ray passed two tiger sharks.").animals], ["manta_ray", "tiger_shark"])
 
     def test_shapes(self):
         self.assertTrue(R.read("Researchers tagged 17 sharks.").study)
@@ -108,7 +109,8 @@ class PlanTest(unittest.TestCase):
         self.assertIn("mystery", cards)
         self.assertIn("choose_move", cards)
         self.assertIn("comments", cards)
-        self.assertEqual(cards[-1], "watch_next")
+        if self.plans["sharks"][0][-1]["end"] >= P.END_CARD_MIN_S:     # the end screen only closes a full-length film
+            self.assertEqual(cards[-1], "watch_next")
 
     def test_generic_sharks_become_the_great_white(self):
         sc, pl = self.plans["sharks"]
@@ -142,9 +144,11 @@ class PlanTest(unittest.TestCase):
             for e in l["params"]["elements"]:
                 k = e["kind"][6:] if e["kind"].startswith("ocean_") else ""
                 if k in P.TEXT_CARDS and e["t1"] is not None:
-                    windows.append((l["start"] + e["t0"], l["start"] + e["t1"]))
+                    windows.append((l["start"] + e["t0"], l["start"] + e["t1"], k in P.SIDE_CARDS))
         for c in pl.captions:
-            for a, b in windows:
+            for a, b, side in windows:
+                if side and c.get("kind") != "number":
+                    continue                    # a corner card (calendar, clock) leaves room for a word caption
                 over = min(c["t1"], b) - max(c["t0"], a)
                 self.assertLessEqual(over, 0.41 * (c["t1"] - c["t0"]) + 1e-6, (c["key"], a, b))
 
@@ -167,3 +171,85 @@ class PlanTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GroupAndAlignTest(unittest.TestCase):
+    def test_counted_group_is_island_map_and_size_is_car(self):
+        sc = _scenes("Researchers tracked 17 great whites at the Farallon Islands, and not one came back. "
+                     "Nobody expected that, least of all the people who had studied them for years on end. "
+                     "Picture how big they are. Each one is a 5-meter great white shark. "
+                     "That is a lot of animal to scare away, and it happened in a single afternoon off the coast.", wps=2.6)
+        pl = P.plan(sc)
+        kinds = [e["kind"] for l in pl.layers if l["name"] == "ocean.lay_ocean" for e in l["params"]["elements"]]
+        self.assertIn("ocean_island_map", kinds)
+        self.assertIn("ocean_size_compare", kinds)
+
+    def test_a_group_leaves_together(self):
+        sc = _scenes("A group of great whites circled. Then an orca arrived.", wps=2.5)   # a counted group is the island map
+        pl = P.plan(sc)
+        shot = next(l for l in pl.layers if l["name"] == "ocean.lay_ocean" and
+                    any(e["args"].get("name") == "orca" for e in l["params"]["elements"] if e["kind"] == "animal"))
+        els = shot["params"]["elements"]
+        whites = [e for e in els if e["kind"] == "animal" and e["args"].get("name") == "great_white" and not e["args"].get("silhouette")]
+        orca = [e for e in els if e["kind"] == "animal" and e["args"].get("name") == "orca"]
+        self.assertGreaterEqual(len(whites), 3)
+        self.assertTrue(orca)
+        for e in whites:                       # every great white of the group is gone by the time the orca is in
+            self.assertIsNotNone(e["t1"])
+            self.assertLessEqual(e["t1"], orca[0]["t0"] + 0.2)
+
+    def test_script_words_keep_their_punctuation_on_the_spoken_times(self):
+        from ocean import runner as RN
+        spoken = [("Picture", 0.1, 0.3), ("this", 0.3, 0.6), ("In", 1.0, 1.1), ("two thousand nine", 1.1, 1.9),
+                  ("two", 2.0, 2.2), ("orcas", 2.2, 2.6), ("arrived", 2.6, 3.0)]
+        out = RN.align_script("Picture this. In 2009, two orcas arrived.", spoken)
+        self.assertEqual([w[0] for w in out], ["Picture", "this.", "In", "2009,", "two", "orcas", "arrived."])
+        self.assertAlmostEqual(out[3][1], 1.1)
+        for a, b in zip(out, out[1:]):
+            self.assertLessEqual(a[1], b[1])
+        scenes = RN.scenes_from_words(out, 3.0)
+        self.assertEqual(scenes[0]["text"].split(".")[0], "Picture this")
+
+
+class NarrationMatchTest(unittest.TestCase):
+    """The picture follows the line: 'two orcas arrived' shows two orcas when 'orcas' is said; the shark that fled is
+    the one that leaves; animals are never added and removed in the same instant; a phrase caption every few seconds."""
+
+    def setUp(self):
+        lines = ["Picture this. You're floating off the coast of California, and below you is a great white shark.",
+                 "It has about 300 teeth, and nothing in the ocean hunts it.",
+                 "Except one animal. In 2009, two orcas arrived at the Farallon Islands.",
+                 "Within hours, every great white fled.",
+                 "Researchers tracked 17 sharks, and not one came back that year.",
+                 "The first animal on our list is the orca."]
+        t, sc = 0.0, []
+        for ln in lines:
+            d = len(ln.split()) / 2.7
+            sc.append({"text": ln, "start": t, "end": t + d})
+            t += d
+        self.pl = P.plan(sc)
+        self.els = [(l["start"], e) for l in self.pl.layers if l["name"] == "ocean.lay_ocean" for e in l["params"]["elements"]]
+
+    def test_two_orcas_arrive_when_named(self):
+        orcas = [(s0 + e["t0"]) for s0, e in self.els if e["kind"] == "animal" and e["args"].get("name") == "orca"
+                 and not e["args"].get("silhouette")]
+        self.assertGreaterEqual(len(orcas), 2)
+        self.assertLess(min(orcas), 22.0)
+
+    def test_nothing_flickers(self):
+        for s0, e in self.els:
+            if e["t1"] is not None:
+                self.assertGreater(e["t1"] - e["t0"], 0.3, e)
+
+    def test_shark_flees_orcas_stay(self):
+        fled = [e for s0, e in self.els if e["kind"] == "animal" and e["args"].get("name") == "great_white"
+                and str(e.get("exit", "")).startswith("slide")]
+        self.assertTrue(fled)
+
+    def test_number_card_line(self):
+        hero = next(e for s0, e in self.els if e["kind"] == "ocean_number_hero")
+        self.assertEqual(hero["args"]["number"], "~300 TEETH")       # its clause ends at the comma: the number stands alone
+        self.assertEqual(hero["args"]["key"], "")
+
+    def test_captions_often(self):
+        self.assertGreaterEqual(len(self.pl.captions), 5)

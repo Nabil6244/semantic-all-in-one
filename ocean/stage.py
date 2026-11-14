@@ -25,6 +25,7 @@ from . import look as L
 
 W, H = L.W, L.H
 SET_FADE_S = 0.6
+OVER_CLIP = {"number_hero", "standoff", "progress", "calendar", "clock", "counter"}   # cards drawn over a real clip
 AV.register("animal", A.stage_kind)          # args {"name", "width", "face", "jaw", "silhouette", "color", "eye", "scars"}
 from . import cards as _cards  # noqa: E402
 
@@ -97,7 +98,16 @@ def lay_ocean(t: float, dur: float, p: Dict[str, Any]) -> Optional[Image.Image]:
     t = t + float(p.get("t_offset", 0.0))
     for h in p.get("holes") or []:              # a real clip plays here (ocean/clips.py)
         if float(h[0]) <= t < float(h[1]):
-            return _credit_layer(str(h[2] if len(h) > 2 else ""))
+            img = _credit_layer(str(h[2] if len(h) > 2 else "")) or Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            sc = L.scale()
+            for e in p.get("elements") or []:   # number cards stay over the footage ("~300 TEETH" on the real shark)
+                if str(e.get("kind", ""))[6:] not in OVER_CLIP:
+                    continue
+                tr = AV.transform(e, t)
+                if tr is not None:
+                    x, y, s, rot, alpha = tr
+                    AV._paste(img, AV.sprite(e, s, AV.anim_k(e, t)), x * sc, y * sc, rot, alpha)
+            return img
     canvas = world(p.get("sets") or [[0.0, "open_water", {}]], t)
     sc = L.scale()
     for e in sorted(p.get("elements") or [], key=lambda e: e.get("z", 0)):

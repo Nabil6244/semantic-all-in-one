@@ -8,6 +8,25 @@ from ocean import animals as A
 from ocean import stage as OS
 
 
+_ART = None
+
+
+def setUpModule():
+    """These tests check the code drawings (the backup): the painted library is switched off while they run."""
+    global _ART
+    from pathlib import Path
+    from ocean import art_flow as AF
+    _ART = AF.ART_DIR
+    AF.ART_DIR = Path("/nonexistent/ocean_art")
+    A._draw_cached.cache_clear()
+
+
+def tearDownModule():
+    from ocean import art_flow as AF
+    AF.ART_DIR = _ART
+    A._draw_cached.cache_clear()
+
+
 def _diff(a, b):
     if a.size != b.size:
         return 999.0

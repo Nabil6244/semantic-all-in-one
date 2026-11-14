@@ -306,7 +306,7 @@ def calendar(a: Dict[str, Any]) -> Image.Image:
     d.rounded_rectangle((10, 30, 290, 290), radius=14, fill=PAPER)
     d.rounded_rectangle((10, 30, 290, 100), radius=14, fill=L.RED)
     d.rectangle((10, 80, 290, 100), fill=L.RED)
-    _centre(d, 150, 38, str(a.get("month", "NOV")).upper()[:3], F("heavy", 44), L.WHITE)
+    _centre(d, 150, 38, (str(a.get("month") or "").upper()[:3] or "YEAR"), F("heavy", 44), L.WHITE)
     big = str(a.get("day") or a.get("year") or "")
     f = _fit(d, big, "heavy", 96, 250)
     _centre(d, 150, 108, big, f, L.INK)
@@ -676,6 +676,221 @@ def watch_next(a: Dict[str, Any]) -> Image.Image:
     return im
 
 
+# ------------------------------------------------------------------------------------------------------------------ story scenes
+# Two full-frame scenes from the reference cold opens: the top-down map where a group circles a place and then leaves
+# (a counter running down), and the size check beside an everyday thing (a diver, a car, a bus) with measure bars.
+
+_ISLAND_CACHE: Dict[Tuple[int, int], Image.Image] = {}
+
+
+def _island_base(seed: int = 7) -> Image.Image:
+    """Top-down sea: depth bands that get lighter towards a rocky island in the middle."""
+    key = (seed, L.W)
+    if key in _ISLAND_CACHE:
+        return _ISLAND_CACHE[key]
+    import random
+    rnd = random.Random(seed)
+    w, h = 1280, 720
+    im = Image.new("RGBA", (w, h), (10, 44, 64, 255))
+    d = ImageDraw.Draw(im)
+    cx, cy = 640, 350
+    base = [rnd.uniform(0.85, 1.15) for _ in range(14)]
+    def ring(rx: float, ry: float, wob: float):
+        pts = []
+        for i in range(56):
+            a = 2 * math.pi * i / 56
+            j = base[int(i / 4) % 14]
+            r = 1 + (j - 1) * wob
+            pts.append((cx + rx * r * math.cos(a), cy + ry * r * math.sin(a)))
+        return pts
+    bands = [(760, 520, (14, 56, 80)), (600, 410, (18, 68, 94)), (470, 320, (22, 82, 108)), (360, 250, (28, 98, 122)),
+             (270, 190, (36, 116, 134)), (205, 146, (48, 136, 146))]
+    for rx, ry, col in bands:
+        d.polygon(ring(rx, ry, 1.0), fill=col + (255,))
+    rock = ring(150, 112, 2.2)
+    d.polygon([(x + 6, y + 8) for x, y in rock], fill=(12, 30, 38, 160))
+    d.polygon(rock, fill=(120, 98, 72, 255), outline=(24, 22, 20, 255))
+    d.line(rock + [rock[0]], fill=(24, 22, 20, 255), width=4)
+    for _ in range(70):                                    # rocky texture
+        x, y = cx + rnd.uniform(-120, 120), cy + rnd.uniform(-85, 85)
+        if ((x - cx) / 125) ** 2 + ((y - cy) / 92) ** 2 < 1:
+            r = rnd.uniform(2, 6)
+            d.ellipse((x - r, y - r, x + r, y + r), fill=(78, 62, 46, 255) if rnd.random() < 0.6 else (150, 128, 98, 255))
+    im = im.filter(ImageFilter.GaussianBlur(0.6))
+    vig = Image.new("L", (w, h), 0)
+    ImageDraw.Draw(vig).ellipse((-200, -160, w + 200, h + 160), fill=255)
+    vig = vig.filter(ImageFilter.GaussianBlur(120))
+    dark = Image.new("RGBA", (w, h), (2, 8, 14, 255))
+    im = Image.composite(im, dark, vig)
+    _ISLAND_CACHE[key] = im
+    return im
+
+
+_ICON_CACHE: Dict[str, Image.Image] = {}
+
+
+def _top_icon(name: str) -> Image.Image:
+    """A small top-down animal pointing right (+x): spindle body, two side fins, a tail."""
+    if name in _ICON_CACHE:
+        return _ICON_CACHE[name]
+    from . import art_flow as AF
+    top = AF.path(name, "top")
+    if top is not None:                                    # the painted top-down animal from the library
+        src = Image.open(top).convert("RGBA")
+        out = src.resize((72, max(1, int(src.height * 72 / max(1, src.width)))), Image.LANCZOS)
+        _ICON_CACHE[name] = out
+        return out
+    ss = 4
+    w, h = 64 * ss, 34 * ss
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    dark = name in ("orca",)
+    body_c = (26, 28, 32, 255) if dark else (196, 204, 210, 255)
+    edge = (14, 18, 22, 255)
+    cy = h / 2
+    body = [(62, 17), (56, 13.5), (44, 11.5), (30, 12.5), (18, 14.5), (10, 16.2), (10, 17.8), (18, 19.5), (30, 21.5),
+            (44, 22.5), (56, 20.5)]
+    fins = [[(40, 12.5), (33, 2), (30, 3), (33, 13)], [(40, 21.5), (33, 32), (30, 31), (33, 21)]]
+    tail = [(12, 17), (2, 9), (0, 10), (5, 17), (0, 24), (2, 25)]
+    S_ = lambda pts: [(x * ss, y * ss) for x, y in pts]
+    for poly in fins + [tail, body]:
+        d.polygon(S_(poly), fill=body_c, outline=edge)
+        d.line(S_(poly) + [S_(poly)[0]], fill=edge, width=ss * 2)
+    d.line(S_([(56, 17), (22, 17)]), fill=(120, 130, 138, 255) if not dark else (70, 74, 80, 255), width=ss)
+    out = im.resize((64, 34), Image.LANCZOS)
+    _ICON_CACHE[name] = out
+    return out
+
+
+def island_map(a: Dict[str, Any]) -> Image.Image:
+    """Full frame. args: count, label ("tagged sharks"), animal, year, place, dur (s), leave (s after start, or None).
+    The group circles the island; from `leave` each one swims straight out and the counter runs down to 0."""
+    import random
+    k = _k(a)
+    dur = float(a.get("dur", 6.0))
+    t = k * dur
+    n = max(1, min(24, int(a.get("count", 12))))
+    leave = a.get("leave")
+    im = _island_base().copy()
+    rnd = random.Random(11)
+    icon = _top_icon(str(a.get("animal", "great_white")))
+    here = 0
+    for i in range(n):
+        rx = rnd.uniform(230, 360)
+        ry = rx * rnd.uniform(0.62, 0.74)
+        a0 = 2 * math.pi * i / n + rnd.uniform(-0.2, 0.2)
+        sp = rnd.uniform(0.32, 0.5) * (1 if i % 5 else -1)
+        ang = a0 + sp * t
+        x, y = 640 + rx * math.cos(ang), 350 + ry * math.sin(ang)
+        hd = math.atan2(ry * math.cos(ang) * sp, -rx * math.sin(ang) * sp)          # heading along the orbit
+        alpha = 1.0
+        if leave is not None:
+            tl = float(leave) + i * (min(2.2, dur - float(leave) - 1.0) / max(1, n))
+            if t > tl:                                                     # swims straight out, away from the island
+                out_t = t - tl
+                hd = math.atan2(y - 350, x - 640)
+                x += math.cos(hd) * out_t * 260
+                y += math.sin(hd) * out_t * 260
+                alpha = max(0.0, 1 - out_t / 1.4)
+        if alpha > 0.05:
+            here += 1 if alpha > 0.5 else 0
+            sp_im = icon.rotate(-math.degrees(hd), expand=True, resample=Image.BICUBIC)
+            if alpha < 1:
+                sp_im.putalpha(sp_im.getchannel("A").point(lambda v: int(v * alpha)))
+            im.alpha_composite(sp_im, (int(x - sp_im.width / 2), int(y - sp_im.height / 2)))
+    d = ImageDraw.Draw(im)
+    num = str(here)
+    fn, fl = F("heavy", 70), F("bold", 24)
+    col = L.ORANGE if here else L.RED
+    d.text((40, 26), num, font=fn, fill=col)
+    d.text((40 + _tw(d, num, fn) + 16, 26 + fn.size * 0.52), str(a.get("label", "")).upper(), font=fl, fill=L.WHITE)
+    if a.get("year"):
+        _centre(d, 640, 630, str(a["year"]), F("heavy", 52), L.ORANGE)
+    if a.get("place"):
+        _centre(d, 640, 352 + 150, str(a["place"]), F("regular", 20), L.SOFT)
+    return im
+
+
+def _car(d: ImageDraw.ImageDraw, x: float, y: float, w: float) -> None:
+    """A plain sedan side-on, wheels on y (ground), w long."""
+    u = w / 100
+    body = [(0, -12), (2, -19), (22, -21), (33, -31), (64, -31), (78, -21), (98, -19), (100, -12), (100, -6), (0, -6)]
+    P = [(x + px * u, y + py * u) for px, py in body]
+    d.polygon(P, fill=(196, 202, 208, 255), outline=(20, 24, 28, 255))
+    d.line(P + [P[0]], fill=(20, 24, 28, 255), width=max(2, int(u * 1.2)))
+    for wx0, wx1 in ((37, 49), (52, 76)):
+        d.polygon([(x + wx0 * u, y - 29 * u), (x + wx1 * u, y - 29 * u), (x + (wx1 + 2) * u, y - 21 * u), (x + (wx0 - 3) * u, y - 21 * u)],
+                  fill=(120, 138, 152, 255))
+    for cx in (20, 80):
+        r = 7 * u
+        d.ellipse((x + cx * u - r, y - 7 * u - r, x + cx * u + r, y - 7 * u + r), fill=(22, 24, 28, 255))
+        d.ellipse((x + cx * u - r * 0.45, y - 7 * u - r * 0.45, x + cx * u + r * 0.45, y - 7 * u + r * 0.45), fill=(150, 156, 162, 255))
+
+
+def _bus(d: ImageDraw.ImageDraw, x: float, y: float, w: float) -> None:
+    u = w / 100
+    d.rounded_rectangle((x, y - 30 * u, x + w, y - 6 * u), radius=int(3 * u), fill=(214, 170, 60, 255), outline=(20, 24, 28, 255),
+                        width=max(2, int(u)))
+    for i in range(8):
+        wx = x + (6 + i * 11.5) * u
+        d.rectangle((wx, y - 27 * u, wx + 8 * u, y - 19 * u), fill=(120, 138, 152, 255))
+    for cx in (15, 85):
+        r = 5 * u
+        d.ellipse((x + cx * u - r, y - 6 * u - r, x + cx * u + r, y - 6 * u + r), fill=(22, 24, 28, 255))
+
+
+REF_SIZES = {"diver": 1.8, "car": 4.5, "bus": 12.0}
+
+
+def size_compare(a: Dict[str, Any]) -> Image.Image:
+    """Full frame (transparent over the stage): the animal above an everyday thing drawn to the same scale, each with a
+    measure bar. args: animal, metres, label ("5 m · 1,100+ kg"), ref ("diver" | "car" | "bus", picked by size if absent)."""
+    k = _ease(_k(a))
+    m = max(0.3, float(a.get("metres", 5.0)))
+    ref = a.get("ref") or ("diver" if m < 3 else "car" if m < 9 else "bus")
+    rm = REF_SIZES[ref]
+    big = max(m, rm)
+    px_per_m = 700 / big
+    im = Image.new("RGBA", (1280, 720), (0, 0, 0, 255))      # its own dark water: the comparison stands alone, like the reference
+    d = ImageDraw.Draw(im)
+    for y in range(720):
+        k2 = y / 719
+        c = tuple(int(L.WATER_MID[i] * (1 - k2) + L.WATER_DEEP[i] * k2) for i in range(3)) + (255,)
+        d.line((0, y, 1280, y), fill=c)
+    aw = int(m * px_per_m)
+    animal = A.draw(str(a.get("animal", "great_white")), max(60, aw))
+    ax = 190
+    ay = 200
+    im.alpha_composite(animal, (ax, int(ay - animal.height / 2)))
+    rw = rm * px_per_m
+    gy = 610
+    from . import art_flow as AF
+    ref_art = AF.path(ref, "side") if ref in ("car", "bus") else None
+    if ref_art is not None:                               # the painted car / bus from the library, to scale
+        src = Image.open(ref_art).convert("RGBA")
+        pic = src.resize((max(1, int(rw)), max(1, int(src.height * rw / max(1, src.width)))), Image.LANCZOS)
+        im.alpha_composite(pic, (int(ax), int(gy - pic.height)))
+    elif ref == "car":
+        _car(d, ax, gy, rw)
+    elif ref == "bus":
+        _bus(d, ax, gy, rw)
+    else:
+        diver = A.draw("diver", max(40, int(rw)))
+        im.alpha_composite(diver, (ax, int(gy - diver.height)))
+    for (x0, length, y, text) in ((ax, aw * k, ay + animal.height / 2 + 18, str(a.get("label", ""))),
+                                  (ax, rw * k, gy + 30, str(a.get("ref_label", "")))):
+        if length < 4:
+            continue
+        x1 = x0 + length
+        d.line((x0, y, x1, y), fill=(232, 210, 120, 255), width=3)
+        for xx, sgn in ((x0, 1), (x1, -1)):
+            d.polygon([(xx, y), (xx + 12 * sgn, y - 7), (xx + 12 * sgn, y + 7)], fill=(232, 210, 120, 255))
+        if text and k > 0.6:                              # the label sits after the bar's end, clear of both drawings
+            ft = F("bold", 26)
+            d.text((x1 + 18, y - ft.size * 0.62), text, font=ft, fill=(240, 226, 160, 255))
+    return im
+
+
 KINDS = {
     "number_hero": number_hero, "dot_grid": dot_grid, "icon_rows": icon_rows, "standoff": standoff, "progress": progress,
     "bar_race": bar_race, "meters": meters, "counter": counter, "calendar": calendar, "clock": clock, "size_bar": size_bar,
@@ -683,9 +898,10 @@ KINDS = {
     "mystery": mystery, "paper": paper, "choose_move": choose_move, "quiz": quiz, "playbook": playbook,
     "crime_tape": crime_tape, "wanted": wanted, "halo": halo, "bunting": bunting, "shop": shop, "diver_hud": diver_hud,
     "duel": duel, "silhouettes": silhouettes, "comments": comments, "watch_next": watch_next,
+    "island_map": island_map, "size_compare": size_compare,
 }
 ANIMATED = ("number_hero", "dot_grid", "icon_rows", "standoff", "progress", "bar_race", "meters", "clock", "size_bar",
-            "callout", "name_tag", "strata", "choose_move", "playbook", "comments")
+            "callout", "name_tag", "strata", "choose_move", "playbook", "comments", "island_map", "size_compare")
 FULL_FRAME = ("crime_tape",)
 
 

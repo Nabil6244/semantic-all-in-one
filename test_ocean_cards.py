@@ -38,6 +38,8 @@ SAMPLE = {
     "silhouettes": {"title": "flight species", "rows": [["humpback", "fin whale"], ["dolphin", "minke whale"]]},
     "comments": {"text": "what about the leopard seal?"},
     "watch_next": {"channel": "Ocean", "line": "more apex predators"},
+    "island_map": {"count": 16, "label": "tagged sharks", "animal": "great_white", "year": "2009", "dur": 6.0, "leave": 2.5},
+    "size_compare": {"animal": "great_white", "metres": 5.0, "label": "5 M", "ref_label": "CAR 4.5 M"},
 }
 
 

@@ -53,6 +53,12 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                             "captions. Works best with second-person, list-style narration ('Picture this. You're…', 'The first one is…').",
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(
         row=1, column=0, sticky="w", pady=(4, 0))
+    tools = ctk.CTkFrame(body, fg_color="transparent")
+    tools.grid(row=2, column=0, sticky="w", pady=(6, 0))
+    app._oc_prompt_status = ctk.StringVar(value="")
+    make_button(tools, "Copy the script prompt", lambda: copy_script_prompt(app), size="sm", width=170).grid(row=0, column=0, padx=(0, 10))
+    ctk.CTkLabel(tools, textvariable=app._oc_prompt_status, font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w").grid(
+        row=0, column=1, sticky="w")
 
     body = section(block, 1, 2, "Output")
     out = ctk.CTkFrame(body, fg_color="transparent")
@@ -84,6 +90,41 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
 
 
 # ---------------------------------------------------------------------------------------------------------------- remember
+
+def _make_missing_art(app: Any, plan: Optional[dict], log) -> tuple:
+    """Painted pictures for animals this script names that the shared library lacks (ocean/art_flow.py): made once with
+    Flow, kept in assets/ocean/art/ for every later video. A failure never stops Generate: that animal keeps its code
+    drawing. Returns (made, still missing)."""
+    from ocean import art_flow as AF
+
+    need = AF.needs_for_plan(plan)
+    if not need:
+        return 0, 0
+    log(f"{len(need)} animal picture(s) not in the library yet: " + ", ".join(f"{n.replace('_', ' ')} ({p})" for n, p in need)
+        + ". Making them once with Flow (free images); every later video reuses them.")
+    try:
+        mgr = app._get_flow_engine_manager() if hasattr(app, "_get_flow_engine_manager") else None
+        res = AF.generate(need, log=log, manager=mgr, should_stop=app._oc_cancel.is_set)
+    except Exception as exc:  # noqa: BLE001 - the code drawing stands in
+        log(f"Flow could not make the animal pictures ({exc}); those animals use the backup drawing this time.")
+        return 0, len(need)
+    made = sum(1 for x in res if x.get("status") == "made")
+    from ocean import animals as A
+    A._draw_cached.cache_clear()
+    return made, len(need) - made
+
+
+def copy_script_prompt(app: Any) -> None:
+    """The narration prompt (ocean/script_prompt.md): the channel's script shape, to paste into an AI chat with a topic."""
+    p = Path(__file__).resolve().parent.parent / "ocean" / "script_prompt.md"
+    try:
+        text = p.read_text(encoding="utf-8")
+        app.clipboard_clear()
+        app.clipboard_append(text)
+        app._oc_prompt_status.set("Copied. Paste it into your AI chat, put your topic in, then voice the script.")
+    except Exception as exc:  # noqa: BLE001
+        app._oc_prompt_status.set(f"Could not copy: {exc}")
+
 
 def _sig(path: str):
     try:
@@ -375,6 +416,7 @@ def on_generate(app: Any) -> None:
         log(f"{len(scenes)} sentences from the voice-over")
         r = RN.plan_film(scenes, work, channel, log, real_clips=want_clips)
         r["rows"], r["found"] = [], 0
+        r["art_made"], r["art_missing"] = _make_missing_art(app, RN.load_plan(work), log)
         cs = RN.clip_scenes(RN.load_plan(work)) if want_clips else []
         if cs and manager is not None:
             from cinematic_explainer.war.app_section import fetch_csv_footage
@@ -407,8 +449,12 @@ def on_generate(app: Any) -> None:
     def done(r) -> None:
         app._oc_planned = {"voice": voice, "channel": channel, "work": work}
         clips = f" {r['found']} of {r['clips']} real clips found (check them in the Visuals tab)." if r.get("clips") else ""
+        art = ""
+        if r.get("art_made") or r.get("art_missing"):
+            art = f" {r.get('art_made', 0)} new animal picture(s) made with Flow" + (
+                f", {r['art_missing']} not made (backup drawing used)" if r.get("art_missing") else "") + "."
         msg = (f"Planned {r['shots']} shots over {r['duration']:.0f} s: {r['cards']} cards, {r['captions']} captions, "
-               f"{r['chapters']} chapters, {r['species']} animals.{clips} Click Render.")
+               f"{r['chapters']} chapters, {r['species']} animals.{art}{clips} Click Render.")
         app._oc_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")
         if r.get("rows"):

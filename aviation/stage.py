@@ -367,7 +367,8 @@ def anim_k(e: Dict[str, Any], t: float) -> Optional[float]:
     if dur <= 0:
         return None
     k = M.clamp01((t - e["t0"] - float(e.get("anim_delay", S.ENTER_S * 0.5))) / dur)
-    return round(k * ANIM_STEPS) / ANIM_STEPS
+    steps = int(e.get("anim_steps") or ANIM_STEPS)            # a long animated scene (Ocean island map) asks for more steps
+    return round(k * steps) / steps
 
 
 def sprite(e: Dict[str, Any], scale: float, k: Optional[float] = None) -> Image.Image:

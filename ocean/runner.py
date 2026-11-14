@@ -53,6 +53,42 @@ def scenes_from_words(words: Sequence[Any], total_s: float = 0.0) -> List[Dict[s
     return scenes
 
 
+def _norm(w: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(w).lower())
+
+
+def align_script(script: str, words: Sequence[Any]) -> List[tuple]:
+    """The script's own words (spelling, numbers, punctuation) on the voice-over's word times: matched by their letters
+    (difflib), so a word the speech engine merged, split or dropped still gets a time between its neighbours. Without
+    punctuation in the timed words (Edge voices, some transcripts) sentences could not be found; with this they can."""
+    import difflib
+
+    toks = str(script or "").split()
+    ws = [(str(w[0]), float(w[1]), float(w[2])) if not isinstance(w, dict) else
+          (str(w.get("word") or w.get("text") or ""), float(w.get("start", 0)), float(w.get("end", 0))) for w in words or []]
+    if not toks or not ws:
+        return list(ws)
+    times: List[Optional[tuple]] = [None] * len(toks)
+    sm = difflib.SequenceMatcher(a=[_norm(t) for t in toks], b=[_norm(w[0]) for w in ws], autojunk=False)
+    for blk in sm.get_matching_blocks():
+        for k in range(blk.size):
+            times[blk.a + k] = (ws[blk.b + k][1], ws[blk.b + k][2])
+    for op, a0, a1, b0, b1 in sm.get_opcodes():      # replaced runs: spread the script words over the spoken ones
+        if op == "replace" and b1 > b0:
+            t0, t1 = ws[b0][1], ws[b1 - 1][2]
+            n = a1 - a0
+            for k in range(n):
+                times[a0 + k] = (t0 + (t1 - t0) * k / n, t0 + (t1 - t0) * (k + 1) / n)
+    out: List[tuple] = []
+    for i, tok in enumerate(toks):                   # words still without a time sit between their neighbours
+        if times[i] is None:
+            prev = out[-1][2] if out else 0.0
+            nxt = next((times[j][0] for j in range(i + 1, len(toks)) if times[j] is not None), prev + 0.2)
+            times[i] = (prev, max(prev, min(nxt, prev + 0.25)))
+        out.append((tok, times[i][0], times[i][1]))
+    return out
+
+
 _CHAPTER_START = re.compile(r"^\s*(so |now |but )?(the (first|second|third|fourth|fifth|next|last)|number (one|two|three)|"
                             r"what would you|what if you|imagine you|if you were|so why|why does|here's the thing|which brings)",
                             re.I)

@@ -63,10 +63,11 @@ def _swing(ph: int, amp: float, off: float = 0.0) -> float:
 # extra(draw, T, ph, args) for special bits (teeth, arms, bubbles).
 
 def _shark(args: Dict[str, Any]) -> Dict[str, Any]:
-    col = tuple(args.get("color") or (112, 126, 138)) + (255,)
+    col = tuple(args.get("color") or (88, 100, 112)) + (255,)
     body = [(100, 20), (93, 13), (80, 9), (62, 7), (45, 8), (30, 11), (18, 15), (10, 18.5),
             (10, 22), (18, 24), (32, 28), (50, 31), (68, 30), (84, 27), (94, 24)]
-    belly = [(99, 21), (86, 22.5), (70, 21.5), (52, 23), (36, 24.5), (20, 22.5), (6, 21), (6, 40), (100, 40)]
+    belly = [(99, 21), (92, 22.8), (88, 21.6), (83, 23.2), (78, 21.8), (72, 23.6), (66, 22), (60, 24), (54, 22.4),
+             (48, 24.4), (42, 23), (36, 25), (29, 23.6), (20, 23), (6, 21), (6, 40), (100, 40)]   # torn countershade edge
     tail = [(13, 16.5), (1, -3), (-2.5, -2), (4, 19.5), (-1, 33), (2.5, 33.5), (13, 24)]
     spec = {
         "body": body, "color": col, "belly": belly, "belly_color": (232, 236, 236, 255),
@@ -74,9 +75,13 @@ def _shark(args: Dict[str, Any]) -> Dict[str, Any]:
         "front": [([(63, 10), (53, -9), (49.5, -8.5), (44.5, 10.5)], col, None, 0.0),
                   ([(67, 27), (57, 41), (53.5, 40), (58, 27)], col, (62, 27), 4.0),
                   ([(24, 13.5), (21, 9), (19.5, 9.5), (19, 15)], col, None, 0.0)],
-        "eye": (83, 15.5, 1.7),
-        "lines": [([(72, 17), (71, 24)], 0.8), ([(69.5, 17.5), (68.5, 24.5)], 0.8), ([(67, 18), (66, 25)], 0.8),
-                  ([(96, 23.5), (86, 25.5)], 1.0)],
+        "eye": (84, 15.8, 1.15),
+        "eye_glint": False,
+        "jaw_default": True,
+        "lines": [([(74, 16.5), (73, 20.5), (73.6, 24.5)], 0.45), ([(72, 17), (71, 21), (71.6, 25)], 0.45),
+                  ([(70, 17.5), (69, 21.5), (69.6, 25.5)], 0.45), ([(68, 18), (67, 22), (67.6, 26)], 0.45),
+                  ([(66, 18.5), (65, 22.5), (65.6, 26.5)], 0.45)],
+        "outline_w": 0.7,
     }
     if args.get("scars"):
         spec["lines"] += [([(48, 12), (40, 17)], 0.7), ([(44, 11), (37, 15)], 0.7), ([(58, 13), (54, 18)], 0.7)]
@@ -344,15 +349,87 @@ def _teeth(d: ImageDraw.ImageDraw, T: _T, spec: Dict[str, Any], ow: float) -> No
         d.polygon([(bot[0] - s * 0.6, bot[1]), (bot[0] + s * 0.6, bot[1]), (bot[0], bot[1] - s * 1.6)], fill=(246, 244, 236, 255))
 
 
+def _grin(d: ImageDraw.ImageDraw, T: _T, ow: float) -> None:
+    """Closed mouth with a row of small teeth showing (the documentary shark look, not a cartoon smile)."""
+    line = T([(98.5, 22.2), (94, 23.6), (89, 24.6), (85, 24.9)])
+    d.line(line, fill=(34, 20, 24, 255), width=max(1, int(ow * 1.2)), joint="curve")
+    s = T.u * 0.75
+    for i in range(7):
+        x = 97.5 - i * 1.8
+        y = 22.6 + i * 0.36
+        c = T([(x, y)])[0]
+        d.polygon([(c[0] - s * 0.5, c[1]), (c[0] + s * 0.5, c[1]), (c[0], c[1] + s * 1.3)], fill=(236, 232, 222, 255))
+        d.polygon([(c[0] - s * 0.45, c[1] + s * 0.2), (c[0] + s * 0.45, c[1] + s * 0.2), (c[0], c[1] - s * 0.9)],
+                  fill=(226, 222, 212, 255))
+
+
+def _shade(img: Image.Image, mask: Image.Image) -> Image.Image:
+    """Volume on the flat body: a darker back, a soft light band along the flank and a shadow under the belly,
+    all clipped to the body. Turns the sticker into a drawing with weight."""
+    bb = mask.getbbox()
+    if not bb:
+        return img
+    y0, y1 = bb[1], bb[3]
+    h = max(1, y1 - y0)
+    col_dark, col_light = [], []
+    for y in range(h):
+        k = y / h
+        col_dark.append(int(110 * max(0.0, 0.42 - k) / 0.42 + 70 * max(0.0, k - 0.72) / 0.28))
+        col_light.append(int(24 * max(0.0, 1 - abs(k - 0.46) / 0.26) ** 2))
+    dark = Image.new("L", (1, h)); dark.putdata(col_dark)
+    light = Image.new("L", (1, h)); light.putdata(col_light)
+    full_d = Image.new("L", img.size, 0); full_d.paste(dark.resize((img.width, h)), (0, y0))
+    full_l = Image.new("L", img.size, 0); full_l.paste(light.resize((img.width, h)), (0, y0))
+    from PIL import ImageChops
+    full_d = ImageChops.multiply(full_d, mask)
+    full_l = ImageChops.multiply(full_l, mask)
+    img = Image.composite(Image.new("RGBA", img.size, (4, 10, 18, 255)), img, full_d)
+    img = Image.composite(Image.new("RGBA", img.size, (230, 240, 246, 255)), img, full_l)
+    return img
+
+
+@lru_cache(maxsize=64)
+def _art_src(path: str) -> Image.Image:
+    return Image.open(path).convert("RGBA")
+
+
+def _painted(name: str, width: int, ph: int, face: str, jaw: bool, silhouette: bool, color: Tuple[int, ...]) -> Optional[Image.Image]:
+    """The library's painted animal (ocean/art_flow.py), or None to fall back to the code drawing. A named colour variant
+    ('blue whale' drawn as a recoloured humpback) keeps the code drawing so it never shows the wrong animal."""
+    from . import art_flow as AF
+    p = (AF.path(name, "jaw") if jaw else None) or AF.path(name, "side")
+    if p is None:
+        return None
+    src = _art_src(str(p))
+    h = max(1, int(src.height * width / max(1, src.width)))
+    img = src.resize((max(1, int(width)), h), Image.LANCZOS)
+    if silhouette:
+        dark = Image.new("RGBA", img.size, (6, 10, 16, 255))
+        dark.putalpha(img.getchannel("A"))
+        img = dark
+    ang = 1.4 * math.sin(2 * math.pi * ph / PHASES)          # a slow body sway so a still picture keeps swimming
+    if abs(ang) > 0.05:
+        img = img.rotate(ang, resample=Image.BICUBIC, expand=True)
+    if face == "left":
+        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+    return img
+
+
 @lru_cache(maxsize=512)
 def _draw_cached(name: str, width: int, ph: int, face: str, jaw: bool, silhouette: bool, color: Tuple[int, ...],
                  eye: str, scars: bool) -> Image.Image:
+    painted = _painted(name, width, ph, face, jaw, silhouette, color)
+    if painted is not None:
+        return painted
     args: Dict[str, Any] = {"scars": scars}
     if color:
         args["color"] = color
-    spec = SPECS.get(name, _shark)(args)
-    if name not in SPECS:
-        silhouette = True
+    from . import species as SP
+    sp = SP.get(name)
+    base = name if name in SPECS else (sp.base if sp and sp.base in SPECS else "")
+    spec = SPECS.get(base, _shark)(args)
+    if not base:
+        silhouette = True                          # an unknown name: a dark shape, never the wrong animal
     static = bool(spec.get("static"))
     pts = _all_pts(spec)
     x0, x1 = min(p[0] for p in pts), max(p[0] for p in pts)
@@ -388,6 +465,8 @@ def _draw_cached(name: str, width: int, ph: int, face: str, jaw: bool, silhouett
         mask = Image.new("L", img.size, 0)
         ImageDraw.Draw(mask).polygon(body_s, fill=255)
         img.paste(layer, (0, 0), mask)
+        if not static:
+            img = _shade(img, mask)
         d = ImageDraw.Draw(img)
         d.line(body_s + [body_s[0]], fill=OUTLINE, width=max(1, int(round(ow))), joint="curve")
 
@@ -406,8 +485,10 @@ def _draw_cached(name: str, width: int, ph: int, face: str, jaw: bool, silhouett
                     x, y = side[0] + (side[2] - side[0]) * k, side[1] + (side[3] - side[1]) * k
                     c = T([(x, y)])[0]
                     d.ellipse((c[0] - u * 0.6, c[1] - u * 0.6, c[0] + u * 0.6, c[1] + u * 0.6), fill=OUTLINE)
-    if (jaw or spec.get("jaw_default")) and name in ("great_white", "shark", "megalodon") and not silhouette:
+    if jaw and name in ("great_white", "shark", "megalodon") and not silhouette:
         _teeth(d, T, spec, ow)
+    elif spec.get("jaw_default") and name in ("great_white", "shark", "megalodon") and not silhouette:
+        _grin(d, T, ow)
 
     for part in spec.get("front") or []:
         _poly(d, T(_part_pts(part, ph, static)), C(part[1]), ow, smooth=not static)
@@ -428,7 +509,8 @@ def _draw_cached(name: str, width: int, ph: int, face: str, jaw: bool, silhouett
             fill = (236, 50, 40, 255) if eye == "red" else spec.get("eye_color", (8, 10, 12, 255))
             d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=fill)
             g = r * 0.38
-            d.ellipse((cx + r * 0.15, cy - r * 0.55, cx + r * 0.15 + g, cy - r * 0.55 + g), fill=(255, 255, 255, 230))
+            if spec.get("eye_glint", True):
+                d.ellipse((cx + r * 0.15, cy - r * 0.55, cx + r * 0.15 + g, cy - r * 0.55 + g), fill=(255, 255, 255, 230))
     for i, b in enumerate(spec.get("bubbles") or []):
         if silhouette:
             break

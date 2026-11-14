@@ -39,7 +39,7 @@ UNITS = {"m", "km", "cm", "mm", "kg", "tons", "tonnes", "ton", "tonne", "meters"
          "degrees", "lb", "lbs", "pounds", "calories", "sharks", "whales", "orcas", "seals", "less", "more", "bigger",
          "longer", "heavier", "faster", "deeper", "older", "km", "attacks", "kills", "people"}
 QUANTITY = {"few", "many", "most", "all", "none", "zero", "every", "half", "nobody", "nothing", "no", "only"}
-EMPHASIS = {"never", "nothing", "nobody", "always", "same", "real", "myth", "twin", "first", "last", "alone",
+EMPHASIS = {"except", "never", "nothing", "nobody", "always", "same", "real", "myth", "twin", "first", "last", "alone",
             "everything", "anything", "itself", "free", "fight", "back", "bigger", "smaller", "slower", "faster",
             "colder", "deeper", "darker", "patient", "hidden", "invisible", "secret", "wrong", "awkward", "scary"}
 DANGER = {"kill", "kills", "killed", "killing", "killer", "dead", "die", "dies", "died", "death", "deadly", "deadliest", "gone",
@@ -162,6 +162,13 @@ def key_span(clause: Sequence[Word]) -> Optional[Tuple[int, int, str, int]]:
             cands.append((SCORE["quantity"], a, i + 1, "quantity"))
         elif lw in EMPHASIS:
             cands.append((SCORE["emphasis"], i, i + 1, "emphasis"))
+        elif i > 0 and lw not in STOP and clause[i][0][:1].isupper():
+            j = i + 1                                                    # a name said mid-clause: "FARALLON ISLANDS", "CALIFORNIA"
+            while j < len(ws) and j - i < 3 and clause[j][0][:1].isupper():
+                j += 1
+            cands.append((SCORE["emphasis"], i, j, "name"))
+            i = j
+            continue
         i += 1
     if not cands:
         content = [k for k, lw in enumerate(ws) if lw and lw not in STOP and not lw.isdigit()]
