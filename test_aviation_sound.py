@@ -87,7 +87,7 @@ def test_mix_length_and_loudness(tmp_path):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "sine=f=220:d=6,tremolo=f=3:d=0.7", "-ar", "48000", str(voice)], check=True)
     ev = [SO._ev(1.0, "pop"), SO._ev(2.0, "whoosh_soft"), SO._ev(4.0, "low_hit", duck_from=3.6)]
     music = [{"start": 0.0, "end": 3.5, "bed": str(SO.MUSIC_DIR / "lost_frontier.opus"), "gain_db": -32.0, "mood": "story", "xfade": 3.0, "dips": [(3.2, 4.0, -30.0)]},
-             {"start": 2.0, "end": 6.0, "bed": str(SO.MUSIC_DIR / "long_note_four.opus"), "gain_db": -35.0, "mood": "flight", "xfade": 3.0, "dips": []}]
+             {"start": 2.0, "end": 6.0, "bed": str(SO.MUSIC_DIR / "echoes_of_time_v2.opus"), "gain_db": -35.0, "mood": "flight", "xfade": 3.0, "dips": []}]
     out = tmp_path / "mix.wav"
     t0 = time.time()
     SO.mix(str(voice), ev, music, str(out), 6.0)

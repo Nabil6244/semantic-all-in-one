@@ -25,7 +25,7 @@ CACHE_DIR = ROOT / "out" / "story_fast_cache" / "sound"
 # --------------------------------------------------------------------------------------------- music
 # energy 1 (calm drone) .. 5 (driving). `dark`: only when the words are tense. Titles/moods are starmap.music.TRACKS; this table only adds energy.
 TRACK_ENERGY = {
-    "long_note_four": (1.0, False), "echoes_of_time_v2": (1.6, False), "dark_fog": (1.6, True), "lost_frontier": (2.6, False),
+    "echoes_of_time_v2": (1.6, False), "dark_fog": (1.6, True), "lost_frontier": (2.6, False),
     "interloper": (2.6, True), "ascending_the_vale": (3.5, False), "stormfront": (4.5, True), "despair_and_triumph": (4.5, False),
 }
 # music bed level (LUFS of the bed BEFORE ducking) by energy class; the voice sits at about -18 LUFS and the sidechain takes ~9 dB more while it speaks

@@ -15,7 +15,7 @@ Rows (the `row` column says which kind):
    - era_name = the city's name as the video should show it (e.g. "Rome")
    - focus = "lon,lat" of the historic centre (decimal degrees, longitude first). The map covers 8 km around this point.
    - extra = JSON: {"world":"<lowercase_id>","seed":7}   (optional "size": 6–12 km, "music": one of ascending_the_vale,
-     echoes_of_time_v2, despair_and_triumph, lost_frontier, long_note_four, dark_fog, interloper, stormfront,
+     echoes_of_time_v2, despair_and_triumph, lost_frontier, dark_fog, interloper, stormfront,
      "climate": "arid" for a desert city, "temperate" for a green one: say it for any city that is NOT on the Arabian
      Peninsula or in North Africa, because only those are recognised as desert on their own, e.g. Jodhpur, Phoenix, Samarkand)
 

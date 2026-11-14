@@ -101,7 +101,7 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
             if got: from . import theme as T; gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME == 'survival' else 0.0):.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
         except Exception as ex: notes.append(f"music level kept at its default ({type(ex).__name__}: {ex})")
         from . import theme as T
-        mood = "mystery" if T.THEME == "jung" else None      # Carl Jung Theory: the dark beds (Dark Fog, Interloper, Long Note Four), never "wonder"
+        mood = "mystery" if T.THEME == "jung" else None      # Carl Jung Theory: the dark beds (Dark Fog, Interloper), never "wonder"
         with_music, credits = add_music(Path(path), work / "rt_audio_music.wav", duration, text, seed=title or text[:60], ffmpeg=ffmpeg, log=log, gain=gain, mood=mood)
         if with_music: path = str(with_music); notes += [f"music: {c}" for c in credits]
     except Exception as ex: notes.append(f"music skipped ({type(ex).__name__}: {ex})")

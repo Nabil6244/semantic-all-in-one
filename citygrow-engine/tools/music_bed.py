@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 MUSIC = ROOT / "assets" / "music"
 TITLES = {"ascending_the_vale": "Ascending the Vale", "echoes_of_time_v2": "Echoes of Time v2", "despair_and_triumph": "Despair and Triumph",
-          "lost_frontier": "Lost Frontier", "long_note_four": "Long Note Four", "dark_fog": "Dark Fog", "interloper": "Interloper", "stormfront": "Stormfront"}
+          "lost_frontier": "Lost Frontier", "dark_fog": "Dark Fog", "interloper": "Interloper", "stormfront": "Stormfront"}
 DEFAULT = "ascending_the_vale"
 TARGET_I, TARGET_TP = -14.0, -1.5
 

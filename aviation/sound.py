@@ -62,7 +62,7 @@ MAP_MODES = ("flight", "weather")
 TURN = re.compile(r"^\s*(but|then|until|instead|suddenly|and then|what|that is when|and yet)\b", re.I)
 
 # mood -> beds (assets/music) and bed level in LUFS before the voice ducks it (story_fast levels: -33 low .. -27 high)
-BEDS = {"story": ["lost_frontier", "ascending_the_vale"], "news": ["interloper", "stormfront"], "flight": ["long_note_four", "echoes_of_time_v2"]}
+BEDS = {"story": ["lost_frontier", "ascending_the_vale"], "news": ["interloper", "stormfront"], "flight": ["echoes_of_time_v2"]}
 BED_LUFS = {"story": -32.0, "news": -31.0, "flight": -35.0}
 MOOD_OF_MODE = {"story": "story", "people": "story", "fleet": "story", "flight": "flight", "weather": "flight"}   # the rest -> news
 

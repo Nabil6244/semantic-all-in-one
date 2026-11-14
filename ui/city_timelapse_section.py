@@ -28,7 +28,7 @@ STYLE = "City Timelapse"
 TAG = "[CITY TIMELAPSE]"
 RESOLUTIONS = {"1080p final (1920x1080)": 1080, "720p preview (1280x720)": 720}
 MUSIC = {"From the story (default: Ascending the Vale)": None, "Ascending the Vale": "ascending_the_vale", "Echoes of Time": "echoes_of_time_v2",
-         "Despair and Triumph": "despair_and_triumph", "Lost Frontier": "lost_frontier", "Long Note Four": "long_note_four",
+         "Despair and Triumph": "despair_and_triumph", "Lost Frontier": "lost_frontier",
          "Dark Fog": "dark_fog", "Interloper": "interloper", "Stormfront": "stormfront"}
 _ROOT = Path(__file__).resolve().parent.parent
 

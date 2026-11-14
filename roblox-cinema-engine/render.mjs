@@ -148,7 +148,7 @@ async function main() {
   const { story, plan, errs } = buildPlan(o);
   if (errs.length) emit({ event: 'warning', message: `story problems: ${errs.slice(0, 8).join(' | ')}` });
   for (const w of plan.warnings) emit({ event: 'warning', message: w });
-  const TITLES = { lost_frontier: 'Lost Frontier', interloper: 'Interloper', echoes_of_time_v2: 'Echoes of Time v2', ascending_the_vale: 'Ascending the Vale', long_note_four: 'Long Note Four', despair_and_triumph: 'Despair and Triumph', stormfront: 'Stormfront', dark_fog: 'Dark Fog' };
+  const TITLES = { lost_frontier: 'Lost Frontier', interloper: 'Interloper', echoes_of_time_v2: 'Echoes of Time v2', ascending_the_vale: 'Ascending the Vale', despair_and_triumph: 'Despair and Triumph', stormfront: 'Stormfront', dark_fog: 'Dark Fog' };
   const tracks = (plan.audio.music.tracks || []).filter((x) => TITLES[x]);
   plan.hud.credit = o.credit || (!o.noMusic && tracks.length ? `Music: ${tracks.map((x) => `\u201C${TITLES[x]}\u201D`).join(' and ')} by Kevin MacLeod (incompetech.com), CC BY 4.0` : null);
   const features = loadCountries(), geo = mapGeo(plan, features), cues = sceneCues(plan);
