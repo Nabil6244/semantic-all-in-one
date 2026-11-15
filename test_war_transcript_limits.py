@@ -78,6 +78,30 @@ class TranscriptLimits(unittest.TestCase):
             self.assertEqual(len(seen), 3)
             self.assertEqual(len(calls), n_info)
 
+    def test_a_rate_limit_pauses_every_video_not_just_one(self):
+        with tempfile.TemporaryDirectory() as td:
+            calls = []
+            fetch, seen = _captions([429, 429, 429])
+            s = _searcher(td, _info(calls), fetch)
+            self.assertIsNone(s.transcript(VID))
+            self.assertEqual(len(seen), 3)
+            for other in ("otherVID001", "otherVID002", "otherVID003"):   # live run: 3 more videos, 9 more 429s, 48 s lost
+                segs, status, _ch = s.transcript_info(other)
+                self.assertIsNone(segs)
+                self.assertEqual(status, "rate_limited")
+            self.assertEqual(len(seen), 3)                       # no request during the pause
+            self.assertEqual(s.calls["transcript_skipped_rate_limited"], 3)
+            s._blocked_until = 0.0                               # pause over: asks again, and a second limit doubles the pause
+            fetch2, seen2 = _captions([429, 429, 429])
+            s._captions = fetch2
+            self.assertIsNone(s.transcript("otherVID004"))
+            self.assertAlmostEqual(s._blocked_until - S.time.time(), 2 * S.RATE_LIMIT_COOLDOWN_S, delta=5)
+            s._blocked_until = 0.0
+            fetch3, _ = _captions([JSON3])
+            s._captions = fetch3
+            self.assertTrue(s.transcript("otherVID005"))
+            self.assertEqual(s._block_s, S.RATE_LIMIT_COOLDOWN_S)  # success resets it
+
     def test_a_429_from_the_metadata_call_counts_too(self):
         with tempfile.TemporaryDirectory() as td:
             def info(vid):

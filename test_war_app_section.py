@@ -244,6 +244,65 @@ class TestCsvFootage(unittest.TestCase):
         self.assertIn(("start", "1"), events)
         self.assertIn(("done", "3"), events)
 
+    def test_every_director_scene_marked_busy_is_released(self):
+        """2026-11-15 live run: the 9 YouTube scenes the Footage Director left to graphics stayed busy, timed out after 12 min, and
+        Change source on them waited for a job that had already ended."""
+        from unittest import mock
+        from cinematic_explainer.war import app_section as AS
+
+        d = Path(tempfile.mkdtemp())
+        started, done = [], []
+        from cinematic_explainer.war import footage_director as FDM
+        from cinematic_explainer.war import flow_pictures as FPM
+        with mock.patch.object(FDM, "run", side_effect=RuntimeError("no clip")), mock.patch.object(FPM, "make", return_value={}):
+            AS.fetch_csv_footage(self.scenes(), _FakeManager(d), d, director=True, on_start=lambda r, s: started.append(r.scene_number),
+                                 on_done=lambda r, res: done.append(r.scene_number))
+        self.assertIn("1", started)
+        self.assertEqual(set(started) - set(done), set())
+
+    def test_flow_picture_before_youtube_and_youtube_only_where_flow_made_nothing(self):
+        """Owner 2026-11-15: a scene the library has no clip for gets a Flow picture first; the YouTube search is the last resort."""
+        from unittest import mock
+        from cinematic_explainer.war import app_section as AS
+        from cinematic_explainer.war import flow_pictures as FPM
+        from cinematic_explainer.war import footage_director as FDM
+
+        d = Path(tempfile.mkdtemp())
+        pic = d / "made.png"
+        pic.write_bytes(b"png")
+        asked, directed = [], []
+        scenes = self.scenes() + [{"scene_no": 5, "text": "Drones hit the Tuapse refinery.", "start": 12.0, "end": 15.0,
+                                   "asset_type": "youtube_video", "prompt": "Tuapse refinery drone strike footage"}]
+
+        def make(want, out_dir, log=print):
+            asked.append(dict(want))
+            return {"scene_1": str(pic)}                      # Flow makes scene 1, not scene 5
+
+        with mock.patch.object(FPM, "make", side_effect=make), \
+                mock.patch.object(FDM, "run", side_effect=lambda sc, rows, *a, **k: directed.extend(r.scene_number for r in rows)), \
+                mock.patch("cinematic_explainer.war.integration.still_to_clip", return_value=str(pic)):
+            out, _rows = AS.fetch_csv_footage(scenes, _FakeManager(d), d, director=True)
+        self.assertEqual(set(asked[0]), {"scene_1", "scene_5"})
+        self.assertIn("Kharkiv strike", asked[0]["scene_1"])
+        self.assertNotIn("footage", asked[0]["scene_1"])
+        self.assertEqual(directed, ["5"])                           # only the scene Flow could not make is searched on YouTube
+        self.assertTrue(out[0].get("footage"))
+        self.assertTrue(out[0]["footage_meta"].get("ai_generated"))
+
+    def test_flow_first_can_be_switched_off(self):
+        from unittest import mock
+        from cinematic_explainer.war import app_section as AS
+        from cinematic_explainer.war import flow_pictures as FPM
+        from cinematic_explainer.war import footage_director as FDM
+
+        d = Path(tempfile.mkdtemp())
+        mgr, directed = _FakeManager(d), []
+        mgr.settings = {AS.FLOW_FIRST_SETTING: False}
+        with mock.patch.object(FPM, "make", side_effect=AssertionError("Flow asked")), \
+                mock.patch.object(FDM, "run", side_effect=lambda sc, rows, *a, **k: directed.extend(r.scene_number for r in rows)):
+            AS.fetch_csv_footage(self.scenes(), mgr, d, director=True)
+        self.assertEqual(directed, ["1"])
+
     def test_a_failed_search_leaves_the_scene_on_graphics_and_the_users_pick_is_kept(self):
         from asset_manager import AssetManifest
         from cinematic_explainer.war.app_section import fetch_csv_footage

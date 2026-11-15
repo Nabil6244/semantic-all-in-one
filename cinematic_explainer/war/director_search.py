@@ -27,6 +27,7 @@ from .narration_read import Reading, fold
 AGENCY_PREFIXES = ("Reuters", "AP")
 _MONTHS = r"(January|February|March|April|May|June|July|August|September|October|November|December)"
 RATE_LIMIT_COOLDOWN_S = 60.0   # a video YouTube rate-limited is not asked again for this long (live run: 7 x 429 for 3 videos in seconds)
+RATE_LIMIT_MAX_S = 600.0       # a 429 limits the whole connection, not one video: every transcript waits; repeated limits double it to this
 _DROP = re.compile(r"\b(" + _MONTHS + r"|\d{1,2}(st|nd|rd|th)?|(19|20)\d\d|footage|video|clip|b-?roll|archival|cinematic|real|authentic)\b", re.I)
 
 
@@ -198,10 +199,13 @@ class Searcher:
         self.log = log
         self._lock = threading.Lock()
         self._last = 0.0
-        self.calls = {"search": 0, "details": 0, "transcript": 0, "transcript_rate_limited": 0}
+        self.calls = {"search": 0, "details": 0, "transcript": 0, "transcript_rate_limited": 0, "transcript_skipped_rate_limited": 0}
         self.backoff: Sequence[float] = (4.0, 12.0)       # waits before the 2nd and 3rd try after HTTP 429; tests set (0, 0)
         self.transcript_status: Dict[str, str] = {}       # video id -> ok / none / rate_limited / error (in memory only)
         self._rate_limited_at: Dict[str, float] = {}
+        self._blocked_until = 0.0                         # searcher-wide: no transcript request at all before this time
+        self._block_s = RATE_LIMIT_COOLDOWN_S              # doubles each time YouTube limits again right after a cooldown, reset on success
+        self._block_logged = False
         self._details_mem: Dict[str, Dict[str, Any]] = {}
 
     # ---- transcripts (moment relevance: the cut must sit where the video talks about the line's subject) ----
@@ -278,6 +282,16 @@ class Searcher:
         if self.transcript_status.get(video_id) == "rate_limited" and \
                 time.time() - self._rate_limited_at.get(video_id, 0.0) < RATE_LIMIT_COOLDOWN_S:
             return None
+        if time.time() < self._blocked_until:
+            # YouTube limits the connection: asking for another video now only earns more 429s and 16 s of waiting per video
+            self.transcript_status[video_id] = "rate_limited"
+            self._rate_limited_at[video_id] = time.time()
+            self.calls["transcript_skipped_rate_limited"] += 1
+            if not self._block_logged:
+                self._block_logged = True
+                self.log(f"transcripts paused for {self._blocked_until - time.time():.0f} s (YouTube rate limit): "
+                         f"long programmes are checked by chapter titles meanwhile")
+            return None
         self.calls["transcript"] += 1
         d = self._cached_details(video_id)
         from_details = bool(d and d.get("ok") and "captions" in d)
@@ -306,7 +320,11 @@ class Searcher:
                     self.calls["transcript_rate_limited"] += 1
                     self.transcript_status[video_id] = "rate_limited"
                     self._rate_limited_at[video_id] = time.time()
-                    self.log(f"transcript rate-limited for {video_id}: not checked, asked again after {RATE_LIMIT_COOLDOWN_S:.0f} s")
+                    with self._lock:
+                        self._blocked_until = time.time() + self._block_s
+                        self._block_logged = False
+                        self.log(f"transcript rate-limited for {video_id}: no transcript requests for {self._block_s:.0f} s")
+                        self._block_s = min(self._block_s * 2, RATE_LIMIT_MAX_S)
                     return None
                 if code in (403, 404) and from_details and not refetched:
                     refetched, have_track = True, False   # the cached caption URL expired: ask for fresh metadata once
@@ -316,6 +334,7 @@ class Searcher:
                 return None
         self.transcript_status[video_id] = "ok" if segs else "none"
         self._rate_limited_at.pop(video_id, None)
+        self._block_s = RATE_LIMIT_COOLDOWN_S
         try:
             p.write_text(json.dumps({"segments": segs}), encoding="utf-8")
         except OSError:

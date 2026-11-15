@@ -378,7 +378,7 @@ def _library_report(state_dir: Path) -> Dict[str, Dict[str, Any]]:
         return {}
 
 
-def _make_flow_pictures(rows: List[Any], images_dir: Path, state_dir: Path, log=lambda m: None) -> int:
+def _make_flow_pictures(rows: List[Any], images_dir: Path, state_dir: Path, log=lambda m: None, prompt_of=None) -> int:
     """flow_image rows: one Flow picture each (flow_pictures.make; one made before is reused), filed as the scene's finished asset so the
     Visuals tab lists it and the render turns it into a moving still. A row that already has an asset (the user's pick) is kept."""
     import time
@@ -387,8 +387,8 @@ def _make_flow_pictures(rows: List[Any], images_dir: Path, state_dir: Path, log=
     from asset_manager import AssetManifest
     from . import flow_pictures as FP
 
-    want = {f"scene_{r.scene_number}": str(r.prompt or "").strip() for r in rows
-            if str(r.prompt or "").strip() and not visual_bridge.records(images_dir, [r])}
+    prompt_of = prompt_of or (lambda r: str(r.prompt or "").strip())
+    want = {f"scene_{r.scene_number}": prompt_of(r) for r in rows if prompt_of(r) and not visual_bridge.records(images_dir, [r])}
     if not want:
         return 0
     log(f"Flow pictures: making {len(want)} for the flow_image scenes (pictures made before are reused)…")
@@ -412,6 +412,18 @@ def _make_flow_pictures(rows: List[Any], images_dir: Path, state_dir: Path, log=
                      "resolved_at": time.time(), "error": None})
     log(f"Flow pictures: {len(made)} of {len(want)} scenes have a picture" + ("" if len(made) == len(want) else "; the rest use maps and cards"))
     return len(made)
+
+
+FLOW_FIRST_SETTING = "war_flow_before_youtube"   # owner 2026-11-15: library -> Flow picture -> YouTube (YouTube only when Flow makes nothing)
+_SEARCH_NOISE = re.compile(r"\b(footage|video|videos|clip|clips|b-?roll|archival|stock|news|live|cinematic|real|authentic|raw)\b", re.I)
+
+
+def flow_prompt_for(row: Any) -> str:
+    """A Flow picture prompt for a YouTube row: its first search (without 'footage', 'clip'...) as the subject, the line as the moment."""
+    first = str(getattr(row, "prompt", "") or "").split("||")[0]
+    subject = re.sub(r"\s+", " ", _SEARCH_NOISE.sub(" ", first)).strip(" ,.-")
+    line = re.sub(r"\s+", " ", str(getattr(row, "script_segment", "") or "")).strip()
+    return ". ".join(x for x in (subject, line) if x)[:400]
 
 
 def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=lambda m: None, cancel=None,
@@ -465,7 +477,13 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
     todo = []
     directed = [r for r in rows if director and fetch and r.asset_type == "youtube_video" and str(r.scene_number) not in over
                 and str(r.scene_number) not in lib_nos | gfx_nos]
-    flow_nos = {str(sc.get("scene_no")) for sc in scenes if str(sc.get("asset_type") or "").strip().lower() in FLOW_IMAGE_TYPES}
+    flow_first: set = set()
+    if directed and (getattr(manager, "settings", None) or {}).get(FLOW_FIRST_SETTING, True):
+        log(f"Flow pictures first: {len(directed)} YouTube scenes the library has no clip for (YouTube only where Flow makes nothing)")
+        _make_flow_pictures(directed, Path(images_dir), state_dir, log, prompt_of=flow_prompt_for)
+        flow_first = {str(r.scene_number) for r in directed if visual_bridge.records(images_dir, [r])}
+        directed = [r for r in directed if str(r.scene_number) not in flow_first]
+    flow_nos = {str(sc.get("scene_no")) for sc in scenes if str(sc.get("asset_type") or "").strip().lower() in FLOW_IMAGE_TYPES} | flow_first
     if fetch and flow_nos:
         _make_flow_pictures([r for r in rows if str(r.scene_number) in flow_nos], Path(images_dir), state_dir, log)
     for r in (rows if fetch else []):
@@ -517,6 +535,15 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
                    render_id=Path(images_dir).parent.parent.parent.name)
         except Exception as exc:  # noqa: BLE001 - a director failure leaves those scenes to the War graphics, never stops the render
             log(f"Footage Director stopped early: {type(exc).__name__}: {exc}")
+        finally:
+            # every row on_start marked busy is released, found or not: a row left busy timed out after 12 min and its Change source
+            # waited for a job that had already ended (2026-11-15 live run: 9 graphics scenes, 9 TIMEOUTs)
+            if on_done is not None:
+                for r in directed:
+                    try:
+                        on_done(r, None)
+                    except Exception:  # noqa: BLE001
+                        pass
         if listed is not None:
             try:
                 listed(rows)           # the Visuals tab re-reads every row: director clips, and the scenes handed to graphics with their reason
@@ -564,8 +591,10 @@ def fetch_csv_footage(scenes: List[dict], manager: Any, images_dir: Path, log=la
                 except Exception:  # noqa: BLE001 - the War graphics pick their own default
                     pass
         out.append(sc)
+    flow_kept = {str(sc.get("scene_no")) for sc in out if sc.get("footage") and man is not None
+                 and (man.get(str(sc.get("scene_no"))) or {}).get("selection_method") == "flow_picture"}   # Render after Generate scenes too
     if director:
-        decisions = {k: v for k, v in FD.load_decisions(state_dir).items() if str(k).lstrip("0") not in {n.lstrip("0") for n in lib_nos}}
+        decisions = {k: v for k, v in FD.load_decisions(state_dir).items() if str(k).lstrip("0") not in {n.lstrip("0") for n in lib_nos | flow_first | flow_kept}}
         if decisions:
             out = FD.apply_decisions(out, decisions)
             got = sum(1 for sc in out if sc.get("footage"))
