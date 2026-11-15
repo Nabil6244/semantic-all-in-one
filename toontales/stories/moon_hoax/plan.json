@@ -1,0 +1,858 @@
+{
+ "id": "moon_hoax",
+ "title": "The Newspaper That Found Bat-People on the Moon",
+ "topic": "the Great Moon Hoax of 1835",
+ "hook_title": "THE MOON HAD BAT-PEOPLE?",
+ "keywords": [
+  "moon",
+  "bat-people",
+  "unicorns",
+  "fake",
+  "sun",
+  "bats"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Great_Moon_Hoax",
+  "https://daily.jstor.org/how-the-sun-conned-the-world-with-the-moon-hoax"
+ ],
+ "places": {
+  "street": {
+   "prompt": "A busy 1835 New York street: red brick buildings, horse carriages, gas lamps, a newsboy stand piled with newspapers, sunny morning",
+   "ambient": "dust"
+  },
+  "newsroom": "Inside a cramped 1835 New York newspaper office: wooden desks covered in papers, ink pots, quill pens, stacks of newspapers, a big window, warm lamp light, plank floor",
+  "observatory": {
+   "prompt": "An 1835 observatory at night in South Africa: a giant brass telescope on a wooden stand pointing at a huge full moon, starry sky, stone floor",
+   "ambient": "none"
+  },
+  "moon": {
+   "prompt": "A whimsical imagined moon valley from an 1835 newspaper story: purple trees, a shining blue lake, crystal cliffs, the Earth large in the starry black sky, flat pale grey ground",
+   "ambient": "embers"
+  },
+  "press": "An 1835 print shop: a big black iron printing press, freshly printed sheets hanging on drying lines, ink barrels, stacks of paper, wooden floor",
+  "herald": {
+   "prompt": "A rival 1835 newspaper office at night: dark wood desks, one candle, piles of papers, a printing press in the back, moonlight through the window",
+   "ambient": "none"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1835, a newspaper found bat-people on the Moon.",
+   "set": "street",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "text": "MEN WITH BAT WINGS ON THE MOON!",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    },
+    {
+     "name": "gasp",
+     "at": 1.0
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. How did they see them?",
+   "set": "street",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "The Sun was a young penny paper in New York.",
+   "set": "newsroom",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "THE SUN",
+     "spot": "wall_r"
+    },
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "THE SUN, 1835"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.4
+    }
+   ],
+   "id": "s03",
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "It wanted more readers. Lots more.",
+   "set": "newsroom",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "SALES: LOW",
+     "spot": "wall_l"
+    }
+   ],
+   "id": "s04",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Far away, astronomer John Herschel had a giant new telescope.",
+   "set": "observatory",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "look_around",
+       "at": 2.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "JOHN HERSCHEL"
+   },
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.1
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Too far away to deny a single word.",
+   "set": "observatory",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "NO MAIL FOR MONTHS",
+     "held_by": "walt"
+    }
+   ],
+   "id": "s06",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Let's say he saw the Moon.",
+   "set": "newsroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.6
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So the paper said his telescope saw everything.",
+   "set": "moon",
+   "camera": "medium",
+   "move": "orbit_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hold",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.4
+      },
+      {
+       "do": "shock",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "text": "GREAT DISCOVERIES ON THE MOON",
+     "held_by": "walt"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "There were blue, goat-like unicorns.",
+   "set": "moon",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "jump",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "UNICORNS"
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Beavers walking on two legs.",
+   "set": "moon",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.0,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "BEAVERS?!"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And flying people with bat wings.",
+   "set": "moon",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "jump",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "MAN-BATS"
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It ran in six parts, starting August 25th.",
+   "set": "press",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "throw",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "text": "PART 1",
+     "picked_by": "walt"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "6 PARTS"
+   },
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    }
+   ],
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "New Yorkers lined up to buy every copy.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.4,
+         0.2
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    },
+    {
+     "name": "footsteps",
+     "at": 0.1
+    }
+   ],
+   "id": "s13",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "One Sun, please! Hurry!",
+   "set": "street",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Soon it was one of the biggest papers in the world.",
+   "set": "newsroom",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "TOP PAPER IN THE WORLD"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    }
+   ],
+   "id": "s15",
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Then a rival paper called it a fake.",
+   "set": "herald",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "text": "IT'S A HOAX!",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.1
+    }
+   ],
+   "id": "s16",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "walt",
+   "text": "Fake? Never heard of it.",
+   "set": "newsroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Locke, the writer, only admitted it in 1840.",
+   "set": "newsroom",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1840"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "And Herschel spent years answering questions about moon bats.",
+   "set": "observatory",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.3
+      },
+      {
+       "do": "angry",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "ARE THERE MOON BATS?",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.8
+    }
+   ],
+   "id": "s19",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So there are no bat-people?",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Not yet. Read tomorrow's paper!",
+   "set": "street",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "text": "MOON BATS: PART 7",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s21",
+   "transition": "cut"
+  }
+ ],
+ "est_total": 41.85
+}

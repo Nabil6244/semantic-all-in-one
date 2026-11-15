@@ -1,0 +1,811 @@
+{
+ "id": "revenge_trade",
+ "title": "How One Small Loss Blows a Forex Account",
+ "topic": "forex revenge trading (trading psychology)",
+ "hook_title": "$50 LOSS. $0 ACCOUNT?",
+ "keywords": [
+  "loss",
+  "zero",
+  "account",
+  "revenge",
+  "anger",
+  "stop",
+  "margin",
+  "double",
+  "easy"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "desk_day": {
+   "prompt": "A small home forex trading desk in a bedroom on a sunny morning: a wooden desk with two computer monitors showing green and red candlestick charts, a coffee mug, a big window with morning sun, posters on the wall, wooden floor",
+   "ambient": "dust"
+  },
+  "desk_night": {
+   "prompt": "The same small home trading desk late at night: two glowing computer monitors full of red falling candlestick charts lighting the dark room, empty coffee cups and energy drink cans, rain on the dark window, wooden floor",
+   "ambient": "none"
+  },
+  "dream": {
+   "prompt": "A dreamy daydream of getting rich: a sunny tropical beach with a white yacht, palm trees, a sports car on the sand, gold coins sparkling, bright blue sky",
+   "ambient": "dust"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Pip turned a fifty dollar loss into zero.",
+   "set": "desk_day",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.8
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "How does one small loss wipe out a whole account?",
+   "set": "desk_day",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "$1,000 -> $0"
+   }
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "It starts with one normal trade on euro dollar.",
+   "set": "screen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.5,
+     0.56,
+     0.6
+    ],
+    "entry": 0.5,
+    "sl": 0.4,
+    "tp": 0.72,
+    "lots": "0.10",
+    "balance": [
+     1000,
+     1000
+    ],
+    "pl": [
+     0,
+     12
+    ]
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "pip",
+   "text": "Easy money! Let's go!",
+   "set": "dream",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.44
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.3
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Then the price turns, and hits his stop loss.",
+   "set": "screen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.6,
+     0.52,
+     0.36
+    ],
+    "entry": 0.5,
+    "sl": 0.4,
+    "tp": 0.72,
+    "lots": "0.10",
+    "balance": [
+     1000,
+     950
+    ],
+    "pl": [
+     12,
+     -50
+    ],
+    "banner": "STOP LOSS HIT",
+    "banner_at": 0.72
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.9
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "pip",
+   "text": "That's not fair!",
+   "set": "desk_day",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.5
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Now he doesn't want profit. He wants revenge.",
+   "set": "desk_day",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "REVENGE"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Win it back. Right now.",
+   "set": "desk_day",
+   "camera": "over_shoulder",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.9
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So he trades again, twice as big.",
+   "set": "desk_day",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "2X SIZE"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "id": "s09",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And this time, no stop loss.",
+   "set": "screen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.55,
+     0.57,
+     0.53
+    ],
+    "entry": 0.55,
+    "no_sl": true,
+    "lots": "0.20",
+    "balance": [
+     950,
+     950
+    ],
+    "pl": [
+     0,
+     -8
+    ]
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then the price starts dropping.",
+   "set": "screen",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.55,
+     0.42
+    ],
+    "entry": 0.55,
+    "no_sl": true,
+    "lots": "0.20",
+    "balance": [
+     950,
+     950
+    ],
+    "pl": [
+     -8,
+     -110
+    ]
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "It'll come back!",
+   "set": "desk_day",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It doesn't. It keeps falling.",
+   "set": "screen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.42,
+     0.47,
+     0.3
+    ],
+    "entry": 0.55,
+    "no_sl": true,
+    "lots": "0.20",
+    "balance": [
+     950,
+     950
+    ],
+    "pl": [
+     -110,
+     -300
+    ]
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.6
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Hours later, he doubles again to win it all back.",
+   "set": "desk_night",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "throw",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "picked_by": "pip"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "4X SIZE"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 1.6
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Now the losses grow even faster.",
+   "set": "screen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.45,
+     0.3,
+     0.12
+    ],
+    "entry": 0.45,
+    "no_sl": true,
+    "side": "BUY",
+    "lots": "0.40",
+    "balance": [
+     950,
+     950
+    ],
+    "pl": [
+     -300,
+     -780
+    ]
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Then comes the margin call.",
+   "set": "screen",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "screen": {
+    "pair": "EUR/USD",
+    "path": [
+     0.12,
+     0.04
+    ],
+    "entry": 0.45,
+    "no_sl": true,
+    "lots": "0.40",
+    "balance": [
+     950,
+     0
+    ],
+    "pl": [
+     -780,
+     -950
+    ],
+    "banner": "MARGIN CALL",
+    "banner_at": 0.15
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.25
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "A fifty dollar loss became a thousand.",
+   "set": "desk_night",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "-$1,000"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.6
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Traders call it revenge trading.",
+   "set": "desk_night",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "REVENGE TRADING"
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The loss was small. The anger made it huge.",
+   "set": "desk_night",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "ANGER"
+   },
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So I just take the small loss?",
+   "set": "desk_day",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Win it back. Right now.",
+   "set": "desk_day",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s21",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 38.7
+}

@@ -1,0 +1,931 @@
+{
+ "id": "shovel_king",
+ "title": "How the Gold Rush Made Its First Millionaire",
+ "topic": "Sam Brannan selling shovels in the gold rush",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://www.wikiwand.com/en/articles/Sam_Brannan",
+  "https://info.mysticstamp.com/start-of-the-california-gold-rush_tdih/"
+ ],
+ "places": {
+  "goldfield": "A dusty California gold-rush digging site in 1849: dug-up brown dirt, holes and rock piles, a wooden sluice box, canvas tents, dry golden hills and blue sky",
+  "store": "Inside Sam Brannan's small 1848 general store: wooden shelves stacked with picks, gold pans and shovels, barrels and sacks, a wooden counter, warm lamp light, plank floor",
+  "dock": "A busy 1848 San Francisco harbour wharf: wooden pier planks, crates and barrels piled high, tall wooden sailing ships behind, gulls, sunny sky",
+  "street": "A muddy 1848 San Francisco main street: wooden storefronts and canvas tents on both sides, green hills behind, bright morning sky",
+  "river": "The American River in the Sierra foothills: a rushing blue river, a gravel bank in front, pine trees, miners' tents on the far bank, mountains behind",
+  "mansion": "A rich 1850s mansion parlour: red velvet curtains, gold-framed paintings, a crystal chandelier, a grand fireplace, patterned carpet floor",
+  "lawyer": "An 1870s lawyer's office: tall bookshelves full of law books, a big wooden desk piled with papers, a tall window, dark wooden floor",
+  "lot": "An empty, weedy land lot in 1880s California: dry grass and dirt, a broken fence, a falling-down shack, grey cloudy sky",
+  "room": "A bare, poor little rented room in 1889: cracked plaster walls, a thin iron bed, one candle on a box, rain on a small window, worn wooden floor"
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "The gold rush's first millionaire never dug for gold.",
+   "set": "goldfield",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    },
+    {
+     "type": "rock",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.4
+    }
+   ]
+  },
+  {
+   "beat": "hook",
+   "speaker": "walt",
+   "text": "Digging? That's for suckers.",
+   "set": "goldfield",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.9
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "His name was Sam Brannan, and he sold shovels.",
+   "set": "store",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "walt"
+    },
+    {
+     "type": "sign",
+     "text": "BRANNAN'S STORE",
+     "spot": "wall_r"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "SAM BRANNAN"
+   }
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "When gold turned up near his store, he kept very quiet.",
+   "set": "store",
+   "camera": "low",
+   "move": "orbit_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "sneak",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gold",
+     "held_by": "walt"
+    }
+   ]
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "First, he bought every pick, pan and shovel he could find.",
+   "set": "dock",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.3,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "pick_up",
+       "at": 1.6
+      },
+      {
+       "do": "money",
+       "at": 2.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "spot": "floor_front"
+    },
+    {
+     "type": "tool",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 2.0
+    }
+   ]
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Pans that cost him just twenty cents.",
+   "set": "dock",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "20 CENTS"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then he filled a bottle with gold dust,",
+   "set": "store",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "text": "GOLD DUST",
+     "held_by": "walt"
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "and ran through San Francisco, waving it around.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -2.6,
+         0.2
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "text": "GOLD DUST",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Gold! Gold from the American River!",
+   "set": "street",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "text": "GOLD DUST",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.5
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The whole town dropped everything and rushed for the hills.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "run",
+       "at": 0.8,
+       "params": {
+        "to": [
+         2.6,
+         0.3
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.8
+    },
+    {
+     "name": "crowd",
+     "at": 0.4
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "I need a pan! Right now!",
+   "set": "river",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 0.2
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And only one man had pans to sell.",
+   "set": "river",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -0.8,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "present",
+       "at": 1.7
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt"
+    },
+    {
+     "type": "sign",
+     "text": "PANS FOR SALE",
+     "spot": "wall_r"
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Fifteen dollars. Each.",
+   "set": "river",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.6
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Twenty cents in, fifteen dollars out.",
+   "set": "river",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "pip"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "$15"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.5
+    },
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "In nine weeks, he made thirty six thousand dollars.",
+   "set": "store",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    },
+    {
+     "type": "sack",
+     "spot": "on_crate"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "$36,000"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    },
+    {
+     "name": "coins",
+     "at": 1.4
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Most miners dug for months and found almost nothing.",
+   "set": "goldfield",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Brannan became California's first real millionaire.",
+   "set": "mansion",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gold",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "FIRST MILLIONAIRE"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But easy money has a way of leaving.",
+   "set": "mansion",
+   "camera": "close",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.5
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In 1872, a costly divorce split his fortune.",
+   "set": "lawyer",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "DIVORCE PAPERS",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    },
+    {
+     "name": "gasp",
+     "at": 1.3
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He sank the rest into land deals that failed.",
+   "set": "lot",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    },
+    {
+     "type": "map",
+     "spot": "floor_front",
+     "text": "LAND DEALS"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.4
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Sam Brannan died nearly penniless in 1889.",
+   "set": "room",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1889"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.2
+    }
+   ]
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the shovel guy lost it all?",
+   "set": "goldfield",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Wanna buy a shovel?",
+   "set": "goldfield",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ]
+  }
+ ]
+}

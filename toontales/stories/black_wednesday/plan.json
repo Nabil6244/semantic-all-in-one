@@ -1,0 +1,800 @@
+{
+ "id": "black_wednesday",
+ "title": "How One Trader Beat the Bank of England",
+ "topic": "Black Wednesday 1992, Soros vs the pound (forex trading psychology: don't fight the trend)",
+ "hook_title": "ONE TRADER BEAT A BANK?",
+ "keywords": [
+  "soros",
+  "bank",
+  "pound",
+  "pounds",
+  "billion",
+  "billions",
+  "trend",
+  "promise",
+  "weak"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Black_Wednesday",
+  "https://moneyweek.com/408262/16-september-1992-sterling-crashes-out-of-the-erm-on-black-wednesday"
+ ],
+ "places": {
+  "bank": "The grand hall of the Bank of England in 1992: tall marble columns, a huge round gold vault door, a polished stone floor, brass lamps, a big British flag",
+  "office": {
+   "prompt": "A 1992 hedge fund office in New York at night: desks with old computer monitors showing green currency charts, telephones, papers, a big window with the city skyline lights",
+   "ambient": "none"
+  },
+  "tradefloor": "A busy 1992 currency trading floor: long rows of desks with old monitors and telephones, a giant board of red and green exchange rates on the back wall, papers on the floor; traders only small in the far background",
+  "london": {
+   "prompt": "A London street in 1992 at a grey rainy evening: the Bank of England building with columns, a red double-decker bus, wet pavement, street lamps",
+   "ambient": "rain"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1992, one trader beat the Bank of England.",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      },
+      {
+       "do": "tremble",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "How do you beat a whole bank?",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "His name was George Soros, and he traded currencies.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "GBP / DEM",
+     "spot": "wall_l"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "GEORGE SOROS"
+   },
+   "id": "s03",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Britain had promised to keep the pound strong.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "£1 = 2.78 MARKS",
+     "held_by": "walt"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "THE PROMISE"
+   },
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "But the pound was weaker than the promise.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "WEAK"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "That promise is going to break.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So Soros bet billions that the pound would fall.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "DOWN"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "id": "s07",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Traders everywhere started selling pounds.",
+   "set": "tradefloor",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.4,
+         0.2
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "SELL £",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    },
+    {
+     "name": "footsteps",
+     "at": 0.1
+    }
+   ],
+   "id": "s08",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The Bank fought back.",
+   "set": "bank",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.3
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "It spent billions buying pounds.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "plead",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "picked_by": "pip"
+    },
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.7
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "We will not lose!",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It raised interest rates from 10 to 12 percent.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "12%"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.4
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then it promised 15 percent.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "15%"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Nobody believed it. The selling only grew.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cower",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.3
+    }
+   ],
+   "id": "s14",
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "That evening, Britain gave up.",
+   "set": "london",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "THE PROMISE"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.4
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Soros made about a billion dollars.",
+   "set": "tradefloor",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    },
+    {
+     "type": "sack",
+     "spot": "on_crate"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "+$1 BILLION"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.3
+    }
+   ],
+   "id": "s16",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Britain's loss was later put at 3.3 billion pounds.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "-£3.3 BILLION"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.2
+    }
+   ],
+   "id": "s17",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The Bank's mistake? It fought the trend instead of admitting it was wrong.",
+   "set": "bank",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "DON'T FIGHT THE TREND"
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So never fight the trend?",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Wanna sell some pounds?",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s20",
+   "transition": "cut"
+  }
+ ],
+ "est_total": 37.93
+}

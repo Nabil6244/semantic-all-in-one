@@ -174,3 +174,13 @@ EXTRA_BLURBS[OCEAN] = ("Sea-predator explainers drawn in code: flat 2D sharks, o
                        "underwater world, numbers become cards (counts, dot grids, clocks, calendars), studies a paper card, 'what would "
                        "you do' the diver's view, with joke props and orange keyword captions over a music bed. From your voice-over only.")
 EXTRA_CARDS[OCEAN] = ("\u25C9", "Sea predators, drawn and explained", "Your voice-over", "Ocean animals, 'what scares X', deep-sea lists")
+
+
+# Toon Tales (ui/toon_tales_section.py, toontales/): appended here so nothing above changes
+TOON_TALES = "Toon Tales"
+STANDALONE = STANDALONE + (TOON_TALES,)
+GROUPS = tuple((title, names + (TOON_TALES,) if title == "Stories" else names) for title, names in GROUPS)
+EXTRA_BLURBS[TOON_TALES] = ("Walt and Pip, two flat cartoon puppets, act out a ~40 s 'How X worked' Short on painted places that change with the "
+                            "story: hook card, punch-ins, yellow key-word captions, sweat/sparkle/anger reactions, a WAIT break and music that "
+                            "follows the beats. From a story plan written with Claude's toon-tales skill; places are painted once with Flow.")
+EXTRA_CARDS[TOON_TALES] = ("\u263A", "Cartoon history Shorts with Walt and Pip", "A story plan (plan.json)", "How X worked, cons, hoaxes, trading psychology")

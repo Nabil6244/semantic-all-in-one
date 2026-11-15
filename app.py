@@ -108,6 +108,7 @@ from ui import product_trailer_section as _pt_section
 from ui import roblox_cinema_section as _rc_section   # Roblox Cinema (ui/roblox_cinema_section.py, roblox-cinema-engine/)
 from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_section.py, voxelmap-engine/)
 from ui import city_timelapse_section as _ct_section   # City Timelapse (ui/city_timelapse_section.py, citygrow-engine/)
+from ui import toon_tales_section as _tt_section   # Toon Tales (ui/toon_tales_section.py, toontales/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import ocean_section as _oc_section   # Ocean Predators (ui/ocean_section.py, ocean/)
 from ui import kids_learn_section as _kl_section   # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/)
@@ -3232,6 +3233,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Voxel Map"
         if getattr(self, "_ct_active", False):   # City Timelapse (ui/city_timelapse_section.py): opt-in, per session
             return "City Timelapse"
+        if getattr(self, "_tt_active", False):   # Toon Tales (ui/toon_tales_section.py): opt-in, per session
+            return "Toon Tales"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
             return "Aviation"
         if getattr(self, "_oc_active", False):   # Ocean Predators (ui/ocean_section.py): opt-in, per session
@@ -3307,6 +3310,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_tt_running", False):   # Toon Tales
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         if getattr(self, "_av_running", False):   # Aviation
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
@@ -3360,6 +3367,12 @@ class VideoGeneratorApp(ctk.CTk):
             _ct_section.deactivate(self)
         if choice == "City Timelapse":   # its own page (ui/city_timelapse_section.py); nothing runs until Generate
             _ct_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Toon Tales":
+            _tt_section.deactivate(self)
+        if choice == "Toon Tales":   # its own page (ui/toon_tales_section.py); nothing runs until Generate
+            _tt_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Aviation":
@@ -3536,6 +3549,9 @@ class VideoGeneratorApp(ctk.CTk):
         ct_block = getattr(self, "_ct_block", None)
         if ct_block is not None:
             ct_block.grid() if active == "City Timelapse" else ct_block.grid_remove()
+        tt_block = getattr(self, "_tt_block", None)
+        if tt_block is not None:
+            tt_block.grid() if active == "Toon Tales" else tt_block.grid_remove()
         av_block = getattr(self, "_av_block", None)
         if av_block is not None:
             av_block.grid() if active == "Aviation" else av_block.grid_remove()
@@ -7486,6 +7502,8 @@ class VideoGeneratorApp(ctk.CTk):
             _vm_section.cta(self, action)
         elif action in ("ct_generate", "ct_render", "ct_cancel"):
             _ct_section.cta(self, action)
+        elif action in ("tt_generate", "tt_render", "tt_cancel"):
+            _tt_section.cta(self, action)
         elif action in ("av_generate", "av_render", "av_cancel"):
             _av_section.cta(self, action)
         elif action in ("oc_generate", "oc_render", "oc_cancel"):
@@ -8336,6 +8354,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _vm_section.sync_cta(self)
         if getattr(self, "_ct_active", False) and getattr(self, "_ct_block", None) is not None:   # City Timelapse owns the button while its page is up
             return _ct_section.sync_cta(self)
+        if getattr(self, "_tt_active", False) and getattr(self, "_tt_block", None) is not None:   # Toon Tales owns the button while its page is up
+            return _tt_section.sync_cta(self)
         if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
             return _av_section.sync_cta(self)
         if getattr(self, "_oc_active", False) and getattr(self, "_oc_block", None) is not None:   # Ocean Predators owns the button while its page is up
@@ -9181,12 +9201,14 @@ class VideoGeneratorApp(ctk.CTk):
         _rc_section.deactivate(self)   # Roblox Cinema likewise
         _vm_section.deactivate(self, remember=False)   # Voxel Map likewise, until resume_on_open below
         _ct_section.deactivate(self, remember=False)   # City Timelapse likewise, until resume_on_open below
+        _tt_section.deactivate(self, remember=False)   # Toon Tales likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _oc_section.deactivate(self, remember=False)   # Ocean Predators likewise, until resume_on_open below
         _kl_section.deactivate(self)   # Kids Learn likewise
         _rh_section.deactivate(self)   # Rules Horror likewise
         _vm_section.resume_on_open(self)   # a project left on the Voxel Map page opens on it again; nothing runs until Generate
         _ct_section.resume_on_open(self)   # a project left on the City Timelapse page opens on it again; nothing runs until Generate
+        _tt_section.resume_on_open(self)   # a project left on the Toon Tales page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         _oc_section.resume_on_open(self)   # a project left on the Ocean Predators page opens on it again; nothing runs until Generate
         self._sync_export_csv_link()
@@ -17057,6 +17079,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_rc_running",)   # Roblox Cinema likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_vm_running",)   # Voxel Map likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_ct_running",)   # City Timelapse likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_tt_running",)   # Toon Tales likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_av_running",)   # Aviation likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_oc_running",)   # Ocean Predators likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise

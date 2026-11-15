@@ -1,0 +1,859 @@
+{
+ "id": "newton_fomo",
+ "title": "How Isaac Newton Lost a Fortune to FOMO",
+ "topic": "Isaac Newton and the South Sea Bubble (trading psychology: FOMO)",
+ "hook_title": "NEWTON WENT BROKE?",
+ "keywords": [
+  "newton",
+  "fomo",
+  "fortune",
+  "crash",
+  "bubble",
+  "shares",
+  "rich",
+  "genius"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://www-users.cse.umn.edu/~odlyzko/doc/mania13c.pdf",
+  "https://physicstoday.aip.org/features/isaac-newton-and-the-perils-of-the-financial-south-sea",
+  "https://blog.nationalarchives.gov.uk/the-south-sea-bubble-of-1720"
+ ],
+ "places": {
+  "coffeehouse": {
+   "prompt": "Inside a busy 1720 London coffee house where shares were traded: dark wooden tables with coffee pots and candles, papers pinned to the walls, a big window, wooden floor; men in wigs only small in the far background",
+   "ambient": "dust"
+  },
+  "alley": "Exchange Alley in London, 1720: a narrow street of old timber and brick buildings, hanging shop signs, crowds of traders in wigs and tricorn hats in the far background, sunny day, cobblestones",
+  "study": "Isaac Newton's study in 1720: a brass telescope, a glass prism making a rainbow on the wall, shelves of books, papers with equations, a fireplace, wooden floor",
+  "storm": {
+   "prompt": "Exchange Alley in London, 1720, during a crash: the same narrow street of timber buildings under a dark stormy sky, papers blowing in the wind, puddles on the cobblestones, empty and gloomy",
+   "ambient": "rain"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Isaac Newton figured out gravity.",
+   "set": "coffeehouse",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "ISAAC NEWTON"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "So how did he lose a fortune on one stock?",
+   "set": "coffeehouse",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BROKE?"
+   },
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.3
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "In 1720, London went mad for the South Sea Company.",
+   "set": "alley",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "SOUTH SEA CO.",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    }
+   ],
+   "id": "s03",
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "walt",
+   "text": "Shares! Get your shares!",
+   "set": "alley",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "SOUTH SEA SHARE",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Newton already owned shares, and the price was soaring.",
+   "set": "coffeehouse",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "SOUTH SEA: £350",
+     "spot": "wall_l"
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "UP!"
+   },
+   "id": "s05",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "That spring, he sold for about twenty thousand pounds profit.",
+   "set": "study",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "picked_by": "pip"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "+£20,000"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.7
+    }
+   ],
+   "id": "s06",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "pip",
+   "text": "Smart. Safe. Done.",
+   "set": "study",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cross",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "But the price kept climbing.",
+   "set": "alley",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "SOUTH SEA: £700",
+     "spot": "wall_l"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "id": "s08",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "All of London was buying.",
+   "set": "alley",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.7
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    }
+   ],
+   "id": "s09",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "His friends were getting rich.",
+   "set": "coffeehouse",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "laugh",
+     "at": 0.4
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "I'm missing out!",
+   "set": "coffeehouse",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So in June, he bought back in at around seven hundred pounds.",
+   "set": "alley",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.4,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "throw",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "£700"
+   },
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    },
+    {
+     "name": "cash",
+     "at": 1.8
+    }
+   ],
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The price hit nearly a thousand.",
+   "set": "alley",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "jump",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "SOUTH SEA: £1,000",
+     "spot": "wall_l"
+    }
+   ],
+   "id": "s13",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "I'm a genius!",
+   "set": "study",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Then the bubble burst.",
+   "set": "storm",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "CRASH"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.2
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "By autumn, the shares had lost most of their value.",
+   "set": "storm",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "SOUTH SEA: CRASHED",
+     "spot": "wall_l"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.5
+    }
+   ],
+   "id": "s16",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Newton lost more than twenty thousand pounds.",
+   "set": "study",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "-£20,000"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.2
+    }
+   ],
+   "id": "s17",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Selling was smart. Buying back in was the mistake.",
+   "set": "study",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "BUYING BACK"
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Traders call it FOMO: the fear of missing out.",
+   "set": "coffeehouse",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "FOMO = FEAR OF MISSING OUT"
+   },
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So I should just stay out?",
+   "set": "coffeehouse",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Shares! Get your shares!",
+   "set": "coffeehouse",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "SOUTH SEA SHARE",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s21",
+   "transition": "cut"
+  }
+ ],
+ "est_total": 39.25
+}

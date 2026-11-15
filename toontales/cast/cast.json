@@ -1,0 +1,135 @@
+{
+  "note": "Toon Tales recurring cast: the same characters star in every story. Sizes in metres. A new character is a new row (faces.py draws the face parts, puppet.py builds the body). voice = fixed Edge TTS voice so a character always sounds the same; role/traits feed the script writer. base_wpm = the voice's measured pace at +0% (used to estimate shot lengths before any audio is made).",
+  "characters": [
+    {
+      "id": "walt",
+      "name": "Walt",
+      "height": 1.85,
+      "head_r": 0.27,
+      "body": {
+        "w": 0.44,
+        "h": 0.6,
+        "d": 0.26,
+        "color": [
+          62,
+          92,
+          140
+        ],
+        "shirt": [
+          236,
+          226,
+          204
+        ],
+        "style": "overalls"
+      },
+      "legs": 0.78,
+      "hat": {
+        "type": "flatcap",
+        "color": [
+          96,
+          84,
+          70
+        ]
+      },
+      "face": {
+        "hair": [
+          70,
+          52,
+          40
+        ],
+        "mustache": [
+          110,
+          84,
+          66
+        ],
+        "sideburns": false,
+        "brows": true
+      },
+      "voice": {
+        "name": "en-US-GuyNeural",
+        "rate": "+35%",
+        "pitch": "+0Hz",
+        "base_wpm": 160
+      },
+      "role": "schemer",
+      "traits": [
+        "old-timer with a plan for everything",
+        "confident, sly, loves a get-rich idea",
+        "usually the one who pulls the con or explains the trick"
+      ],
+      "default_eyes": "open"
+    },
+    {
+      "id": "pip",
+      "name": "Pip",
+      "height": 1.45,
+      "head_r": 0.25,
+      "body": {
+        "w": 0.52,
+        "h": 0.5,
+        "d": 0.32,
+        "color": [
+          214,
+          150,
+          48
+        ],
+        "stripe": [
+          150,
+          84,
+          40
+        ],
+        "style": "sweater"
+      },
+      "legs": 0.5,
+      "hat": {
+        "type": "boater",
+        "color": [
+          222,
+          196,
+          132
+        ],
+        "band": [
+          150,
+          40,
+          50
+        ]
+      },
+      "face": {
+        "hair": [
+          176,
+          92,
+          48
+        ],
+        "cheeks": true,
+        "brows": true,
+        "curly": true
+      },
+      "voice": {
+        "name": "en-US-ChristopherNeural",
+        "rate": "+50%",
+        "pitch": "+18Hz",
+        "base_wpm": 123
+      },
+      "role": "sidekick",
+      "traits": [
+        "eager young helper",
+        "believes everything at first",
+        "the audience's stand-in who asks 'wait, how?'"
+      ],
+      "default_eyes": "open"
+    }
+  ],
+  "narrator": {
+    "voice": {
+      "name": "en-US-AndrewNeural",
+      "rate": "+30%",
+      "pitch": "+0Hz",
+      "base_wpm": 190
+    },
+    "role": "storyteller",
+    "traits": [
+      "fast, dry, deadpan (~225 wpm)",
+      "tells the history straight; the cast acts it out"
+    ]
+  }
+}

@@ -1,0 +1,711 @@
+{
+ "id": "fools_gold",
+ "title": "How Fool's Gold Fooled Miners",
+ "topic": "fool's gold (pyrite)",
+ "sample": true,
+ "note": "Sample plan used as the checker test fixture and the toon-tales skill example.",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1849, Pip struck gold on his very first swing.",
+   "set": "mine",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.2
+      },
+      {
+       "do": "celebrate",
+       "at": 1.7
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gold",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.3
+    }
+   ]
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "I'm rich! I'm rich!",
+   "set": "mine",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "jump",
+       "at": 0.4
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "It wasn't gold. It was pyrite, better known as fool's gold.",
+   "set": "mine",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.4
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "FOOL'S GOLD"
+   }
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Pyrite is just iron and sulfur dressed up in yellow.",
+   "set": "mine",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "spot": "floor_front"
+    }
+   ]
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "And men like Walt made a good living off it.",
+   "set": "mine",
+   "camera": "low",
+   "move": "orbit_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Fine gold, son. Half price, today only.",
+   "set": "mine",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "spot": "floor_front"
+    }
+   ]
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But real gold is soft enough to dent with your teeth.",
+   "set": "mine",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Pyrite is hard and brittle, and it shatters.",
+   "set": "mine",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "glass",
+     "at": 0.7
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "held_by": "pip"
+    }
+   ]
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "So smart buyers carried a plain white tile.",
+   "set": "mine",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "STREAK TEST",
+     "spot": "wall_l"
+    }
+   ]
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Scratch real gold across it, and the line stays yellow.",
+   "set": "mine",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "YELLOW"
+   }
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Scratch pyrite, and it leaves a greenish black line.",
+   "set": "mine",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "BLACK"
+   }
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Who needs a tile? Trust me, son.",
+   "set": "mine",
+   "camera": "over_shoulder",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cross",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Walt kept his tile hidden, and his price high.",
+   "set": "mine",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         0.4,
+         -1.0
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "He sold Pip the whole cart for every coin he had.",
+   "set": "mine",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.3
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 1.0
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "Wait. Why is it only shiny on the outside?",
+   "set": "mine",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "So Pip finally ran the streak test.",
+   "set": "mine",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "STREAK TEST",
+     "spot": "wall_l"
+    },
+    {
+     "type": "rock",
+     "picked_by": "pip"
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Black line. Fool's gold.",
+   "set": "mine",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "BLACK"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ]
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Pip dumped the whole cart down the old shaft.",
+   "set": "mine",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.8
+    },
+    {
+     "name": "boom",
+     "at": 1.6
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Here's what nobody told either of them.",
+   "set": "mine",
+   "camera": "close",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Pyrite often hides tiny specks of real gold inside it.",
+   "set": "mine",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3
+      },
+      {
+       "do": "nod",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gold",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.5
+    }
+   ]
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Today, mines roast and crush pyrite just to get that gold out.",
+   "set": "mine",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 1.2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Walt sold the cart. Pip threw away the gold.",
+   "set": "mine",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fall",
+       "at": 0.6
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cower",
+       "at": 0.2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Son, I'm gonna need that cart back.",
+   "set": "mine",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.2
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

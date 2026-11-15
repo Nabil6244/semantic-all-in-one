@@ -1,0 +1,3 @@
+# Flow downloads and request logs per paint run: each place keeps its picture as places/<name>.png
+stories/*/places/raw/
+__pycache__/
