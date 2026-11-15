@@ -339,12 +339,16 @@ test("a video that appears after the old 180s cap is detected (one click) and do
   assert.ok(!fs.existsSync(`${dest}.part`));
 });
 
-test("Agent UI: image requests say 'still image, not a video'; video requests say 'video, not a still'", async () => {
+test("Agent UI: an image prompt stays the picture; a video prompt says it is a clip", async () => {
   const { agentPromptFor } = await import("../lib/flow-ui-experiment.js");
   const img = agentPromptFor("slow drone glide over sawgrass with visible water flow", "image");
-  assert.match(img, /still image/i);
-  assert.match(img, /not a video/i);
-  assert.ok(img.endsWith("slow drone glide over sawgrass with visible water flow"));
+  assert.ok(img.startsWith("slow drone glide over sawgrass with visible water flow"));
+  assert.doesNotMatch(img, /^Generate one still image only/i);
+  assert.match(img, /still photograph/i);
+  assert.equal(
+    agentPromptFor("a throne of fire. Still photograph, no motion.", "image"),
+    "a throne of fire. Still photograph, no motion.",
+  );
   const vid = agentPromptFor("drone flight over the coast", "video");
   assert.match(vid, /video clip/i);
   assert.match(vid, /not a still image/i);

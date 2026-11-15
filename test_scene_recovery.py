@@ -178,6 +178,15 @@ class TestAlternativeDoesNotRepeatQuery(AssetPipelineTestCase):
         self.assertEqual(alt.asset_type, "image")
         self.assertEqual(alt.prompt, "vast empty dark starfield")
 
+    def test_stock_fallback_to_flow_image_uses_the_first_search_only(self):
+        scene = SceneRow(
+            scene_number="3", script_segment="El texto de la cueva.",
+            asset_type="stock_image", stock="Ethiopic manuscript || Ge'ez parchment",
+        )
+        alt = scene.as_fallback("flow_image")
+        self.assertEqual(alt.prompt, "Ethiopic manuscript")
+        self.assertNotIn("Generate one still image", alt.prompt)
+
     def test_youtube_fallback_to_flow_image_uses_search_prompt(self):
         scene = SceneRow(
             scene_number="6", script_segment="telescope",

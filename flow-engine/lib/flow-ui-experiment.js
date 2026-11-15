@@ -458,7 +458,8 @@ async function runUiGeneration(page, prompt, opts = {}) {
     await page.keyboard.press("Backspace");
     // Flow's Agent UI has no Image/Video switch: its agent decides from the
     // wording, and motion words ("drone glide", "water flow") made it plan a
-    // paid 10 s video when an image was requested. Say what we want.
+    // paid 10 s video when an image was requested. The picture stays the
+    // scene text; a short trailing line is what keeps it a still.
     const typed = diag.modeSelected === "agent-defaults" ? agentPromptFor(prompt, opts.mode) : prompt;
     diag.agentInstructionAdded = typed !== prompt;
     await editor.pressSequentially(typed);
@@ -652,13 +653,17 @@ async function runUiGeneration(page, prompt, opts = {}) {
 
 /**
  * Prompt text for Flow's Agent UI, which picks image vs video from the words
- * alone. Each request says which one it wants: a video prompt sent bare could
- * come back as a still, and the video wait then ran its full 9 minutes for nothing.
+ * alone. A video prompt sent bare could come back as a still, and the video
+ * wait then ran its full 9 minutes for nothing. An image prompt must stay the
+ * picture itself: a leading command ("Generate one still image only …: <text>")
+ * was drawn as the photo when a failed stock search was switched to a still.
  */
 export function agentPromptFor(prompt, mode) {
-  if (mode === "video") return `Generate one video clip only (a single short video with motion, not a still image): ${prompt}`;
-  if (mode !== "image") return prompt;
-  return `Generate one still image only (a single photo, not a video, no motion): ${prompt}`;
+  const text = String(prompt || "").trim();
+  if (mode === "video") return `Generate one video clip only (a single short video with motion, not a still image): ${text}`;
+  if (mode !== "image") return text;
+  if (/\b(still photograph|still image|no motion)\b/i.test(text)) return text;
+  return `${text}. Still photograph, no motion, no text.`;
 }
 
 export async function generateOneImageViaUI(page, projectId, prompt, settings, promptIndex) {

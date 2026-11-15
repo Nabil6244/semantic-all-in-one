@@ -71,6 +71,12 @@ _STYLE_SENTENCE = re.compile(r"\b(realistic cg|cg render|documentary|16:9|no tex
                             r"drift|lighting|star field|matte|desaturated|depth of field|cinematic|animation|restrained|natural colou?r)\b", re.I)
 
 
+def _first_look(text: str) -> str:
+    """The first stock alternative ("misty cemetery || old gravestones" → "misty cemetery"). A single description is unchanged."""
+    parts = [p.strip() for p in str(text or "").split("||") if p.strip()]
+    return parts[0] if parts else ""
+
+
 def _search_words(prompt: str) -> str:
     """What to search a stock site for when an AI row is switched to stock: the prompt without its house style and camera
     sentences ("Cinematic, realistic CG for a serious space documentary ... Slow, smooth camera push-in" was searched word
@@ -346,7 +352,9 @@ class SceneRow:
                 visual_description=self.visual_description,
             )
         if asset_type in ("image", "video"):
-            prompt = (description or query or self.script_segment).strip()
+            # A stock row's search is often "first look || backup look". One still
+            # needs the first look, not both queries joined by "||".
+            prompt = _first_look(description or query or self.script_segment)
             return SceneRow(
                 scene_number=self.scene_number,
                 script_segment=self.script_segment,
