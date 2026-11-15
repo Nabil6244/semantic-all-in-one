@@ -1,0 +1,13 @@
+type,text,object,color,count,word,gesture,emotion,pause,sound,set
+say,"السلام علیکم بچو! آج میں آپ کو ایک مزے کی کہانی سناتی ہوں۔",,,,,,happy,,,playroom
+say,"یہ کہانی ہے حورین اور نوریز کی۔ دونوں بہت شرارتی بچے ہیں!",,,,,,laugh,,,playroom
+word,"حورین کو پینٹنگ کرنا بہت پسند ہے۔ آج وہ ایک پیارا سا سورج بنا رہی ہے۔",sun,yellow,,سورج,,happy,,,playroom
+say,"لیکن سارے رنگ کس کے پاس ہیں؟ نوریز کے پاس!",,,,,,surprised,,,playroom
+color,"حورین بولی، نوریز! مجھے لال رنگ دو۔",apple,red,,لال,,happy,,,playroom
+say,"نوریز ہنسا اور لال رنگ چھپا لیا۔ ہی ہی ہی!",,,,,,laugh,,,playroom
+color,"پھر نوریز نے نیلا رنگ دیا، لیکن حورین کی ناک پر لگا دیا!",ball,blue,,نیلا,,surprised,,,playroom
+say,"حورین بھی کم شرارتی نہیں تھی۔ اس نے نوریز کے گال پر پیلا رنگ لگا دیا!",,,,,cheer,laugh,,,playroom
+count,"ایک، دو، تین! دونوں رنگوں سے بھر گئے!",flower,pink,3,,,laugh,,,park
+color,"پھر دونوں نے مل کر ہرا ہرا درخت بنایا۔",flower,green,,ہرا,,happy,,,park
+say,"اور ان کی پینٹنگ بہت خوبصورت بن گئی!",,,,,cheer,happy,,,park
+cheer,"مل کر کھیلنا سب سے اچھا ہے! اللہ حافظ بچو!",,,,,,laugh,,,park

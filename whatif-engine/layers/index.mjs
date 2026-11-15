@@ -64,8 +64,10 @@ import rh_prop from './rh_prop.mjs';
 import rh_crowd from './rh_crowd.mjs';
 import rh_bg from './rh_bg.mjs';
 import rh_mirror from './rh_mirror.mjs';
+import { sk_stats, sk_readout, sk_clocks, sk_title, sk_scalering, sk_leader, sk_subtitle, sk_rungcard } from './sk_text.mjs';
 
-export const BUILTIN_LAYERS = [tm_metric, tm_caption, tm_title, tm_cite, tm_clock, tm_survival, tm_gauge, tm_logaxis, tm_bars, tm_curve, tm_compare, tm_composition, tm_timeline, tm_fade, tm_dial, tm_wave, tm_section, tm_grid, tm_orbitmap, tm_phase, tm_discmap, tm_annotate, tm_template, tm_mission, pt_bench, pt_feature, pt_tagline, pt_bigtype, pt_reveal, pt_card, pt_badge, pt_caption, pt_subtitle, pt_curve, pt_compare3, pt_paper, pt_tag, pt_flatphones, pt_gauge, pt_tweet, pt_thermal, pt_swatches, pt_lenses, pt_ring, pt_sides, pt_coststack, pt_doc, pt_glass, pt_words, pt_fact, pt_evidence, pt_iconbuild, pt_list, pt_steps, pt_breakdown, pt_ledger, rh_set, rh_figure, rh_mark, rh_rulecard, rh_caption, rh_glitch, rh_picture, rh_animal, rh_prop, rh_crowd, rh_bg, rh_mirror];
+export const BUILTIN_LAYERS = [tm_metric, tm_caption, tm_title, tm_cite, tm_clock, tm_survival, tm_gauge, tm_logaxis, tm_bars, tm_curve, tm_compare, tm_composition, tm_timeline, tm_fade, tm_dial, tm_wave, tm_section, tm_grid, tm_orbitmap, tm_phase, tm_discmap, tm_annotate, tm_template, tm_mission, pt_bench, pt_feature, pt_tagline, pt_bigtype, pt_reveal, pt_card, pt_badge, pt_caption, pt_subtitle, pt_curve, pt_compare3, pt_paper, pt_tag, pt_flatphones, pt_gauge, pt_tweet, pt_thermal, pt_swatches, pt_lenses, pt_ring, pt_sides, pt_coststack, pt_doc, pt_glass, pt_words, pt_fact, pt_evidence, pt_iconbuild, pt_list, pt_steps, pt_breakdown, pt_ledger, rh_set, rh_figure, rh_mark, rh_rulecard, rh_caption, rh_glitch, rh_picture, rh_animal, rh_prop, rh_crowd, rh_bg, rh_mirror,
+  sk_stats, sk_readout, sk_clocks, sk_title, sk_scalering, sk_leader, sk_subtitle, sk_rungcard];
 
 export function registerBuiltins(registry) {
   for (const L of BUILTIN_LAYERS) registry.register(L);

@@ -1,0 +1,200 @@
+You are writing the VISUAL PLAN CSV for a narrated "store finds" list video (for example
+"16 Dollar Tree Finds That Look Expensive") made with Semantic YT Studio in the "Normal"
+style: full-screen clips that change with the narration, one row per shot. The app finds
+every row's words in the recorded narration, so each row is shown exactly while its
+words are spoken.
+
+Every picture is made separately by an image model that cannot see the other pictures.
+The only thing that keeps the host, the product and the room the same from shot to shot
+is the TEXT you write. So the fixed descriptions below must be copied letter for letter,
+every time, and nothing may be added to them or left out.
+
+OUTPUT
+Output ONLY the CSV, starting with the header row. No explanations, no code fences, no
+blank lines. Quote any cell that contains a comma.
+
+HEADER (exactly this, in this order)
+scene_number,script_segment,asset_type,prompt
+
+COLUMNS
+- scene_number   1, 2, 3 ... one per row, in order, no gaps, never repeated.
+- script_segment the narration this shot covers, copied EXACTLY from the script.
+- asset_type     exactly one of: flow_image, youtube_video, flow_video, stock_video.
+                 About 9 rows in 10 are flow_image (see MEDIA).
+- prompt         what to make or find (see PROMPTS). Never empty.
+
+1. HOW TIME WORKS (calm pace - the most important rule)
+- THE ROWS COVER THE SCRIPT EXACTLY. Put the script_segment cells one after another and
+  you get the script, word for word: nothing skipped, nothing repeated, nothing
+  reworded, nothing added. Keep the script's own spelling, numbers and punctuation.
+- Spoken pace is about 2.5 words per second. Shots must stay on screen long enough to
+  be seen:
+    flow_image row  12 to 20 words (about 5 to 8 seconds)
+    video row       12 to 25 words (youtube_video, flow_video, stock_video)
+- Default: ONE ROW PER SENTENCE. Join two short sentences into one row when together
+  they are 20 words or less. Split a sentence only when it is longer than 20 words,
+  and then only at a comma or "and"/"but"/"so".
+- The only row allowed under 12 words is the last sentence of an item or of the video
+  when it is too short to join (never under 6 words).
+- Count: the number of rows must be about (total words in the script) / 15.
+  A 1,500-word script gets about 100 rows, not 200.
+
+2. THE FIXED DESCRIPTIONS (copy letter for letter in every row that uses them)
+
+HOST (the same woman in the whole video, ONE outfit for the whole video):
+"a friendly woman in her late thirties with long wavy dark-blonde hair parted in the
+middle falling past her shoulders, an oval face, light blue eyes, fair skin with a few
+light freckles, slim build, light natural makeup, wearing a cream cable-knit sweater,
+light-blue jeans and small gold hoop earrings"
+- Never change her outfit, hair, age or face between items. No hats, no coats, no
+  glasses, no jewellery beyond the hoops.
+- She looks at the camera and smiles with her mouth closed; she never speaks.
+- She is always seen from the waist up, facing the camera, in good even light, so the
+  model draws her face the same way every time. No side views, no back views, no
+  far-away shots of her.
+
+HANDS (every shot of hands without a face):
+"a woman's hands with short natural nails and cream cable-knit sweater sleeves"
+
+PLACES - only two places exist in this video, each always written with exactly these
+words:
+STORE: "in a bright discount-store aisle with white pegboard shelving, green
+        shelf-edge strips, fluorescent ceiling lights and a speckled beige floor"
+HOME:  "in a clean white home kitchen with white shaker cabinets, a white quartz
+        counter, a light wood dining table and soft window daylight"
+- Never invent another room (no living room, bathroom, garage, car, garden, bedroom)
+  unless the script itself names that room for this item. If it does, write one fixed
+  description for that room and copy it in every row of that item.
+
+PRODUCT CARD (one per item, decided before you write the item's first row):
+Write one description of 20 to 35 words that fixes every visible part of the product:
+  object type + material + finish (matte / glossy / clear) + exact colour +
+  real size with a comparison ("about the size of a hand", "about 30 cm long") +
+  outline shape (round, oval, rectangular, tapered) + how many parts, slots, lids,
+  handles or compartments + one stand-out detail.
+  Example: "a matte sage-green silicone spoon rest about the size of an adult hand,
+  flat oval shape with four side-by-side oval slots and a raised rim around the edge"
+- Copy the card letter for letter in every row of that item. Never add a detail later
+  (no new handle, lid, pattern or colour), never shorten it, never say "the same rest".
+- Show the WHOLE product, uncropped, in the same position in every shot (slots facing
+  up, lid on, standing upright ...). At most one close-up per item.
+- One piece of the product in frame. A second colour or a row of them only on the
+  words that name the colours or how many to buy, and then the card stays the same
+  with only the colour word changed.
+- Use only what the script says about the product. If the script gives no colour,
+  pick one plain colour and keep it.
+
+3. PLACE FOLLOWS THE WORDS (stops the store/kitchen jumping)
+Before each row, decide where its words happen:
+- STORE: the words are about finding it, seeing it on the shelf, the price, the aisle,
+  shopping, "I found", "they had", "in stock".
+- HOME: the words are about a problem at home, using it, cooking, cleaning, storing,
+  serving, gifting, or how it looks in the house.
+- Words that name no place stay in the place of the row before.
+- Inside one item the place moves AT MOST ONCE: STORE first, then HOME. Once an item
+  is at HOME it stays at HOME until the next item starts, even if a later line says
+  "grab two" or "go get one".
+- Bridges between items ("next up", "number seven", "but wait") use the place the
+  next item starts in.
+- In every flow prompt write out the STORE or HOME description in full.
+
+4. SHOT MENU (rotate them)
+ A  SHELF       the product stocked in neat rows on the STORE shelf.      STORE
+ B  HOST STORE  the host in the STORE aisle holding the product at chest
+                height toward the camera.                                  STORE
+ C  POV         first-person view, the HANDS holding the product over a
+                red shopping basket in the STORE aisle.                    STORE
+ D  PROBLEM     the HOME scene before the product: the mess or annoyance
+                the words describe (dirty spoons on the counter).          HOME
+ E  IN USE      the product doing its job at HOME, no people.              HOME
+ F  HANDS       the HANDS using, filling, opening or washing it at HOME.   HOME
+ G  LINE-UP     the colours or sizes the words name, in a neat row on
+                the white counter.                                         HOME
+ H  STYLED      the product looking expensive at HOME: on the set table,
+                on an open shelf, as a wrapped gift.                       HOME
+ I  HOST HOME   the host at HOME standing at the counter or sitting at the
+                table, holding the product or a mug, smiling at the camera. HOME
+ J  CREATOR     a real shopper's clip of this exact product (youtube_video).
+
+5. STRUCTURE
+- Opening (before item 1): follow the place rule; usually A of the first product,
+  then B, then H only if the words talk about the home.
+- Each item, as far as its narration is long enough, in this order:
+  1. J on the sentence that names the item (A if no creator clip fits).
+  2. A or C while the words are still about the store.
+  3. D on the problem it solves.
+  4. E, then F, on how it is used.
+  5. G when colours, sizes or how many to buy are named; H when the words say it
+     looks expensive or give a second use.
+  6. The closing line: B if the item is still at the STORE, I if it is at HOME.
+- The host (B or I) appears ONCE per item, never in two rows in a row.
+- Never the same letter twice in a row.
+- Ending: H of the finds together on the HOME table, F, then I waving goodbye.
+
+6. MEDIA
+- flow_image    DEFAULT: about 9 rows in 10. Every shot A to I is a still picture.
+- youtube_video the J clips: one per item, on the sentence that introduces the item.
+- flow_video    only when the movement itself is the point (water running over the
+                product, something being poured in, a lid twisting open). At most one
+                in every two items. It uses the same HOST / HANDS / PRODUCT / PLACE
+                text as the pictures.
+- stock_video   only for a general idea with no product in it (a family dinner, guests
+                arriving at a door). At most 3 in the whole video.
+Count before you answer: flow_image rows must be at least 85 percent of all rows.
+Show only what the narration says. Never add a product, price, colour or use it does
+not name.
+
+7. PROMPTS
+- flow_image / flow_video: one sentence in this order:
+    shot type (wide / medium / close, eye level or from above)
+    + subject (HOST and/or HANDS text, then the PRODUCT CARD, all copied exactly)
+    + pose or action
+    + the STORE or HOME text copied exactly
+    + always end with: "shot on a phone, natural light, realistic, no text, no logos,
+      no price tags with writing"
+  A flow_image is a frozen moment: describe a pose, never a movement or a camera move.
+  For flow_video add the one movement that matters: water running, oats pouring.
+  Change between rows only the shot type, the pose and what is around the product -
+  never the HOST, HANDS, PRODUCT CARD or PLACE text.
+- youtube_video: 3 to 8 searchable words, two or three searches from specific to
+  broader, separated by ||, using the store name from the script:
+  "dollar tree silicone spoon rest||dollar tree kitchen finds haul||dollar tree new
+  finds".
+- stock_video: 6 to 12 words: subject + action + setting + time of day.
+- Never the store's name or any brand in a Flow prompt: write "discount store".
+- Never a real person's name, never a file name, never the narration copied word for
+  word. Never repeat the same prompt; change the shot type or the pose.
+
+8. CHECKLIST BEFORE YOU ANSWER
+1. The header is exactly: scene_number,script_segment,asset_type,prompt
+2. scene_number runs 1, 2, 3 ... with no gaps.
+3. TIME: joining every script_segment gives the script word for word. Check it.
+4. PACE: flow_image rows 12 to 20 words, video rows 12 to 25 words (short last
+   sentence of an item excepted). Rows are about total words / 15.
+5. HOST: the HOST text is identical in every host row of the whole video, one outfit.
+6. PRODUCT: inside each item the PRODUCT CARD is identical in every row, whole product
+   shown, no new parts.
+7. PLACE: every flow prompt has the STORE or HOME text copied exactly; inside an item
+   the place goes STORE -> HOME at most once and never back.
+8. At least 85 percent of rows are flow_image; one youtube_video per item; host once
+   per item; no two rows in a row with the same shot letter; no repeated prompt.
+9. Output is the CSV only.
+
+EXAMPLE
+Script:
+Number two is this four-slot silicone spoon rest, and it is only a dollar twenty-five. You know that moment when you are cooking and every spoon ends up dripping on the counter. This holds four utensils at once and keeps the mess in one place. When dinner is done you just rinse it under the tap. It comes in four colours, so grab two.
+
+CSV:
+scene_number,script_segment,asset_type,prompt
+1,"Number two is this four-slot silicone spoon rest, and it is only a dollar twenty-five.",youtube_video,dollar tree silicone spoon rest||dollar tree kitchen finds haul||dollar tree new finds
+2,You know that moment when you are cooking and every spoon ends up dripping on the counter.,flow_image,"medium shot at eye level of a wooden spoon, a steel ladle and tongs lying dirty beside a stove with sauce drips on the counter, in a clean white home kitchen with white shaker cabinets, a white quartz counter, a light wood dining table and soft window daylight, shot on a phone, natural light, realistic, no text, no logos, no price tags with writing"
+3,This holds four utensils at once and keeps the mess in one place.,flow_image,"close shot from slightly above of a matte sage-green silicone spoon rest about the size of an adult hand, flat oval shape with four side-by-side oval slots and a raised rim around the edge, holding a wooden spoon, a ladle, tongs and a spatula beside a stove, in a clean white home kitchen with white shaker cabinets, a white quartz counter, a light wood dining table and soft window daylight, shot on a phone, natural light, realistic, no text, no logos, no price tags with writing"
+4,When dinner is done you just rinse it under the tap.,flow_video,"medium shot at eye level of a woman's hands with short natural nails and cream cable-knit sweater sleeves holding a matte sage-green silicone spoon rest about the size of an adult hand, flat oval shape with four side-by-side oval slots and a raised rim around the edge, under the tap at the sink, water running over it, in a clean white home kitchen with white shaker cabinets, a white quartz counter, a light wood dining table and soft window daylight, shot on a phone, natural light, realistic, no text, no logos, no price tags with writing"
+5,"It comes in four colours, so grab two.",flow_image,"medium shot at eye level of a friendly woman in her late thirties with long wavy dark-blonde hair parted in the middle falling past her shoulders, an oval face, light blue eyes, fair skin with a few light freckles, slim build, light natural makeup, wearing a cream cable-knit sweater, light-blue jeans and small gold hoop earrings, standing at the counter holding a matte sage-green silicone spoon rest about the size of an adult hand, flat oval shape with four side-by-side oval slots and a raised rim around the edge and a matte red one of the same shape, smiling at the camera, in a clean white home kitchen with white shaker cabinets, a white quartz counter, a light wood dining table and soft window daylight, shot on a phone, natural light, realistic, no text, no logos, no price tags with writing"
+(Row 5 is short because it is the item's last sentence. The item moved to HOME at row 2,
+so the closing host shot is I at HOME, not back in the store, even though it says
+"grab two". In a full video youtube_video and flow_video rows are rarer than in this
+short example: about 9 rows in 10 are flow_image.)
+
+NOW WRITE THE VISUAL PLAN CSV FOR THIS SCRIPT:
+<<<PASTE THE SCRIPT HERE>>>

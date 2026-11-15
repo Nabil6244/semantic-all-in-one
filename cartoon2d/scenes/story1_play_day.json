@@ -5,8 +5,8 @@
  "_acts": "act = what the speaker does; also = what the others do on that line; card = big word/number on screen; sfx = kids_audio effect at the line start; pic = animal picture card (cartoon2d/art/props/<pic>.png)",
  "lines": [
   {
-   "who": "host",
-   "text": "Hi friends! Welcome back to Rainbow Playland!",
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly. Welcome back to Rainbow Playland!",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
    "pitch": "+6Hz",
@@ -14,22 +14,22 @@
    "cam": "group"
   },
   {
-   "who": "hoorain",
-   "text": "Hi! I'm Hoorain!",
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
    "voice": "en-US-AnaNeural",
    "act": "wave",
    "gap_after": 0.25
   },
   {
-   "who": "noraiz",
-   "text": "And I'm Noraiz!",
+   "who": "ollie",
+   "text": "And I'm Ollie!",
    "voice": "en-US-AnaNeural",
    "rate": "+8%",
    "pitch": "-14Hz",
    "act": "cheer"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Today we will jump, count, and find colours! Are you ready?",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -38,26 +38,26 @@
    "gap_after": 1.0
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "Ready!",
    "voice": "en-US-AnaNeural",
    "act": "cheer",
    "also": {
-    "noraiz": "cheer"
+    "ollie": "cheer"
    },
    "cam": "kids",
    "sfx": "sparkle"
   },
   {
-   "who": "host",
-   "text": "Noraiz, can you jump five times? Let's count together!",
+   "who": "molly",
+   "text": "Ollie, can you jump five times? Let's count together!",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
    "pitch": "+6Hz",
    "act": "point"
   },
   {
-   "who": "noraiz",
+   "who": "ollie",
    "text": "Okay! Watch me!",
    "voice": "en-US-AnaNeural",
    "rate": "+8%",
@@ -65,13 +65,13 @@
    "act": "cheer"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "One!",
    "voice": "en-US-AvaNeural",
    "pitch": "+6Hz",
    "act": "count",
    "also": {
-    "noraiz": "jump"
+    "ollie": "jump"
    },
    "cam": "group",
    "card": "1",
@@ -79,67 +79,67 @@
    "gap_after": 0.5
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Two!",
    "voice": "en-US-AvaNeural",
    "pitch": "+6Hz",
    "act": "count",
    "also": {
-    "noraiz": "jump"
+    "ollie": "jump"
    },
    "card": "2",
    "sfx": "ding_2",
    "gap_after": 0.5
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Three!",
    "voice": "en-US-AvaNeural",
    "pitch": "+6Hz",
    "act": "count",
    "also": {
-    "noraiz": "jump"
+    "ollie": "jump"
    },
    "card": "3",
    "sfx": "ding_3",
    "gap_after": 0.5
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Four!",
    "voice": "en-US-AvaNeural",
    "pitch": "+6Hz",
    "act": "count",
    "also": {
-    "noraiz": "jump"
+    "ollie": "jump"
    },
    "card": "4",
    "sfx": "ding_4",
    "gap_after": 0.5
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Five!",
    "voice": "en-US-AvaNeural",
    "pitch": "+6Hz",
    "act": "count",
    "also": {
-    "noraiz": "jump"
+    "ollie": "jump"
    },
    "card": "5",
    "sfx": "ding_5",
    "gap_after": 0.5
   },
   {
-   "who": "hoorain",
-   "text": "Five jumps! Yay, Noraiz!",
+   "who": "lily",
+   "text": "Five jumps! Yay, Ollie!",
    "voice": "en-US-AnaNeural",
    "act": "clap",
    "sfx": "success"
   },
   {
-   "who": "host",
-   "text": "Now, a colour game! What colour is Hoorain's shirt? Can you say it?",
+   "who": "molly",
+   "text": "Now, a colour game! What colour is Lily's shirt? Can you say it?",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
    "pitch": "+6Hz",
@@ -147,7 +147,7 @@
    "gap_after": 1.4
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "Pink! My shirt is pink!",
    "voice": "en-US-AnaNeural",
    "act": "cheer",
@@ -156,7 +156,7 @@
    "sfx": "chime"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Yes, pink! And my overalls are blue. Say it with me. Blue!",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -166,7 +166,7 @@
    "card_at": 0.55
   },
   {
-   "who": "noraiz",
+   "who": "ollie",
    "text": "Blue! Hee hee, I said it first!",
    "voice": "en-US-AnaNeural",
    "rate": "+8%",
@@ -176,27 +176,27 @@
    "gap_after": 0.2
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "No, I did!",
    "voice": "en-US-AnaNeural",
    "act": "talk"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "You both did! Great job! Let's give a big clap!",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
    "pitch": "+6Hz",
    "act": "clap",
    "also": {
-    "hoorain": "clap",
-    "noraiz": "clap"
+    "lily": "clap",
+    "ollie": "clap"
    },
    "cam": "group",
    "sfx": "success"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Now let's play the animal sound game! Listen carefully.",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -205,7 +205,7 @@
    "cam": "group"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Look! Who is this? What does the cow say?",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -215,7 +215,7 @@
    "gap_after": 1.3
   },
   {
-   "who": "noraiz",
+   "who": "ollie",
    "text": "Moooo!",
    "voice": "en-US-AnaNeural",
    "rate": "+8%",
@@ -225,13 +225,13 @@
    "sfx": "pop"
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "Moo! Moo!",
    "voice": "en-US-AnaNeural",
    "act": "cheer"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Yes! The cow says moo! And what does the duck say?",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -241,7 +241,7 @@
    "gap_after": 1.3
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "Quack, quack, quack!",
    "voice": "en-US-AnaNeural",
    "act": "clap",
@@ -249,7 +249,7 @@
    "sfx": "pop"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Great listening! And the cat? What does the cat say?",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -259,7 +259,7 @@
    "gap_after": 1.3
   },
   {
-   "who": "noraiz",
+   "who": "ollie",
    "text": "Meow! Meow!",
    "voice": "en-US-AnaNeural",
    "rate": "+8%",
@@ -269,27 +269,27 @@
    "sfx": "pop"
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "I love animals! That was so much fun!",
    "voice": "en-US-AnaNeural",
    "act": "cheer",
    "sfx": "sparkle"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Now everybody, jump with us! Jump, jump, jump!",
    "voice": "en-US-AvaNeural",
    "rate": "-2%",
    "pitch": "+6Hz",
    "act": "jump",
    "also": {
-    "hoorain": "jump",
-    "noraiz": "jump"
+    "lily": "jump",
+    "ollie": "jump"
    },
    "sfx": "pop"
   },
   {
-   "who": "host",
+   "who": "molly",
    "text": "Thank you for playing, friends! Bye bye!",
    "voice": "en-US-AvaNeural",
    "rate": "-4%",
@@ -297,25 +297,25 @@
    "act": "wave"
   },
   {
-   "who": "hoorain",
+   "who": "lily",
    "text": "Bye bye!",
    "voice": "en-US-AnaNeural",
    "act": "wave",
    "also": {
-    "noraiz": "wave"
+    "ollie": "wave"
    },
    "cam": "kids",
    "gap_after": 0.2
   },
   {
-   "who": "noraiz",
+   "who": "ollie",
    "text": "See you next time!",
    "voice": "en-US-AnaNeural",
    "rate": "+8%",
    "pitch": "-14Hz",
    "act": "wave",
    "also": {
-    "hoorain": "wave"
+    "lily": "wave"
    }
   }
  ]

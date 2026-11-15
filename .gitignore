@@ -69,3 +69,6 @@ assets/jung/refs/
 
 # Aviation shared library (captured pages, photos, clips, Flow pictures): local only, never pushed
 assets/aviation/library/
+
+# Sky Sim CC0 scene assets: fetched by python -m skysim.tools.fetch_assets
+skysim/assets/

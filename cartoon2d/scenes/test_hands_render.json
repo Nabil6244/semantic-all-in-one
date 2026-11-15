@@ -1,0 +1,71 @@
+{
+ "timeline": "cartoon2d/build/test_hands/audio/timeline.json",
+ "build": "cartoon2d/build/test_hands",
+ "name": "test_hands",
+ "host": "molly",
+ "kids": [
+  "lily",
+  "ollie"
+ ],
+ "start_place": "playroom",
+ "places": {
+  "playroom": {
+   "background": "cartoon2d/art/bg/playland.png",
+   "floor_y": 0.885,
+   "spots": {
+    "molly": 0.21,
+    "lily": 0.45,
+    "ollie": 0.59,
+    "bobo": 0.79
+   }
+  },
+  "garden": {
+   "background": "cartoon2d/art/bg/garden.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.24,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "height": 0.45,
+   "tilt": 1.0,
+   "hold_side": "sr"
+  },
+  "bobo": {
+   "dir": "cartoon2d/cast/bobo",
+   "height": 0.64,
+   "tilt": 0.6,
+   "hop": 0.1,
+   "listen": 3.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "playroom": "playroom",
+  "garden": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "hook": false
+}

@@ -1,6 +1,28 @@
-{"timeline": "cartoon2d/build/story1/audio/timeline.json",
- "background": "cartoon2d/art/bg/playland.png", "floor_y": 0.885, "build": "cartoon2d/build/story1",
- "cast": {"host": {"dir": "cartoon2d/cast/host", "x": 0.28, "height": 0.70, "tilt": 0.35},
-          "hoorain": {"dir": "cartoon2d/cast/hoorain", "x": 0.585, "height": 0.50, "tilt": 0.6},
-          "noraiz": {"dir": "cartoon2d/cast/noraiz", "x": 0.735, "height": 0.45, "tilt": 1.0}},
- "music": "playroom", "props": "cartoon2d/art/props"}
+{
+ "timeline": "cartoon2d/build/story1/audio/timeline.json",
+ "background": "cartoon2d/art/bg/playland.png",
+ "floor_y": 0.885,
+ "build": "cartoon2d/build/story1",
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "x": 0.28,
+   "height": 0.7,
+   "tilt": 0.35
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "x": 0.585,
+   "height": 0.5,
+   "tilt": 0.6
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "x": 0.735,
+   "height": 0.45,
+   "tilt": 1.0
+  }
+ },
+ "music": "playroom",
+ "props": "cartoon2d/art/props"
+}

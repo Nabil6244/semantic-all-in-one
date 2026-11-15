@@ -78,6 +78,15 @@ class BeatsTest(unittest.TestCase):
             self.assertIsNotNone(a.getbbox())
         self.assertTrue(PU.has("jaguar") and not PU.has("great_white"))
 
+    def test_generate_asks_for_missing_vector_art(self):
+        from ocean import art_flow as AF
+        plan = {"drawn": [{"names": ["lion", "wildebeest"]}],
+                "layers": [{"params": {"elements": [{"kind": "ocean_number_hero", "args": {"flat_art": True, "animal": "skunk"}}]}}]}
+        need = dict(AF.vector_needs_for_plan(plan))
+        self.assertNotIn("lion", need)                                           # already in the library
+        self.assertEqual(need.get("wildebeest"), "vector")
+        self.assertIn("vector", AF.prompt("wildebeest", "vector").lower())
+
     def test_upgrade_turns_fact_beats_into_graphics(self):
         beats = [{"text": "Picture this.", "visual": "picture", "prompt": "x"},
                  {"text": "You weigh four hundred and twenty pounds.", "visual": "picture", "prompt": "[LION] standing"},

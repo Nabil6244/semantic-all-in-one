@@ -1,0 +1,94 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.5,
+ "gap": 0.4,
+ "tail": 1.5,
+ "lines": [
+  {
+   "who": "molly",
+   "text": "Come on, let's walk over to Bobo!",
+   "act": "point",
+   "go": {
+    "molly": "lily"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "ollie",
+   "text": "Jump, jump, jump with me!",
+   "act": "jump",
+   "also": {
+    "lily": "jump"
+   },
+   "cam": "kids"
+  },
+  {
+   "who": "lily",
+   "text": "Now squat down low, like a little mouse!",
+   "act": "squat",
+   "also": {
+    "ollie": "squat"
+   },
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Big bear stomps! Stomp, stomp, stomp!",
+   "act": "stomp",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "ollie",
+   "text": "Watch me kick!",
+   "act": "kick",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Let's dance!",
+   "act": "dance",
+   "cam": "group"
+  },
+  {
+   "who": "lily",
+   "text": "Race you back!",
+   "act": "cheer",
+   "run": {
+    "lily": "home",
+    "ollie": 0.75
+   },
+   "go": {
+    "molly": "home"
+   },
+   "cam": "group",
+   "gap_after": 1.0
+  }
+ ]
+}

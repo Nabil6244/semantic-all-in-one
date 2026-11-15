@@ -95,13 +95,13 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
 
 # ---------------------------------------------------------------------------------------------------------------- remember
 
-def _make_missing_art(app: Any, plan: Optional[dict], log) -> tuple:
+def _make_missing_art(app: Any, plan: Optional[dict], log, vector: bool = False) -> tuple:
     """Painted pictures for animals this script names that the shared library lacks (ocean/art_flow.py): made once with
     Flow, kept in assets/ocean/art/ for every later video. A failure never stops Generate: that animal keeps its code
     drawing. Returns (made, still missing)."""
     from ocean import art_flow as AF
 
-    need = AF.needs_for_plan(plan)
+    need = AF.vector_needs_for_plan(plan) if vector else AF.needs_for_plan(plan)   # beat mode: the flat vector look
     if not need:
         return 0, 0
     log(f"{len(need)} animal picture(s) not in the library yet: " + ", ".join(f"{n.replace('_', ' ')} ({p})" for n, p in need)
@@ -114,7 +114,9 @@ def _make_missing_art(app: Any, plan: Optional[dict], log) -> tuple:
         return 0, len(need)
     made = sum(1 for x in res if x.get("status") == "made")
     from ocean import animals as A
+    from ocean import rig as RG
     A._draw_cached.cache_clear()
+    RG.rig_vector.cache_clear()                     # the new pictures walk on the knee rig from now on
     return made, len(need) - made
 
 
@@ -447,7 +449,7 @@ def on_generate(app: Any) -> None:
         if beats_csv:                                  # beat mode: the CSV says the picture for every beat
             r = RN.plan_beats(beats_csv, words, total, work, channel, log)
             r["rows"], r["found"] = [], 0
-            r["art_made"], r["art_missing"] = 0, 0
+            r["art_made"], r["art_missing"] = _make_missing_art(app, RN.load_plan(work), log, vector=True)
             from ocean import beat_flow as BF
             try:
                 mgr = app._get_flow_engine_manager() if hasattr(app, "_get_flow_engine_manager") else None

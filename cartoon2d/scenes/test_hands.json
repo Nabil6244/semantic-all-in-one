@@ -1,0 +1,86 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.5,
+ "gap": 0.4,
+ "tail": 1.2,
+ "lines": [
+  {
+   "who": "molly",
+   "text": "Hello, friends! Wave hello!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "lily",
+   "text": "Look! Up there!",
+   "act": "point",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Good job, everybody!",
+   "act": "thumbs_up",
+   "also": {
+    "ollie": "thumbs_up"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "ollie",
+   "text": "Yay! We did it!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "One, two, three!",
+   "act": "count",
+   "cam": "host"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hooray!",
+   "act": "cheer",
+   "also": {
+    "molly": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "gap_after": 1.0
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+step,look,place,object,from,distance,readouts,title,camera,narration
+1,space,,sun,earth,,"distance_au,size,brightness,light_time",THE SUN FROM EARTH,drift,"This is the Sun as we know it. Half a degree wide, and eight minutes away at the speed of light."
+2,space,,sun,mercury,,"distance_au,size,brightness,light_time",,push,"Now stand on Mercury. The Sun is more than twice as wide, and almost seven times brighter."
+3,space,,sun,venus,,"distance_au,size,brightness,light_time",,drift,"From Venus it would look a little bigger than ours, if you could ever see it through the clouds."
+4,moon_surface,,,phobos,,"distance,angle",,rise,"Before we go further, look up from Phobos. Mars fills almost half of the sky."
+5,space,,sun,mars,,"distance_au,size,brightness,light_time",,pullback,"From Mars the Sun has already shrunk to two thirds of the size we are used to."
+6,space,,sun,jupiter,,"distance_au,size,brightness,light_time",,drift,"At Jupiter it is a small, hard disc. Sunlight here is twenty seven times weaker."
+7,space,,sun,saturn,,"distance_au,size,brightness,light_time",,drift,"From Saturn the light has been travelling for well over an hour."
+8,space,,sun,uranus,,"distance_au,size,brightness,light_time",,pullback,"At Uranus the Sun is barely a disc at all."
+9,space,,sun,neptune,,"distance_au,size,brightness,light_time",,pullback,"And from Neptune it is the brightest star in a black sky, four hours of light away."

@@ -1,0 +1,7 @@
+step,look,place,object,distance,readouts,camera,narration
+1,landscape,lake_valley,ton618,10.8 billion ly,distance,drift,"Somewhere in this night sky is the brightest black hole we know of. From here you cannot see it at all."
+2,landscape,lake_valley,ton618,1 million ly,distance,drift,"Bring it to the edge of our galaxy and it becomes the brightest star in the night, brighter than Venus."
+3,landscape,lake_valley,ton618,1000 ly,"distance,brightness",drift,"At a thousand light-years the night turns blue. The sky is lit by something you still see as a point."
+4,landscape,lake_valley,ton618,187 ly,"distance,brightness",push,"At this distance it shines exactly as bright as our own Sun."
+5,landscape,lake_valley,ton618,50 ly,"distance,brightness",drift,"Closer still, and the forest on the slopes begins to burn."
+6,landscape,lake_valley,ton618,0.1 ly,"distance,horizon",rise,"And at a tenth of a light-year the disc fills the sky. Its horizon alone is eight hundred times the distance from the Earth to the Sun."

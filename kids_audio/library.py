@@ -88,6 +88,22 @@ def _sfx():
         S.place(b, S.snap(0.15 + 0.4 * at, seed=k), at)
     S.place(b, S.shaker(0.9, seed=99) * 1.0, 1.3); S.place(b, S.kick(0.6), 1.3)
     out["drumroll"] = S.reverb_tail(b, 0.2)
+    b = S.one_shot(0.6); n = int(0.42 * SR); t = np.arange(n) / SR                  # boing: a spring - pitch dips, wobbles back
+    f = 170 + 90 * np.exp(-t / 0.12) * np.cos(2 * np.pi * 14 * t) + 60 * (1 - np.exp(-t / 0.05))
+    S.place(b, np.sin(2 * np.pi * np.cumsum(f) / SR) * S._env(n, 0.002, 0.16), 0)
+    out["boing"] = b
+    b = S.one_shot(0.5); n = int(0.12 * SR); r = np.random.default_rng(5)             # burst: a balloon popping
+    S.place(b, r.standard_normal(n) * S._env(n, 0.0005, 0.025), 0)
+    S.place(b, S.glock(hz("G6"), 0.25, dur=0.4), 0.03)
+    out["burst"] = b
+    b = S.one_shot(0.7); n = int(0.5 * SR); t = np.arange(n) / SR                    # whoosh: filtered air sweeping up
+    x = np.random.default_rng(9).standard_normal(n)
+    k = np.clip((200 + 3500 * (t / 0.5) ** 2) / SR * 2 * np.pi, 0, 1)
+    y = np.zeros(n)
+    for i in range(1, n):
+        y[i] = y[i - 1] + k[i] * (x[i] - y[i - 1])
+    S.place(b, y * np.sin(np.pi * t / 0.5) ** 2, 0)
+    out["whoosh"] = b
     return out
 
 

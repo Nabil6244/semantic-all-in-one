@@ -57,6 +57,7 @@ const loadModel = async (name) => {
   return (await new GLTFLoader().setDRACOLoader(draco).loadAsync(`/models/${encodeURIComponent(name)}`)).scene;
 };
 let scene3d = null;
+let skyMod = null;           // Sky Sim's sky module, loaded on the first sky shot
 if ((spec.shots || []).some((s) => ['craft', 'globe', 'hero', 'scene', 'product'].includes(s.kind))) {
   try {
     const { createScene3d } = await import('/lib/scene3d.mjs');
@@ -146,6 +147,11 @@ async function drawShotRaw(s, t) {
   ctx.save();
   if (s.kind === 'black') { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); return; }
   if (s.kind === 'plate') { drawPlate(s); ctx.restore(); return; }
+  if (s.kind === 'sky') {                    // Sky Sim (lib/skysim_sky.mjs): drawn whole by its own module, no grade
+    if (!skyMod) skyMod = await import('/lib/skysim_sky.mjs');
+    if (!skyMod.BUILT_LOOKS.includes(s.look) && !s.warned) { s.warned = true; warn(`shot ${s.id}: the ${s.look} look is not built yet; drawn as the space look`); }
+    await skyMod.drawSky(ctx, s, t, W, H); ctx.restore(); return;
+  }
   ctx.filter = filter;
   if (s.kind === 'image' && s.compose === 'letterbox') {
     // a real photograph as the reference shows it (V1 6:40): the whole picture, full width, centred -- over a blurred, darkened copy of itself

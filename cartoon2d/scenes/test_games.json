@@ -1,0 +1,187 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.5,
+ "gap": 0.4,
+ "tail": 1.5,
+ "lines": [
+  {
+   "who": "molly",
+   "text": "Let's play catch! Ready, Ollie?",
+   "act": "talk",
+   "hold": {
+    "molly": "ball"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Catch!",
+   "act": "talk",
+   "game": {
+    "type": "throw",
+    "from": "molly",
+    "to": "ollie",
+    "bounces": 1
+   },
+   "cam": "group",
+   "gap_after": 1.2
+  },
+  {
+   "who": "ollie",
+   "text": "I got it! Your turn, Lily!",
+   "act": "cheer",
+   "game": {
+    "type": "throw",
+    "from": "ollie",
+    "to": "lily",
+    "bounces": 0,
+    "at": 1.2
+   },
+   "cam": "kids",
+   "gap_after": 0.8
+  },
+  {
+   "who": "lily",
+   "text": "Bounce, bounce, bounce, bounce!",
+   "act": "talk",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 4
+   },
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Bobo can kick it! Here it comes!",
+   "act": "kick",
+   "drop": [
+    "lily"
+   ],
+   "game": {
+    "type": "kick",
+    "who": "bobo",
+    "to": "ollie",
+    "at": 0.3
+   },
+   "cam": "group",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Time for the trampoline! Hop on, Bobo!",
+   "act": "point",
+   "game": {
+    "type": "trampoline",
+    "who": "bobo"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Boing! Boing! Boing! Wheee!",
+   "act": "bounce",
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Can you jump like a frog? Ribbit!",
+   "act": "frog",
+   "also": {
+    "lily": "frog",
+    "ollie": "frog"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 2.2
+  },
+  {
+   "who": "lily",
+   "text": "Hop like a bunny!",
+   "act": "bunny",
+   "also": {
+    "ollie": "kangaroo"
+   },
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's pop the balloons! One, two, three!",
+   "act": "point",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "red",
+     "blue",
+     "yellow"
+    ]
+   },
+   "cam": "group",
+   "gap_after": 1.4
+  },
+  {
+   "who": "bobo",
+   "text": "Now I'll hide! Count to three!",
+   "act": "silly",
+   "game": [
+    {
+     "type": "trampoline_off",
+     "who": "bobo"
+    },
+    {
+     "type": "hide",
+     "who": "bobo"
+    }
+   ],
+   "cam": "group"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "One, two, three! Where is Bobo?",
+   "act": "think",
+   "cam": "group"
+  },
+  {
+   "who": "ollie",
+   "text": "I see your ears! Found you!",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "You found me!",
+   "act": "cheer",
+   "game": {
+    "type": "found",
+    "who": "bobo"
+   },
+   "cam": "cu:bobo",
+   "gap_after": 1.0
+  }
+ ]
+}

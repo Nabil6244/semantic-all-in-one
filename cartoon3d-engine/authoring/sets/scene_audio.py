@@ -4,6 +4,7 @@ scene.json = {"gap": 0.35, "lines": [{"who": "host", "text": "...", "voice": "..
 Out: line{i}.wav, line{i}.json (Rhubarb), timeline.json [{who, start, end, wav, cues:[{t0,t1,shape}]}], mix.wav
 """
 import asyncio
+import hashlib
 import json
 import subprocess
 import sys
@@ -28,7 +29,8 @@ def dur(path):
 t = scene.get("lead_in", 0.6)
 timeline = []
 for i, ln in enumerate(scene["lines"]):
-    mp3, wav, cues = out / f"line{i}.mp3", out / f"line{i}.wav", out / f"line{i}.json"
+    sig = hashlib.sha1(json.dumps([ln["text"], ln["voice"], ln.get("rate", "+0%"), ln.get("pitch", "+0Hz")]).encode()).hexdigest()[:10]
+    mp3, wav, cues = out / f"line{i}_{sig}.mp3", out / f"line{i}_{sig}.wav", out / f"line{i}_{sig}.json"   # cache follows the words + voice
     if not wav.exists():
         asyncio.run(tts(ln["text"], ln["voice"], ln.get("rate", "+0%"), ln.get("pitch", "+0Hz"), mp3))
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(mp3), "-ar", "44100", "-ac", "1", str(wav)], check=True)

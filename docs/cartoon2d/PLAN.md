@@ -24,7 +24,7 @@ User decision 2026-11-15: drop the slow 3D cast for kids stories; make **2D char
 2. **Free packs (structure + backup):** Kenney *Toon Characters 1* (CC0, separate limbs, 45 poses) and the heosphorus *Chibi template* (11 lip-sync mouths, licence to check) give the rig layout, joint points and mouth sets as a fallback. A pack is only used as-is if its look passes the user.
 
 ## Steps (each ends with stills for the user's OK)
-1. **Design pictures** — host + Hoorain + Noraiz, one Flow picture each, same show style. *Gate: user picks looks.*
+1. **Design pictures** — Miss Molly + Lily + Ollie, one Flow picture each, same show style. *Gate: user picks looks.*
 2. **Part sheets** — Flow sheets per character; cut into parts; a contact sheet of every part. *Gate: consistent faces/hands.*
 3. **Rig** — extend `web/puppet2d.js` from one cut-out picture to a layered rig: joint pivots, part swaps (mouths, eyes, hands, head turns), squash on jumps, secondary motion (hair, clothes).
 4. **Acts** — the same per-line acts already added to the 3D path (wave, cheer, jump, clap, count, giggle, point, open) as 2D poses; Rhubarb mouths; blinks.
@@ -33,4 +33,4 @@ User decision 2026-11-15: drop the slow 3D cast for kids stories; make **2D char
 
 ## Open
 - Flow image credits per character: ~6–10 pictures each.
-- Hoorain keeps the look of the user's girl picture (pink headband, ponytail, pink tee, overalls)?
+- Lily keeps the look of the user's girl picture (pink headband, ponytail, pink tee, overalls)?

@@ -7,8 +7,9 @@
 //   hero    a composed procedural 3D scene (lib/hero.mjs): a lander on the plain, a descent under a parachute, a ray-traced black hole { scene, cam }
 //   scene   a 3D scene generated from a JSON spec (lib/scene_gen.mjs): any world, craft, clouds, particles, camera path { scene_spec }
 //   black   black (a death, a silence)
+//   sky     Sky Sim: one held place, the sky object at its true angular size (lib/skysim_sky.mjs) { look, from, camera, sky, sky_from? }
 // Every shot: { id, start, end, kind, credit?, exit?: "cut" | "push", grade?: {...} }. Pure functions of narration time t.
-export const KINDS = ['image', 'video', 'plate', 'craft', 'globe', 'hero', 'scene', 'product', 'black'];
+export const KINDS = ['image', 'video', 'plate', 'craft', 'globe', 'hero', 'scene', 'product', 'black', 'sky'];
 export const HERO_SCENES = ['venera_ground', 'venera_descent', 'cloud_airship', 'ship_engine', 'blackhole_disc', 'blackhole_top', 'blackhole_ring', 'blackhole_lensing', 'blackhole_horizon',
   'ring_station', 'cylinder_interior', 'cylinder_exterior'];
 const clamp01 = (x) => Math.min(1, Math.max(0, x));

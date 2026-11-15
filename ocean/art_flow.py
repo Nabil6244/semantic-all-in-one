@@ -35,6 +35,32 @@ ITEMS: List[Tuple[str, str]] = ([(n, "side") for n in BASE_SET] + [(n, "jaw") fo
 TOP_FAMILIES = ("shark", "whale", "dolphin", "seal", "fish", "ray", "turtle", "reptile", "bird", "squid")
 
 
+def vector_needs_for_plan(plan: Optional[Dict[str, Any]]) -> List[Tuple[str, str]]:
+    """Beat mode: the flat vector pictures (pose "vector") a planned film draws that the library lacks: every animal that
+    acts on the knee rig (plan["drawn"]), every flat stage animal and every animal a card draws."""
+    if not plan:
+        return []
+    names: List[str] = []
+
+    def add(n: Any) -> None:
+        n = str(n or "")
+        if n and n in SUBJECT and n not in names and n not in ("diver", "boat", "cage", "tooth", "car", "bus"):
+            names.append(n)
+    for d in plan.get("drawn") or []:
+        for n in d.get("names") or []:
+            add(n)
+    for ly in plan.get("layers") or []:
+        for e in (ly.get("params") or {}).get("elements") or []:
+            a = e.get("args") or {}
+            if e.get("kind") == "animal" and a.get("flat"):
+                add(a.get("name"))
+            elif a.get("flat_art"):
+                add(a.get("animal"))
+                for x in a.get("animals") or []:
+                    add(x)
+    return [(n, "vector") for n in names if path(n, "vector") is None]
+
+
 def needs_for_plan(plan: Optional[Dict[str, Any]]) -> List[Tuple[str, str]]:
     """The pictures a planned film shows that the library lacks: every animal on stage (side), predators that attack or
     open their jaws (jaw), animals on a top-down island map (top). Nothing for names the catalogue does not know."""
