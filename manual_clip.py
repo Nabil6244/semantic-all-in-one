@@ -130,6 +130,8 @@ def validate_local_media(raw) -> ManualClipInfo:
         raise ManualClipError("This file is a video, but the extension is an image type.")
     if sniffed == "image" and wants_video:
         raise ManualClipError("This file is an image, but the extension is a video type.")
+    if sniffed == "svg" and wants_image:
+        raise ManualClipError("This image file is an SVG or web page, not a photo.")
     if sniffed is None and wants_video:
         # RIFF/AVI and some MOV files are not in the magic sniffer; ffprobe may still work.
         probe = _probe_media(path)

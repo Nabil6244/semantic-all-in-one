@@ -421,16 +421,29 @@ class AssetResult:
         return self.status == SceneStatus.READY and self.path is not None
 
 
+def _is_markup(head: bytes) -> bool:
+    """True when the bytes are SVG, HTML, or XML rather than a photo.
+
+    Wikimedia often serves an SVG with a .jpg name. FFmpeg then fails the whole
+    render on that one file. A leading Inkscape comment still counts."""
+    sample = head.lstrip(b"\xef\xbb\xbf \t\r\n")
+    low = sample[:400].lower()
+    if low.startswith((b"<svg", b"<?xml", b"<!doctype", b"<html", b"<!--")):
+        return True
+    return b"<svg" in low
+
+
 def sniff_media_kind(path: Path) -> Optional[str]:
     """Identify a file's real type from its magic bytes — used by FlowProvider
     and StockProvider so a scene is never marked READY just because a file with
     the expected extension exists; the actual bytes must match too. Returns
-    "image", "video", or None if unrecognized (unrecognized is treated as
+    "image", "video", "svg", or None if unrecognized (unrecognized is treated as
     "don't block on this" rather than a false failure, since a valid but
-    uncommon container format shouldn't wrongly fail a scene)."""
+    uncommon container format shouldn't wrongly fail a scene). "svg" means the
+    file is markup (SVG, HTML, or XML) and must not be used as a photo."""
     try:
         with open(path, "rb") as f:
-            head = f.read(64)
+            head = f.read(512)
     except OSError:
         return None
     if head.startswith(b"\x89PNG\r\n\x1a\n"):
@@ -451,6 +464,8 @@ def sniff_media_kind(path: Path) -> Optional[str]:
         return "video"
     if head[:4] == b"\x1aE\xdf\xa3":  # WebM/Matroska (EBML header)
         return "video"
+    if _is_markup(head):
+        return "svg"
     return None
 
 

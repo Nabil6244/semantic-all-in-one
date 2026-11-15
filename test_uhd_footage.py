@@ -204,6 +204,73 @@ class TestDownloaderCap(unittest.TestCase):
             return r
         return get
 
+    def _image(self, url="https://commons.wikimedia.org/wiki/Special:FilePath/Example.svg"):
+        return Candidate(provider="wikimedia", asset_id="svg1", media_type=MediaType.IMAGE, url=url, width=800, height=600)
+
+    def _get_body(self, body, content_type):
+        def get(url, stream, timeout, **_kw):
+            r = mock.MagicMock()
+            r.__enter__.return_value = r
+            r.headers = {"Content-Type": content_type}
+            r.raise_for_status = lambda: None
+            r.iter_content = lambda chunk_size: iter([body])
+            return r
+        return get
+
+    def test_svg_labeled_as_jpeg_is_rejected_and_not_kept(self):
+        body = b'<svg xmlns="http://www.w3.org/2000/svg" version="1.1"></svg>'
+        with mock.patch.object(downloader.requests, "get", self._get_body(body, "image/jpeg")):
+            with self.assertRaises(IOError) as ctx:
+                downloader.download_candidate(self._image(), self.tmp, "37")
+        self.assertIn("not a photo", str(ctx.exception))
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_inkscape_svg_comment_is_rejected(self):
+        body = b"<!-- Created with Inkscape (http://www.inkscape.org/) -->\n<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
+        with mock.patch.object(downloader.requests, "get", self._get_body(body, "image/jpeg")):
+            with self.assertRaises(IOError):
+                downloader.download_candidate(self._image(), self.tmp, "4")
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_svg_content_type_is_rejected_before_saving(self):
+        with mock.patch.object(downloader.requests, "get", self._get_body(b"<svg/>", "image/svg+xml")):
+            with self.assertRaises(IOError) as ctx:
+                downloader.download_candidate(self._image(), self.tmp, "54")
+        self.assertIn("image/svg+xml", str(ctx.exception))
+        self.assertEqual(list(self.tmp.iterdir()), [])
+
+    def test_a_real_jpeg_still_downloads(self):
+        body = b"\xff\xd8\xff\xe0" + b"\x00" * 32
+        with mock.patch.object(downloader.requests, "get", self._get_body(body, "image/jpeg")):
+            path = downloader.download_candidate(self._image("https://images.pexels.com/photo.jpg"), self.tmp, "8")
+        self.assertEqual(path.name, "008.jpg")
+        self.assertTrue(path.is_file())
+
+    def test_an_svg_download_tries_the_next_stock_image(self):
+        svg = self._image("https://commons.wikimedia.org/a.svg")
+        jpg = Candidate(provider="pexels", asset_id="good", media_type=MediaType.IMAGE,
+                        url="https://images.pexels.com/photo.jpg", width=800, height=600)
+        scene = SceneRow(scene_number="37", script_segment="x", asset_type="stock_image", stock="coat of arms")
+        provider = StockProvider(backends=[PexelsBackend("key")], cache=StockCache())
+
+        def get(url, stream, timeout, **_kw):
+            r = mock.MagicMock()
+            r.__enter__.return_value = r
+            r.raise_for_status = lambda: None
+            if str(url).endswith(".svg"):
+                r.headers = {"Content-Type": "image/svg+xml"}
+                r.iter_content = lambda chunk_size: iter([b"<svg xmlns='http://www.w3.org/2000/svg'/>"])
+            else:
+                r.headers = {"Content-Type": "image/jpeg"}
+                r.iter_content = lambda chunk_size: iter([b"\xff\xd8\xff\xe0" + b"\x00" * 32])
+            return r
+
+        with mock.patch.object(downloader.requests, "get", get), mock.patch.object(provider, "_pick", return_value=jpg):
+            result = provider._download(scene, svg, self.tmp, lambda *_: None)
+        self.assertEqual(result.status, SceneStatus.READY)
+        self.assertEqual(result.path.name, "037.jpg")
+        self.assertTrue(result.path.read_bytes().startswith(b"\xff\xd8\xff"))
+
     def test_cap_enforced_and_url_override(self):
         seen = []
         with mock.patch.object(downloader.requests, "get", self._get(8 * 1024, seen)):

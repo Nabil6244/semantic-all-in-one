@@ -12,6 +12,8 @@ from typing import TYPE_CHECKING
 
 import requests
 
+from ..base import sniff_media_kind
+
 # Wikimedia (Openverse results) refuses the default python-requests agent with 403; an identifying agent is its policy
 USER_AGENT = "SemanticYTStudio/1.0 (https://github.com/Nabil6244/semantic-all-in-one)"
 
@@ -50,6 +52,9 @@ def free_bytes(path: Path) -> int:
     except OSError:
         return 1 << 62
 _OK_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".webp")
+# Wikimedia answers image/svg+xml (and sometimes an HTML error page) for a picture search.
+# Saving that body as .jpg is what made FFmpeg abort the render.
+_NOT_A_PHOTO = {"image/svg+xml", "text/html", "text/xml", "application/xml", "application/xhtml+xml"}
 
 
 def _extension_for(candidate: "Candidate", content_type: str) -> str:
@@ -78,6 +83,9 @@ def download_candidate(
     n = int(str(scene_number).strip())
     with requests.get(url or candidate.url, stream=True, timeout=(15, 60), headers={"User-Agent": USER_AGENT}) as resp:
         resp.raise_for_status()
+        ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if candidate.media_type.value != "video" and (ctype in _NOT_A_PHOTO or "svg" in ctype):
+            raise IOError(f"stock file is {ctype}, not a photo")
         ext = _extension_for(candidate, resp.headers.get("Content-Type", ""))
         target = Path(images_dir) / f"{n:03d}{ext}"
         written = 0
@@ -104,6 +112,9 @@ def download_candidate(
             tmp_target.unlink(missing_ok=True)
             raise problem
         tmp_target.replace(target)
+        if candidate.media_type.value != "video" and sniff_media_kind(target) == "svg":
+            target.unlink(missing_ok=True)
+            raise IOError("stock file is an SVG or web page, not a photo")
     return target
 
 
