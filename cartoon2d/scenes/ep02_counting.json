@@ -1,0 +1,3063 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 4.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Look at me! I'm the bounciest bear in the world!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "place": "playroom",
+   "game": {
+    "type": "trampoline",
+    "who": "bobo"
+   },
+   "chapter": "Bobo's big bounce",
+   "sfx": "boing"
+  },
+  {
+   "who": "bobo",
+   "text": "One, two... seven... one hundred!",
+   "act": "bounce",
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Whoa! Whoa! Oopsie-daisy!",
+   "act": "tumble",
+   "cam": "group",
+   "sfx": "drumroll"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee! Silly Bobo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Bobo! One, two, seven, one hundred? That's not how we count!",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "Hmm. Is it not?",
+   "act": "think",
+   "cam": "cu:bobo",
+   "face": "sad"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all learn to count, and help Bobo!",
+   "act": "cheer",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "title": "Counting with\nMs Molly & Bobo!",
+   "sfx": "success",
+   "gap_after": 2.4
+  },
+  {
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly!",
+   "act": "wave",
+   "cam": "host",
+   "chapter": "Hello song"
+  },
+  {
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
+   "act": "wave",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "And I'm Ollie!",
+   "act": "cheer"
+  },
+  {
+   "who": "bobo",
+   "text": "And I'm Bobo the Bear! The bounciest bear!",
+   "act": "wave",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our hello song! Wave with us!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Yay! Hello, friends!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "Miss Molly, today is the Big Bounce!",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "The Big Bounce? What's that, Bobo?",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "bobo",
+   "text": "I want to bounce ten times on my trampoline! But I can't count to ten.",
+   "act": "think",
+   "cam": "cu:bobo",
+   "face": "sad"
+  },
+  {
+   "who": "lily",
+   "text": "Don't worry, Bobo! We can teach you!",
+   "act": "open",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "Counting is easy peasy!",
+   "act": "thumbs_up",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Will you help Bobo count too? Are you ready?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ready!",
+   "act": "yay",
+   "cam": "kids",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "Ready, ready, ready!",
+   "act": "bounce",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Let's start with one, two, three!",
+   "act": "count",
+   "cam": "host",
+   "chapter": "Jump and count 1 2 3",
+   "card": "1"
+  },
+  {
+   "who": "molly",
+   "text": "Watch me. One jump!",
+   "act": "jump",
+   "cam": "host",
+   "card": "1",
+   "sfx": "boing"
+  },
+  {
+   "who": "molly",
+   "text": "Two jumps! Jump, jump!",
+   "act": "jump",
+   "cam": "host",
+   "card": "2"
+  },
+  {
+   "who": "molly",
+   "text": "Three jumps! Jump, jump, jump!",
+   "act": "jump",
+   "cam": "host",
+   "card": "3"
+  },
+  {
+   "who": "molly",
+   "text": "Now you! Stand up and jump three times with us!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "jump",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "jump",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "jump",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Great jumping! One, two, three!",
+   "act": "clap",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "bobo",
+   "text": "One, two, three! I did it!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "lily",
+   "text": "Good job, Bobo!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Can I bounce now? One, two, three, banana!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "banana"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! Banana is not a number!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "What comes after three, friends?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "4"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Four! And then five!",
+   "act": "count",
+   "cam": "host",
+   "card": "5"
+  },
+  {
+   "who": "molly",
+   "text": "Bobo, jump on your trampoline. Let's count your bounces to five!",
+   "act": "point",
+   "cam": "group",
+   "chapter": "Trampoline counting to 5"
+  },
+  {
+   "who": "bobo",
+   "text": "Okay! Here I go!",
+   "act": "cheer",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": "bobo",
+   "text": "Five bounces! Wheee!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Great counting! One, two, three, four, five!",
+   "act": "count",
+   "cam": "host",
+   "card": "5"
+  },
+  {
+   "who": "molly",
+   "text": "Can you bounce like Bobo? Bounce five times!",
+   "act": "bounce",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce",
+    "molly": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce",
+    "molly": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce",
+    "molly": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce",
+    "molly": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "gap_after": 0.35,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce",
+    "molly": "bounce"
+   }
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yay! We bounced five times!",
+   "act": "yay",
+   "cam": "kids",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "Now I'll do ten! One, two, three, four, five, six...",
+   "act": "bounce",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "bobo",
+   "text": "Um... seven... eleven... twenty?",
+   "act": "think",
+   "cam": "cu:bobo",
+   "face": "sad"
+  },
+  {
+   "who": "ollie",
+   "text": "Oh no! You got mixed up, Bobo!",
+   "act": "open",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "That's okay, Bobo. Learning takes practice! Let's play some counting games.",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "Counting games? I love games!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "game": {
+    "type": "trampoline_off",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Let's go to the garden and play catch!",
+   "act": "point",
+   "cam": "host",
+   "chapter": "Catch and count"
+  },
+  {
+   "who": "molly",
+   "text": "March with us! March, march, march!",
+   "act": "march",
+   "also": {
+    "lily": "march",
+    "ollie": "march",
+    "bobo": "march"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "March, march, march! March, march, march!",
+   "chant": true,
+   "act": "march",
+   "cam": "group",
+   "gap_after": 0.7
+  },
+  {
+   "who": "molly",
+   "text": "Here we are in the garden!",
+   "act": "open",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "place": "garden",
+   "sfx": "sparkle",
+   "hold": {
+    "molly": "ball"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "I have a ball! Let's count every catch. Ready?",
+   "act": "talk",
+   "cam": "host"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ready!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "One! Catch, Ollie!",
+   "act": "talk",
+   "card": "1",
+   "game": {
+    "type": "throw",
+    "from": "molly",
+    "to": "ollie",
+    "bounces": 1
+   },
+   "cam": "group",
+   "gap_after": 1.3
+  },
+  {
+   "who": "ollie",
+   "text": "Got it! Two! Catch, Lily!",
+   "act": "talk",
+   "card": "2",
+   "game": {
+    "type": "throw",
+    "from": "ollie",
+    "to": "lily",
+    "bounces": 0,
+    "at": 0.9
+   },
+   "cam": "group",
+   "gap_after": 1.0
+  },
+  {
+   "who": "lily",
+   "text": "Got it! Three! Catch, Bobo!",
+   "act": "talk",
+   "card": "3",
+   "game": {
+    "type": "throw",
+    "from": "lily",
+    "to": "bobo",
+    "bounces": 1,
+    "at": 1.0
+   },
+   "cam": "group",
+   "gap_after": 1.3
+  },
+  {
+   "who": "bobo",
+   "text": "I got it! Four! Back to you, Miss Molly!",
+   "act": "talk",
+   "card": "4",
+   "face": "happy",
+   "game": {
+    "type": "throw",
+    "from": "bobo",
+    "to": "molly",
+    "bounces": 1,
+    "at": 1.4
+   },
+   "cam": "group",
+   "gap_after": 1.3
+  },
+  {
+   "who": "molly",
+   "text": "Five! We caught it five times!",
+   "act": "cheer",
+   "card": "5",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "One, two, three, four, five!",
+   "act": "count",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Now Lily will bounce the ball. Count the bounces!",
+   "act": "point",
+   "cam": "group",
+   "give": {
+    "from": "molly",
+    "to": "lily",
+    "pic": "ball"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "lily",
+   "text": "One!",
+   "act": "talk",
+   "card": "1",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 1
+   },
+   "cam": "kids",
+   "gap_after": 0.4
+  },
+  {
+   "who": "lily",
+   "text": "Two!",
+   "act": "talk",
+   "card": "2",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 1
+   },
+   "cam": "kids",
+   "gap_after": 0.4
+  },
+  {
+   "who": "lily",
+   "text": "Three!",
+   "act": "talk",
+   "card": "3",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 1
+   },
+   "cam": "kids",
+   "gap_after": 0.4
+  },
+  {
+   "who": "lily",
+   "text": "Four!",
+   "act": "talk",
+   "card": "4",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 1
+   },
+   "cam": "kids",
+   "gap_after": 0.4
+  },
+  {
+   "who": "lily",
+   "text": "Five!",
+   "act": "talk",
+   "card": "5",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 1
+   },
+   "cam": "kids",
+   "gap_after": 0.4
+  },
+  {
+   "who": "lily",
+   "text": "Six!",
+   "act": "talk",
+   "card": "6",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 1
+   },
+   "cam": "kids",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Wow! How many bounces was that?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "Six!",
+   "act": "yay",
+   "cam": "cu:ollie",
+   "card": "6"
+  },
+  {
+   "who": "molly",
+   "text": "Six! Great counting!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "My turn! I'm going to kick it!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "drop": [
+    "lily"
+   ]
+  },
+  {
+   "who": "bobo",
+   "text": "Big bear kick!",
+   "act": "kick",
+   "game": {
+    "type": "kick",
+    "who": "bobo",
+    "to": "ollie",
+    "at": 0.3
+   },
+   "cam": "group",
+   "sfx": "whoosh",
+   "gap_after": 1.2
+  },
+  {
+   "who": "ollie",
+   "text": "Whoa! It went so far!",
+   "act": "open",
+   "cam": "cu:ollie",
+   "face": "surprised"
+  },
+  {
+   "who": "molly",
+   "text": "How many hops did the ball do?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "3"
+  },
+  {
+   "who": "bobo",
+   "text": "Three hops! I counted too!",
+   "act": "yay",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Bobo, you know one to five. Now let's learn six, seven, eight, nine, ten!",
+   "act": "count",
+   "cam": "host",
+   "chapter": "Learn 6 to 10",
+   "card": "10"
+  },
+  {
+   "who": "molly",
+   "text": "Six!",
+   "act": "count",
+   "cam": "host",
+   "card": "6",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Say six!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Six!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Seven!",
+   "act": "count",
+   "cam": "host",
+   "card": "7",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Say seven!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Seven!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Eight!",
+   "act": "count",
+   "cam": "host",
+   "card": "8",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Say eight!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Eight!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Eight? Like a snowman! Two circles!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "card": "8"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Yes!",
+   "act": "giggle",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Nine!",
+   "act": "count",
+   "cam": "host",
+   "card": "9",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Say nine!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nine!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "And ten!",
+   "act": "count",
+   "cam": "host",
+   "card": "10",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Say ten! Nice and loud!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ten!",
+   "act": "yay",
+   "cam": "kids",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "TEN! That's the Big Bounce number!",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Let's count all the way to ten with our fingers. Hold up your hands!",
+   "act": "hands_up",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Six!",
+   "act": "count",
+   "card": "6",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Seven!",
+   "act": "count",
+   "card": "7",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Eight!",
+   "act": "count",
+   "card": "8",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Nine!",
+   "act": "count",
+   "card": "9",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ten!",
+   "act": "count",
+   "card": "10",
+   "gap_after": 0.45,
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Ten fingers! Wiggle, wiggle!",
+   "act": "open",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "ollie",
+   "text": "Look! Balloons!",
+   "act": "point",
+   "cam": "cu:ollie",
+   "chapter": "Balloon pop",
+   "face": "surprised"
+  },
+  {
+   "who": "molly",
+   "text": "Let's pop them and count! Ready?",
+   "act": "cheer",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "Pop, pop, pop!",
+   "act": "point",
+   "cam": "group",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "red",
+     "blue",
+     "yellow"
+    ]
+   },
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "One, two, three!",
+   "act": "count",
+   "cam": "kids",
+   "card": "3"
+  },
+  {
+   "who": "molly",
+   "text": "Three balloons! More are coming!",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "Pop, pop, pop, pop, pop!",
+   "act": "yay",
+   "cam": "group",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "yellow",
+     "red",
+     "blue",
+     "red",
+     "yellow"
+    ]
+   },
+   "gap_after": 3.6
+  },
+  {
+   "who": "molly",
+   "text": "How many balloons did Bobo pop?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Five!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "5"
+  },
+  {
+   "who": "bobo",
+   "text": "Five balloons! Pop, pop!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Three balloons and five balloons. Wow! That's a lot of balloons!",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "molly",
+   "text": "Now let's count with animal moves!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Animal moves"
+  },
+  {
+   "who": "molly",
+   "text": "Can you hop like a bunny? Two hops!",
+   "act": "bunny",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One! Two!",
+   "act": "bunny",
+   "cam": "group",
+   "card": "2"
+  },
+  {
+   "who": "bobo",
+   "text": "Boing, boing! I'm a bunny bear!",
+   "act": "bunny",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Jump like a frog! Three jumps! Ribbit!",
+   "act": "frog",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One! Two! Three!",
+   "act": "frog",
+   "cam": "group",
+   "card": "3"
+  },
+  {
+   "who": "ollie",
+   "text": "Ribbit, ribbit!",
+   "act": "frog",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Bounce like a kangaroo! Four big bounces!",
+   "act": "kangaroo",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One! Two! Three! Four!",
+   "act": "kangaroo",
+   "cam": "group",
+   "card": "4"
+  },
+  {
+   "who": "molly",
+   "text": "Stomp like a big bear! Five stomps!",
+   "act": "stomp",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One! Two! Three! Four! Five!",
+   "act": "stomp",
+   "cam": "group",
+   "card": "5"
+  },
+  {
+   "who": "bobo",
+   "text": "That's my favourite! Bear stomps!",
+   "act": "stomp",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee!",
+   "act": "giggle",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Now spin around like a spinning top! One spin!",
+   "act": "spin",
+   "also": {
+    "lily": "spin",
+    "ollie": "spin",
+    "bobo": "spin"
+   },
+   "cam": "group",
+   "card": "1",
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Whoa! I'm dizzy!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "surprised"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "All this counting makes me hungry! Snack time!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "chapter": "Bobo's snack",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Let's count Bobo's snack. Look! Apples!",
+   "act": "point",
+   "cam": "host",
+   "pic": "apple",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Bobo has three apples. Let's count them!",
+   "act": "count",
+   "cam": "host",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Yum! I'll eat one! Munch, munch, munch!",
+   "act": "giggle",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Bobo had three apples. He ate one. How many are left?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Two apples!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "2"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Two apples left! Great thinking, Lily!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "Now look! Strawberries!",
+   "act": "point",
+   "cam": "host",
+   "pic": "strawberry",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "There are five strawberries. Count with me!",
+   "act": "count",
+   "cam": "host",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "I'm a hungry bear! I'll eat two! Munch, munch!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Five strawberries, and Bobo ate two. How many are left? Use your fingers!",
+   "act": "hands_up",
+   "cam": "host",
+   "gap_after": 2.6
+  },
+  {
+   "who": "ollie",
+   "text": "Three! Three strawberries!",
+   "act": "yay",
+   "cam": "cu:ollie",
+   "card": "3"
+  },
+  {
+   "who": "molly",
+   "text": "Three! Wow, Ollie! You're a counting star!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "And I have honey for later! One, two, three, four honey pots!",
+   "act": "count",
+   "cam": "cu:bobo",
+   "pic": "honey",
+   "card": "4"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Bobo loves honey!",
+   "act": "giggle",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our counting song! Clap with me!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "chapter": "Counting song",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One, two, three, four, five! Jump up high, we're all alive! Six, seven, eight, nine, ten! Let's all count it once again!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Again! Sing with us!",
+   "act": "cheer",
+   "cam": "host",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One, two, three, four, five! Jump up high, we're all alive! Six, seven, eight, nine, ten! Let's all count it once again!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "One more time! And jump!",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One, two, three, four, five! Jump up high, we're all alive! Six, seven, eight, nine, ten! Let's all count it once again!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "word_cards": {
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yay!",
+   "act": "yay",
+   "also": {
+    "bobo": "yay",
+    "molly": "cheer"
+   },
+   "cam": "group",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Now it's the number freeze dance! Dance, and when I say a number, freeze and jump that many times!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Number freeze dance"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Two!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "2",
+   "sfx": "pop",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now jump two times!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "jump",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "jump",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Three!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "3",
+   "sfx": "pop",
+   "gap_after": 1.0
+  },
+  {
+   "who": "bobo",
+   "text": "Oh! I can't freeze! I'm a wobbly bear!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Now jump three times!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "jump",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "jump",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "jump",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Four!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "wobble",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "4",
+   "sfx": "pop",
+   "gap_after": 1.0
+  },
+  {
+   "who": "ollie",
+   "text": "Whoa! Wobble, wobble!",
+   "act": "wobble",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Now jump four times!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "jump",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "jump",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "jump",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "jump",
+   "card": "4",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Five!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "5",
+   "sfx": "pop",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now jump five times!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "jump",
+   "card": "1",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "jump",
+   "card": "2",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "jump",
+   "card": "3",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "jump",
+   "card": "4",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "jump",
+   "card": "5",
+   "gap_after": 0.35,
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Great dancing and jumping! Now take a big breath. In, and out.",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Let's play hide and seek! I'll hide. You count to ten!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "chapter": "Hide and seek"
+  },
+  {
+   "who": "molly",
+   "text": "Okay! Close your eyes and count with us!",
+   "act": "open",
+   "cam": "host",
+   "game": {
+    "type": "hide",
+    "who": "bobo"
+   },
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "One!",
+   "act": "talk",
+   "card": "1",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "talk",
+   "card": "2",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "talk",
+   "card": "3",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "talk",
+   "card": "4",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Five!",
+   "act": "talk",
+   "card": "5",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Six!",
+   "act": "talk",
+   "card": "6",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Seven!",
+   "act": "talk",
+   "card": "7",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Eight!",
+   "act": "talk",
+   "card": "8",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Nine!",
+   "act": "talk",
+   "card": "9",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Ten!",
+   "act": "talk",
+   "card": "10",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ready or not, here we come!",
+   "act": "cheer",
+   "cam": "kids",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "Where is Bobo? Can you see him?",
+   "act": "think",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "Is he behind the tree?",
+   "act": "point",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "lily",
+   "text": "No! Look! I see two ears!",
+   "act": "point",
+   "cam": "kids",
+   "face": "surprised"
+  },
+  {
+   "who": "molly",
+   "text": "How many ears can you see, friends?",
+   "act": "think",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "2"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Found you, Bobo!",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "You found me! Hee hee!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "game": {
+    "type": "found",
+    "who": "bobo"
+   },
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "ollie",
+   "text": "My turn to hide! Count to five!",
+   "act": "cheer",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Okay, Ollie! Hide!",
+   "act": "open",
+   "cam": "host",
+   "game": {
+    "type": "hide",
+    "who": "ollie"
+   },
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "talk",
+   "card": "1",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "talk",
+   "card": "2",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "talk",
+   "card": "3",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "talk",
+   "card": "4",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "talk",
+   "card": "5",
+   "gap_after": 0.5,
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Ready or not! Hmm... where is Ollie?",
+   "act": "think",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "bobo",
+   "text": "Is he in the sky?",
+   "act": "point",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Friends, where is Ollie? Can you see his hair?",
+   "act": "think",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Behind the box! Found you, Ollie!",
+   "act": "point",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "You found me!",
+   "act": "yay",
+   "cam": "cu:ollie",
+   "game": {
+    "type": "found",
+    "who": "ollie"
+   },
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's go back inside. It's time for something exciting!",
+   "act": "point",
+   "cam": "host",
+   "chapter": "Blast off countdown"
+  },
+  {
+   "who": "molly",
+   "text": "Here we are!",
+   "act": "open",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "place": "playroom",
+   "sfx": "sparkle",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Let's be rockets! We count backwards from ten. Then we blast off!",
+   "act": "hands_up",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "Backwards? Like walking backwards?",
+   "act": "think",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hee hee! No, Bobo. Ten, nine, eight... all the way down to one!",
+   "act": "count",
+   "cam": "host",
+   "card": "10"
+  },
+  {
+   "who": "molly",
+   "text": "Squat down low like a rocket. Ready?",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ten!",
+   "act": "squat",
+   "card": "10",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Nine!",
+   "act": "squat",
+   "card": "9",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Eight!",
+   "act": "squat",
+   "card": "8",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Seven!",
+   "act": "squat",
+   "card": "7",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Six!",
+   "act": "squat",
+   "card": "6",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "squat",
+   "card": "5",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "squat",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "squat",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "squat",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "squat",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Blast off!",
+   "act": "jump",
+   "cam": "group",
+   "sfx": "success",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Whoosh! We're flying!",
+   "act": "hands_up",
+   "cam": "kids",
+   "sfx": "whoosh"
+  },
+  {
+   "who": "bobo",
+   "text": "Zoom! I'm a rocket bear!",
+   "act": "run",
+   "run": {
+    "bobo": 0.95
+   },
+   "cam": "group",
+   "face": "happy"
+  },
+  {
+   "who": "ollie",
+   "text": "Me too! Zoom!",
+   "act": "run",
+   "run": {
+    "ollie": 0.72
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Come back, rockets! Time to land!",
+   "act": "open",
+   "cam": "host",
+   "go": {
+    "bobo": "home",
+    "ollie": "home"
+   },
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Bobo, I think you are ready. Is it time for the Big Bounce?",
+   "act": "open",
+   "cam": "host",
+   "chapter": "The Big Bounce"
+  },
+  {
+   "who": "bobo",
+   "text": "Yes! I'm ready! I can count to ten now!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "game": {
+    "type": "trampoline",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Everybody, count Bobo's bounces with us!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Six!",
+   "act": "count",
+   "card": "6",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Seven!",
+   "act": "count",
+   "card": "7",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Eight!",
+   "act": "count",
+   "card": "8",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Nine!",
+   "act": "count",
+   "card": "9",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Ten!",
+   "act": "count",
+   "card": "10",
+   "gap_after": 0.3,
+   "cam": "group",
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": "bobo",
+   "text": "TEN! I did it! The Big Bounce!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "success"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hooray! Bobo did it!",
+   "act": "yay",
+   "also": {
+    "molly": "cheer"
+   },
+   "cam": "group",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "Thank you, friends! You taught me to count!",
+   "act": "thumbs_up",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "game": {
+    "type": "trampoline_off",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Great job, Bobo! And great job, everybody at home!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "Let's play a quick number quiz!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Number quiz and goodbye",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "How many ears does Bobo have?",
+   "act": "point",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Two!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "2"
+  },
+  {
+   "who": "molly",
+   "text": "How many fingers on one hand?",
+   "act": "hands_up",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "Five!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "5"
+  },
+  {
+   "who": "molly",
+   "text": "What comes after nine?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "bobo",
+   "text": "Banana!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "banana"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! Ten!",
+   "act": "laugh",
+   "cam": "kids",
+   "card": "10"
+  },
+  {
+   "who": "bobo",
+   "text": "Hee hee! I'm joking! Ten comes after nine!",
+   "act": "laugh",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "And how many bounces in the Big Bounce?",
+   "act": "point",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ten!",
+   "act": "yay",
+   "cam": "kids",
+   "card": "10",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Today we counted all the way to ten!",
+   "act": "count",
+   "cam": "host",
+   "card": "10"
+  },
+  {
+   "who": "molly",
+   "text": "Next time, we'll find shapes with Bobo! Circles, squares, and triangles!",
+   "act": "point",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "Shapes? I love shapes! Is a banana a shape?",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Silly Bobo!",
+   "act": "giggle",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our goodbye song!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, friends!",
+   "act": "wave",
+   "cam": "group",
+   "endcard": "Bye bye!\nSee you next time!",
+   "sfx": "success"
+  }
+ ]
+}

@@ -72,3 +72,5 @@ assets/aviation/library/
 
 # Sky Sim CC0 scene assets: fetched by python -m skysim.tools.fetch_assets
 skysim/assets/
+
+cartoon2d/episodes/

@@ -1,0 +1,2517 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 4.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Hooray! Hooray! It's my birthday party today!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "place": "playroom",
+   "face": "happy",
+   "chapter": "Bobo's birthday",
+   "sfx": "boing",
+   "game": {
+    "type": "trampoline",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "bobo",
+   "text": "I need round cookies, and square presents, and triangle pizza!",
+   "act": "count",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "bobo",
+   "text": "Look! I found a round cookie!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "banana",
+   "sfx": "pop"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee! That's a banana!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Bananas aren't round?",
+   "act": "tumble",
+   "cam": "group",
+   "face": "surprised",
+   "sfx": "drumroll",
+   "game": {
+    "type": "trampoline_off",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Oh, Bobo! Let's learn our shapes, so your party is perfect!",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "Shapes party!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "title": "Shapes with\nMs Molly & Bobo!",
+   "sfx": "success",
+   "gap_after": 2.4
+  },
+  {
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly!",
+   "act": "wave",
+   "cam": "host",
+   "chapter": "Hello song"
+  },
+  {
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
+   "act": "wave",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "And I'm Ollie!",
+   "act": "cheer"
+  },
+  {
+   "who": "bobo",
+   "text": "And I'm Bobo the Bear! It's my birthday!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Happy birthday, Bobo!",
+   "act": "yay",
+   "cam": "kids",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our hello song! Wave with us!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Today we're learning three shapes. A circle, a square, and a triangle!",
+   "act": "count",
+   "cam": "host",
+   "card": "3"
+  },
+  {
+   "who": "molly",
+   "text": "Will you help Bobo get ready for his party?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yes!",
+   "act": "yay",
+   "cam": "kids",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "bobo",
+   "text": "Thank you, friends! Let's go!",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Our first shape is a circle!",
+   "act": "open",
+   "cam": "host",
+   "pic": "shape_circle",
+   "card": "CIRCLE",
+   "chapter": "Circle",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Circle. Can you say circle?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Circle!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "A circle is round, round, round. It has no corners!",
+   "act": "spin",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "Let's draw a circle in the air with our finger. Round and round!",
+   "act": "point",
+   "also": {
+    "lily": "point",
+    "ollie": "point",
+    "bobo": "point"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 2.2
+  },
+  {
+   "who": "molly",
+   "text": "Great circles! Now look. What is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "cookie",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "It's a cookie! What shape is the cookie?",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "A circle!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "bobo",
+   "text": "A round circle cookie! For my party! Yum!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Here's another circle. Tick, tock!",
+   "act": "point",
+   "cam": "host",
+   "pic": "clock",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is the clock?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "The clock is a circle!",
+   "act": "point",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! And look up at the sky.",
+   "act": "point",
+   "cam": "host",
+   "pic": "sun"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is the sun?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "bobo",
+   "text": "Ooh! Ooh! Is my tummy a circle?",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hee hee! Bobo's tummy is round, like a circle!",
+   "act": "laugh",
+   "cam": "host"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "giggle",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's play with circles in the garden!",
+   "act": "point",
+   "cam": "host",
+   "chapter": "Circle games"
+  },
+  {
+   "who": "molly",
+   "text": "Here we are in the garden!",
+   "act": "open",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "place": "garden",
+   "sfx": "sparkle",
+   "hold": {
+    "ollie": "ball"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "ollie",
+   "text": "Look! My ball is round. What shape is it?",
+   "act": "talk",
+   "cam": "cu:ollie",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "ollie",
+   "text": "Catch, Bobo!",
+   "act": "talk",
+   "game": {
+    "type": "throw",
+    "from": "ollie",
+    "to": "bobo",
+    "bounces": 1
+   },
+   "cam": "group",
+   "gap_after": 1.4
+  },
+  {
+   "who": "bobo",
+   "text": "I caught the circle! Catch, Lily!",
+   "act": "talk",
+   "face": "happy",
+   "game": {
+    "type": "throw",
+    "from": "bobo",
+    "to": "lily",
+    "bounces": 0,
+    "at": 1.3
+   },
+   "cam": "group",
+   "gap_after": 1.2
+  },
+  {
+   "who": "lily",
+   "text": "Got it! Bounce, bounce, bounce!",
+   "act": "talk",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 3
+   },
+   "cam": "kids",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Wonderful! Now look! Balloons! Balloons are round, like circles.",
+   "act": "point",
+   "cam": "host",
+   "drop": [
+    "lily"
+   ]
+  },
+  {
+   "who": "molly",
+   "text": "Pop the circle balloons!",
+   "act": "cheer",
+   "cam": "group",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "red",
+     "blue",
+     "yellow",
+     "red"
+    ]
+   },
+   "gap_after": 3.0
+  },
+  {
+   "who": "molly",
+   "text": "How many circle balloons did we pop?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "yay",
+   "cam": "kids",
+   "card": "4"
+  },
+  {
+   "who": "molly",
+   "text": "Four round balloons! Great counting!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Our next shape is a square!",
+   "act": "open",
+   "cam": "host",
+   "pic": "shape_square",
+   "card": "SQUARE",
+   "chapter": "Square",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Square. Can you say square?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Square!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "A square has four sides. All the same! Let's count them.",
+   "act": "count",
+   "cam": "host",
+   "card": "4"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": "molly",
+   "text": "Four sides! Let's draw a square in the air. Across, down, across, up!",
+   "act": "point",
+   "also": {
+    "lily": "point",
+    "ollie": "point",
+    "bobo": "point"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 2.2
+  },
+  {
+   "who": "molly",
+   "text": "Now look. What is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "present",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "It's a present! What shape is the present?",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "A square!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "SQUARE"
+  },
+  {
+   "who": "bobo",
+   "text": "A square present! For my party! Is it for me?",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Maybe! Here's another square.",
+   "act": "point",
+   "cam": "host",
+   "pic": "window"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is the window?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "The window is a square!",
+   "act": "point",
+   "cam": "cu:ollie",
+   "card": "SQUARE"
+  },
+  {
+   "who": "bobo",
+   "text": "I know one! Is a cookie a square?",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "cookie"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, is a cookie a square?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A cookie is a circle!",
+   "act": "laugh",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Silly Bobo! Cookies are round!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "Let's play hide and seek! I'll hide behind the square box!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "chapter": "Hide and seek"
+  },
+  {
+   "who": "molly",
+   "text": "Okay, Bobo! Close your eyes and count to five, friends!",
+   "act": "open",
+   "cam": "host",
+   "game": {
+    "type": "hide",
+    "who": "bobo"
+   },
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "One!",
+   "act": "talk",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "talk",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "talk",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "talk",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Five!",
+   "act": "talk",
+   "card": "5",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ready or not, here we come!",
+   "act": "cheer",
+   "cam": "kids",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "Where is Bobo? Can you see him?",
+   "act": "think",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "I see his ears! Behind the box!",
+   "act": "point",
+   "cam": "cu:ollie",
+   "face": "surprised"
+  },
+  {
+   "who": "molly",
+   "text": "And what shape is the box?",
+   "act": "point",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A square!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "SQUARE"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Found you, Bobo!",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "You found me! The square box was too small!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "game": {
+    "type": "found",
+    "who": "bobo"
+   },
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's go back inside for our last shape!",
+   "act": "point",
+   "cam": "host",
+   "chapter": "Triangle"
+  },
+  {
+   "who": "molly",
+   "text": "Here we are!",
+   "act": "open",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "place": "playroom",
+   "sfx": "sparkle",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "This shape is a triangle!",
+   "act": "open",
+   "cam": "host",
+   "pic": "shape_triangle",
+   "card": "TRIANGLE",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Triangle. Can you say triangle?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Triangle!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "A triangle has three sides and three pointy corners!",
+   "act": "count",
+   "cam": "host",
+   "card": "3"
+  },
+  {
+   "who": "bobo",
+   "text": "Can I bounce the sides on my trampoline?",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "game": {
+    "type": "trampoline",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Count Bobo's bounces. Three sides!",
+   "act": "point",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": "bobo",
+   "text": "Three bounces for a triangle! Wheee!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "And how many bounces for a square? Four!",
+   "act": "count",
+   "cam": "host",
+   "card": "4"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.35,
+   "also": {
+    "bobo": "bounce"
+   }
+  },
+  {
+   "who": "bobo",
+   "text": "Four for a square! I did it!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "game": {
+    "type": "trampoline_off",
+    "who": "bobo"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Now look at this. Yum!",
+   "act": "point",
+   "cam": "host",
+   "pic": "pizza",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "It's a slice of pizza! What shape is the pizza?",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "A triangle!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "bobo",
+   "text": "Triangle pizza! For my party! Yum, yum, yum!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "And here's a sandwich.",
+   "act": "point",
+   "cam": "host",
+   "pic": "sandwich"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is the sandwich?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "A triangle sandwich!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "molly",
+   "text": "Let's make a triangle with our arms! Hands up, and touch them together!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 2.0
+  },
+  {
+   "who": "molly",
+   "text": "Great triangles, everybody!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Look at this house. It's made of shapes!",
+   "act": "point",
+   "cam": "host",
+   "pic": "house",
+   "chapter": "The shape house",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "The house has a roof. What shape is the roof?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A triangle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "molly",
+   "text": "The front of the house is a big...?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "Square!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "SQUARE"
+  },
+  {
+   "who": "molly",
+   "text": "And the little window at the top is a...?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "bobo",
+   "text": "Wow! A circle, a square, and a triangle make a house!",
+   "act": "open",
+   "cam": "cu:bobo",
+   "face": "surprised"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Shapes are everywhere! Look around your room. Can you find a circle?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 2.4
+  },
+  {
+   "who": "molly",
+   "text": "Can you find a square?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 2.4
+  },
+  {
+   "who": "molly",
+   "text": "Wow! You found shapes! Great looking!",
+   "act": "clap",
+   "cam": "host",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's play Simon Says with shapes! Do what Simon says!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Shape Simon Says",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, draw a big circle in the air!",
+   "act": "point",
+   "also": {
+    "lily": "point",
+    "ollie": "point",
+    "bobo": "point"
+   },
+   "cam": "group",
+   "card": "CIRCLE",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, jump four times, like the four sides of a square!",
+   "act": "point",
+   "cam": "host",
+   "card": "SQUARE",
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "jump",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "jump",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "jump",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "jump",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, make a triangle with your arms!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "card": "TRIANGLE",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "molly",
+   "text": "Spin around like a circle!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Wheee! Spinning!",
+   "act": "spin",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Bobo! Simon didn't say!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Simon didn't say! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, touch your toes!",
+   "act": "touch_toes",
+   "also": {
+    "lily": "touch_toes",
+    "ollie": "touch_toes",
+    "bobo": "touch_toes"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, touch your head!",
+   "act": "touch_head",
+   "also": {
+    "lily": "touch_head",
+    "ollie": "touch_head",
+    "bobo": "touch_head"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, be a star! Arms up high!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "card": "STAR",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Great listening, everybody!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "bobo",
+   "text": "All these shapes make me hungry! Snack time!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "chapter": "Bobo's shape snack",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Look! Bobo has round cookies. Let's count the circles!",
+   "act": "point",
+   "cam": "host",
+   "pic": "cookie",
+   "card": "CIRCLE"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": "bobo",
+   "text": "Three circle cookies! I'll eat one! Munch, munch!",
+   "act": "giggle",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Three cookies, and Bobo ate one. How many circles are left?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Two!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "2"
+  },
+  {
+   "who": "molly",
+   "text": "Two circle cookies! Well done, Lily!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "And here's a triangle sandwich!",
+   "act": "point",
+   "cam": "host",
+   "pic": "sandwich",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "bobo",
+   "text": "If I bite the corner, is it still a triangle?",
+   "act": "think",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! No! Now it's a bitten sandwich!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Then I'll eat it all! Yum!",
+   "act": "laugh",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Quick! Let's play shape hunt! I show it, you shout the shape!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Quick shape hunt",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "clock",
+   "gap_after": 1.4
+  },
+  {
+   "who": "lily",
+   "text": "Circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "window",
+   "gap_after": 1.4
+  },
+  {
+   "who": "ollie",
+   "text": "Square!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "SQUARE"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "pizza",
+   "gap_after": 1.4
+  },
+  {
+   "who": "bobo",
+   "text": "Triangle!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "present",
+   "gap_after": 1.4
+  },
+  {
+   "who": "lily",
+   "text": "Square!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "SQUARE"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "sun",
+   "gap_after": 1.4
+  },
+  {
+   "who": "ollie",
+   "text": "Circle!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is this?",
+   "act": "point",
+   "cam": "host",
+   "pic": "shape_star",
+   "gap_after": 1.4
+  },
+  {
+   "who": "bobo",
+   "text": "Star!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "card": "STAR"
+  },
+  {
+   "who": "molly",
+   "text": "Six shapes! You're shape experts!",
+   "act": "yay",
+   "cam": "host",
+   "card": "6",
+   "sfx": "success"
+  },
+  {
+   "who": "bobo",
+   "text": "Miss Molly, look! A shape with lots of points!",
+   "act": "point",
+   "cam": "cu:bobo",
+   "pic": "shape_star",
+   "chapter": "Bonus shape: star",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "That's a star! Twinkle, twinkle!",
+   "act": "open",
+   "cam": "host",
+   "card": "STAR"
+  },
+  {
+   "who": "molly",
+   "text": "Star. Can you say star?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Star!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's count the points on the star!",
+   "act": "count",
+   "cam": "host",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": "molly",
+   "text": "Five points! A star has five points!",
+   "act": "hands_up",
+   "cam": "host",
+   "card": "5"
+  },
+  {
+   "who": "ollie",
+   "text": "Ollie has a star too! Where is my star?",
+   "act": "point",
+   "cam": "cu:ollie",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "On your shirt!",
+   "act": "point",
+   "cam": "kids",
+   "card": "STAR"
+  },
+  {
+   "who": "ollie",
+   "text": "My red star!",
+   "act": "yay",
+   "cam": "cu:ollie",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Let's be stars! Arms out, legs out, and shine!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Shapes have colors too! Let's play colors and shapes!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Colors and shapes",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "What color is this shape? And what shape is it?",
+   "act": "point",
+   "cam": "host",
+   "pic": "shape_circle",
+   "gap_after": 1.8
+  },
+  {
+   "who": "lily",
+   "text": "A red circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! A red circle! Great job!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "What color is this shape? And what shape is it?",
+   "act": "point",
+   "cam": "host",
+   "pic": "shape_square",
+   "gap_after": 1.8
+  },
+  {
+   "who": "ollie",
+   "text": "A blue square!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "SQUARE"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! A blue square! Great job!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "What color is this shape? And what shape is it?",
+   "act": "point",
+   "cam": "host",
+   "pic": "shape_triangle",
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "A yellow triangle!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! A yellow triangle! Great job!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "What color is this shape? And what shape is it?",
+   "act": "point",
+   "cam": "host",
+   "pic": "shape_star",
+   "gap_after": 1.8
+  },
+  {
+   "who": "lily",
+   "text": "A orange star!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "STAR"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! A orange star! Great job!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! I'm a brown circle bear!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "My turn to hide! Count to five!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "chapter": "Ollie hides"
+  },
+  {
+   "who": "molly",
+   "text": "Okay, Ollie! Hide behind the square box!",
+   "act": "open",
+   "cam": "host",
+   "game": {
+    "type": "hide",
+    "who": "ollie"
+   },
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "talk",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "talk",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "talk",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "talk",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "talk",
+   "card": "5",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": "bobo",
+   "text": "Ready or not! Hmm. Is Ollie inside the circle clock?",
+   "act": "think",
+   "cam": "cu:bobo",
+   "pic": "clock"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Is he inside the triangle pizza?",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "pizza"
+  },
+  {
+   "who": "lily",
+   "text": "Nooo, Bobo! Look at the square box!",
+   "act": "point",
+   "cam": "kids",
+   "card": "SQUARE"
+  },
+  {
+   "who": "bobo",
+   "text": "I see his hair! Found you, Ollie!",
+   "act": "point",
+   "cam": "cu:bobo",
+   "face": "surprised"
+  },
+  {
+   "who": "ollie",
+   "text": "You found me!",
+   "act": "yay",
+   "cam": "cu:ollie",
+   "game": {
+    "type": "found",
+    "who": "ollie"
+   },
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's draw pictures with shapes!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Draw with shapes"
+  },
+  {
+   "who": "molly",
+   "text": "First, a big circle. Then lines all around it. What is it?",
+   "act": "point",
+   "cam": "host",
+   "card": "CIRCLE",
+   "gap_after": 1.6
+  },
+  {
+   "who": "lily",
+   "text": "The sun!",
+   "act": "cheer",
+   "cam": "kids",
+   "pic": "sun"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! A circle makes the sun! Now, a square, and a triangle on top. What is it?",
+   "act": "point",
+   "cam": "host",
+   "card": "SQUARE",
+   "gap_after": 1.8
+  },
+  {
+   "who": "ollie",
+   "text": "A house!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "pic": "house"
+  },
+  {
+   "who": "molly",
+   "text": "A square and a triangle make a house!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "bobo",
+   "text": "Now me! A triangle, with red circles on it. What is it?",
+   "act": "point",
+   "cam": "cu:bobo",
+   "gap_after": 1.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Pizza!",
+   "act": "yay",
+   "cam": "kids",
+   "pic": "pizza"
+  },
+  {
+   "who": "bobo",
+   "text": "Pizza! For my party! Yum!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "What will you draw with shapes? Get some paper and try it!",
+   "act": "open",
+   "cam": "host",
+   "pic": "paint",
+   "your_turn": true,
+   "gap_after": 2.2
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing the shape song! Clap with me!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "chapter": "Shape song",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "A circle is round like a ball! A square has four sides, one and all! A triangle has three, can you see? Shapes, shapes, for you and me!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "circle": "CIRCLE",
+    "circles": "CIRCLE",
+    "square": "SQUARE",
+    "squares": "SQUARE",
+    "triangle": "TRIANGLE",
+    "triangles": "TRIANGLE",
+    "star": "STAR"
+   }
+  },
+  {
+   "who": "molly",
+   "text": "Again! Sing with us!",
+   "act": "cheer",
+   "cam": "host",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "A circle is round like a ball! A square has four sides, one and all! A triangle has three, can you see? Shapes, shapes, for you and me!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "circle": "CIRCLE",
+    "circles": "CIRCLE",
+    "square": "SQUARE",
+    "squares": "SQUARE",
+    "triangle": "TRIANGLE",
+    "triangles": "TRIANGLE",
+    "star": "STAR"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "One more time! It's my birthday!",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "A circle is round like a ball! A square has four sides, one and all! A triangle has three, can you see? Shapes, shapes, for you and me!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "word_cards": {
+    "circle": "CIRCLE",
+    "circles": "CIRCLE",
+    "square": "SQUARE",
+    "squares": "SQUARE",
+    "triangle": "TRIANGLE",
+    "triangles": "TRIANGLE",
+    "star": "STAR"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yay!",
+   "act": "yay",
+   "also": {
+    "bobo": "yay",
+    "molly": "cheer"
+   },
+   "cam": "group",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Now it's the shape freeze dance! Dance, and when I show a shape, freeze!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Shape freeze dance"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Circle!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "CIRCLE",
+   "sfx": "pop",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "I can't freeze! I'm a wobbly birthday bear!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Square!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "SQUARE",
+   "sfx": "pop",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "I froze! Look at me!",
+   "act": "freeze",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Triangle!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "wobble",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "TRIANGLE",
+   "sfx": "pop",
+   "gap_after": 1.2
+  },
+  {
+   "who": "ollie",
+   "text": "Whoa! Wobble, wobble!",
+   "act": "wobble",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Great dancing! Now take a big breath. In, and out.",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 1.2
+  },
+  {
+   "who": "molly",
+   "text": "Bobo, your party is ready!",
+   "act": "open",
+   "cam": "host",
+   "chapter": "Bobo's shape party",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "We have round cookies. What shape?",
+   "act": "point",
+   "cam": "host",
+   "pic": "cookie",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "molly",
+   "text": "Square presents. What shape?",
+   "act": "point",
+   "cam": "host",
+   "pic": "present",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Square!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "SQUARE"
+  },
+  {
+   "who": "molly",
+   "text": "And triangle pizza. What shape?",
+   "act": "point",
+   "cam": "host",
+   "pic": "pizza",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Triangle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "bobo",
+   "text": "The best shape party ever! Thank you, friends!",
+   "act": "thumbs_up",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing happy birthday to Bobo!",
+   "act": "cheer",
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Happy birthday, Bobo bear! Happy birthday, everywhere!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Happy birthday, Bobo bear! Happy birthday, everywhere!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "bobo",
+   "text": "Party balloons! Pop, pop, pop!",
+   "act": "bounce",
+   "cam": "group",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "yellow",
+     "red",
+     "blue"
+    ]
+   },
+   "face": "happy",
+   "gap_after": 2.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hooray!",
+   "act": "yay",
+   "also": {
+    "molly": "cheer"
+   },
+   "cam": "group",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's play a quick shape quiz!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Shape quiz and goodbye",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "What shape is round, with no corners?",
+   "act": "spin",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "A circle!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "CIRCLE"
+  },
+  {
+   "who": "molly",
+   "text": "What shape has three sides?",
+   "act": "count",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "bobo",
+   "text": "A banana!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "banana"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A triangle!",
+   "act": "laugh",
+   "cam": "kids",
+   "card": "TRIANGLE"
+  },
+  {
+   "who": "bobo",
+   "text": "Hee hee! I'm joking! A triangle has three sides!",
+   "act": "laugh",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "What shape has four sides, all the same?",
+   "act": "count",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "A square!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "SQUARE"
+  },
+  {
+   "who": "molly",
+   "text": "You know all your shapes! Circle, square, triangle!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Next time, we'll visit the farm and meet the animals! Moo!",
+   "act": "point",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "The farm? Do cows say woof?",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! Cows say moo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our goodbye song!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, friends!",
+   "act": "wave",
+   "cam": "group",
+   "endcard": "Bye bye!\nSee you next time!",
+   "sfx": "success"
+  }
+ ]
+}

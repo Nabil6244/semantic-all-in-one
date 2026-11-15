@@ -26,7 +26,7 @@ from kids_audio.synth import SR  # noqa: E402
 
 RHUBARB = ROOT / "cartoon3d-engine" / "authoring" / "tools" / "Rhubarb-Lip-Sync-1.14.0-macOS" / "rhubarb"
 PASS = ("act", "also", "cam", "card", "card_at", "pic", "sfx", "place", "hold", "drop", "give", "title", "endcard", "chapter",
-        "word_cards", "chant", "go", "run", "game", "your_turn", "face", "hand")
+        "word_cards", "chant", "go", "run", "game", "your_turn", "face", "hand", "fx", "tr")
 
 
 def sig(*parts):

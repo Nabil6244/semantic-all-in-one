@@ -23,13 +23,21 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hook  # noqa: E402
 import games  # noqa: E402
+import scenery  # noqa: E402
+import places  # noqa: E402
+import fx  # noqa: E402
 OUT_W, OUT_H, FPS = 1920, 1080, 25
 WORLD_W, WORLD_H = 2560, 1440
 SS = 3                                          # supersampling for drawn mouths / lids
+SHUTTER = 0.012                                 # motion blur: smear = speed x this (s); ~ a 1/80 s shutter, kept light
 FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
 # vibrant kids-TV colour: the Flow art comes out pale/pastel. Vibrance lifts the dull colours most (skin is guarded by the
 # low red balance, so faces and Bobo's fur stay natural), plus a little contrast and deeper mid-tones. Applied in the encode.
-GRADE = "vibrance=intensity=0.18:rbal=0.6:gbal=1.2:bbal=1.3,eq=contrast=1.07:saturation=1.06:gamma=0.95"
+# Stage C finish: crisper outlines (a light unsharp on brightness only). A highlight glow and a vignette were tried and
+# dulled the colours, so they are left out. Story "grade" can still replace it all (false = the art's own colours).
+GRADE = ("vibrance=intensity=0.18:rbal=0.6:gbal=1.2:bbal=1.3,eq=contrast=1.07:saturation=1.06:gamma=0.95,"
+         "unsharp=5:5:0.45:5:5:0")
+ENCODE = ["-c:v", "libx264", "-preset", "slow", "-tune", "animation", "-crf", "17"]   # flat colours + lines: animation tune
 WHO = []                                        # cast ids in story order (filled by load)
 HOST = "molly"
 G = {}                                          # per-process globals (loaded once per worker)
@@ -75,6 +83,9 @@ def load(story_path):
     for name, pl in places.items():
         G["places"][name] = {"bg": Image.open(ROOT / pl["background"]).convert("RGB").resize((WORLD_W, WORLD_H), Image.LANCZOS),
                              "floor": pl["floor_y"] * WORLD_H, "spots": {w: x * WORLD_W for w, x in pl["spots"].items()}}
+        if st.get("scenery", True):                    # living place: depth parallax, clouds, leaves, water, light
+            G["places"][name]["scene"] = scenery.prepare(G["places"][name]["bg"], pl["floor_y"], G["places"][name]["spots"],
+                                                         outdoor=pl.get("outdoor"))
     G["start_place"] = st.get("start_place", next(iter(places)))
     first = G["places"][G["start_place"]]
     G["cast"] = {}
@@ -96,6 +107,14 @@ def load(story_path):
                           "char_h": char_h, "top": top, "flip": c.get("flip", False), "H": H,
                           "tilt": c.get("tilt", 1.0), "hop": c.get("hop", 0.16), "listen": c.get("listen", 3.0),
                           "hold_side": c.get("hold_side", "sr")}
+        sj = d / "side" / "side.json"
+        if sj.exists() and st.get("side_views", True):   # profile for walking / running (cartoon2d/side.py)
+            info = json.loads(sj.read_text())
+            leg = Image.open(d / "side" / "leg.png").convert("RGBA")
+            far = Image.eval(leg.convert("RGB"), lambda v: int(v * 0.8)).convert("RGBA")
+            far.putalpha(leg.getchannel("A"))
+            G["cast"][who]["side"] = {"info": info, "upper": Image.open(d / "side" / "upper.png").convert("RGBA"), "leg": leg,
+                                      "far": far, "k": c["height"] * WORLD_H / info["height"]}
     dirs = st.get("props", "cartoon2d/art/props")
     dirs = [ROOT / d for d in (dirs if isinstance(dirs, list) else [dirs])]
     names = set()
@@ -114,6 +133,7 @@ def load(story_path):
             raise FileNotFoundError(f"picture {n}.png not found in {dirs}")
         G["pics"][n] = sticker(Image.open(f))
     plan()
+    plan_fx()
 
 
 def sticker(img):
@@ -279,7 +299,10 @@ def plan():
             holds.append({"who": b["to"], "pic": b["pic"], "t0": b["t1"],
                           "t1": min([h2["t0"] for h2 in holds if h2["who"] == b["to"] and h2["t0"] > b["t1"]] +
                                     [g2["t0"] for g2 in G["games"]["ball"] if g2 is not b and g2["t0"] > b["t1"]
-                                     and b["to"] in (g2.get("from"), g2.get("who"))] + [total + 1])})
+                                     and b["to"] in (g2.get("from"), g2.get("who"))] +
+                                    [f2["t0"] for f2 in flights if f2["from"] == b["to"] and f2["t0"] > b["t1"]] +    # handed over
+                                    [ln2["start"] for ln2 in lines if ln2["start"] > b["t1"] and                      # dropped / place
+                                     (b["to"] in (ln2.get("drop") or []) or ln2.get("place"))] + [total + 1])})
     G["holds"], G["flights"] = holds, flights
     # title / end cards
     G["titles"] = []
@@ -325,11 +348,42 @@ def place_at(t):
     return name
 
 
+HOP_ACTS = ("cheer", "jump", "bounce", "frog", "kangaroo", "bunny", "tumble")
+SPARKLE_ACTS = ("cheer", "yay", "thumbs_up")
+
+
+def plan_fx():
+    """Stage B: landing times (dust), sparkle windows, full-screen effects (line "fx") and the transition of each place
+    change (line "tr", else iris / star / push / page in turn)."""
+    G["cur_place_t"] = 0.0
+    G["landings"], G["sparkle"], G["screen_fx"], G["tr_kind"] = [], [], [], {}
+    for who in WHO:
+        for (t0, t1, act, _) in G["acts"][who]:
+            if act in SPARKLE_ACTS:
+                G["sparkle"].append((who, t0, t1 + 0.6))
+            if act not in HOP_ACTS:
+                continue
+            prev, t = 0.0, t0
+            while t < t1 + 1.6:
+                h = pose_at(who, t)["hop"]
+                if prev > 0.012 and h <= 0.004:
+                    G["landings"].append((t, who, prev))
+                prev, t = h, t + 0.02
+    for i, ln in enumerate(G["tl"]["lines"]):
+        if ln.get("fx"):
+            G["screen_fx"].append((ln["start"], max(1.0, ln["end"] - ln["start"] + 0.5), ln["fx"], i))
+    k = 0
+    for tc, n in G["place_changes"]:
+        ln = next((l for l in G["tl"]["lines"] if l.get("place") == n and abs(max(0.0, l["start"] - 0.45) - tc) < 0.01), {})
+        G["tr_kind"][tc] = ln.get("tr") or fx.TRANSITIONS[k % len(fx.TRANSITIONS)]
+        k += 1
+
+
 def transition_at(t, half=0.4):
     prev = G["start_place"]
     for tc, n in G["place_changes"]:
         if tc - half <= t < tc + half and n != prev:
-            return prev, n, smooth((t - (tc - half)) / (2 * half))
+            return prev, n, smooth((t - (tc - half)) / (2 * half)), G.get("tr_kind", {}).get(tc, "iris")
         if t >= tc:
             prev = n
     return None
@@ -341,6 +395,7 @@ def set_place(name):
         G["cast"][w]["x"] = G["cast"][w]["spot"] = pl["spots"][w]
         G["cast"][w]["floor"] = pl["floor"]
     G["bg"] = pl["bg"]
+    G["scene"] = pl.get("scene")
 
 
 # ------------------------------------------------------------------ poses
@@ -407,16 +462,21 @@ def hops(lt, dur, n, height):
     """n hops spread over dur; returns (lift 0..1 * height, squash)."""
     per = max(0.42, dur / n)
     k = int(lt // per)
-    if k >= n or lt < 0:
+    if lt < 0:
         return 0.0, 1.0, 1.0
+    if k >= n:                                    # the last landing squashes too, then springs back
+        q = (lt - n * per) / 0.18
+        if q >= 1:
+            return 0.0, 1.0, 1.0
+        return 0.0, 1.0 + 0.08 * math.sin(math.pi * q), 1.0 - 0.13 * math.sin(math.pi * q)
     p = (lt - k * per) / per
     air = 0.18
-    if p < air:                                   # crouch
+    if p < air:                                   # crouch (landing of the hop before, take-off of this one)
         q = p / air
-        return 0.0, 1.0 + 0.06 * math.sin(math.pi * q), 1.0 - 0.10 * math.sin(math.pi * q)
+        return 0.0, 1.0 + 0.09 * math.sin(math.pi * q), 1.0 - 0.14 * math.sin(math.pi * q)
     q = (p - air) / (1 - air)
     lift = 4 * q * (1 - q) * height
-    st = 1.0 + 0.05 * math.sin(math.pi * q)
+    st = 1.0 + 0.09 * math.sin(math.pi * q) * (1 - q) * 1.6   # stretched going up, round again at the top
     return lift, 1.0 / st ** 0.5, st
 
 
@@ -904,7 +964,7 @@ def face_head(who, shape, blink_q, expr=None, lx=0.0, ly=0.0):
                 ImageDraw.Draw(tt).rectangle([mx - w2, top - hgt, mx + w2, top + hgt * 0.24], fill=(255, 255, 255, 255))
                 big.paste(tt, (0, 0), Image.fromarray((np.asarray(m) > 0).astype(np.uint8) * np.asarray(tt)[..., 3]))
             d.line(pts + [pts[0]], fill=line + (255,), width=lw, joint="curve")
-    return big.resize((W, H), Image.LANCZOS)
+    return big.reduce(SS) if big.size == (W * SS, H * SS) else big.resize((W, H), Image.LANCZOS)
 
 
 # ------------------------------------------------------------------ drawing
@@ -966,16 +1026,25 @@ def place(canvas, img, M):
     del inv
 
 
-def cam_rect(t):
+def cam_rect(t, start=False):
+    """The camera at t (start=True: the same shot at its first frame, the depth reference). With living scenery every
+    shot drifts a little sideways while it pushes in (direction alternates shot to shot), and the first wide shot in a new
+    place glides across it, so the place's depth shows."""
     shots = G["shots"]
     k = max(i for i, s_ in enumerate(shots) if s_[0] <= t)
     t0, name = shots[k]
     t1 = shots[k + 1][0] if k + 1 < len(shots) else G["tl"]["total"]
-    prog = smooth((t - t0) / max(t1 - t0, 0.1))
+    prog = 0.0 if start else smooth((t - t0) / max(t1 - t0, 0.1))
+    live = G.get("scene") is not None and G["story"].get("camera_life", True)
+    dirn = 1 if k % 2 else -1
+    drift = dirn * (2 * prog - 1) if live else 0.0
     c = G["cast"]
-    if name == "group":
-        w = WORLD_W * (1.0 - 0.06 * prog)
-        cx, cy = WORLD_W / 2, WORLD_H / 2 + 20
+    if name == "group" and live and any(-0.2 <= t0 - tc <= 1.2 for tc, _ in G["place_changes"]):
+        w = WORLD_W * (0.9 - 0.04 * prog)                 # arriving: a slow glide across the new place
+        cx, cy = WORLD_W / 2 - drift * WORLD_W * 0.045, WORLD_H / 2 + 20
+    elif name == "group":
+        w = WORLD_W * ((0.95 - 0.05 * prog) if live else (1.0 - 0.06 * prog))
+        cx, cy = WORLD_W / 2 + drift * WORLD_W * 0.018, WORLD_H / 2 + 20
     elif name == "host":
         h = c[HOST]
         w = h["char_h"] * h["k"] * 1.55 * (1.0 - 0.05 * prog)
@@ -996,6 +1065,11 @@ def cam_rect(t):
         w = hp * 1.3 * (1.0 - 0.05 * prog)
         cx = h["x"] + w * 0.14 * (1 if outer_side(who) == "sl" else -1)
         cy = h["floor"] - hp * 0.68
+        if tramp_for(who, t):                          # on the trampoline: lifted + bouncing, so frame wider and higher
+            w = hp * 2.0 * (1.0 - 0.04 * prog)
+            cy = h["floor"] - hp * 0.86
+    if name != "group":
+        cx += drift * w * 0.025
     h_ = w * OUT_H / OUT_W
     cx = min(max(cx, w / 2), WORLD_W - w / 2)
     cy = min(max(cy, h_ / 2), WORLD_H - h_ / 2)
@@ -1036,7 +1110,7 @@ def char_boxes(t):
     return out
 
 
-def card_spot(t, cam, size, width=None):
+def card_spot(t, cam, size, width=None, taken=()):
     def ov(a, b):
         return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
     boxes = char_boxes(t)
@@ -1047,13 +1121,15 @@ def card_spot(t, cam, size, width=None):
         for y in (220, 300, 380, 460):
             r = (x - hw, y - size / 2, x + hw, y + size / 2)
             sc = sum(3 * ov(r, h) + ov(r, b) for h, b in boxes) + 40 * math.hypot(x - pref[0], y - pref[1])
+            sc += sum(8 * ov(r, tk) for tk in taken)          # never on top of another card / picture on screen
             if best is None or sc < best[0]:
                 best = (sc, x, y)
     return best[1], best[2]
 
 
 def draw_cards(frame, t, cam):
-    for cd in G["cards"]:
+    taken = []
+    for cd in sorted(G["cards"], key=lambda c: "pic" not in c):     # pictures first, word cards find the free space
         if not (cd["t0"] <= t <= cd["t1"]):
             continue
         a = t - cd["t0"]
@@ -1071,7 +1147,9 @@ def draw_cards(frame, t, cam):
         im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.BICUBIC)
         bob = 8 * math.sin(2 * math.pi * 0.8 * a)
         full = (G["pics"][cd["pic"]].width * 470 / G["pics"][cd["pic"]].height) if "pic" in cd else card_img(cd["text"], 260).width
-        cx, cy = card_spot(t, cam, 470 if "pic" in cd else 300, full * 1.18)
+        sz = 470 if "pic" in cd else 300
+        cx, cy = card_spot(t, cam, sz, full * 1.18, tuple(taken))
+        taken.append((cx - full * 0.6, cy - sz / 2, cx + full * 0.6, cy + sz / 2))
         frame.alpha_composite(im, (int(cx - im.width / 2), int(cy + bob - im.height / 2)))
 
 
@@ -1164,7 +1242,7 @@ def draw_arm(frame, M, rig, side, pz, part):
         seg(e_, w_, fw - 2 * lw, skin)
         r = (uw - 2 * lw) * k / 2                    # elbow fill hides the forearm cap outline inside the upper arm
         d.ellipse([e_[0] - r, e_[1] - r, e_[0] + r, e_[1] + r], fill=skin)
-    cv = cv.resize((x1c - x0c, y1c - y0c), Image.LANCZOS)
+    cv = cv.reduce(K)                               # exact 2x box average (premultiplied): same look, much faster
     frame.alpha_composite(cv, (x0c, y0c))
     # the hand: a hand-shape picture (thumbs up, fist, point, open), or the character's own hand turned with the forearm
     shp = pz.get("_hs", {}).get(side) if isinstance(pz.get("_hs"), dict) else None
@@ -1195,7 +1273,7 @@ def draw_arm(frame, M, rig, side, pz, part):
         dd = ImageDraw.Draw(cv2_)
         q0, q1 = ((p0[0] - bx0) * 2, (p0[1] - by0) * 2), ((p1[0] - bx0) * 2, (p1[1] - by0) * 2)
         dd.line([q0, q1], fill=skin, width=max(1, int((fw - 2 * lw - 1) * sc * 2)))
-        cv2_ = cv2_.resize((cw, ch), Image.LANCZOS)
+        cv2_ = cv2_.reduce(2)
         frame.alpha_composite(cv2_, (bx0, by0)) if bx0 >= 0 and by0 >= 0 else frame.paste(cv2_, (bx0, by0), cv2_)
 
 
@@ -1230,7 +1308,7 @@ def draw_arm_upper_only(frame, M, rig, side, pz):
     seg(se_, e_, uw - 2 * LINE_W, tuple(a["skin"]) + (255,))
     seg(s_, se_, sw, line)
     seg(s_, se_, sw - 2 * LINE_W, tuple(a["sleeve"]) + (255,))
-    cv = cv.resize((x1c - x0c, y1c - y0c), Image.LANCZOS)
+    cv = cv.reduce(K)                               # exact 2x box average (premultiplied): same look, much faster
     frame.alpha_composite(cv, (x0c, y0c))
     del saved
 
@@ -1239,6 +1317,51 @@ def crosses_body(pz, side):
     """Forearm folded inward (clap, giggle): it must be drawn in front of the body."""
     s = 1 if side == "sr" else -1
     return s * pz[f"l_{side}"] < -40
+
+
+def motion(who, t, pz, dt=0.07):
+    """How fast a character moves now: sideways and up (character heights per second) and turns (degrees per second)."""
+    pp = pose_at(who, t - dt)
+    vx = (x_at(who, t) - x_at(who, t - dt)) / (G["cast"][who]["char_h"] * G["cast"][who]["k"] * dt) + (pz["dx"] - pp["dx"]) / dt
+    vy = (pz["hop"] - pp["hop"]) / dt
+    vr = (pz["head"] + pz["sway"] + pz["lean"] - pp["head"] - pp["sway"] - pp["lean"]) / dt
+    return vx, vy, vr
+
+
+def side_amount(who, t):
+    """0..1 how far a character has turned to its side view for a walk / run across the place (short steps stay
+    facing front), the direction, and the move."""
+    if "side" not in G["cast"][who]:
+        return 0.0, 0, None
+    for m in G["moves"].get(who, []):
+        if m["place_t"] < G["cur_place_t"] or abs(m["x1"] - m["x0"]) < 0.06 * WORLD_W:
+            continue
+        if m["t0"] - 0.1 <= t <= m["t1"] + 0.25:
+            u = min(smooth((t - m["t0"] + 0.1) / 0.22), 1 - smooth((t - m["t1"]) / 0.22))
+            return u, (1 if m["x1"] > m["x0"] else -1), m
+    return 0.0, 0, None
+
+
+def draw_side(frame, C, who, t, sxf, dirn, m):
+    """The profile walk: legs swing from the hip (far leg darker, behind), the body dips as a leg reaches out, leans in."""
+    c = G["cast"][who]
+    sd, info = c["side"], c["side"]["info"]
+    run = m["kind"] == "run"
+    stride = (0.10 if not run else 0.16) * c["char_h"] * c["k"]
+    dist = abs(x_at(who, min(max(t, m["t0"]), m["t1"])) - m["x0"])
+    ph = math.pi * dist / stride
+    th = (34 if run else 24) * math.sin(ph)
+    drop = info["leg_len"] * (1 - math.cos(math.radians(abs(th)))) - (0.02 * info["height"] * abs(math.cos(ph)) if run else 0)
+    fx_, fy_ = info["feet"]
+    hip = info["hip"]
+    M = (C @ T(c["x"], c["floor"]) @ S(sd["k"] * sxf * dirn, sd["k"]) @ about((fx_, fy_), R(-(7 if run else 3)))
+         @ T(-fx_, -fy_ + drop))
+    lo = T(*info["leg_offset"])
+    place(frame, sd["far"], M @ about(hip, R(-th)) @ lo)
+    place(frame, sd["leg"], M @ about(hip, R(th)) @ lo)
+    place(frame, sd["upper"], M)
+    hp = M @ [hip[0] + 0.12 * info["height"] * 0.3, hip[1] - 0.05 * info["height"], 1]
+    return hp[:2]
 
 
 def char_matrix(who, pose):
@@ -1267,7 +1390,7 @@ def draw_prop(frame, pic, x, y, height, t, balloon):
 
 
 @lru_cache(maxsize=16)
-def title_img(text, kind):
+def title_img(text, kind, letters=True):
     font = ImageFont.truetype(FONT, 104 if kind == "title" else 88)
     lines = text.split("\n")
     cols = [(255, 90, 90), (255, 165, 40), (60, 170, 90), (60, 140, 240), (170, 90, 230)]
@@ -1284,14 +1407,39 @@ def title_img(text, kind):
         x = (W + 16 - font.getbbox(ln)[2]) / 2
         for ch in ln:
             col = cols[k % len(cols)] if ch.strip() else (0, 0, 0)
-            d.text((x, y), ch, font=font, fill=col + (255,), anchor="lm", stroke_width=6, stroke_fill=(255, 255, 255, 255))
+            if letters:
+                d.text((x, y), ch, font=font, fill=col + (255,), anchor="lm", stroke_width=6, stroke_fill=(255, 255, 255, 255))
             x += font.getlength(ch)
             k += 1 if ch.strip() else 0
         y += 150
     return im
 
 
+@lru_cache(maxsize=8)
+def title_parts(text, kind):
+    """The title card without letters, and each letter as its own little picture with its resting place on the card."""
+    font = ImageFont.truetype(FONT, 104 if kind == "title" else 88)
+    bg = title_img(text, kind, letters=False)
+    lines = text.split("\n")
+    cols = [(255, 90, 90), (255, 165, 40), (60, 170, 90), (60, 140, 240), (170, 90, 230)]
+    W = max(font.getbbox(l)[2] for l in lines) + 160
+    letters, y, k = [], 45 + 75, 0
+    for ln in lines:
+        x = (W + 16 - font.getbbox(ln)[2]) / 2
+        for ch in ln:
+            if ch.strip():
+                im = Image.new("RGBA", (int(font.getlength(ch)) + 40, 190), (0, 0, 0, 0))
+                ImageDraw.Draw(im).text((20, 95), ch, font=font, fill=cols[k % len(cols)] + (255,), anchor="lm",
+                                        stroke_width=6, stroke_fill=(255, 255, 255, 255))
+                letters.append((im, x - 20, y - 95))
+                k += 1
+            x += font.getlength(ch)
+        y += 150
+    return bg, letters
+
+
 def draw_titles(frame, t):
+    """Title cards pop in, then the letters drop in one by one with a bounce; a few stars twinkle once they land."""
     for tt in G["titles"]:
         if not (tt["t0"] <= t <= tt["t1"]):
             continue
@@ -1300,7 +1448,22 @@ def draw_titles(frame, t):
         s_ *= smooth(out / 0.25) if out < 0.25 else 1.0
         if s_ <= 0.02:
             continue
-        im = title_img(tt["text"], tt["kind"])
+        bg, letters = title_parts(tt["text"], tt["kind"])
+        im = bg.copy()
+        for i, (li, lx, ly) in enumerate(letters):
+            q = (a - 0.15 - 0.045 * i) / 0.35
+            if q <= 0:
+                continue
+            q = min(q, 1.0)
+            back = 1 + 2.7 * (q - 1) ** 3 + 1.7 * (q - 1) ** 2          # ease out with a little overshoot
+            dy = -80 * (1 - back)
+            sc = 0.5 + 0.5 * back
+            lw, lh = max(1, int(li.width * sc)), max(1, int(li.height * sc))
+            im.alpha_composite(li.resize((lw, lh), Image.BICUBIC) if sc != 1 else li,
+                               (int(lx + (li.width - lw) / 2), int(ly + dy + (li.height - lh) / 2)))
+        done = 0.15 + 0.045 * len(letters) + 0.35
+        if a > done:
+            fx.sparkles(im, (40, 20, im.width - 40, im.height - 20), t, len(tt["text"]))
         im = im.resize((max(1, int(im.width * s_)), max(1, int(im.height * s_))), Image.BICUBIC)
         y = OUT_H * (0.42 if tt["kind"] == "title" else 0.36) + 8 * math.sin(2 * math.pi * 0.6 * a)
         frame.alpha_composite(im, (int(OUT_W / 2 - im.width / 2), int(y - im.height / 2)))
@@ -1464,7 +1627,13 @@ def compose(t, place_name):
         G["cast"][w]["x"] = x_at(w, t)
     x0, y0, w, cam = cam_rect(t)
     z = OUT_W / w
-    frame = G["bg"].crop((int(x0), int(y0), int(x0 + w), int(y0 + w * OUT_H / OUT_W))).resize((OUT_W, OUT_H), Image.BICUBIC).convert("RGBA")
+    P_ = G.get("scene")
+    if P_ is not None:
+        rx0, ry0, rw, _ = cam_rect(t, start=True)
+        frame = scenery.view(P_, (x0, y0, w), (rx0, ry0, rw), t)
+        scenery.life(P_, frame, (x0, y0, w), (rx0, ry0, rw), t)
+    else:
+        frame = G["bg"].crop((int(x0), int(y0), int(x0 + w), int(y0 + w * OUT_H / OUT_W))).resize((OUT_W, OUT_H), Image.BICUBIC).convert("RGBA")
     C = S(z) @ T(-x0, -y0)
     poses = {who: pose_at(who, t) for who in WHO}
     for who in WHO:
@@ -1487,11 +1656,29 @@ def compose(t, place_name):
         px, py = (c["x"] + pz["dx"] * c["char_h"] * c["k"] - x0) * z, (c["floor"] - y0) * z
         ovals.append([px - sw, py - sw * 0.16, px + sw, py + sw * 0.16])
     draw_shadows(frame, ovals)
+    scene_frame = frame
+    if P_ is not None:                                  # characters + what they hold on their own layer, lit by the place
+        frame = Image.new("RGBA", scene_frame.size, (0, 0, 0, 0))
     order = sorted(WHO, key=lambda w: (G["cast"][w]["floor"], -G["cast"][w]["char_h"] * G["cast"][w]["k"]))
     hands = {}
     for who in order:
+      main_layer = frame
+      try:
         c = G["cast"][who]
         rig, pz = c["rig"], poses[who]
+        vx, vy, vr = motion(who, t, pz)                 # also drives follow-through below
+        chs = c["char_h"] * c["k"] * z
+        blur = (abs(vx) * chs * SHUTTER, abs(vy) * chs * SHUTTER)
+        if max(blur) >= 2.5:                            # fast move: draw this character alone, then smear it a little
+            frame = Image.new("RGBA", main_layer.size, (0, 0, 0, 0))
+        su, sdir, smove = side_amount(who, t)
+        if su >= 0.5:                                   # turned: the side view walks (the turn opens it out)
+            hp = draw_side(frame, C, who, t, min(1.0, 0.3 + 1.4 * (su - 0.5)), sdir, smove)
+            hands[(who, "sl")] = hands[(who, "sr")] = hp
+            continue
+        if su > 0:                                      # turning: the front view narrows first
+            pz = dict(pz)
+            pz["sx"] *= max(0.3, 1 - 1.4 * su)
         Mf = C @ char_matrix(who, pz)
         P = rig["parts"]
         legs = rig.get("legs") or {}
@@ -1522,12 +1709,26 @@ def compose(t, place_name):
                 draw_arm_upper_only(frame, M, rig, side, pz)
             Wp = arm_points(rig, side, pz)[3]
             hands[(who, side)] = (M @ [*Wp, 1])[:2]
-        place(frame, c["parts"]["body"], M @ off("body"))
+        # follow-through: hair / ears / hem lag behind the move (vx, vy, vr from motion() above)
+        sgn = -1 if c["flip"] else 1
+        body_img, Mb = c["parts"]["body"], M @ off("body")
+        bx = -max(-0.02, min(0.02, vx * 0.02)) * body_img.width * sgn
+        if abs(bx) > 0.8:
+            body_img, m_ = fx.follow(body_img, bx, 0.0, top=False)
+            Mb = Mb @ T(-m_, -m_)
+        place(frame, body_img, Mb)
         bq = blink_at(who, t)
         mo = mouth_at(who, t)
         expr, lx, ly = face_at(who, t)
         head_img = face_head(who, mo, bq, expr, lx, ly) if (bq or mo in MOUTHS or expr or lx or ly) else c["parts"]["head"]
-        place(frame, head_img, Mh @ off("head"))
+        Mhd = Mh @ off("head")
+        hw, hh = head_img.size
+        hx = -max(-0.035, min(0.035, vx * 0.03 + vr * 0.0006)) * hw * sgn
+        hy = max(-0.035, min(0.035, vy * 0.025)) * hh
+        if abs(hx) > 0.8 or abs(hy) > 0.8:
+            head_img, m_ = fx.follow(head_img, hx, hy, top=True)
+            Mhd = Mhd @ T(-m_, -m_)
+        place(frame, head_img, Mhd)
         for side in front:
             draw_arm(frame, M, rig, side, pz, "front")
         for hd in (G.get("games") or {}).get("hide", []):
@@ -1538,6 +1739,10 @@ def compose(t, place_name):
                 bx = (c["x"] - x0) * z - bw / 2
                 by = (c["floor"] - y0) * z - bh * slide + 6
                 frame.alpha_composite(box_img(bw, bh), (int(bx), int(by)))
+      finally:
+        if frame is not main_layer:
+            main_layer.alpha_composite(fx.motion_blur(frame, *blur))
+            frame = main_layer
     # props in hands, and props flying from one hand to another
     for h in G["holds"]:
         if h["t0"] <= t < h["t1"]:
@@ -1573,6 +1778,23 @@ def compose(t, place_name):
     for bl in gm.get("balloons", []):
         if bl["t0"] <= t <= bl["t1"]:
             draw_balloon_game(frame, bl, t, z)
+    for (tl_, who, ht) in G.get("landings", []):        # dust where feet land
+        if 0 <= t - tl_ < 0.45:
+            c = G["cast"][who]
+            ch = c["char_h"] * c["k"] * z
+            fx.dust(frame, (c["x"] - x0) * z, (c["floor"] - y0) * z, (t - tl_) / 0.45, ch * min(1.0, 0.45 + ht * 3))
+    for (who, s0, s1) in G.get("sparkle", []):          # twinkles round a happy character
+        if s0 <= t <= s1:
+            c = G["cast"][who]
+            ch = c["char_h"] * c["k"] * z
+            px, py = (c["x"] - x0) * z, (c["floor"] - y0) * z
+            fx.sparkles(frame, (px - 0.35 * ch, py - 1.05 * ch, px + 0.35 * ch, py), t, hash(who) % 997 + int(s0))
+    if P_ is not None:
+        scene_frame.alpha_composite(scenery.light(P_, frame, z))
+        frame = scene_frame
+    for (s0, dur, kind, seed) in G.get("screen_fx", []):
+        if s0 <= t <= s0 + dur + 5.0:
+            fx.screen_fx(frame, kind, t - s0, dur, seed)
     draw_cards(frame, t, cam)
     draw_titles(frame, t)
     for tu in gm.get("turn", []):
@@ -1645,12 +1867,8 @@ def episode_frame(t):
     tr = transition_at(t)
     if tr is None:
         return compose(t, place_at(t)).convert("RGB")
-    old, new, q = tr
-    a = compose(t, old)
-    b = compose(t, new)
-    r = int(q * math.hypot(OUT_W, OUT_H) / 2 + 2)
-    a.paste(b, (0, 0), wipe_mask(r))
-    return a.convert("RGB")
+    old, new, q, kind = tr
+    return fx.transition(compose(t, old), compose(t, new), q, kind).convert("RGB")
 
 
 def _init(story_path):
@@ -1659,6 +1877,10 @@ def _init(story_path):
 
 def _frame_bytes(fi):
     return render_frame(fi).tobytes()
+
+
+def _episode_bytes(fi):
+    return episode_frame(fi / FPS).tobytes()
 
 
 def main():
@@ -1682,12 +1904,31 @@ def main():
             im.save(build / f"still_{t:06.2f}.jpg", quality=90)
         print("STILLS", build / "stills.jpg")
         return
+    if "--clip" in args:                             # a test clip: episode seconds a..b with the episode's own mix
+        c0, c1 = (float(x) for x in args[args.index("--clip") + 1].split(","))
+        out = build / f"clip_{int(c0)}_{int(c1)}.mp4"
+        frames = range(int(c0 * FPS), int(c1 * FPS))
+        ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{OUT_W}x{OUT_H}", "-r", str(FPS),
+                               "-i", "-", "-ss", str(c0), "-t", str(c1 - c0), "-i", str(build / "final_mix.wav"),
+                               *(["-vf", st.get("grade", GRADE)] if st.get("grade", GRADE) else []), *ENCODE, "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", str(out)], stdin=subprocess.PIPE)
+        with Pool(7, initializer=_init, initargs=(story,)) as pool:
+            for b_ in pool.imap(_episode_bytes, frames, chunksize=4):
+                ff.stdin.write(b_)
+        ff.stdin.close()
+        ff.wait()
+        print("CLIP", out, ff.returncode)
+        return
     out = ROOT / (args[args.index("--out") + 1] if "--out" in args else f"{st.get('build', 'cartoon2d/build/story1')}/video_silent.mp4")
+    probs = places.problems(st, G["tl"])             # new place every ~2 min, backgrounds new to the show
+    if probs and "--allow-place-rules" not in args:
+        for p_ in probs:
+            print("PLACE RULE", p_, flush=True)
+        sys.exit("render refused: fix the places (or pass --allow-place-rules for an old episode)")
     grade = st.get("grade", GRADE)                   # story "grade": false = the art's own colours
     n = int((G["tl"]["total"] + hook.length(G["hook"])) * FPS)
     print("HOOK", G["hook"], flush=True)
     ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{OUT_W}x{OUT_H}", "-r", str(FPS),
-                           "-i", "-", *(["-vf", grade] if grade else []), "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+                           "-i", "-", *(["-vf", grade] if grade else []), *ENCODE, "-pix_fmt", "yuv420p",
                            "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", str(out)], stdin=subprocess.PIPE)
     with Pool(7, initializer=_init, initargs=(story,)) as pool:
         for i, b in enumerate(pool.imap(_frame_bytes, range(n), chunksize=6)):
@@ -1697,6 +1938,8 @@ def main():
     ff.stdin.close()
     ff.wait()
     print("VIDEO", out, ff.returncode)
+    if ff.returncode == 0 and "--out" not in args:
+        places.register(st, G["tl"])
 
 
 if __name__ == "__main__":

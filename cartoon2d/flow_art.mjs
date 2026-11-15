@@ -47,12 +47,53 @@ const P = {
     "2D cartoon sticker for a preschool TV show, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow, no arm, only the hand cut off at the wrist, the wrist at the bottom edge of the hand: a single big honey-brown cartoon teddy bear paw (RIGHT paw) with a cream paw pad, chubby short fingers, seen from the front, pointing straight up with the index finger, the other fingers curled",  // bear_point
     "2D cartoon sticker for a preschool TV show, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow, no arm, only the hand cut off at the wrist, the wrist at the bottom edge of the hand: a single big honey-brown cartoon teddy bear paw (RIGHT paw) with a cream paw pad, chubby short fingers, seen from the front, open palm facing the viewer, fingers spread, waving hello",  // bear_open
   ],
+  ep34props: [
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a big plain bright red circle shape with a cute smiling face",  // shape_circle
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a big plain bright blue square shape with a cute smiling face",  // shape_square
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a big plain bright yellow triangle shape with a cute smiling face",  // shape_triangle
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a big plain bright orange five-pointed star shape with a cute smiling face",  // shape_star
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a round chocolate chip cookie",  // cookie
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a round red wall clock with big numbers-free face and two hands",  // clock
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: one triangle slice of cheese pizza with round pepperoni",  // pizza
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a square house window with four square panes and a blue frame",  // window
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a square gift box wrapped in green paper with a red ribbon bow",  // present
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a triangle sandwich half with lettuce and cheese",  // sandwich
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a little house with a square red front, a triangle roof, a round window and a door",  // house
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute brown puppy dog, full body standing, facing the viewer",  // dog
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute pink pig, full body standing, facing the viewer",  // pig
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute fluffy white sheep, full body standing, facing the viewer",  // sheep
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute brown horse, full body standing, facing the viewer",  // horse
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute white hen chicken with a red comb, full body standing, facing the viewer",  // chicken
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute green frog sitting, facing the viewer",  // frog
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute tiny fluffy yellow baby chick",  // chick
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy cute tiny fluffy baby lamb",  // lamb
+    "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a white dog bone",  // puppy_bone
+  ],
+  farm: [
+    "2D cartoon background for a preschool TV show, modern children's animation style, flat bright colors, clean outlines, vector illustration. A sunny happy farm: a big red barn with white trim on the left, a wooden fence, green grass, a small pond with lily pads on the right, a few round trees, hay bales, blue sky with white clouds. Wide shot, eye level, the middle of the grass is empty open space for characters to stand. No characters, no people, no animals, no text.",
+  ],
   props: [
     "2D cartoon sticker of a happy cute cow for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, full body standing, facing the viewer, centered, plain pure white background, no text",
     "2D cartoon sticker of a happy cute yellow duck for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, full body standing, facing the viewer, centered, plain pure white background, no text",
     "2D cartoon sticker of a happy cute orange cat for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, full body sitting, facing the viewer, centered, plain pure white background, no text",
   ],
 };
+// places: one new background per place of an episode, painted for depth (clear near / middle / far) and an open floor.
+// PLACES_FILE = JSON list of short place descriptions, e.g. ["a sunny beach with a red lighthouse far away", ...]
+const PLACE_STYLE = "2D cartoon background for a preschool TV show, modern children's animation style, flat bright vibrant colors, clean outlines, vector illustration";
+const PLACE_DEPTH = "Wide shot, eye level, with clear depth: a few big details close to the camera at the bottom corners, the main scene in the middle, and far hills, buildings or sky in the distance; a sunny day with a bright blue sky and a few separate white clouds floating free of the trees if outdoors. The middle of the ground is empty open flat space for characters to stand. No characters, no people, no animals, no text.";
+if (kind === "places") P.places = JSON.parse(fs.readFileSync(process.env.PLACES_FILE, "utf8")).map(d => `${PLACE_STYLE}. ${d}. ${PLACE_DEPTH}`);
+// side: the same character seen from the side (profile) for walking / running, made with the character's own picture as the
+// reference. CHAR = molly|lily|ollie|bobo; the reference is cartoon2d/cast/<CHAR>/source.png.
+const SIDE_LOOK = {
+  molly: "the young woman Molly with wavy shoulder-length red hair, coral t-shirt, blue denim overalls and white sneakers",
+  lily: "the 6-year-old girl Lily with a brown high ponytail, pink headband, pink t-shirt, blue denim pinafore dress, white socks and white sneakers",
+  ollie: "the 4-year-old boy Ollie with short messy light-brown hair, yellow t-shirt with a red star, green shorts and blue sneakers",
+  bobo: "Bobo the big round honey-brown teddy bear with a cream tummy and muzzle, small round ears and a red bow tie",
+};
+const SIDE_POSE = "Full body seen from the side in profile, facing to the right, standing straight, both arms hanging straight down at the sides, legs straight and together, from head to feet, eyes open, gentle smile, centered, plain pure white background, no shadow, no text, no other characters";
+if (kind === "side" && process.env.NOREF) P.side = Object.values(SIDE_LOOK).map(l => `${STYLE}. ${l}. ${SIDE_POSE}.`);
+else if (kind === "side") P.side = [`${STYLE}. Exactly the same character as the reference picture: ${SIDE_LOOK[process.env.CHAR]}. Full body seen from the side in profile, facing to the right, standing straight, both arms hanging straight down at the sides, legs straight and together, from head to feet, eyes open, gentle smile, centered, plain pure white background, no shadow, no text, no other characters. Same colors, same outfit, same proportions and the same drawing style as the reference.`];
 let prompts = P[kind];
 if (process.env.ONLY) { const keep = process.env.ONLY.split(",").map(Number); prompts = prompts.filter((_, i) => keep.includes(i)); }
 const accountIds = ["3ff7a20e-2884-42f2-896f-105be8ea4568", "a6d0b7d3-89f6-4cc3-855d-cfd5983064f4", "8829896c-1428-4f06-96fb-d2c24f3d791c"];
@@ -65,8 +106,8 @@ ws.on("message", d => { let m; try { m = JSON.parse(String(d)); } catch { return
     if (m.type === "PROMPT_RESULT") res.push(m); if (m.type === "GENERATE_DONE") done = true; } });
 await new Promise((r, j) => { ws.on("open", r); ws.on("error", j); });
 ws.send(JSON.stringify({ type: "GENERATE", prompts: prompts.join("\n"), accountIds, settings: {
-  mediaKind: "image", model: "BELUGA", aspectRatio: (kind === "bg" || kind === "garden") ? "IMAGE_ASPECT_RATIO_LANDSCAPE" : (kind === "props" || kind === "ep1props" || kind === "hands") ? "IMAGE_ASPECT_RATIO_SQUARE" : "IMAGE_ASPECT_RATIO_PORTRAIT",
-  imageCount: kind === "ep1props" ? 1 : 2, autoDownload: true, outputDir: outDir, folder: kind, generationMode: "rpc", delayMin: 2, delayMax: 4, refreshFrequency: 50 } }));
+  mediaKind: "image", model: "BELUGA", aspectRatio: (kind === "bg" || kind === "garden" || kind === "farm" || kind === "places") ? "IMAGE_ASPECT_RATIO_LANDSCAPE" : (kind === "props" || kind === "ep1props" || kind === "hands" || kind === "ep34props") ? "IMAGE_ASPECT_RATIO_SQUARE" : "IMAGE_ASPECT_RATIO_PORTRAIT",
+  imageCount: (kind === "ep1props" || kind === "ep34props") ? 1 : 2, autoDownload: true, ...(kind === "side" && !process.env.NOREF ? { referenceImages: [path.resolve("..", "cartoon2d", "cast", process.env.CHAR, "source.png")] } : {}), outputDir: outDir, folder: kind, generationMode: "rpc", delayMin: 2, delayMax: 4, refreshFrequency: 50 } }));
 const deadline = Date.now() + 10 * 60 * 1000;
 while (!done && Date.now() < deadline) await new Promise(r => setTimeout(r, 1000));
 fs.writeFileSync(path.join(outDir, `${kind}_results.json`), JSON.stringify(res, null, 1));

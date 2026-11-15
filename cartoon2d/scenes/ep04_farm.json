@@ -1,0 +1,2318 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 4.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Woof, woof! I'm a cow! Woof!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "place": "playroom",
+   "chapter": "Bobo the farmer",
+   "pic": "cow",
+   "sfx": "pop"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee! Cows don't say woof!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Then... quack? Oink? Cock-a-doodle-doo?",
+   "act": "spin",
+   "cam": "cu:bobo",
+   "face": "surprised"
+  },
+  {
+   "who": "bobo",
+   "text": "Whoa! I'm so mixed up!",
+   "act": "tumble",
+   "cam": "group",
+   "sfx": "drumroll"
+  },
+  {
+   "who": "molly",
+   "text": "Oh, Bobo! Let's visit the farm, and learn all the animal sounds!",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "molly",
+   "text": "Farm day!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "title": "Farm Animals with\nMs Molly & Bobo!",
+   "sfx": "success",
+   "gap_after": 2.4
+  },
+  {
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly!",
+   "act": "wave",
+   "cam": "host",
+   "chapter": "Hello song"
+  },
+  {
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
+   "act": "wave",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "And I'm Ollie!",
+   "act": "cheer"
+  },
+  {
+   "who": "bobo",
+   "text": "And I'm Bobo the Bear! Today I'm Farmer Bobo!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our hello song! Wave with us!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Are you ready to go to the farm?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Ready!",
+   "act": "yay",
+   "cam": "kids",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's gallop like horses all the way there! Giddy-up!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "chapter": "Gallop to the farm"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Giddy-up, giddy-up, off we go! Giddy-up, giddy-up, nice and slow!",
+   "chant": true,
+   "act": "march",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Giddy-up, giddy-up, off we go! Giddy-up, giddy-up, nice and slow!",
+   "chant": true,
+   "act": "march",
+   "cam": "group",
+   "gap_after": 0.7
+  },
+  {
+   "who": "molly",
+   "text": "Here we are at the farm!",
+   "act": "open",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "place": "farm",
+   "sfx": "sparkle",
+   "gap_after": 0.8
+  },
+  {
+   "who": "ollie",
+   "text": "Look! A big red barn!",
+   "act": "point",
+   "cam": "cu:ollie",
+   "face": "surprised"
+  },
+  {
+   "who": "lily",
+   "text": "And a pond!",
+   "act": "point",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Where are the animals? Come out, animals!",
+   "act": "hands_up",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a cow!",
+   "act": "point",
+   "cam": "host",
+   "pic": "cow",
+   "card": "MOO",
+   "sfx": "pop",
+   "chapter": "The cow"
+  },
+  {
+   "who": "molly",
+   "text": "Cow. Can you say cow?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Cow!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The cow says woof!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a cow say woof?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A cow says Moo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Moo Moo! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a cow! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Moo Moo!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "MOO"
+  },
+  {
+   "who": "lily",
+   "text": "Great cow sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "The cow gives us milk! Moo! Thank you, cow!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a pig!",
+   "act": "point",
+   "cam": "host",
+   "pic": "pig",
+   "card": "OINK",
+   "sfx": "pop",
+   "chapter": "The pig"
+  },
+  {
+   "who": "molly",
+   "text": "Pig. Can you say pig?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Pig!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The pig says quack!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a pig say quack?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A pig says Oink!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Oink Oink! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a pig! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Oink Oink!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "OINK"
+  },
+  {
+   "who": "ollie",
+   "text": "Great pig sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "Pigs love to roll in the mud! Squish, squish!",
+   "act": "giggle",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Muddy pig!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a sheep!",
+   "act": "point",
+   "cam": "host",
+   "pic": "sheep",
+   "card": "BAA",
+   "sfx": "pop",
+   "chapter": "The sheep"
+  },
+  {
+   "who": "molly",
+   "text": "Sheep. Can you say sheep?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Sheep!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The sheep says meow!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a sheep say meow?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A sheep says Baa!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Baa Baa! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a sheep! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Baa Baa!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "BAA"
+  },
+  {
+   "who": "lily",
+   "text": "Great sheep sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "lily",
+   "text": "The sheep is so fluffy! Like a cloud!",
+   "act": "open",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a duck!",
+   "act": "point",
+   "cam": "host",
+   "pic": "duck",
+   "card": "QUACK",
+   "sfx": "pop",
+   "chapter": "The duck"
+  },
+  {
+   "who": "molly",
+   "text": "Duck. Can you say duck?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Duck!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The duck says moo!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a duck say moo?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A duck says Quack!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Quack Quack! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a duck! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Quack Quack!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "QUACK"
+  },
+  {
+   "who": "ollie",
+   "text": "Great duck sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "The duck is swimming in the pond! Splash, splash!",
+   "act": "point",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Animals move in different ways. Let's move like them!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Move like the animals"
+  },
+  {
+   "who": "molly",
+   "text": "Can you waddle like a duck? Waddle, waddle!",
+   "act": "march",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Quack, quack! Waddle, waddle!",
+   "act": "march",
+   "cam": "group",
+   "card": "QUACK"
+  },
+  {
+   "who": "molly",
+   "text": "Can you hop like a frog? Ribbit!",
+   "act": "frog",
+   "cam": "host",
+   "pic": "frog",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ribbit! Ribbit! Hop, hop!",
+   "act": "frog",
+   "cam": "group",
+   "card": "RIBBIT"
+  },
+  {
+   "who": "molly",
+   "text": "Can you stomp like a big horse? Clip, clop!",
+   "act": "stomp",
+   "cam": "host",
+   "pic": "horse",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Neigh! Clip, clop, clip, clop!",
+   "act": "stomp",
+   "cam": "group",
+   "card": "NEIGH"
+  },
+  {
+   "who": "molly",
+   "text": "Can you flap like a chicken? Flap your wings!",
+   "act": "yay",
+   "cam": "host",
+   "pic": "chicken",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Cluck, cluck, cluck! Flap, flap!",
+   "act": "yay",
+   "cam": "group",
+   "card": "CLUCK"
+  },
+  {
+   "who": "bobo",
+   "text": "Look at me! I'm a flying bear!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Bears can't fly!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "And can you roll like a pig? Round and round!",
+   "act": "spin",
+   "also": {
+    "lily": "spin",
+    "ollie": "spin",
+    "bobo": "spin"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "bobo",
+   "text": "Oink! I'm dizzy! Oink, oink!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "surprised"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a horse!",
+   "act": "point",
+   "cam": "host",
+   "pic": "horse",
+   "card": "NEIGH",
+   "sfx": "pop",
+   "chapter": "The horse"
+  },
+  {
+   "who": "molly",
+   "text": "Horse. Can you say horse?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Horse!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The horse says baa!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a horse say baa?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A horse says Neigh!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Neigh Neigh! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a horse! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Neigh Neigh!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "NEIGH"
+  },
+  {
+   "who": "ollie",
+   "text": "Great horse sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "I want to ride the horse! Giddy-up!",
+   "act": "run",
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "What a fast horse, Ollie!",
+   "act": "clap",
+   "cam": "host",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a chicken!",
+   "act": "point",
+   "cam": "host",
+   "pic": "chicken",
+   "card": "CLUCK",
+   "sfx": "pop",
+   "chapter": "The chicken"
+  },
+  {
+   "who": "molly",
+   "text": "Chicken. Can you say chicken?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Chicken!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The chicken says oink!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a chicken say oink?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A chicken says Cluck!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Cluck Cluck! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a chicken! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Cluck Cluck!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "CLUCK"
+  },
+  {
+   "who": "lily",
+   "text": "Great chicken sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "lily",
+   "text": "The chicken lays eggs! One, two, three eggs!",
+   "act": "count",
+   "cam": "kids",
+   "card": "3"
+  },
+  {
+   "who": "molly",
+   "text": "Look who's here! It's a dog!",
+   "act": "point",
+   "cam": "host",
+   "pic": "dog",
+   "card": "WOOF",
+   "sfx": "pop",
+   "chapter": "The dog"
+  },
+  {
+   "who": "molly",
+   "text": "Dog. Can you say dog?",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Dog!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "I know! The dog says neigh!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Friends, does a dog say neigh?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! A dog says Woof!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Woof Woof! Silly Bobo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's all say it like a dog! Ready?",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Woof Woof!",
+   "act": "cheer",
+   "cam": "group",
+   "card": "WOOF"
+  },
+  {
+   "who": "ollie",
+   "text": "Great dog sounds!",
+   "act": "thumbs_up",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Wait! The dog says woof! I said the cow says woof!",
+   "act": "think",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "That's right, Bobo! The DOG says woof. The cow says moo!",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "I'm learning! Woof, woof, dog! Moo, moo, cow!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "ollie",
+   "text": "Can we play with the puppy? Fetch!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "hold": {
+    "ollie": "ball"
+   },
+   "chapter": "Play with the puppy"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Throw the ball, and let's count the throws!",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "ollie",
+   "text": "One! Catch, Bobo!",
+   "act": "talk",
+   "card": "1",
+   "game": {
+    "type": "throw",
+    "from": "ollie",
+    "to": "bobo",
+    "bounces": 1
+   },
+   "cam": "group",
+   "gap_after": 1.4
+  },
+  {
+   "who": "bobo",
+   "text": "Two! Catch, Lily!",
+   "act": "talk",
+   "card": "2",
+   "game": {
+    "type": "throw",
+    "from": "bobo",
+    "to": "lily",
+    "bounces": 1,
+    "at": 0.8
+   },
+   "cam": "group",
+   "gap_after": 1.4
+  },
+  {
+   "who": "lily",
+   "text": "Three! Bounce, bounce!",
+   "act": "talk",
+   "card": "3",
+   "game": {
+    "type": "dribble",
+    "who": "lily",
+    "n": 3
+   },
+   "cam": "kids",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "The puppy wants a bone! Woof, woof!",
+   "act": "point",
+   "cam": "host",
+   "pic": "puppy_bone",
+   "drop": [
+    "lily"
+   ],
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "Big bear kick! Fetch, puppy!",
+   "act": "kick",
+   "game": {
+    "type": "kick",
+    "who": "bobo",
+    "to": 0.95,
+    "at": 0.3
+   },
+   "cam": "group",
+   "sfx": "whoosh",
+   "gap_after": 1.2
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Woof, woof! Good puppy!",
+   "act": "clap",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Shh! Look! Baby animals!",
+   "act": "point",
+   "cam": "host",
+   "chapter": "Baby animals",
+   "face": "surprised"
+  },
+  {
+   "who": "molly",
+   "text": "A baby chicken is called a chick! Peep, peep!",
+   "act": "open",
+   "cam": "host",
+   "pic": "chick",
+   "card": "PEEP"
+  },
+  {
+   "who": "molly",
+   "text": "What does the little chick say?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Peep, peep!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "PEEP"
+  },
+  {
+   "who": "molly",
+   "text": "A baby sheep is called a lamb!",
+   "act": "open",
+   "cam": "host",
+   "pic": "lamb"
+  },
+  {
+   "who": "molly",
+   "text": "What does the little lamb say? A soft little baa!",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "Baa, baa!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "BAA"
+  },
+  {
+   "who": "molly",
+   "text": "And a baby dog is called a puppy!",
+   "act": "open",
+   "cam": "host",
+   "pic": "dog"
+  },
+  {
+   "who": "molly",
+   "text": "What does the puppy say?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "Woof, woof! A little woof!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "card": "WOOF"
+  },
+  {
+   "who": "bobo",
+   "text": "Baby animals are so cute! Aww!",
+   "act": "open",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Babies need quiet. Let's whisper. Shh!",
+   "act": "touch_head",
+   "cam": "host",
+   "gap_after": 1.2
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Shh!",
+   "act": "touch_toes",
+   "cam": "kids",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Let's play a guessing game! Listen to the sound, and guess the animal!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Guess the animal sound",
+   "sfx": "chime"
+  },
+  {
+   "who": "bobo",
+   "text": "Oink, oink!",
+   "act": "talk",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Who says that?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A pig!",
+   "act": "cheer",
+   "cam": "group",
+   "pic": "pig",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! The pig!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "lily",
+   "text": "Baa, baa!",
+   "act": "talk",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Who says that?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "ollie",
+    "bobo"
+   ],
+   "text": "A sheep!",
+   "act": "cheer",
+   "cam": "group",
+   "pic": "sheep",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! The sheep!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "ollie",
+   "text": "Neigh!",
+   "act": "talk",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Who says that?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A horse!",
+   "act": "cheer",
+   "cam": "group",
+   "pic": "horse",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! The horse!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "Quack, quack!",
+   "act": "talk",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Who says that?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "A duck!",
+   "act": "cheer",
+   "cam": "group",
+   "pic": "duck",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! The duck!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "lily",
+   "text": "Ribbit, ribbit!",
+   "act": "talk",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Who says that?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "ollie",
+    "bobo"
+   ],
+   "text": "A frog!",
+   "act": "cheer",
+   "cam": "group",
+   "pic": "frog",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! The frog!",
+   "act": "thumbs_up",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "I guessed them all! I'm a real farmer now!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "It's feeding time! The animals are hungry!",
+   "act": "open",
+   "cam": "host",
+   "chapter": "Feeding time"
+  },
+  {
+   "who": "bobo",
+   "text": "I'll feed them! Here, chickens! Cluck, cluck!",
+   "act": "give",
+   "cam": "cu:bobo",
+   "pic": "chicken"
+  },
+  {
+   "who": "molly",
+   "text": "Bobo is feeding the chickens. Let's count them!",
+   "act": "count",
+   "cam": "host",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "One!",
+   "act": "count",
+   "card": "1",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Two!",
+   "act": "count",
+   "card": "2",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Three!",
+   "act": "count",
+   "card": "3",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Four!",
+   "act": "count",
+   "card": "4",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Five!",
+   "act": "count",
+   "card": "5",
+   "cam": "group",
+   "gap_after": 0.35
+  },
+  {
+   "who": "molly",
+   "text": "Five chickens! Cluck, cluck!",
+   "act": "cheer",
+   "cam": "host",
+   "card": "5"
+  },
+  {
+   "who": "lily",
+   "text": "And the cows! One, two, three cows! Moo!",
+   "act": "count",
+   "cam": "kids",
+   "pic": "cow",
+   "card": "3"
+  },
+  {
+   "who": "ollie",
+   "text": "And one big horse! Neigh!",
+   "act": "point",
+   "cam": "cu:ollie",
+   "pic": "horse",
+   "card": "1"
+  },
+  {
+   "who": "molly",
+   "text": "What do you think the cow likes to eat?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "bobo",
+   "text": "Honey!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "pic": "honey"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! Cows eat grass!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Hee hee! Bears eat honey. Cows eat grass! Munch, munch!",
+   "act": "laugh",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "Let's play Simon Says, farm style! Do what Simon says!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Animal Simon Says",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, flap like a chicken!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "card": "CLUCK",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, hop like a frog!",
+   "act": "frog",
+   "also": {
+    "lily": "frog",
+    "ollie": "frog",
+    "bobo": "frog"
+   },
+   "cam": "group",
+   "card": "RIBBIT",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, stomp like a horse!",
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group",
+   "card": "NEIGH",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Now moo like a cow!",
+   "act": "point",
+   "cam": "host",
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Moo! Moo!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Bobo! Simon didn't say!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-daisy! Silly Bobo! Moo!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, sleep like a sleepy sheep. Shh!",
+   "act": "touch_head",
+   "also": {
+    "lily": "touch_head",
+    "ollie": "touch_head",
+    "bobo": "touch_head"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "molly",
+   "text": "Simon says, wake up and jump like a happy puppy!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "card": "WOOF",
+   "your_turn": true,
+   "gap_after": 1.2
+  },
+  {
+   "who": "molly",
+   "text": "Great listening, little animals!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Uh oh! Where did Bobo go?",
+   "act": "think",
+   "cam": "host",
+   "chapter": "Who is hiding?",
+   "game": {
+    "type": "hide",
+    "who": "bobo"
+   },
+   "face": "surprised",
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Moo! Moo!",
+   "act": "talk",
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Hmm. Is that a cow hiding behind the box?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "bobo",
+   "text": "Oink! Oink! Quack, quack!",
+   "act": "talk",
+   "cam": "group"
+  },
+  {
+   "who": "ollie",
+   "text": "A cow that says oink and quack? That's not a cow!",
+   "act": "laugh",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Who do you think is hiding, friends?",
+   "act": "point",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "It's Bobo! We see your ears!",
+   "act": "point",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "You found me! Hee hee! I'm a moo-oink-quack bear!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "game": {
+    "type": "found",
+    "who": "bobo"
+   },
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "lily",
+   "text": "My turn to hide! Guess my animal!",
+   "act": "cheer",
+   "cam": "kids",
+   "game": {
+    "type": "hide",
+    "who": "lily"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "lily",
+   "text": "Baa! Baa!",
+   "act": "talk",
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "What animal says baa?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": [
+    "ollie",
+    "bobo"
+   ],
+   "text": "A sheep!",
+   "act": "cheer",
+   "cam": "group",
+   "pic": "sheep"
+  },
+  {
+   "who": "lily",
+   "text": "Yes! I'm a fluffy sheep! Baa!",
+   "act": "yay",
+   "cam": "kids",
+   "game": {
+    "type": "found",
+    "who": "lily"
+   },
+   "face": "happy",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our farm song! Clap and make the sounds!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "chapter": "Farm song",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "The cow on the farm says moo, moo, moo! The duck on the farm says quack, quack, quack!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "moo,": "MOO",
+    "quack,": "QUACK",
+    "oink,": "OINK",
+    "moo!": "MOO",
+    "quack!": "QUACK",
+    "oink!": "OINK"
+   },
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "The pig on the farm says oink, oink, oink! And we all say hello to you!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "moo,": "MOO",
+    "quack,": "QUACK",
+    "oink,": "OINK",
+    "moo!": "MOO",
+    "quack!": "QUACK",
+    "oink!": "OINK"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Again! Again! I love the farm song!",
+   "act": "jump",
+   "cam": "cu:bobo",
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "The cow on the farm says moo, moo, moo! The duck on the farm says quack, quack, quack!",
+   "chant": true,
+   "act": "beatclap",
+   "cam": "group",
+   "word_cards": {
+    "moo,": "MOO",
+    "quack,": "QUACK",
+    "oink,": "OINK",
+    "moo!": "MOO",
+    "quack!": "QUACK",
+    "oink!": "OINK"
+   },
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "The pig on the farm says oink, oink, oink! And we all say hello to you!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "word_cards": {
+    "moo,": "MOO",
+    "quack,": "QUACK",
+    "oink,": "OINK",
+    "moo!": "MOO",
+    "quack!": "QUACK",
+    "oink!": "OINK"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yay!",
+   "act": "yay",
+   "also": {
+    "bobo": "yay",
+    "molly": "cheer"
+   },
+   "cam": "group",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Now the animal freeze dance! Dance, and when I say an animal, freeze and make its sound!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Animal freeze dance"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Cow!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "MOO",
+   "sfx": "pop",
+   "gap_after": 0.9
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Moo!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Moo! I'm a wobbly cow!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee hee!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Duck!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "QUACK",
+   "sfx": "pop",
+   "gap_after": 0.9
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Quack!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.2
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Sheep!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "wobble",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "BAA",
+   "sfx": "pop",
+   "gap_after": 0.9
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Baa!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.2
+  },
+  {
+   "who": "ollie",
+   "text": "Baa! Whoa! Wobble, wobble!",
+   "act": "wobble",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Dog!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "WOOF",
+   "sfx": "pop",
+   "gap_after": 0.9
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Woof!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.2
+  },
+  {
+   "who": "molly",
+   "text": "Great dancing, little animals! Take a big breath. In, and out.",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 1.2
+  },
+  {
+   "who": "molly",
+   "text": "Farmer Bobo, are you ready? Let's see if you know all the sounds now!",
+   "act": "open",
+   "cam": "host",
+   "chapter": "Farmer Bobo's big test"
+  },
+  {
+   "who": "molly",
+   "text": "What does the cow say?",
+   "act": "point",
+   "cam": "host",
+   "pic": "cow",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Moo, moo!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "What does the pig say?",
+   "act": "point",
+   "cam": "host",
+   "pic": "pig",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Oink, oink!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "What does the duck say?",
+   "act": "point",
+   "cam": "host",
+   "pic": "duck",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Quack, quack!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "What does the dog say?",
+   "act": "point",
+   "cam": "host",
+   "pic": "dog",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Woof, woof!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "What does the sheep say?",
+   "act": "point",
+   "cam": "host",
+   "pic": "sheep",
+   "gap_after": 1.2
+  },
+  {
+   "who": "bobo",
+   "text": "Baa, baa!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "ding_3"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hooray! Bobo got them all right!",
+   "act": "yay",
+   "also": {
+    "molly": "cheer"
+   },
+   "cam": "group",
+   "sfx": "success"
+  },
+  {
+   "who": "bobo",
+   "text": "Thank you, friends! You taught me all the animal sounds!",
+   "act": "thumbs_up",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "bobo",
+   "text": "Party balloons for the animals! Pop, pop, pop!",
+   "act": "bounce",
+   "cam": "group",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "red",
+     "yellow",
+     "blue"
+    ]
+   },
+   "face": "happy",
+   "gap_after": 2.6
+  },
+  {
+   "who": "molly",
+   "text": "Let's play a quick farm quiz!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Farm quiz and goodbye",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "Which animal gives us milk?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "lily",
+   "text": "The cow!",
+   "act": "cheer",
+   "cam": "kids",
+   "pic": "cow"
+  },
+  {
+   "who": "molly",
+   "text": "What is a baby chicken called?",
+   "act": "think",
+   "cam": "host",
+   "gap_after": 2.1
+  },
+  {
+   "who": "ollie",
+   "text": "A chick! Peep, peep!",
+   "act": "cheer",
+   "cam": "cu:ollie",
+   "pic": "chick"
+  },
+  {
+   "who": "molly",
+   "text": "And who says woof?",
+   "act": "point",
+   "cam": "group",
+   "gap_after": 2.1
+  },
+  {
+   "who": "bobo",
+   "text": "The cow!",
+   "act": "silly",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo! The dog!",
+   "act": "laugh",
+   "cam": "kids",
+   "pic": "dog"
+  },
+  {
+   "who": "bobo",
+   "text": "Hee hee! I'm joking! The dog says woof!",
+   "act": "laugh",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": "molly",
+   "text": "You know all the farm animals! Great job, everybody!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "sfx": "success"
+  },
+  {
+   "who": "molly",
+   "text": "Next time, we'll learn our ABCs with Bobo! A, B, C!",
+   "act": "count",
+   "cam": "host"
+  },
+  {
+   "who": "bobo",
+   "text": "ABC? Is B for Bobo?",
+   "act": "think",
+   "cam": "cu:bobo"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yes! B is for Bobo!",
+   "act": "yay",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our goodbye song!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, friends! Moo!",
+   "act": "wave",
+   "cam": "group",
+   "endcard": "Bye bye!\nSee you next time!",
+   "sfx": "success"
+  }
+ ]
+}
