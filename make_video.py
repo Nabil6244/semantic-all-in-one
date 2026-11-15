@@ -138,7 +138,7 @@ def write_job(a, jobs_dir: Path) -> Path:
         job = jobs_dir / f"job_{time.strftime('%Y%m%d-%H%M%S')}_{a.style}_{n}.json"
     job.write_text(json.dumps({"style": a.style, "voice": abspath(a.voice), "script": abspath(a.script), "csv": abspath(a.csv),
                                "music": abspath(a.music), "title": a.title or Path(a.voice or a.csv or a.script or a.style).stem,
-                               "out": abspath(a.out)}, indent=2), encoding="utf-8")
+                               "out": abspath(a.out), "project": abspath(getattr(a, "project", ""))}, indent=2), encoding="utf-8")
     return job
 
 
@@ -220,7 +220,7 @@ def cmd_run(a) -> int:
     return 1
 
 
-JOB_FIELDS = ("style", "voice", "script", "csv", "music", "title", "out")
+JOB_FIELDS = ("style", "voice", "script", "csv", "music", "title", "out", "project")
 
 
 def read_batch(path: Path) -> list:
@@ -239,7 +239,7 @@ def read_batch(path: Path) -> list:
         r = {k: str((r or {}).get(k) or "").strip() for k in JOB_FIELDS}
         if not any(r.values()):
             continue
-        for k in ("voice", "script", "csv", "music", "out"):
+        for k in ("voice", "script", "csv", "music", "out", "project"):
             if r[k] and not Path(r[k]).expanduser().is_absolute():
                 r[k] = str((path.parent / r[k]).resolve())
         out.append(r)

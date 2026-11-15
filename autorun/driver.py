@@ -242,9 +242,21 @@ class Runner:
         self.later(wait_ready)
 
     def make_project(self) -> None:
-        from project_workspace import create_project
+        from project_workspace import create_project, load_project
 
         app, job = self.app, self.job
+        existing = (job.get("project") or "").strip()
+        if existing:
+            ws = load_project(Path(existing))
+            if ws is None:
+                self.fail(f"project folder is not a video project: {existing}")
+                return
+            self.say("open project", ws.root.name)
+            app._activate_workspace(ws, persist=True, clear_session=True)
+            self.ws = ws
+            self.status.set(project=str(ws.root))
+            self.later(self.pick_style, 300)
+            return
         self.say("create project", job["title"])
         ws = create_project(job["title"], projects_root=app._projects_root_path())
         ws.ensure_dirs()

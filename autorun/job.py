@@ -59,7 +59,7 @@ class JobError(ValueError):
     pass
 
 
-def make_job(style: str, voice: str = "", script: str = "", csv: str = "", title: str = "", out: str = "", music: str = "") -> Dict[str, Any]:
+def make_job(style: str, voice: str = "", script: str = "", csv: str = "", title: str = "", out: str = "", music: str = "", project: str = "") -> Dict[str, Any]:
     """A checked job (absolute paths). Raises JobError with a plain message."""
     style = (style or "").strip().lower().replace("_", "-").replace(" ", "-")
     if style not in STYLES:
@@ -84,13 +84,21 @@ def make_job(style: str, voice: str = "", script: str = "", csv: str = "", title
     if o is not None and o.suffix.lower() != ".mp4":
         raise JobError("--out must end in .mp4")
     stem = (v or c or s or Path(style)).stem
+    proj = ""
+    if project:
+        from project_workspace import load_project
+
+        folder = Path(project).expanduser().resolve()
+        if load_project(folder) is None:
+            raise JobError(f"project folder is not a video project: {project}")
+        proj = str(folder)
     return {"style": style, "voice": str(v) if v else "", "script": str(s) if s else "", "csv": str(c) if c else "",
-            "music": str(m) if m else "", "title": (title or stem)[:60], "out": str(o) if o else ""}
+            "music": str(m) if m else "", "title": (title or stem)[:60], "out": str(o) if o else "", "project": proj}
 
 
 def read_job(path: "str | Path") -> Dict[str, Any]:
     d = json.loads(Path(path).read_text(encoding="utf-8"))
-    return make_job(d.get("style", ""), d.get("voice", ""), d.get("script", ""), d.get("csv", ""), d.get("title", ""), d.get("out", ""), d.get("music", ""))
+    return make_job(d.get("style", ""), d.get("voice", ""), d.get("script", ""), d.get("csv", ""), d.get("title", ""), d.get("out", ""), d.get("music", ""), d.get("project", ""))
 
 
 def status_path(job_path: "str | Path") -> Path:
