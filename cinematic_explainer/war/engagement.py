@@ -35,7 +35,7 @@ MAPS = {"tac_map", "tac_route", "map_card"}
 DOCS = {"lay_document", "lay_satellite", "evidence_card", "lay_claim"}
 CARDS = {"kit_quote", "lay_speaker_quote", "lay_figure_hero", "lay_figure_pair", "figure_card", "institution_card", "lay_equipment_hero",
          "lay_equipment_compare", "equipment_card"}
-DATA = {"kit_chart", "lay_stat_split", "stat_compare", "stat_number", "kit_bignum", "kit_versus", "lay_timeline", "timeline", "split_compare"}
+DATA = {"kit_chain", "kit_counter", "kit_forces", "kit_chart", "lay_stat_split", "stat_compare", "stat_number", "kit_bignum", "kit_versus", "lay_timeline", "timeline", "split_compare"}
 TEXTS = {"kit_title", "kit_datecard", "kit_kinetic", "kit_keywords", "kit_dossier", "kit_radar", "kit_icons", "kit_flag", "kit_recap", "kit_scale"}
 SMALL = {"kit_grain", "kit_badge", "status_chip", "kicker", "source_label", "bc_source"}
 _TURN = re.compile(r"\?\s*$|^\W*(then|but|so|meanwhile|now|yet|here is|here's|first|second|third|finally)\b", re.IGNORECASE)

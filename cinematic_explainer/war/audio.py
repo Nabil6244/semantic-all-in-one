@@ -29,7 +29,7 @@ SFX_DIR = ROOT / "assets" / "bundled-sfx"
 SR = 44100
 WAR_BEDS = ("stormfront", "dark_fog", "interloper", "despair_and_triumph", "lost_frontier")
 FULL = {"tac_map", "tac_route", "map_card", "lay_document", "lay_satellite", "kit_chart", "lay_timeline", "lay_figure_hero", "lay_equipment_hero",
-        "lay_stat_split", "kit_datecard", "kit_title", "kit_quote", "kit_kinetic", "lay_speaker_quote", "kit_icons"}
+        "lay_stat_split", "kit_datecard", "kit_title", "kit_quote", "kit_kinetic", "lay_speaker_quote", "kit_icons", "sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "kit_forces"}
 
 
 def _decode(path: Path, seconds: Optional[float] = None) -> Optional[np.ndarray]:

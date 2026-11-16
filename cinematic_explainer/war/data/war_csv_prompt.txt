@@ -90,6 +90,12 @@ COLUMNS
                 highlighted (asset_type local with a screenshot file shows the real page instead)
     flyover     drones, missiles or aircraft launched, flying or shot down: the named system crosses the frame over the clip
     satellite   a before/after satellite comparison; only when you will attach two image files (add an images column: before.jpg|after.jpg)
+    chain       a sentence that counts different things ("49 fighter jets, two aircraft carriers and 100 warships in 24 hours"): icons appear one by one on an orange chain, the period as the heading
+    satmap      a named strait or crossing (Taiwan Strait, Strait of Hormuz, Kerch Strait, Suwalki Gap...) or two named shores with a distance: satellite map that pushes in, red and blue points joined by a gold line
+    range       a reach the script states from a place it names ("the missiles can hit targets 1,500 km from Sevastopol"): satellite map, a ring grows to that distance
+    counter     a figure that rose or fell "from X to Y" ("drone launches rose from 400 to 2,000 a month"): big rolling number, two bars, a change chip
+    forces      two named sides with counts of the same thing ("Russia has 3,000 tanks, while Ukraine has 900"): side-by-side bars around an icon
+    satquote    quoted words in a scene that names a place or country: the quote types in over a slow satellite drift of that place
                 or one image (images column with one file, or asset_type local with a picture)
     locator     a place named over a clip: a small corner map shows where it is while the clip keeps playing
     label       a figure or a named system spoken over a clip ("44 missiles", "Iskander-M"): a yellow keyword label top-left.

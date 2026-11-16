@@ -18,6 +18,12 @@ from cinematic_explainer.war.direction import CSV_GRAPHIC
 
 CSV_ROWS = [
     ("title", "This is the war that changed Europe.", "kit_title"),
+    ("chain", "In just 24 hours, China sent 49 fighter jets, two aircraft carriers and more than 100 warships.", "kit_chain"),
+    ("animated map", "An invasion would have to cross the Taiwan Strait, about 130 km of open water.", "sat_map"),
+    ("range ring", "From Sevastopol the missiles can reach targets 1,500 km away.", "sat_range"),
+    ("counter", "Russian drone launches rose from 400 to 2,000 a month in 2024.", "kit_counter"),
+    ("forces", "Russia has 3,000 tanks and 300 jets, while Ukraine has 900 tanks and 60 jets.", "kit_forces"),
+    ("quote map", "Beijing said \"we will never let anyone take Taiwan away from China\" this week.", "sat_quote"),
     ("chapter", "Chapter 2, the battle for the east.", "kit_chapter"),
     ("date", "In February 2022 Russian columns crossed the border.", "kit_datecard"),
     ("quote", 'Zelensky said, "We are all here, defending our independence."', "kit_quote"),

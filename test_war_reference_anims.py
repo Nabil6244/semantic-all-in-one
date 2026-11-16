@@ -1,0 +1,122 @@
+"""War reference animations (owner 2026-11-16): the satellite "animated map" and the "IN 24 HOURS" icon chain.
+
+No network: tile fetching is switched off, so the map uses its flat Natural Earth base (or tiles already in the cache)."""
+import unittest
+from types import SimpleNamespace as NS
+from unittest import mock
+
+from cinematic_explainer.war import direction as D
+from cinematic_explainer.war import graphics_ref as R
+from cinematic_explainer.war import registry
+
+SENT = ("In just 24 hours, China sent 49 fighter jets, two aircraft carriers, more than 100 warships and coast guard vessels, "
+        "and a stealth drone from a catapult carrier.")
+
+
+class ChainOf(unittest.TestCase):
+    def test_counts_become_items_with_icons_and_period_title(self):
+        c = R.chain_of(SENT, D._STICKERS)
+        self.assertEqual([i["label"] for i in c["items"]],
+                         ["49 fighter jets", "two aircraft carriers", "100+ warships & coast guard", "A stealth drone from a catapult carrier"])
+        self.assertEqual([i["name"] for i in c["items"]], ["jet", "ship", "ship", "drone"])
+        self.assertEqual(c["title"], "IN JUST 24 HOURS")
+
+    def test_two_items_need_a_period(self):
+        self.assertIsNotNone(R.chain_of("Russia launched 120 drones and 40 missiles overnight.", D._STICKERS))
+        self.assertIsNone(R.chain_of("Russia launched 120 drones and 40 missiles.", D._STICKERS))
+
+    def test_no_drawable_things_no_chain(self):
+        self.assertIsNone(R.chain_of("He spoke 3 times in 24 hours about 5 ideas.", D._STICKERS))
+
+
+class SatOf(unittest.TestCase):
+    def test_named_strait(self):
+        s = D._sat_of(NS(text="They would have to cross the Taiwan Strait, 130 km of open water.", entities=[], numbers=[]))
+        self.assertEqual(s["strait"], "taiwan strait")
+        self.assertEqual(s["km"], 130)
+
+    def test_nothing_named(self):
+        self.assertIsNone(D._sat_of(NS(text="The weather was bad all week.", entities=[], numbers=[])))
+
+
+class Cards(unittest.TestCase):
+    def setUp(self):
+        p = mock.patch.object(R, "_tile", lambda z, x, y, fetch=True: R.__dict__["_tile_cached"](z, x, y))
+        R._tile_cached = lambda z, x, y: None          # offline: flat base
+        p.start()
+        self.addCleanup(p.stop)
+        R._BASE.clear()
+
+    def test_registered_and_full_frame(self):
+        cards = registry.all_cards()
+        self.assertIn("sat_map", cards)
+        self.assertIn("kit_chain", cards)
+        self.assertTrue({"sat_map", "kit_chain"} <= D.FULL_KINDS)
+        self.assertEqual(D.CSV_GRAPHIC["animated map"], "satmap")
+        self.assertEqual(D.CSV_GRAPHIC["chain"], "chain")
+
+    def test_sat_map_frames_deterministic_and_opaque(self):
+        p = {"strait": "taiwan strait", "legend": [{"colour": "red", "text": "A"}, {"colour": "blue", "text": "B"}]}
+        a, b = R.sat_map(3.0, 8.0, p), R.sat_map(3.0, 8.0, p)
+        self.assertEqual(a.size, (1280, 720))
+        self.assertEqual(a.tobytes(), b.tobytes())
+        self.assertEqual(a.getchannel("A").getextrema(), (255, 255))
+        self.assertNotEqual(R.sat_map(1.0, 8.0, p).tobytes(), a.tobytes())     # the camera moves
+
+    def test_sat_map_missing_points(self):
+        self.assertIsNone(R.sat_map(1.0, 8.0, {"a": {"lat": 1}}))
+
+    def test_chain_reveals_then_wipes(self):
+        c = R.chain_of(SENT, D._STICKERS)
+        early, mid, last = R.kit_chain(0.5, 8.0, c), R.kit_chain(5.0, 8.0, c), R.kit_chain(7.99, 8.0, c)
+        self.assertEqual(mid.getchannel("A").getextrema()[1], 255)
+        self.assertNotEqual(early.tobytes(), mid.tobytes())
+        self.assertLess(sum(last.getchannel("A").histogram()[1:]), 1280 * 720 * 0.1)   # wiped away
+        self.assertIsNone(R.kit_chain(1.0, 8.0, {"items": [{"name": "jet", "label": "x"}]}))
+
+
+class MoreReaders(unittest.TestCase):
+    def test_counter(self):
+        c = R.counter_of("Russian drone launches rose from 400 to 2,000 a month in 2024.")
+        self.assertEqual((c["a"]["value"], c["b"]["value"], c["b"]["label"], c["unit"], c["title"]), (400, 2000, "2024", "a month", "RUSSIAN DRONE LAUNCHES"))
+        self.assertIsNone(R.counter_of("The war lasted from 2014 to 2022."))
+
+    def test_forces_pairs_rows_and_bare_figures(self):
+        f = R.forces_of("Russia has 3,000 tanks and 300 jets, while Ukraine has 900 tanks and 60 jets.", D._STICKERS)
+        self.assertEqual([(r["name"], r["a"], r["b"]) for r in f["rows"]], [("tank", 3000, 900), ("jet", 300, 60)])
+        g = R.forces_of("Russia has 3,000 tanks, while Ukraine has 900.", D._STICKERS)
+        self.assertEqual(g["rows"][0]["b"], 900)
+        self.assertIsNone(R.forces_of("Russia has 3,000 tanks.", D._STICKERS))
+
+    def test_range_needs_a_place(self):
+        pt = {"name": "Sevastopol", "lat": 44.62, "lon": 33.52}
+        r = R.range_of("The missiles can reach targets 1,500 km away.", [pt])
+        self.assertEqual((r["km"], r["shown"]), (1500, "1,500 km"))
+        self.assertIsNone(R.range_of("The missiles can reach targets 1,500 km away."))
+        self.assertAlmostEqual(R.range_of("It can fly 100 miles.", [pt])["km"], 160.9)
+
+    def test_quote_needs_a_place(self):
+        q = {"quote": "We will never let anyone take it", "speaker": ""}
+        self.assertEqual(R.sat_quote_of(q, [], ["Taiwan"])["country"], "Taiwan")
+        self.assertIsNone(R.sat_quote_of(q, [], []))
+
+
+class MoreCards(Cards):
+    def test_all_render(self):
+        pt = {"label": "Sevastopol", "lat": 44.62, "lon": 33.52}
+        cases = {"sat_range": {"centre": pt, "km": 300}, "sat_quote": {"quote": "Words said here today", "country": "Taiwan"},
+                 "kit_counter": R.counter_of("Output rose from 40 to 200 a day."),
+                 "kit_forces": R.forces_of("Russia has 3,000 tanks, while Ukraine has 900.", D._STICKERS)}
+        cards = registry.all_cards()
+        for kind, prm in cases.items():
+            with self.subTest(kind=kind):
+                self.assertIn(kind, D.FULL_KINDS)
+                a, b = cards[kind](3.0, 8.0, prm), cards[kind](3.0, 8.0, prm)
+                self.assertEqual(a.size, (1280, 720))
+                self.assertEqual(a.tobytes(), b.tobytes())
+                self.assertEqual(a.getchannel("A").getextrema()[1], 255)
+                self.assertIsNone(cards[kind](3.0, 8.0, {}))
+
+
+if __name__ == "__main__":
+    unittest.main()

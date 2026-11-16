@@ -195,7 +195,7 @@ def graphics_count(layers: Any) -> Dict[str, int]:
 GRAPHIC_NAMES = {"tac_map": "Tactical / political map", "tac_route": "Route map", "map_card": "Situation map", "map_inset": "Corner locator map",
                  "kit_field": "Background field", "kit_title": "Title card", "kit_datecard": "Date card", "kit_quote": "Quote card", "kit_kinetic": "Kinetic words",
                  "kit_keywords": "Keywords", "kit_dossier": "Dossier file", "kit_radar": "Radar sweep", "kit_chapter": "Chapter label",
-                 "kit_bignum": "Big number", "kit_versus": "Versus comparison", "kit_chart": "Animated chart", "kit_icons": "Icon explainer",
+                 "sat_map": "Animated satellite map", "kit_chain": "Icon chain (counts)", "sat_range": "Range ring map", "sat_quote": "Quote over satellite", "kit_counter": "Rising counter", "kit_forces": "Side-by-side forces", "kit_bignum": "Big number", "kit_versus": "Versus comparison", "kit_chart": "Animated chart", "kit_icons": "Icon explainer",
                  "kit_sticker": "Pictogram sticker", "kit_recap": "Numbered recap", "kit_chips": "Note chips", "kit_scale": "Scale row",
                  "kit_speaker": "Name / role card", "kit_stamp": "CLAIMED / UNVERIFIED stamp", "kit_tag": "Hook tag", "kit_ribbon": "Section ribbon",
                  "kit_flag": "Waving flag", "kit_flyover": "Drone / missile fly-over", "lay_document": "Document highlight",

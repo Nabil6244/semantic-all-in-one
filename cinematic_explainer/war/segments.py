@@ -198,7 +198,7 @@ def lift_blacks(img):
 
 
 _FULL_FALLBACK_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "lay_satellite", "lay_document",
-                        "kit_chart", "lay_speaker_quote", "kit_dossier", "kit_radar", "kit_title", "kit_datecard", "kit_quote"}
+                        "kit_chart", "lay_speaker_quote", "kit_dossier", "kit_radar", "kit_title", "kit_datecard", "kit_quote", "sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "kit_forces"}
 
 
 def _fallback_card(ly: Layer, t: float, active: Sequence[Layer], on_error, exc: Exception):

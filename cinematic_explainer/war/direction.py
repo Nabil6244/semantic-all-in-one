@@ -585,6 +585,60 @@ def _countries(sent: Any, as_place: bool = False) -> List[Any]:
     return out
 
 
+def _sat_of(sent: Any) -> Optional[Dict[str, Any]]:
+    """The reference "animated map" for a sentence: a named strait / gap, or two places it can locate with a distance or crossing word."""
+    from . import graphics_ref as GR
+    from .maps_tactical import resolve_place
+
+    pts = []
+    for e in _places(sent):
+        h0, _w = resolve_place(e.name)
+        if h0:
+            pts.append(h0)
+    return GR.sat_map_of(str(sent.text), pts, [e.name for e in _countries(sent)])
+
+
+def _located(sents: Sequence[Any]) -> Tuple[List[Dict[str, Any]], List[str]]:
+    """(places with coordinates, country names) the given sentences name, in order."""
+    from .maps_tactical import resolve_place
+
+    pts, cos = [], []
+    for sent in sents:
+        for e in _places(sent):
+            h0, _w = resolve_place(e.name)
+            if h0 and h0 not in pts:
+                pts.append(h0)
+        for e in _countries(sent):
+            if e.name not in cos:
+                cos.append(e.name)
+    return pts, cos
+
+
+def _ref_options(sent: Any, scene_sents: Sequence[Any] = ()) -> List[Tuple[str, Dict[str, Any]]]:
+    """The reference-family graphics a sentence truthfully supports (graphics_ref), most specific first."""
+    from . import graphics_ref as GR
+
+    out: List[Tuple[str, Dict[str, Any]]] = []
+    text = str(sent.text)
+    pts, cos = _located([sent])
+    r = GR.range_of(text, pts, cos)
+    if r:
+        out.append(("sat_range", r))
+    f = GR.forces_of(text, _STICKERS)
+    if f:
+        out.append(("kit_forces", f))
+    c = GR.counter_of(text)
+    if c:
+        out.append(("kit_counter", c))
+    q = _quote_of(sent)
+    if q:
+        sp, sc = _located(list(scene_sents) or [sent])
+        sq = GR.sat_quote_of(q, sp, sc)
+        if sq:
+            out.append(("sat_quote", sq))
+    return out
+
+
 def _items(text: str) -> List[str]:
     """3-5 short list items joined by commas and 'and' ('tunnels, scooters, civilian clothes and human cover'), else []."""
     m = re.search(r"(?:[:;]|\b(?:include|includes|including|such as|were|was|are|is|of)\b)\s+([^.]+?)\.?$", text.strip(), re.IGNORECASE)
@@ -1125,7 +1179,14 @@ CSV_GRAPHIC = {"map": "map", "number": "number", "stat": "number", "figure": "nu
                "locator": "locator", "inset map": "locator", "minimap": "locator", "mini map": "locator",
                "document page": "article", "strategic": "map", "strategic site": "map",
                "label": "bc_label", "keyword": "bc_label", "keyword label": "bc_label", "caption": "bc_caption", "quote box": "bc_caption",
-               "caption box": "bc_caption", "big word": "bc_bigword", "bigword": "bc_bigword", "big figure": "bc_bigword"}
+               "caption box": "bc_caption", "big word": "bc_bigword", "bigword": "bc_bigword", "big figure": "bc_bigword",
+               "chain": "chain", "icon chain": "chain", "counts": "chain", "tally": "chain", "in 24 hours": "chain",
+               "animated map": "satmap", "satellite map": "satmap", "sat map": "satmap", "satmap": "satmap", "strait": "satmap",
+               "crossing": "satmap", "strait map": "satmap",
+               "range": "range", "range ring": "range", "range map": "range", "reach": "range", "strike range": "range",
+               "counter": "counter", "rise": "counter", "rising number": "counter", "from to": "counter", "growth": "counter",
+               "forces": "forces", "side by side": "forces", "force comparison": "forces", "order of battle": "forces",
+               "quote map": "satquote", "quote over map": "satquote", "satellite quote": "satquote"}
 _PLANNER_KINDS = {"number": ("number", "compare"), "compare": ("compare", "split"), "equipment": ("equipment", "split"), "speaker": ("figure",),
                   "timeline": ("timeline",), "institution": ("institution",), "source": ("evidence",),
                   "claim": ("evidence", "figure")}   # a leader's claim with no outlet line: the claimant's portrait card carries it
@@ -1334,6 +1395,25 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             if p:
                 return Layer("tac_map", r["_start"], r["_end"], _narrate_map(p, text, A, r["_start"], _countries_in(A)), dim=False), ""
         return None, "no place or country named"
+    if kind in ("range", "counter", "forces", "satquote"):
+        want = {"range": "sat_range", "counter": "kit_counter", "forces": "kit_forces", "satquote": "sat_quote"}[kind]
+        for sent in sents:
+            for k_, prm in _ref_options(sent, sents):
+                if k_ == want:
+                    return full(want, prm), ""
+        return None, {"range": "no stated reach (km / miles) from a place the map can locate",
+                      "counter": "no figure that rose or fell 'from X to Y'",
+                      "forces": "not two named sides with counts of the same thing",
+                      "satquote": "no quoted words with a place or country in the scene"}[kind]
+    if kind in ("chain", "satmap"):
+        from . import graphics_ref as GR
+
+        for sent in sents:
+            c = GR.chain_of(sent.text, _STICKERS) if kind == "chain" else _sat_of(sent)
+            if c:
+                return full("kit_chain" if kind == "chain" else "sat_map", c), ""
+        return None, ("fewer than two counted things the icon set can draw" if kind == "chain"
+                      else "no known strait / gap, and not two locatable places with a distance or crossing word")
     if kind in ("chart", "article", "flyover", "satellite"):
         from . import graphics_lib as GL
 
@@ -1599,7 +1679,7 @@ def _csv_graphics(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any]
 # (a map for a place or country, icons or a sticker for the things named, a list recap, an inset caption or a hook tag). The least used
 # kind so far goes first, so one video shows the whole kit instead of the same card again and again.
 GRAPHIC_GAP = 10.0
-FLOOR_RICH = {"kit_chart", "lay_document"}
+FLOOR_RICH = {"kit_chart", "lay_document", "kit_chain", "sat_map", "sat_range", "sat_quote", "kit_counter", "kit_forces"}
 _NOT_A_GRAPHIC = SOFT | {"shot_headline", "kit_ribbon", "kit_stamp", "kit_flag"}     # small marks; a gap with only these is still empty
 
 
@@ -1895,6 +1975,16 @@ def _floor_options(sent: Any, has_footage: bool, layouts: bool) -> List[Tuple[st
     out: List[Tuple[str, Dict[str, Any], float]] = []
     from . import graphics_lib as GL
 
+    from . import graphics_ref as GR
+
+    cc = GR.chain_of(sent.text, _STICKERS)                   # counted things of different kinds: the reference icon chain
+    if cc:
+        out.append(("kit_chain", cc, 5.5))
+    sm = _sat_of(sent)                                       # a named crossing: the reference satellite map
+    if sm:
+        out.append(("sat_map", sm, 6.0))
+    for k_, prm in _ref_options(sent):                       # range ring / forces / rising counter / quote over the place
+        out.append((k_, prm, 6.0 if k_.startswith("sat_") else 5.5))
     ch = GL.chart_of(sent.text, sent.numbers)               # the script's own figures, three or more, each with its label: a chart
     if ch:
         out.append(("kit_chart", ch, 5.0))
@@ -2022,7 +2112,7 @@ LAYOUT_KINDS = {"lay_figure_hero", "lay_figure_pair", "lay_equipment_hero", "lay
                 "lay_logistics"}
 MOTION_KINDS = {"kit_kinetic", "kit_dossier", "kit_radar", "kit_keywords", "kit_title", "kit_datecard", "kit_quote"}
 FULL_KINDS = {"map_card", "timeline", "split_compare", "tac_map", "tac_route", "stat_compare", "kit_icons", "kit_flag", "lay_satellite", "lay_document",
-              "kit_chart", "lay_speaker_quote"} | LAYOUT_KINDS | MOTION_KINDS
+              "kit_chart", "lay_speaker_quote", "kit_chain", "sat_map", "sat_range", "sat_quote", "kit_counter", "kit_forces"} | LAYOUT_KINDS | MOTION_KINDS
 FULL_GAP = 1.2
 CORNER_KINDS = {"kit_speaker", "kit_stamp", "kit_tag", "kit_ribbon", "kit_sticker", "kit_flyover", "kit_chips", "map_inset", "kit_flag",
                 "bc_source", "bc_label", "bc_caption", "bc_bigword",
@@ -2477,6 +2567,24 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 status = "unverified" if _UNVERIFIED.search(sent.text) else "disputed" if _DISPUTED.search(sent.text) else "claimed"
                 ka = max(a, A.time_at(sent.span[0] + m.start()) - 0.2)
                 proposals.append((1, "kit_stamp", ka, min(en, ka + 4.5), {"status": status, "pos": "upper-right"}, "stamp", f"'{m.group(0)}' marks a {status} statement", None))
+            # 2a reference satellite map (a named crossing) and icon chain (counted things of different kinds)
+            if cfg.get("satmaps", True) and st - last_at.get("sat_map", -999) >= 40.0:
+                sm = _sat_of(sent)
+                if sm:
+                    proposals.append((2, "sat_map", a, max(b, a + 6.0), sm, "satmap", "a crossing between two named shores", False))
+            if cfg.get("chains", True) and st - last_at.get("kit_chain", -999) >= 30.0:
+                from . import graphics_ref as _gr
+
+                cc = _gr.chain_of(sent.text, _STICKERS)
+                if cc:
+                    proposals.append((2, "kit_chain", a, max(b, a + 5.5), cc, "chain", f"{len(cc['items'])} counted things in one sentence", False))
+            if cfg.get("ref_graphics", True):
+                why_ = {"sat_range": "a stated reach from a named place", "kit_forces": "two sides' counts of the same thing",
+                        "kit_counter": "a figure that rose or fell from X to Y", "sat_quote": "quoted words about a named place"}
+                for k_, prm in _ref_options(sent, A.sentences):
+                    if st - last_at.get(k_, -999) >= (30.0 if k_.startswith("kit_") else 40.0):
+                        proposals.append((2, k_, a, max(b, a + (6.0 if k_.startswith("sat_") else 5.0)), prm, k_, why_[k_], False))
+                        break
             # 2 tactical map
             pl, co = _places(sent), _countries(sent, as_place=True)
             moving = bool(sent.motion) or bool(_STRIKE.search(sent.text))
@@ -2578,13 +2686,13 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
             if kind == "kit_tag" and st - last_at.get("kit_tag", -999) < 25.0:
                 continue
             ign = ("shot_headline",) if kind in ("kit_stamp", "kit_sticker", "kit_scale", "kit_recap", "kit_chips", "kit_tag", "tac_map", "lay_document",
-                                                 "kit_flyover") else ()
-            need = {"tac_map": 3.6, "kit_stamp": 1.4, "kit_flyover": 2.2, "lay_document": 3.4, "kit_tag": 2.0, "kit_recap": 3.0, "kit_chips": 3.0, "kit_sticker": 2.2, "kit_scale": 3.0}.get(kind, 2.0)
+                                                 "kit_flyover", "sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "kit_forces") else ()
+            need = {"sat_map": 4.0, "kit_chain": 3.4, "sat_range": 4.0, "sat_quote": 4.0, "kit_counter": 3.4, "kit_forces": 3.4, "tac_map": 3.6, "kit_stamp": 1.4, "kit_flyover": 2.2, "lay_document": 3.4, "kit_tag": 2.0, "kit_recap": 3.0, "kit_chips": 3.0, "kit_sticker": 2.2, "kit_scale": 3.0}.get(kind, 2.0)
             slot = busy.free(a, min(b + (1.0 if kind in ("tac_map", "kit_recap", "kit_chips") else 0.0), en + 0.5), need, ignore=ign)
             if not slot:
                 continue
             end = slot[1] if kind not in ("kit_stamp", "kit_flyover") else min(slot[1], slot[0] + (2.6 if kind == "kit_stamp" else 3.6))
-            if kind == "tac_map" and _near_full([sp for sp in full_spans], slot[0], end):
+            if kind in ("tac_map", "sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "kit_forces") and _near_full([sp for sp in full_spans], slot[0], end):
                 after = max((y for x, y in full_spans if x < end and y + FULL_GAP > slot[0]), default=slot[0])
                 if end - (after + FULL_GAP) < need:
                     continue                              # no two full-frame compositions back to back
@@ -2593,7 +2701,7 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
                 kind, params, rule = "lay_inset", {"caption": params["text"], "caption_sub": "", "notes": []}, "inset"
             if add(kind, slot[0], end, params, dec, rule, why, en, dim=dim):
                 last_at[kind] = st
-                if kind == "lay_document":
+                if kind in ("lay_document", "sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "kit_forces"):
                     full_spans.append((slot[0], end))
                     _yield_headline(plan, slot[0], end)
                 if kind == "tac_map":
