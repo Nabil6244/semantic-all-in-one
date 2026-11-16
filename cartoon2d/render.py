@@ -699,7 +699,8 @@ def pose_at(who, t):
         if h["who"] == who and h["t0"] <= t < h["t1"]:
             base.update(arm(G["cast"][who]["hold_side"], 22, 70))
     out = dict(base)
-    for (t0, t1, act, speaking) in G["acts"][who]:
+    acc, wsum = {}, {}                              # overlapping acts are blended (weighted mean), never added up:
+    for (t0, t1, act, speaking) in G["acts"][who]:  # two dance lines in a row used to double the arm swing (arms broke)
         if t < t0 - 0.3 or t > t1 + 1.6:
             continue
         w = smooth((t - (t0 - 0.25)) / 0.25) * (1 - smooth((t - (t1 + 0.15)) / 0.3))
@@ -711,7 +712,12 @@ def pose_at(who, t):
         p = act_pose(who, act, t - t0, t1 - t0, speaking, t)
         for k, v in p.items():
             ww = w_hop if k in ("hop", "sx", "sy", "dx", "spin") or (k in LEGS and act in ("cheer", "jump", "tumble")) else w
-            out[k] = out[k] + (v - base[k]) * ww
+            if ww <= 0:
+                continue
+            acc[k] = acc.get(k, 0.0) + (v - base[k]) * ww
+            wsum[k] = wsum.get(k, 0.0) + ww
+    for k, d in acc.items():
+        out[k] = base[k] + d / max(1.0, wsum[k])
     # the holding arm stays on its prop whatever the act does (a laugh/clap pose used to pull a balloon over the face);
     # a balloon is held out to the side so it floats beside the head, not in front of it
     for h in G["holds"]:
