@@ -26,6 +26,8 @@ import games  # noqa: E402
 import scenery  # noqa: E402
 import places  # noqa: E402
 import fx  # noqa: E402
+import story_fx  # noqa: E402
+import storycheck  # noqa: E402
 OUT_W, OUT_H, FPS = 1920, 1080, 25
 WORLD_W, WORLD_H = 2560, 1440
 SS = 3                                          # supersampling for drawn mouths / lids
@@ -126,6 +128,7 @@ def load(story_path):
         if ln.get("give"):
             names.add(ln["give"]["pic"])
     names |= games.pics(tl)
+    names |= {ln["find"]["pic"] for ln in tl["lines"] if ln.get("find")}
     G["pics"] = {}
     for n in sorted(names):
         f = next((d / f"{n}.png" for d in dirs if (d / f"{n}.png").exists()), None)
@@ -372,6 +375,18 @@ def plan_fx():
     for i, ln in enumerate(G["tl"]["lines"]):
         if ln.get("fx"):
             G["screen_fx"].append((ln["start"], max(1.0, ln["end"] - ln["start"] + 0.5), ln["fx"], i))
+    # hidden objects: shown in their place from the arrival there, found on the line that says "found"
+    G["finds"] = []
+    for ln in G["tl"]["lines"]:
+        f = ln.get("find")
+        if f:
+            pl = place_at(ln["start"])
+            arr = max([tc for tc, n in G["place_changes"] if n == pl and tc <= ln["start"]] or [0.0])
+            fd = next((l2["start"] for l2 in G["tl"]["lines"] if l2.get("found") == f["pic"] and l2["start"] >= ln["start"]), None)
+            G["finds"].append({**f, "place": pl, "t0": arr, "found": fd, "size": f.get("size", 0.09)})
+    G["maps"] = [(ln["start"] - 0.1, ln["end"] + 0.5, ln["map"]) for ln in G["tl"]["lines"] if ln.get("map") is not None]
+    ends = [ln["start"] for ln in G["tl"]["lines"] if ln.get("endcard")]
+    G["end_screen"] = max(ends[-1], G["tl"]["total"] - 20.0) if ends and G["story"].get("end_screen", True) else None
     k = 0
     for tc, n in G["place_changes"]:
         ln = next((l for l in G["tl"]["lines"] if l.get("place") == n and abs(max(0.0, l["start"] - 0.45) - tc) < 0.01), {})
@@ -1655,6 +1670,10 @@ def compose(t, place_name):
         sw = c["char_h"] * c["k"] * 0.22 * z * (1 - 0.35 * min(pz["hop"] / 0.16, 1))
         px, py = (c["x"] + pz["dx"] * c["char_h"] * c["k"] - x0) * z, (c["floor"] - y0) * z
         ovals.append([px - sw, py - sw * 0.16, px + sw, py + sw * 0.16])
+    for f in G.get("finds", []):                        # can you find it? (in the place, behind the characters)
+        if f["place"] == place_name and t >= f["t0"] - 0.5:
+            sx, sy = (f["x"] * WORLD_W - x0) * z, (f["y"] * WORLD_H - y0) * z
+            story_fx.draw_find(frame, G["pics"][f["pic"]], t, f["found"], sx, sy, f["size"] * WORLD_H * z)
     draw_shadows(frame, ovals)
     scene_frame = frame
     if P_ is not None:                                  # characters + what they hold on their own layer, lit by the place
@@ -1803,6 +1822,23 @@ def compose(t, place_name):
             pop = smooth((t - tu["t0"]) / 0.25) * (1 + 0.05 * math.sin(2 * math.pi * 1.6 * t))
             bb = b.resize((max(1, int(b.width * pop)), max(1, int(b.height * pop))), Image.BICUBIC)
             frame.alpha_composite(bb, (int(OUT_W / 2 - bb.width / 2), int(OUT_H * 0.06)))
+            story_fx.countdown(frame, t, tu["t0"], tu["t1"], OUT_W / 2, int(OUT_H * 0.06) + bb.height + 70)
+    fs = G.get("finds") or []
+    if fs and G["story"].get("collection", True):       # the found objects collected at the top right
+        got = [G["pics"][f["pic"]] for f in fs if f["found"] is not None and t >= f["found"] + 1.4]
+        if t >= fs[0]["t0"]:
+            story_fx.collection(frame, got, len(fs), None)
+    for m0, m1, k in G.get("maps", []):                 # the treasure map pops up over the scene
+        if m0 <= t <= m1:
+            a = t - m0
+            s_ = smooth(a / 0.3) * (1 - smooth((t - m1 + 0.3) / 0.3))
+            if s_ > 0.02:
+                dim = Image.new("RGBA", frame.size, (40, 25, 10, int(110 * s_)))
+                frame.alpha_composite(dim)
+                card = story_fx.map_card(G["story"].get("map_stops", []), k, a, G["cast"]["bobo"]["parts"]["head"] if "bobo" in G["cast"]
+                                         else G["cast"][HOST]["parts"]["head"], G["story"].get("map_title", "Bobo's map!"))
+                cw, ch_ = int(card.width * s_), int(card.height * s_)
+                frame.alpha_composite(card.resize((max(1, cw), max(1, ch_)), Image.BICUBIC), (int(OUT_W / 2 - cw / 2), int(OUT_H / 2 - ch_ / 2)))
     return frame
 
 
@@ -1864,6 +1900,13 @@ def render_frame(fi):
 
 
 def episode_frame(t):
+    es = G.get("end_screen")
+    if es is not None and t >= es:                      # the last 20 s: room for YouTube's end-screen boxes
+        return story_fx.end_screen(_episode_frame(t).convert("RGBA"), (t - es) / 0.8, G["story"].get("end_text", "Watch next!")).convert("RGB")
+    return _episode_frame(t)
+
+
+def _episode_frame(t):
     tr = transition_at(t)
     if tr is None:
         return compose(t, place_at(t)).convert("RGB")
@@ -1919,7 +1962,8 @@ def main():
         print("CLIP", out, ff.returncode)
         return
     out = ROOT / (args[args.index("--out") + 1] if "--out" in args else f"{st.get('build', 'cartoon2d/build/story1')}/video_silent.mp4")
-    probs = places.problems(st, G["tl"])             # new place every ~2 min, backgrounds new to the show
+    probs = (storycheck.problems(st, G["tl"]) if st.get("storycheck")  # story bible + retention rules (+ the place rules)
+             else places.problems(st, G["tl"]))      # new place every ~2 min, backgrounds new to the show
     if probs and "--allow-place-rules" not in args:
         for p_ in probs:
             print("PLACE RULE", p_, flush=True)

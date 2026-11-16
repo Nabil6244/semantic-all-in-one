@@ -26,7 +26,7 @@ from kids_audio.synth import SR  # noqa: E402
 
 RHUBARB = ROOT / "cartoon3d-engine" / "authoring" / "tools" / "Rhubarb-Lip-Sync-1.14.0-macOS" / "rhubarb"
 PASS = ("act", "also", "cam", "card", "card_at", "pic", "sfx", "place", "hold", "drop", "give", "title", "endcard", "chapter",
-        "word_cards", "chant", "go", "run", "game", "your_turn", "face", "hand", "fx", "tr")
+        "word_cards", "chant", "go", "run", "game", "your_turn", "face", "hand", "fx", "tr", "goal", "map", "find", "found", "calm", "teaser")
 
 
 def sig(*parts):
@@ -90,8 +90,10 @@ def to_wav(mp3, wav):
 
 def mouths(wav, text, out_json):
     if not out_json.exists():
-        subprocess.run([str(RHUBARB), "-f", "json", "--extendedShapes", "GHX", "--dialogFile", "/dev/stdin", "-o", str(out_json), str(wav)],
-                       input=text.encode(), check=True, capture_output=True)
+        cmd = [str(RHUBARB), "-f", "json", "--extendedShapes", "GHX", "-o", str(out_json), str(wav)]
+        r = subprocess.run(cmd[:-3] + ["--dialogFile", "/dev/stdin"] + cmd[-3:], input=text.encode(), capture_output=True)
+        if r.returncode != 0:                   # some texts (single letter sounds like "i, i, i") break its word list:
+            subprocess.run(cmd, check=True, capture_output=True)    # the sound alone still gives good mouths
     return json.loads(out_json.read_text())["mouthCues"]
 
 

@@ -94,6 +94,8 @@ const SIDE_LOOK = {
 const SIDE_POSE = "Full body seen from the side in profile, facing to the right, standing straight, both arms hanging straight down at the sides, legs straight and together, from head to feet, eyes open, gentle smile, centered, plain pure white background, no shadow, no text, no other characters";
 if (kind === "side" && process.env.NOREF) P.side = Object.values(SIDE_LOOK).map(l => `${STYLE}. ${l}. ${SIDE_POSE}.`);
 else if (kind === "side") P.side = [`${STYLE}. Exactly the same character as the reference picture: ${SIDE_LOOK[process.env.CHAR]}. Full body seen from the side in profile, facing to the right, standing straight, both arms hanging straight down at the sides, legs straight and together, from head to feet, eyes open, gentle smile, centered, plain pure white background, no shadow, no text, no other characters. Same colors, same outfit, same proportions and the same drawing style as the reference.`];
+// propsfile: stickers from a JSON list of short descriptions (PROPS_FILE), same sticker style as the other props
+if (kind === "propsfile") P.propsfile = JSON.parse(fs.readFileSync(process.env.PROPS_FILE, "utf8")).map(d => `2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: ${d}`);
 let prompts = P[kind];
 if (process.env.ONLY) { const keep = process.env.ONLY.split(",").map(Number); prompts = prompts.filter((_, i) => keep.includes(i)); }
 const accountIds = ["3ff7a20e-2884-42f2-896f-105be8ea4568", "a6d0b7d3-89f6-4cc3-855d-cfd5983064f4", "8829896c-1428-4f06-96fb-d2c24f3d791c"];
@@ -106,8 +108,8 @@ ws.on("message", d => { let m; try { m = JSON.parse(String(d)); } catch { return
     if (m.type === "PROMPT_RESULT") res.push(m); if (m.type === "GENERATE_DONE") done = true; } });
 await new Promise((r, j) => { ws.on("open", r); ws.on("error", j); });
 ws.send(JSON.stringify({ type: "GENERATE", prompts: prompts.join("\n"), accountIds, settings: {
-  mediaKind: "image", model: "BELUGA", aspectRatio: (kind === "bg" || kind === "garden" || kind === "farm" || kind === "places") ? "IMAGE_ASPECT_RATIO_LANDSCAPE" : (kind === "props" || kind === "ep1props" || kind === "hands" || kind === "ep34props") ? "IMAGE_ASPECT_RATIO_SQUARE" : "IMAGE_ASPECT_RATIO_PORTRAIT",
-  imageCount: (kind === "ep1props" || kind === "ep34props") ? 1 : 2, autoDownload: true, ...(kind === "side" && !process.env.NOREF ? { referenceImages: [path.resolve("..", "cartoon2d", "cast", process.env.CHAR, "source.png")] } : {}), outputDir: outDir, folder: kind, generationMode: "rpc", delayMin: 2, delayMax: 4, refreshFrequency: 50 } }));
+  mediaKind: "image", model: "BELUGA", aspectRatio: (kind === "bg" || kind === "garden" || kind === "farm" || kind === "places") ? "IMAGE_ASPECT_RATIO_LANDSCAPE" : (kind === "props" || kind === "ep1props" || kind === "hands" || kind === "ep34props" || kind === "propsfile") ? "IMAGE_ASPECT_RATIO_SQUARE" : "IMAGE_ASPECT_RATIO_PORTRAIT",
+  imageCount: (kind === "ep1props" || kind === "ep34props" || kind === "propsfile") ? 1 : 2, autoDownload: true, ...(kind === "side" && !process.env.NOREF ? { referenceImages: [path.resolve("..", "cartoon2d", "cast", process.env.CHAR, "source.png")] } : {}), outputDir: outDir, folder: kind, generationMode: "rpc", delayMin: 2, delayMax: 4, refreshFrequency: 50 } }));
 const deadline = Date.now() + 10 * 60 * 1000;
 while (!done && Date.now() < deadline) await new Promise(r => setTimeout(r, 1000));
 fs.writeFileSync(path.join(outDir, `${kind}_results.json`), JSON.stringify(res, null, 1));

@@ -1,0 +1,2179 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 22.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "My ABC blocks! For the ABC party!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "place": "classroom",
+   "chapter": "Bobo's ABC blocks",
+   "pic": "block_a",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "Oh no! Nutty opened the window!",
+   "act": "hands_up",
+   "also": {
+    "bobo": "tumble",
+    "ollie": "wobble"
+   },
+   "cam": "group",
+   "pic": "squirrel",
+   "fx": "leaves",
+   "face": "surprised",
+   "sfx": "whoosh"
+  },
+  {
+   "who": "molly",
+   "text": "The wind blew Bobo's blocks away! Let's go and find them all!",
+   "act": "open",
+   "cam": "host",
+   "goal": true
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "ABC adventure!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "title": "ABC Adventure with\nMs Molly & Bobo!",
+   "fx": "confetti",
+   "sfx": "success",
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Clap along with our song!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "chapter": "Hello song",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ms Molly and Bobo! Here we go! Learning and playing, high and low!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ms Molly and Bobo! Here we go! Learning and playing, high and low!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly! Today we're learning letters, from A to J!",
+   "act": "wave",
+   "cam": "host",
+   "card": "A B C"
+  },
+  {
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
+   "act": "wave",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "And I'm Ollie!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "And I'm Bobo! B is for Bobo! Please help me find my blocks!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Will you help Bobo? Shout yes!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yes!",
+   "act": "jump",
+   "also": {
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Look! Nutty left us a treasure map! Ten blocks, ten places!",
+   "act": "open",
+   "cam": "host",
+   "sfx": "chime"
+  },
+  {
+   "who": "ollie",
+   "text": "Let's go! Ready, steady...",
+   "act": "squat",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block A go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 0,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Go! Here we are in the apple orchard!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "orchard",
+   "chapter": "A is for apple",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block A somewhere in the apple trees. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_a",
+    "x": 0.09,
+    "y": 0.82,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "lily",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_a",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block A! Well done! This is the letter A.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "A a",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "A says a, a, a. Can you say a?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "a, a, a!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "A"
+  },
+  {
+   "who": "molly",
+   "text": "A is for apple! Apple!",
+   "act": "open",
+   "cam": "host",
+   "pic": "apple",
+   "card": "A is for apple"
+  },
+  {
+   "who": "bobo",
+   "text": "A is for... banana!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Banana doesn't start with A!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! A is for apple! a, a, apple!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's pick apples! Jump up high! One, two, three!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Jump! Jump! Jump! Apples for everyone!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "hold": {
+    "lily": "apple"
+   }
+  },
+  {
+   "who": "lily",
+   "text": "A is for apple! Crunch, crunch!",
+   "act": "giggle",
+   "cam": "kids",
+   "pic": "apple"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block B go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 1,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Wheee! We're at the beach!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "beach",
+   "chapter": "B is for ball",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block B somewhere on the sand. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_b",
+    "x": 0.92,
+    "y": 0.84,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "ollie",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_b",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block B! Well done! This is the letter B.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "B b",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "B says b, b, b. Can you say b?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "b, b, b!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "B"
+  },
+  {
+   "who": "molly",
+   "text": "B is for ball! Ball!",
+   "act": "open",
+   "cam": "host",
+   "pic": "ball",
+   "card": "B is for ball"
+  },
+  {
+   "who": "bobo",
+   "text": "B is for... fish!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Fish doesn't start with B!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! B is for ball! b, b, ball!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "B is for ball! Let's play catch on the beach!",
+   "act": "cheer",
+   "cam": "host",
+   "pic": "ball"
+  },
+  {
+   "who": "bobo",
+   "text": "Catch, Lily! B, b, ball!",
+   "act": "cheer",
+   "cam": "group",
+   "game": {
+    "type": "throw",
+    "from": "bobo",
+    "to": "lily",
+    "bounces": 1,
+    "at": 0.8
+   },
+   "gap_after": 1.4
+  },
+  {
+   "who": "lily",
+   "text": "Got it! Your turn, Ollie! Bounce, bounce!",
+   "act": "cheer",
+   "cam": "group",
+   "game": {
+    "type": "throw",
+    "from": "lily",
+    "to": "ollie",
+    "bounces": 2,
+    "at": 0.9
+   },
+   "gap_after": 1.4
+  },
+  {
+   "who": "ollie",
+   "text": "B is for boat too! Look, a little boat!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block C go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 2,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Look! A big castle!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "castle",
+   "chapter": "C is for cat",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block C somewhere near the castle. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_c",
+    "x": 0.08,
+    "y": 0.86,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "lily",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_c",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block C! Well done! This is the letter C.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "C c",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "C says c, c, c. Can you say c?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "c, c, c!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "C"
+  },
+  {
+   "who": "molly",
+   "text": "C is for cat! Cat!",
+   "act": "open",
+   "cam": "host",
+   "pic": "cat",
+   "card": "C is for cat"
+  },
+  {
+   "who": "bobo",
+   "text": "C is for... dog!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Dog doesn't start with C!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! C is for cat! c, c, cat!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "C is for castle too! Let's march like kings and queens!",
+   "act": "march",
+   "also": {
+    "lily": "march",
+    "ollie": "march",
+    "bobo": "march"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "March, march, march to the castle! C, c, castle!",
+   "chant": true,
+   "act": "march",
+   "also": {
+    "lily": "march",
+    "ollie": "march",
+    "bobo": "march"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "I'm King Bobo! Ah... ah... ah-CHOO!",
+   "act": "sneeze",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Bless you, King Bobo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block D go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 3,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Stomp, stomp! Dinosaur valley!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "dino",
+   "chapter": "D is for dinosaur",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block D somewhere by the big rocks. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_d",
+    "x": 0.93,
+    "y": 0.83,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "ollie",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_d",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block D! Well done! This is the letter D.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "D d",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "D says d, d, d. Can you say d?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "d, d, d!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "D"
+  },
+  {
+   "who": "molly",
+   "text": "D is for dinosaur! Dinosaur!",
+   "act": "open",
+   "cam": "host",
+   "pic": "dinosaur",
+   "card": "D is for dinosaur"
+  },
+  {
+   "who": "bobo",
+   "text": "D is for... cookie!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Cookie doesn't start with D!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! D is for dinosaur! d, d, dinosaur!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's stomp like dinosaurs! Big stomps! Ready?",
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Stomp! Stomp! Roooar! D, d, dinosaur!",
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group",
+   "sfx": "drumroll"
+  },
+  {
+   "who": "ollie",
+   "text": "Can you roar like a dinosaur? Roooar!",
+   "act": "hands_up",
+   "cam": "cu:ollie",
+   "your_turn": true,
+   "gap_after": 1.2
+  },
+  {
+   "who": "molly",
+   "text": "Where did block E go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 4,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Here we are at the zoo!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "zoo",
+   "chapter": "E is for elephant",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block E somewhere by the fence. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_e",
+    "x": 0.09,
+    "y": 0.85,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "lily",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_e",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block E! Well done! This is the letter E.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "E e",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "E says e, e, e. Can you say e?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "e, e, e!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "E"
+  },
+  {
+   "who": "molly",
+   "text": "E is for elephant! Elephant!",
+   "act": "open",
+   "cam": "host",
+   "pic": "elephant",
+   "card": "E is for elephant"
+  },
+  {
+   "who": "bobo",
+   "text": "E is for... monkey!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Monkey doesn't start with E!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! E is for elephant! e, e, elephant!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Elephants are big and strong! Swing your trunk and stomp slowly!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "E, e, elephant! Stomp... stomp... toot!",
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "And E is for egg! An egg in a nest!",
+   "act": "point",
+   "cam": "cu:bobo",
+   "pic": "egg"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yes! E is for egg!",
+   "act": "yay",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block F go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 5,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Splash! A pond in the forest!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "pond",
+   "chapter": "F is for fish",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block F somewhere by the water. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_f",
+    "x": 0.92,
+    "y": 0.86,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "ollie",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_f",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block F! Well done! This is the letter F.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "F f",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "F says f, f, f. Can you say f?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "f, f, f!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "F"
+  },
+  {
+   "who": "molly",
+   "text": "F is for fish! Fish!",
+   "act": "open",
+   "cam": "host",
+   "pic": "fish",
+   "card": "F is for fish"
+  },
+  {
+   "who": "bobo",
+   "text": "F is for... frog!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Frog doesn't start with F!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! F is for fish! f, f, fish!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "Wait! F is for frog! Ribbit! Hop, hop!",
+   "act": "frog",
+   "cam": "cu:bobo",
+   "pic": "frog",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Time for the letter freeze dance! Dance, and freeze when I say a letter!",
+   "act": "dance",
+   "cam": "host",
+   "chapter": "Letter freeze dance",
+   "fx": "stars"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! A!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "A",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "A is for Apple!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "bobo",
+   "text": "Whoa! Wobble, wobble! I'm a wobbly apple!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! B!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "B",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "B is for Ball!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! C!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "wobble",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "C",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "C is for Cat!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "ollie",
+   "text": "Meow! I'm a wobbly cat!",
+   "act": "wobble",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Great dancing! Take a big breath. In... and out.",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Where did block G go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 6,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Whoa! A big sunny savanna!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "savanna",
+   "chapter": "G is for giraffe",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block G somewhere in the long grass. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_g",
+    "x": 0.08,
+    "y": 0.84,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "lily",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_g",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block G! Well done! This is the letter G.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "G g",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "G says g, g, g. Can you say g?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "g, g, g!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "G"
+  },
+  {
+   "who": "molly",
+   "text": "G is for giraffe! Giraffe!",
+   "act": "open",
+   "cam": "host",
+   "pic": "giraffe",
+   "card": "G is for giraffe"
+  },
+  {
+   "who": "bobo",
+   "text": "G is for... lion!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Lion doesn't start with G!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! G is for giraffe! g, g, giraffe!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Giraffes are so tall! Stretch up tall like a giraffe!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Stretch up high! G, g, giraffe! And touch your toes!",
+   "act": "touch_toes",
+   "also": {
+    "lily": "touch_toes",
+    "ollie": "touch_toes",
+    "bobo": "touch_toes"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "ollie",
+   "text": "I'm the tallest giraffe! Look at me!",
+   "act": "hands_up",
+   "cam": "cu:ollie",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block H go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 7,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Up, up, up! The top of the hill!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "hill",
+   "chapter": "H is for hat",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block H somewhere on the hill. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_h",
+    "x": 0.93,
+    "y": 0.83,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "ollie",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_h",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block H! Well done! This is the letter H.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "H h",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "H says h, h, h. Can you say h?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "h, h, h!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "H"
+  },
+  {
+   "who": "molly",
+   "text": "H is for hat! Hat!",
+   "act": "open",
+   "cam": "host",
+   "pic": "hat",
+   "card": "H is for hat"
+  },
+  {
+   "who": "bobo",
+   "text": "H is for... shoe!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Shoe doesn't start with H!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! H is for hat! h, h, hat!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "H is for hat! Look at my sun hat!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "hold": {
+    "bobo": "hat"
+   },
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "And H is for hop! Hop, hop, hop!",
+   "act": "bunny",
+   "also": {
+    "lily": "bunny",
+    "ollie": "bunny",
+    "bobo": "bunny"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "H, h, hop! Hop, hop, hop!",
+   "act": "bunny",
+   "also": {
+    "lily": "bunny",
+    "ollie": "bunny",
+    "bobo": "bunny"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "lily",
+   "text": "Look! Balloons! Let's pop them! H, h, hooray!",
+   "act": "point",
+   "cam": "kids",
+   "game": {
+    "type": "balloons",
+    "colors": [
+     "red",
+     "yellow",
+     "blue",
+     "red"
+    ]
+   },
+   "gap_after": 2.4
+  },
+  {
+   "who": "molly",
+   "text": "Where did block I go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 8,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Yum! An ice cream shop!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "icecream",
+   "chapter": "I is for ice cream",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block I somewhere near the counter. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_i",
+    "x": 0.08,
+    "y": 0.84,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "lily",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_i",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block I! Well done! This is the letter I.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "I i",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "I says i, i, i. Can you say i?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "i, i, i!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "I"
+  },
+  {
+   "who": "molly",
+   "text": "I is for ice cream! Ice cream!",
+   "act": "open",
+   "cam": "host",
+   "pic": "ice_cream",
+   "card": "I is for ice cream"
+  },
+  {
+   "who": "bobo",
+   "text": "I is for... pizza!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Pizza doesn't start with I!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! I is for ice cream! i, i, ice cream!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "Ice cream! My tummy is rumbling! Rumble, rumble!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "sfx": "drumroll"
+  },
+  {
+   "who": "bobo",
+   "text": "But... there is only one ice cream.",
+   "act": "think",
+   "cam": "cu:bobo",
+   "face": "sad",
+   "hold": {
+    "bobo": "ice_cream"
+   }
+  },
+  {
+   "who": "lily",
+   "text": "Bobo, can we share it?",
+   "act": "open",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Yes! Sharing is kind! A lick for you, and you, and you!",
+   "act": "give",
+   "cam": "group",
+   "face": "happy",
+   "give": {
+    "from": "bobo",
+    "to": "lily",
+    "pic": "ice_cream"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Thank you, Bobo! That was very kind. I is for ice cream, and I is for... I love sharing!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "fx": "hearts"
+  },
+  {
+   "who": "molly",
+   "text": "Where did block J go? Let's look at our map!",
+   "act": "point",
+   "cam": "host",
+   "map": 9,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Wow! The jungle!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "jungle",
+   "chapter": "J is for jump",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Nutty hid block J somewhere under the big leaves. Can you find it?",
+   "act": "think",
+   "cam": "group",
+   "your_turn": true,
+   "find": {
+    "pic": "block_j",
+    "x": 0.92,
+    "y": 0.85,
+    "size": 0.085
+   },
+   "gap_after": 2.6
+  },
+  {
+   "who": "ollie",
+   "text": "There it is! I found it!",
+   "act": "point",
+   "cam": "group",
+   "found": "block_j",
+   "sfx": "ding_3"
+  },
+  {
+   "who": "molly",
+   "text": "Block J! Well done! This is the letter J.",
+   "act": "cheer",
+   "cam": "host",
+   "card": "J j",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "J says j, j, j. Can you say j?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "j, j, j!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "J"
+  },
+  {
+   "who": "molly",
+   "text": "J is for jump! Jump!",
+   "act": "open",
+   "cam": "host",
+   "pic": "block_j",
+   "card": "J is for jump"
+  },
+  {
+   "who": "bobo",
+   "text": "J is for... nap!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! Nap doesn't start with J!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! J is for jump! j, j, jump!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "J is for jump! Jump, jump, jump!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "J, j, jump! Jump, jump, jump!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "ollie",
+   "text": "And J is for jelly! Wobble, wobble!",
+   "act": "wobble",
+   "cam": "cu:ollie",
+   "pic": "jelly"
+  },
+  {
+   "who": "lily",
+   "text": "We found all ten blocks! A to J!",
+   "act": "cheer",
+   "cam": "kids",
+   "fx": "stars"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our ABC song! Sing with us!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "ABC song",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "A, B, C, D, E, F, G!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "H, I, J, and dance with me!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "A, B, C, D, E, F, G!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "H, I, J, and dance with me!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hooray!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "sfx": "success",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Let's take the blocks home! Look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 10,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Home again! Back to the classroom!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "classroom",
+   "chapter": "Home again",
+   "sfx": "sparkle",
+   "gap_after": 0.4
+  },
+  {
+   "who": "bobo",
+   "text": "Look who's here! It's Nutty!",
+   "act": "point",
+   "cam": "group",
+   "pic": "squirrel"
+  },
+  {
+   "who": "molly",
+   "text": "Nutty says: Sorry, Bobo! I just wanted to play with your blocks.",
+   "act": "open",
+   "cam": "host",
+   "pic": "squirrel"
+  },
+  {
+   "who": "bobo",
+   "text": "That's okay, Nutty! We can play together! Sharing is fun!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "fx": "hearts"
+  },
+  {
+   "who": "molly",
+   "text": "Can you count the blocks with us? Ready?",
+   "act": "count",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "All ten blocks are home! A, B, C, D, E, F, G, H, I, J! Hooray!",
+   "act": "cheer",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "fx": "confetti",
+   "sfx": "success"
+  },
+  {
+   "who": "ollie",
+   "text": "Wait! What's in the treasure box?",
+   "act": "point",
+   "cam": "kids",
+   "pic": "treasure_chest",
+   "sfx": "chime"
+  },
+  {
+   "who": "bobo",
+   "text": "Another block! It's... K!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "face": "surprised",
+   "pic": "kite",
+   "card": "K"
+  },
+  {
+   "who": "molly",
+   "text": "K is for kite! Next time, we'll go on a new adventure, from K to T!",
+   "act": "open",
+   "cam": "host",
+   "teaser": true,
+   "pic": "kite"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say K? K, k, kite!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "K k",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "K, k, kite! Yay!",
+   "act": "yay",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Now, let's sit and rest. Take a big breath in... and out.",
+   "act": "open",
+   "cam": "host",
+   "calm": true,
+   "chapter": "Quiet time and goodbye",
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Today we learned A for apple, B for ball, C for cat, D for dinosaur, and E for elephant.",
+   "act": "count",
+   "cam": "host",
+   "calm": true,
+   "card": "A B C D E"
+  },
+  {
+   "who": "molly",
+   "text": "F for fish, G for giraffe, H for hat, I for ice cream, and J for jump.",
+   "act": "count",
+   "cam": "host",
+   "calm": true,
+   "card": "F G H I J"
+  },
+  {
+   "who": "molly",
+   "text": "Wave goodbye with us! Let's sing our goodbye song!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, friends! See you next time!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "endcard": "Bye bye!\nSee you next time!",
+   "sfx": "success"
+  }
+ ],
+ "learn": [
+  "apple",
+  "ball",
+  "cat",
+  "dinosaur",
+  "elephant",
+  "fish",
+  "giraffe",
+  "hat",
+  "ice cream",
+  "jump"
+ ]
+}

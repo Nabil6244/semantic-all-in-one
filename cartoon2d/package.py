@@ -58,6 +58,22 @@ META = {
                  "learn animals", "baby animals", "animal moves for kids", "farm animals preschool"],
         "next": "Next episode: ABCs with Bobo!",
     },
+    "ep05": {
+        "folder": "05 - ABC Adventure with Ms Molly and Bobo",
+        "title": "ABC Adventure with Ms Molly & Bobo 🔤 Learn Letters A to J, Letter Sounds & ABC Song | Toddlers",
+        "word": "ABC!",
+        "thumbs": ["My ABC blocks", "There it is! I found it", "Ms Molly and Bobo! Here we go"],
+        "intro": "Oh no! Nutty the cheeky squirrel opened the window and the wind blew Bobo's ABC blocks away! 🐻 Follow the "
+                 "treasure map with Ms Molly, Lily, Ollie and Bobo through ten amazing places and help find every block from A to J.",
+        "learn": ["🔤 Learn the letters A to J and their sounds", "🍎 A for apple, B for ball, C for cat, D for dinosaur, E for elephant",
+                  "🐟 F for fish, G for giraffe, H for hat, I for ice cream, J for jump",
+                  "🔎 Spot the hidden letter block in every place", "🦖 Stomp, hop, jump and stretch with each letter",
+                  "🍦 Learn about sharing and saying sorry", "🎵 Sing the ABC song and dance the letter freeze dance"],
+        "tags": ["abc song", "learn abc", "alphabet for toddlers", "letter sounds", "phonics for kids", "abc for kids",
+                 "learn letters", "alphabet adventure", "a for apple", "preschool alphabet"],
+        "next": "Next episode: K to T with Bobo!",
+        "tip": "Parent tip: hide a toy block (or any toy) at home and let your child find it, then say its first letter together.",
+    },
 }
 
 
@@ -84,7 +100,8 @@ def main():
         tags = ", ".join(m["tags"] + COMMON_TAGS)
         desc = "\n".join([m["intro"], "", "In this video your little one will:", *m["learn"], "", "Chapters:", chapters, "",
                           "Made for toddlers and preschoolers (ages 1 to 5). Sing, clap, jump and dance along with Ms Molly and Bobo!",
-                          m["next"] + " Subscribe so you don't miss it.", "", "#ToddlerLearning #KidsSongs #MsMolly"])
+                          m["next"] + " Subscribe so you don't miss it.", *(["", m["tip"]] if m.get("tip") else []), "",
+                          "#ToddlerLearning #KidsSongs #MsMolly"])
         (dest / "UPLOAD.md").write_text(
             f"# {m['folder']}\n\nLength: {int(dur // 60)}:{int(dur % 60):02d}\n\n## Title\n\n{m['title']}\n\n"
             f"## Description\n\n```\n{desc}\n```\n\n## Tags ({len(tags)} characters)\n\n```\n{tags}\n```\n\n"

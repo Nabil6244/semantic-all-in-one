@@ -1,0 +1,187 @@
+{
+ "timeline": "cartoon2d/build/ep05/audio/timeline.json",
+ "build": "cartoon2d/build/ep05",
+ "name": "ep05_abc_with_ms_molly",
+ "host": "molly",
+ "kids": [
+  "lily",
+  "ollie"
+ ],
+ "start_place": "classroom",
+ "places": {
+  "classroom": {
+   "background": "cartoon2d/art/bg/ep05_classroom.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   },
+   "outdoor": false
+  },
+  "orchard": {
+   "background": "cartoon2d/art/bg/ep05_orchard.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "beach": {
+   "background": "cartoon2d/art/bg/ep05_beach.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "castle": {
+   "background": "cartoon2d/art/bg/ep05_castle.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "dino": {
+   "background": "cartoon2d/art/bg/ep05_dino.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "zoo": {
+   "background": "cartoon2d/art/bg/ep05_zoo.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "pond": {
+   "background": "cartoon2d/art/bg/ep05_pond.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "savanna": {
+   "background": "cartoon2d/art/bg/ep05_savanna.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "hill": {
+   "background": "cartoon2d/art/bg/ep05_hill.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "icecream": {
+   "background": "cartoon2d/art/bg/ep05_icecream.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   },
+   "outdoor": false
+  },
+  "jungle": {
+   "background": "cartoon2d/art/bg/ep05_jungle.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "height": 0.45,
+   "tilt": 1.0,
+   "hold_side": "sr"
+  },
+  "bobo": {
+   "dir": "cartoon2d/cast/bobo",
+   "height": 0.64,
+   "tilt": 0.6,
+   "hop": 0.1,
+   "listen": 3.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "classroom": "playroom",
+  "orchard": "sunny",
+  "beach": "sunny",
+  "castle": "sunny",
+  "dino": "sunny",
+  "zoo": "sunny",
+  "pond": "sunny",
+  "savanna": "sunny",
+  "hill": "sunny",
+  "icecream": "playroom",
+  "jungle": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/ep05_abc.json",
+ "storycheck": true,
+ "journey": true,
+ "map_stops": [
+  "A",
+  "B",
+  "C",
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I",
+  "J"
+ ],
+ "map_title": "Bobo's ABC map!"
+}
