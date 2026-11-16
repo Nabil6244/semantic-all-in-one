@@ -58,6 +58,13 @@ def pick_track(seed: str, cfg: Dict[str, Any]) -> Optional[Path]:
 SFX_MAX_S = 3.0           # a "whoosh" that runs 5-12 s is a drone or a riser: cut at 2.5 s it ends in a click
 SFX_TARGET_DB = {"whoosh": -24.0, "impact": -24.0, "text": -30.0}      # every sound is levelled to its kind's loudness before its gain
 SFX_TAIL_S = 0.25
+# 2026-11-16 owner: "background sound very loud, transitions very loud". Measured: graphic whooshes peaked at -4 dBFS, level with the voice's
+# own peaks and ~5 dB under speech at their loudest. They now sit ~15 dB under the voice and come at most every 4 s; the bed is 6 dB lower,
+# ducks harder under speech and recovers slowly, so it never swells up between sentences.
+SFX_GAIN = {"whoosh": 0.10, "impact": 0.10, "text": 0.08}
+SFX_MIN_GAP_S = 4.0
+MUSIC_DB = -23.0
+WALL_GAIN_DB = -4.0
 
 
 @functools.lru_cache(maxsize=1)
@@ -124,14 +131,14 @@ def sfx_events(layers: Sequence[Any]) -> List[Tuple[float, str, float]]:
     for ly in sorted(layers, key=lambda l: l.start):
         k = ly.kind
         if k in FULL or k == "fx_flash":
-            ev.append((max(0.0, ly.start - 0.15), "whoosh", 0.32))
+            ev.append((max(0.0, ly.start - 0.15), "whoosh", SFX_GAIN["whoosh"]))
         elif k == "bc_bigword":
-            ev.append((ly.start, "impact", 0.30))
+            ev.append((ly.start, "impact", SFX_GAIN["impact"]))
         elif k in ("bc_label", "fx_roadmap"):
-            ev.append((ly.start, "text", 0.18))
+            ev.append((ly.start, "text", SFX_GAIN["text"]))
     out: List[Tuple[float, str, float]] = []
     for t, kind, g in ev:
-        if not out or t - out[-1][0] >= 1.2:
+        if not out or t - out[-1][0] >= SFX_MIN_GAP_S:
             out.append((t, kind, g))
     return out
 
@@ -178,6 +185,16 @@ def build_mix(voice: Optional[str], total_s: float, layers: Sequence[Any], out_p
         inputs += ["-stream_loop", "-1", "-i", str(music)]
     if cfg.get("sfx", True) is not False:
         tr = _sfx_track(total_s, sfx_events(layers))
+        if cfg.get("wall_cues"):           # Wall Moments: the wall's item sounds (wall/sfx.py); its replaced cards took their sounds with them
+            try:
+                from wall import sfx as _wsfx
+
+                wt = _wsfx.track(total_s, cfg["wall_cues"], SR) * float(10 ** (WALL_GAIN_DB / 20))
+                n = min(tr.size, wt.size)
+                tr = tr.copy()
+                tr[:n] += wt[:n]
+            except Exception as exc:  # noqa: BLE001 - the film keeps its other sounds
+                log.warning("wall sounds skipped: %s", exc)
         if np.abs(tr).max() > 0:
             pcm = (np.clip(tr, -1, 1) * 32767).astype(np.int16)
             import wave
@@ -189,7 +206,7 @@ def build_mix(voice: Optional[str], total_s: float, layers: Sequence[Any], out_p
                 w.writeframes(pcm.tobytes())
             inputs += ["-i", str(sfx_wav)]
             parts.append("sfx")
-    db = float(cfg.get("music_db", -17.0))
+    db = float(cfg.get("music_db", MUSIC_DB))
     T = f"{total_s:.3f}"
     fg = [f"[0:a]aresample={SR},aformat=channel_layouts=stereo,apad,atrim=0:{T},asplit=2[v][sc]"]
     mix_in = ["[v]"]
@@ -197,7 +214,7 @@ def build_mix(voice: Optional[str], total_s: float, layers: Sequence[Any], out_p
     if music is not None:
         fg.append(f"[{idx}:a]aresample={SR},aformat=channel_layouts=stereo,atrim=0:{T},volume={db}dB,afade=t=in:d=1.5,"
                   f"afade=t=out:st={max(0.0, total_s - 3):.3f}:d=3[m]")
-        fg.append("[m][sc]sidechaincompress=threshold=0.02:ratio=6:attack=15:release=450:makeup=1[md]")
+        fg.append("[m][sc]sidechaincompress=threshold=0.01:ratio=10:attack=20:release=1200:makeup=1[md]")
         mix_in.append("[md]")
         idx += 1
     else:

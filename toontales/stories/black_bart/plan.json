@@ -1,0 +1,1154 @@
+{
+ "id": "black_bart",
+ "title": "How a Laundry Mark Caught the Gentleman Robber",
+ "topic": "Black Bart and the F.X.O.7 laundry mark (1883)",
+ "hook_title": "CAUGHT BY HIS LAUNDRY?",
+ "keywords": [
+  "laundry",
+  "mark",
+  "robber",
+  "stagecoach",
+  "poems",
+  "handkerchief",
+  "bolton",
+  "detective"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Black_Bart_(outlaw)",
+  "https://www.mentalfloss.com/crime/how-handkerchief-led-black-barts-capture"
+ ],
+ "places": {
+  "trail": {
+   "world": "frontier_desert",
+   "prompt": "A dusty Wild West stagecoach trail through the desert at sunset, cactus and red rocks, a wooden wagon by the road"
+  },
+  "town": {
+   "world": "frontier_town",
+   "prompt": "A Wild West main street at dusk, wooden false-front shops on both sides, a water tower at the end, barrels"
+  },
+  "office": {
+   "world": "frontier_office",
+   "prompt": "An 1880s Wells Fargo office interior: wood walls, a desk with papers, a big iron safe, lanterns"
+  },
+  "laundry": {
+   "world": "frontier_laundry",
+   "prompt": "An 1880s San Francisco laundry interior: wooden tubs, baskets of linen, folded shirts on tables, steam"
+  },
+  "jail": {
+   "world": "frontier_jail",
+   "prompt": "An 1880s prison corridor: brick walls, iron bars, a lantern, cold light"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A gentleman robber stops the stagecoach.",
+   "set": "trail",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "bart"
+    }
+   ],
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -12,
+      7,
+      0
+     ],
+     "to": [
+      -4.5,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "bart",
+   "text": "The strongbox, please. Thank you kindly.",
+   "set": "trail",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "He never fires a shot. He leaves poems.",
+   "set": "trail",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "bart",
+     "text": "A POEM"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "id": "s03",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "For eight years, nobody can catch him.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "8 YEARS"
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "hume",
+   "text": "How do you catch a ghost?",
+   "set": "town",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Wells Fargo detective James Hume gets the case.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "JAMES HUME"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Twenty-eight robberies. Not one clue.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "28 ROBBERIES"
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "hume",
+   "text": "This time, we get him.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "narrator",
+   "text": "November 1883. Robbery number twenty-eight.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "NOV 1883"
+   },
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -12,
+      7,
+      0
+     ],
+     "to": [
+      -4.5,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But this time, someone on the coach has a rifle.",
+   "set": "trail",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "driver"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "gunshot",
+     "at": 1.2
+    }
+   ],
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -4.5,
+      7,
+      0
+     ],
+     "to": [
+      -4.5,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Shots fly. The robber is hit in the hand.",
+   "set": "trail",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "gunshot",
+     "at": 0.1
+    },
+    {
+     "name": "gunshot",
+     "at": 0.5
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He runs, and drops his things.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -2.4,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    },
+    {
+     "name": "thud",
+     "at": 0.6
+    }
+   ],
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Among them is a handkerchief.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "picked_by": "hume",
+     "text": "HANKY"
+    }
+   ],
+   "id": "s13",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "It has a tiny laundry mark. F, X, O, seven.",
+   "set": "office",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "hume",
+     "text": "F.X.O.7"
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "F.X.O.7"
+   },
+   "id": "s14",
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "driver",
+   "text": "A hanky? That's your big clue?",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 0.9
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "You see, laundries marked every customer's clothes.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "LAUNDRY MARK"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So every shirt came back to the right owner.",
+   "set": "laundry",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "OWNER"
+   },
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "San Francisco has about ninety laundries.",
+   "set": "laundry",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "90 LAUNDRIES"
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "They check them, one by one.",
+   "set": "laundry",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "look_around",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "No. No. No.",
+   "set": "laundry",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "NO"
+   },
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then one laundry knows the mark.",
+   "set": "laundry",
+   "camera": "two_shot",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.4
+    }
+   ],
+   "id": "s21",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "It belongs to Charles Bolton, a mining man.",
+   "set": "town",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "CHARLES BOLTON"
+   },
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The polite robber was a dapper gentleman all along.",
+   "set": "town",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "bart",
+   "text": "I'm a mining engineer, sir!",
+   "set": "town",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s24",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He was really Charles Boles. Six years in San Quentin.",
+   "set": "jail",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "6 YEARS"
+   },
+   "id": "s25",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He was out in four, for good behaviour.",
+   "set": "jail",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "OUT IN 4"
+   },
+   "id": "s26",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Then Black Bart simply vanished.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.4,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "BLACK BART"
+   },
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -4.5,
+      7,
+      0
+     ],
+     "to": [
+      -20,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2,
+     "ease": "in"
+    }
+   ],
+   "id": "s27",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Nobody knows where he went.",
+   "set": "trail",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -20,
+      7,
+      0
+     ],
+     "to": [
+      -20,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 0.01,
+     "ease": "out"
+    }
+   ],
+   "id": "s28",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "driver",
+   "text": "Somebody check the laundries.",
+   "set": "trail",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s29",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 58.29
+}

@@ -1,0 +1,22 @@
+{
+ "stories": [
+  {
+   "id": "newton_fomo",
+   "title": "How Isaac Newton Lost a Fortune to FOMO",
+   "topic": "Isaac Newton and the South Sea Bubble",
+   "date": "2026-11-17"
+  },
+  {
+   "id": "salad_oil",
+   "title": "How Fake Salad Oil Made Warren Buffett Rich",
+   "topic": "The 1963 Salad Oil Swindle",
+   "date": "2026-11-17"
+  },
+  {
+   "id": "silver_hunt",
+   "title": "How Two Billionaires Tried to Own All the Silver",
+   "topic": "The Hunt brothers' silver corner and Silver Thursday",
+   "date": "2026-11-17"
+  }
+ ]
+}

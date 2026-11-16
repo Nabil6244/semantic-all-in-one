@@ -1,0 +1,55 @@
+[
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "a6d0b7d3-89f6-4cc3-855d-cfd5983064f4",
+  "label": "Account 8",
+  "index": 1,
+  "prompt": "2D cartoon character for a preschool TV show, modern children's animation style, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, friendly big expressive eyes, vector illustration. A cheerful 6-year-old girl named Hoorain with light skin, brown hair in a high ponytail, a pink headband with a small bow, wearing a pink t-shirt under a blue denim pinafore dress, white socks and white sneakers. full body from head to shoes, standing straight and facing the viewer, arms hanging down slightly away from the body with a clear gap between each arm and the torso, open relaxed hands, feet slightly apart, closed-mouth gentle smile, eyes open looking at the viewer, centered, plain pure white background, no shadow, no text, no other characters",
+  "status": "rate_limited",
+  "error": "Flow refused this account's request (PUBLIC_ERROR_UNUSUAL_ACTIVITY).",
+  "reassign": true,
+  "restricted": true
+ },
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "8829896c-1428-4f06-96fb-d2c24f3d791c",
+  "label": "Account 9",
+  "index": 2,
+  "prompt": "2D cartoon character for a preschool TV show, modern children's animation style, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, friendly big expressive eyes, vector illustration. A cheeky 4-year-old boy named Noraiz, chubby cheeks, light skin, freckles, short messy light-brown hair, wearing a yellow t-shirt with a red star, green shorts, and blue sneakers. full body from head to shoes, standing straight and facing the viewer, arms hanging down slightly away from the body with a clear gap between each arm and the torso, open relaxed hands, feet slightly apart, closed-mouth gentle smile, eyes open looking at the viewer, centered, plain pure white background, no shadow, no text, no other characters",
+  "status": "done",
+  "mediaIds": [
+   "9f6109fd-8b89-4461-9e61-4c4427e6cdbb",
+   "debcb5c1-90b4-4c47-816d-272201004320"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-9-882989/003-2.png",
+  "submitted": true
+ },
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 0,
+  "prompt": "2D cartoon character for a preschool TV show, modern children's animation style, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, friendly big expressive eyes, vector illustration. A friendly young woman, the show's host, with wavy shoulder-length red hair, green eyes, light freckles, wearing a coral short-sleeve t-shirt under blue denim overalls with two buttons, and white sneakers. full body from head to shoes, standing straight and facing the viewer, arms hanging down slightly away from the body with a clear gap between each arm and the torso, open relaxed hands, feet slightly apart, closed-mouth gentle smile, eyes open looking at the viewer, centered, plain pure white background, no shadow, no text, no other characters",
+  "status": "done",
+  "mediaIds": [
+   "031a9e0b-e531-4cce-8f2e-7d95d61e33fd",
+   "ee8f2792-39b8-498b-8347-65b22a607dec"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/001-2.png",
+  "submitted": true
+ },
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 1,
+  "prompt": "2D cartoon character for a preschool TV show, modern children's animation style, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, friendly big expressive eyes, vector illustration. A cheerful 6-year-old girl named Hoorain with light skin, brown hair in a high ponytail, a pink headband with a small bow, wearing a pink t-shirt under a blue denim pinafore dress, white socks and white sneakers. full body from head to shoes, standing straight and facing the viewer, arms hanging down slightly away from the body with a clear gap between each arm and the torso, open relaxed hands, feet slightly apart, closed-mouth gentle smile, eyes open looking at the viewer, centered, plain pure white background, no shadow, no text, no other characters",
+  "status": "done",
+  "mediaIds": [
+   "d2dafe67-6f98-40c6-b372-748012074e6d",
+   "fc433c66-292a-47ba-bf92-bf15b3d91921"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/002-2.png",
+  "submitted": true
+ }
+]

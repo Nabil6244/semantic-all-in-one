@@ -1,0 +1,222 @@
+{
+ "note": "Channel 1 cast: Wobbly-style Victorians. Same puppet rig, peach skin, big round noses, top hats, uniforms.",
+ "characters": [
+  {
+   "id": "vic_pike",
+   "name": "Mr Pike",
+   "height": 1.8,
+   "head_r": 0.27,
+   "skin": [
+    246,
+    200,
+    166
+   ],
+   "body": {
+    "w": 0.48,
+    "h": 0.64,
+    "d": 0.28,
+    "color": [
+     44,
+     50,
+     86
+    ],
+    "style": "railway"
+   },
+   "legs": 0.74,
+   "hat": {
+    "type": "conductor",
+    "color": [
+     40,
+     44,
+     70
+    ],
+    "band": [
+     210,
+     170,
+     60
+    ]
+   },
+   "face": {
+    "nose": [
+     232,
+     150,
+     120
+    ],
+    "brows": true,
+    "hair": [
+     70,
+     50,
+     40
+    ],
+    "mustache": [
+     80,
+     56,
+     44
+    ]
+   },
+   "voice": {
+    "name": "en-GB-ThomasNeural",
+    "rate": "+14%",
+    "pitch": "-2Hz",
+    "base_wpm": 165
+   },
+   "role": "stationmaster",
+   "traits": [
+    "proud stationmaster",
+    "lives by the railway timetable, pocket watch in hand"
+   ],
+   "default_eyes": "open"
+  },
+  {
+   "id": "vic_alder",
+   "name": "Alderman Gubbins",
+   "height": 1.8,
+   "head_r": 0.27,
+   "skin": [
+    246,
+    200,
+    166
+   ],
+   "body": {
+    "w": 0.52,
+    "h": 0.66,
+    "d": 0.3,
+    "color": [
+     52,
+     40,
+     46
+    ],
+    "style": "frock",
+    "tie": [
+     150,
+     30,
+     40
+    ]
+   },
+   "legs": 0.74,
+   "hat": {
+    "type": "tophat",
+    "color": [
+     34,
+     32,
+     38
+    ],
+    "band": [
+     90,
+     30,
+     40
+    ]
+   },
+   "face": {
+    "nose": [
+     232,
+     150,
+     120
+    ],
+    "brows": true,
+    "hair": [
+     210,
+     210,
+     214
+    ],
+    "mustache": [
+     226,
+     226,
+     230
+    ],
+    "sideburns": true
+   },
+   "voice": {
+    "name": "en-GB-RyanNeural",
+    "rate": "+12%",
+    "pitch": "-4Hz",
+    "base_wpm": 160
+   },
+   "role": "town alderman",
+   "traits": [
+    "stubborn, pompous town elder",
+    "insists the town keeps its own sun time"
+   ],
+   "default_eyes": "open"
+  },
+  {
+   "id": "vic_ned",
+   "name": "Ned",
+   "height": 1.72,
+   "head_r": 0.27,
+   "skin": [
+    246,
+    200,
+    166
+   ],
+   "body": {
+    "w": 0.44,
+    "h": 0.6,
+    "d": 0.26,
+    "color": [
+     120,
+     96,
+     64
+    ],
+    "style": "suit",
+    "tie": [
+     40,
+     70,
+     120
+    ]
+   },
+   "legs": 0.74,
+   "hat": {
+    "type": "bowler",
+    "color": [
+     86,
+     64,
+     46
+    ],
+    "band": [
+     40,
+     30,
+     24
+    ]
+   },
+   "face": {
+    "nose": [
+     232,
+     150,
+     120
+    ],
+    "brows": true,
+    "hair": [
+     150,
+     90,
+     50
+    ]
+   },
+   "voice": {
+    "name": "en-IE-ConnorNeural",
+    "rate": "+16%",
+    "pitch": "+0Hz",
+    "base_wpm": 170
+   },
+   "role": "passenger",
+   "traits": [
+    "ordinary traveller",
+    "always running for a train"
+   ],
+   "default_eyes": "open"
+  }
+ ],
+ "narrator": {
+  "voice": {
+   "name": "en-US-AndrewNeural",
+   "rate": "+10%",
+   "pitch": "+0Hz",
+   "base_wpm": 222
+  },
+  "role": "storyteller",
+  "traits": [
+   "warm, curious, present tense",
+   "'Why did he...' question, then the clever reason"
+  ]
+ }
+}

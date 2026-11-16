@@ -1,0 +1,265 @@
+{
+ "note": "Channel 2 cast: Wild West tales. Same round-head puppet rig as Toon Tales; costumes per role.",
+ "characters": [
+  {
+   "id": "bart",
+   "name": "Black Bart",
+   "height": 1.8,
+   "head_r": 0.27,
+   "body": {
+    "w": 0.44,
+    "h": 0.62,
+    "d": 0.26,
+    "color": [
+     70,
+     72,
+     84
+    ],
+    "shirt": [
+     236,
+     232,
+     222
+    ],
+    "style": "suit",
+    "tie": [
+     120,
+     30,
+     40
+    ]
+   },
+   "legs": 0.78,
+   "hat": {
+    "type": "bowler",
+    "color": [
+     40,
+     38,
+     44
+    ],
+    "band": [
+     20,
+     20,
+     24
+    ]
+   },
+   "face": {
+    "hair": [
+     200,
+     200,
+     206
+    ],
+    "mustache": [
+     226,
+     226,
+     230
+    ],
+    "brows": true
+   },
+   "voice": {
+    "name": "en-US-RogerNeural",
+    "rate": "+22%",
+    "pitch": "-2Hz",
+    "base_wpm": 160
+   },
+   "role": "gentleman robber",
+   "traits": [
+    "polite, dapper old gentleman",
+    "robs stagecoaches, never fires a shot"
+   ],
+   "default_eyes": "open"
+  },
+  {
+   "id": "driver",
+   "name": "Driver",
+   "height": 1.7,
+   "head_r": 0.26,
+   "body": {
+    "w": 0.48,
+    "h": 0.56,
+    "d": 0.28,
+    "color": [
+     120,
+     74,
+     44
+    ],
+    "shirt": [
+     214,
+     186,
+     150
+    ],
+    "style": "vest"
+   },
+   "legs": 0.7,
+   "hat": {
+    "type": "cowboy",
+    "color": [
+     150,
+     108,
+     70
+    ],
+    "band": [
+     70,
+     44,
+     28
+    ]
+   },
+   "face": {
+    "hair": [
+     110,
+     74,
+     46
+    ],
+    "beard": [
+     110,
+     74,
+     46
+    ],
+    "brows": true
+   },
+   "voice": {
+    "name": "en-US-EricNeural",
+    "rate": "+30%",
+    "pitch": "+0Hz",
+    "base_wpm": 160
+   },
+   "role": "stagecoach driver",
+   "traits": [
+    "gruff, scoffs at clever ideas"
+   ],
+   "default_eyes": "open"
+  },
+  {
+   "id": "hume",
+   "name": "James Hume",
+   "height": 1.85,
+   "head_r": 0.27,
+   "body": {
+    "w": 0.44,
+    "h": 0.62,
+    "d": 0.26,
+    "color": [
+     40,
+     46,
+     64
+    ],
+    "shirt": [
+     236,
+     232,
+     222
+    ],
+    "style": "duster"
+   },
+   "legs": 0.8,
+   "hat": {
+    "type": "cowboy",
+    "color": [
+     230,
+     214,
+     180
+    ],
+    "band": [
+     90,
+     60,
+     40
+    ]
+   },
+   "face": {
+    "hair": [
+     90,
+     60,
+     40
+    ],
+    "mustache": [
+     90,
+     60,
+     40
+    ],
+    "brows": true
+   },
+   "voice": {
+    "name": "en-US-SteffanNeural",
+    "rate": "+28%",
+    "pitch": "+0Hz",
+    "base_wpm": 160
+   },
+   "role": "detective",
+   "traits": [
+    "Wells Fargo detective, stubborn, sharp"
+   ],
+   "default_eyes": "open"
+  },
+  {
+   "id": "sheriff",
+   "name": "Sheriff",
+   "height": 1.75,
+   "head_r": 0.27,
+   "body": {
+    "w": 0.46,
+    "h": 0.58,
+    "d": 0.27,
+    "color": [
+     46,
+     110,
+     110
+    ],
+    "shirt": [
+     236,
+     226,
+     204
+    ],
+    "style": "vest",
+    "star": true
+   },
+   "legs": 0.74,
+   "hat": {
+    "type": "cowboy",
+    "color": [
+     236,
+     224,
+     200
+    ],
+    "band": [
+     120,
+     80,
+     50
+    ]
+   },
+   "face": {
+    "hair": [
+     150,
+     110,
+     80
+    ],
+    "mustache": [
+     150,
+     110,
+     80
+    ],
+    "brows": true
+   },
+   "voice": {
+    "name": "en-US-BrianNeural",
+    "rate": "+28%",
+    "pitch": "+0Hz",
+    "base_wpm": 160
+   },
+   "role": "lawman",
+   "traits": [
+    "old sheriff, dry humour"
+   ],
+   "default_eyes": "open"
+  }
+ ],
+ "narrator": {
+  "voice": {
+   "name": "en-US-AndrewNeural",
+   "rate": "+22%",
+   "pitch": "+0Hz",
+   "base_wpm": 200
+  },
+  "role": "storyteller",
+  "traits": [
+   "calm, dry, present tense",
+   "tells it like a campfire story; 'You see,' before the reveal"
+  ]
+ }
+}

@@ -179,6 +179,8 @@ hiddenimports += ["normal_gfx", "normal_gfx.pipeline", "normal_gfx.planner", "no
 hiddenimports += ["export_state", "hybrid_gfx_note"]   # imported inside functions (app.py, weather/whatif app_section): the Export job and the Hybrid graphics note
 hiddenimports += ["startup_check"]   # imported inside app.main: the packaged-build startup check CI runs on the built app
 hiddenimports += ["tk_thread_guard"]   # imported inside app.main / the main-thread pump: Tk cleanups from worker threads run on the main thread
+hiddenimports += ["game_launch", "game_launch.runner", "game_launch.plan", "game_launch.look"]   # imported inside the Game Launch page's handlers
+datas.append((str(ROOT / "game_launch" / "example_scenes.csv"), "game_launch"))   # the page's Example CSV
 hiddenimports += ["stall_guard", "psutil"]   # imported inside app.main: the stall watchdog for stuck downloads / media tools
 hiddenimports += ["autorun", "autorun.job", "autorun.driver"]   # imported inside app.main (SYT_AUTORUN): make_video.py jobs run by the installed app
 

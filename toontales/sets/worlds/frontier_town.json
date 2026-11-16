@@ -1,0 +1,772 @@
+{
+ "sky": {
+  "top": [
+   0.3,
+   0.16,
+   0.52
+  ],
+  "low": [
+   1.0,
+   0.52,
+   0.22
+  ]
+ },
+ "light": {
+  "lit": [
+   1.0,
+   0.82,
+   0.6
+  ],
+  "shade": [
+   0.66,
+   0.46,
+   0.74
+  ]
+ },
+ "sun": [
+  16,
+  145
+ ],
+ "about": "Wild West street at dusk: two rows of wooden false-front shops, water towers at the end, barrels, a wagon (mover: wagon), a coffin (mover: coffin), lanterns; purple-orange sky",
+ "ground": [
+  0.8,
+  0.42,
+  0.22
+ ],
+ "pieces": [
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    -6.775,
+    2.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    -6.775,
+    2.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    -6.775,
+    2.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-door",
+   "at": [
+    -6.775,
+    6.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    -6.775,
+    6.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    -6.775,
+    6.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    -6.775,
+    9.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    -6.775,
+    9.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    -6.775,
+    9.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    -6.775,
+    13.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    -6.775,
+    13.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    -6.775,
+    13.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-door",
+   "at": [
+    -6.775,
+    16.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    -6.775,
+    16.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    -6.775,
+    16.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    -6.775,
+    20.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    -6.775,
+    20.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    -6.775,
+    20.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    -6.775,
+    23.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    -6.775,
+    23.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    -6.775,
+    23.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-door",
+   "at": [
+    -6.775,
+    27.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    -6.775,
+    27.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    -6.775,
+    27.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    -6.775,
+    30.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    -6.775,
+    30.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    -6.775,
+    30.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    -6.775,
+    34.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    -6.775,
+    34.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    -6.775,
+    34.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    6.775,
+    2.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    6.775,
+    2.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    6.775,
+    2.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    6.775,
+    6.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    6.775,
+    6.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    6.775,
+    6.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-door",
+   "at": [
+    6.775,
+    9.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    6.775,
+    9.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    6.775,
+    9.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    6.775,
+    13.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    6.775,
+    13.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    6.775,
+    13.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    6.775,
+    16.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    6.775,
+    16.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    6.775,
+    16.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-door",
+   "at": [
+    6.775,
+    20.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    6.775,
+    20.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    6.775,
+    20.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    6.775,
+    23.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    6.775,
+    23.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    6.775,
+    23.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-shutters",
+   "at": [
+    6.775,
+    27.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-small",
+   "at": [
+    6.775,
+    27.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    6.775,
+    27.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-door",
+   "at": [
+    6.775,
+    30.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    6.775,
+    30.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-horizontal",
+   "at": [
+    6.775,
+    30.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-detail-cross",
+   "at": [
+    6.775,
+    34.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-window-glass",
+   "at": [
+    6.775,
+    34.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-wood-block",
+   "at": [
+    6.775,
+    34.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    -0.10000000000000009,
+    38.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    -0.10000000000000009,
+    41.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    3.1,
+    38.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    3.1,
+    41.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    1.5,
+    40,
+    5.4
+   ],
+   "s": 3.4
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    -13.6,
+    46.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    -13.6,
+    49.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    -10.4,
+    46.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "pillar-wood",
+   "at": [
+    -10.4,
+    49.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    -12,
+    48,
+    5.4
+   ],
+   "s": 3.4
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    -3.6,
+    5.0,
+    0
+   ],
+   "s": 1.2
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    -3.2,
+    6.2,
+    0
+   ],
+   "s": 1.2
+  },
+  {
+   "m": "cart",
+   "at": [
+    3.0,
+    10.0,
+    0
+   ],
+   "rot": 10,
+   "s": 1.0,
+   "id": "wagon"
+  },
+  {
+   "m": "coffin",
+   "at": [
+    -3.4,
+    13.0,
+    0
+   ],
+   "rot": 90,
+   "id": "coffin"
+  },
+  {
+   "m": "fantasy-town-kit/lantern",
+   "at": [
+    -4.0,
+    3.4,
+    0
+   ],
+   "s": 0.9
+  },
+  {
+   "m": "fantasy-town-kit/lantern",
+   "at": [
+    4.0,
+    7.6,
+    0
+   ],
+   "s": 0.9
+  },
+  {
+   "m": "survival-kit/box-large",
+   "at": [
+    3.6,
+    15.5,
+    0
+   ],
+   "rot": 20,
+   "s": 1.0
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "cactus_tall",
+    "cactus_short",
+    "rock_largeA"
+   ],
+   "from": [
+    -30,
+    60
+   ],
+   "to": [
+    30,
+    60
+   ],
+   "n": 12,
+   "jitter": 3,
+   "s": 1.2
+  },
+  {
+   "m": [
+    "rock_smallA",
+    "rock_smallC"
+   ],
+   "from": [
+    -4,
+    -2.5
+   ],
+   "to": [
+    4,
+    -2.5
+   ],
+   "n": 4,
+   "jitter": 1.5,
+   "s": 0.4
+  }
+ ]
+}

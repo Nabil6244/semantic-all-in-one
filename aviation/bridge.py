@@ -46,6 +46,8 @@ def card_table() -> Dict[str, Any]:
         from . import dossier, flir, gfx_flight, retention, stage, transitions
         _TABLE.update(dossier.CARDS)
         _TABLE["flir.lay_hud"] = flir.lay_hud
+        from wall import engine as WE
+        _TABLE.update(WE.CARDS)
         _TABLE.update({
             "transitions.lay_out": transitions.lay_out,
             "stage.lay_stage": stage.lay_stage, "retention.lay_rehook": retention.lay_rehook,

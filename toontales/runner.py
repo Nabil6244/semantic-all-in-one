@@ -39,7 +39,7 @@ def check(plan_path):
     r = C.check(plan, fix=False)
     p = r["plan"]
     places = list((plan.get("places") or {}).keys())
-    missing = [n for n in places if not S.place_image(plan, n).exists()]
+    missing = [n for n in places if not S.is_world(plan, n) and not S.place_image(plan, n).exists()]
     issues = r["issues"]
     return {"ok": r["ok"], "title": plan.get("title", plan.get("id")), "id": plan.get("id"),
             "errors": [f"{x['shot'] or '--'} {x['rule']}: {x['msg']}" for x in issues if x["level"] == "error"],

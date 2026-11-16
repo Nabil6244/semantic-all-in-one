@@ -60,6 +60,8 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                             "flight map with the route, holds, storms and the fuel / clock display.",
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(4, 0))
 
+    _wall_row(app, body, row=4)
+
     body = section(block, 1, 2, "Generate scenes, then Render", "Generate scenes fetches the footage into the Visuals tab; Render makes the video")
     go = ctk.CTkFrame(body, fg_color="transparent")
     go.grid(row=0, column=0, sticky="w")
@@ -76,8 +78,49 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
     block.grid_remove()
-    for v in (app._av_csv_var, app._av_voice_var):
+    for v in (app._av_csv_var, app._av_voice_var, app._av_wall_on, app._av_wall_pct):
         v.trace_add("write", lambda *_a: _save(app))
+
+
+WALL_DEFAULT_ON, WALL_DEFAULT_PCT, WALL_MAX_PCT = True, 20, 30
+
+
+def _wall_row(app: Any, parent: Any, *, row: int) -> None:
+    """Wall moments (docs/wall/PLAN.md): a switch and the share of the film. Remembered only; used when Render runs."""
+    app._av_wall_on = ctk.BooleanVar(value=WALL_DEFAULT_ON)
+    app._av_wall_pct = ctk.IntVar(value=WALL_DEFAULT_PCT)
+    box = ctk.CTkFrame(parent, fg_color="transparent")
+    box.grid(row=row, column=0, sticky="w", pady=(10, 0))
+    ctk.CTkSwitch(box, text="Wall moments", variable=app._av_wall_on, onvalue=True, offvalue=False,
+                  font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, padx=(0, 14))
+    label = ctk.StringVar(value="")
+
+    def show(*_a) -> None:
+        v = int(app._av_wall_pct.get())
+        label.set(f"{v}% of the film" + (" (the wall never takes more than 25%)" if v > 25 else ""))
+
+    ctk.CTkSlider(box, from_=0, to=WALL_MAX_PCT, number_of_steps=WALL_MAX_PCT, variable=app._av_wall_pct, width=180,
+                  command=lambda v: app._av_wall_pct.set(int(round(float(v))))).grid(row=0, column=1, padx=(0, 10))
+    ctk.CTkLabel(box, textvariable=label, font=ctk.CTkFont(size=11), text_color=T.MUTED).grid(row=0, column=2, sticky="w")
+    app._av_wall_pct.trace_add("write", show)
+    show()
+    ctk.CTkLabel(parent, text="For about a fifth of the film the camera pulls back onto a dark evidence wall: numbers, stamps, pen rings and "
+                              "red string land on the spoken words, then it dives into the next clip. Those moments replace their cards; "
+                              "footage keeps playing on the wall and stays full screen everywhere else.",
+                 font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=row + 1, column=0, sticky="w", pady=(4, 0))
+
+
+def _wall_opts(app: Any) -> dict:
+    """What Render passes to runner.render_film: the switch, the share and the narration's Whisper words (made at Generate scenes)."""
+    on = bool(getattr(app, "_av_wall_on", None) is not None and app._av_wall_on.get())
+    pct = int(app._av_wall_pct.get()) if getattr(app, "_av_wall_pct", None) is not None else WALL_DEFAULT_PCT
+    words = []
+    if on and pct > 0:
+        try:
+            words = json.loads((Path(app._workspace.state_dir) / "narration_words.json").read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 - no words: the runner says so and leaves the wall out
+            words = []
+    return {"on": on, "pct": pct, "words": words}
 
 
 # ---------------------------------------------------------------------------------------------------------------- remembering
@@ -112,6 +155,8 @@ def _save(app: Any) -> None:
     try:
         ready = getattr(app, "_av_ready", None)
         data = {"active": bool(getattr(app, "_av_active", False)), "csv": app._av_csv_var.get(), "voice": app._av_voice_var.get(), "ready": None}
+        if getattr(app, "_av_wall_on", None) is not None:
+            data["wall_on"], data["wall_pct"] = bool(app._av_wall_on.get()), int(app._av_wall_pct.get())
         if ready:
             data["ready"] = {**ready, "sig_csv": _sig(ready["csv"]) if ready.get("csv") else None, "sig_voice": _sig(ready["voice"])}
         d.mkdir(parents=True, exist_ok=True)
@@ -136,6 +181,9 @@ def _restore(app: Any) -> None:
     try:
         app._av_csv_var.set(d.get("csv", "") or "")
         app._av_voice_var.set(d.get("voice", "") or "")
+        if getattr(app, "_av_wall_on", None) is not None:
+            app._av_wall_on.set(bool(d.get("wall_on", WALL_DEFAULT_ON)))
+            app._av_wall_pct.set(int(d.get("wall_pct", WALL_DEFAULT_PCT)))
         r = d.get("ready")
         if r and r.get("voice") and Path(str(r.get("scenes_file", ""))).is_file() and _sig(r["voice"]) == r.get("sig_voice") and \
                 (not r.get("csv") or _sig(r["csv"]) == r.get("sig_csv")):
@@ -605,6 +653,8 @@ def on_render(app: Any) -> None:
         app._track_generation_end(run, done_, output_path=out_path if done_ == "completed" else None, validated=done_ == "completed",
                                   message=error or ("" if done_ != "failed" else "Render finished, but no video was written."))
 
+    wall = _wall_opts(app)        # read on the main thread (Tk variables)
+
     def job():
         from aviation import planner as P
         from aviation import runner as RN
@@ -628,10 +678,12 @@ def on_render(app: Any) -> None:
             extras = {}
         extras = AD.recheck_extras(extras, scenes, log)     # today's title rules also apply to clips an older Generate saved
         return RN.render_film(plan, scenes, ready["voice"], str(out_path), work=str(work), progress=_progress(app, True),
-                              cancel=app._av_cancel.is_set, log=log, extras=extras)
+                              cancel=app._av_cancel.is_set, log=log, extras=extras, wall=wall)
 
     def done(r) -> None:
         extra = f", {r['missing_footage']} slots used fact cards (no clip)" if r.get("missing_footage") else ""
+        if r.get("wall_moments"):
+            extra += f", {r['wall_moments']} wall moments ({r.get('wall_share', 0):.0f}% of the film)"
         msg = f"Done: {Path(out_path).name} ({r['duration']:.0f} s, {r['clips']} clip slices{extra})."
         app._av_status_var.set(msg)
         app._append_log(f"{TAG} {msg}\n")

@@ -42,15 +42,21 @@ def registry():
 
 
 def problems(story, tl):
+    """A story can loosen these for its channel: "rules": {"max_stay": 300, "unique_backgrounds": false}."""
+    rules = story.get("rules") or {}
+    max_stay = rules.get("max_stay", MAX_STAY)
     probs = []
     for name, t0, t1 in stays(story, tl):
-        if t1 - t0 > MAX_STAY:
+        if t1 - t0 > max_stay:
             probs.append(f"'{name}' stays {_mmss(t1 - t0)} ({_mmss(t0)}-{_mmss(t1)}): move the story to a new place by "
-                         f"{_mmss(t0 + MAX_STAY)} (and every ~2 minutes after)")
+                         f"{_mmss(t0 + max_stay)} (and every {max_stay / 60:.0f} minutes or so after)")
     visits = {}
     for name, *_ in stays(story, tl):
         visits[name] = visits.get(name, 0) + 1
-    probs += [f"'{n}' is visited {v} times: a place may come back once at most" for n, v in visits.items() if v > MAX_VISITS]
+    probs += [f"'{n}' is visited {v} times: a place may come back once at most" for n, v in visits.items()
+              if v > rules.get("max_visits", MAX_VISITS)]
+    if rules.get("unique_backgrounds", True) is False:
+        return probs
     used = registry()
     ep = story["name"]
     seen = {n for n, *_ in stays(story, tl)}

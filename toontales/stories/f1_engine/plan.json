@@ -1,0 +1,778 @@
+{
+ "id": "f1_engine",
+ "title": "How a 1.6 Liter F1 Engine Makes 1,000 HP",
+ "topic": "F1 1.6 L turbo-hybrid V6 vs a road 1.6",
+ "hook_title": "1,000 HP FROM 1.6 LITERS?",
+ "keywords": [
+  "horsepower",
+  "liters",
+  "turbo",
+  "rpm",
+  "electric",
+  "lag",
+  "thousand",
+  "fuel"
+ ],
+ "cast": [],
+ "channel": "channel4",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Formula_One_engines",
+  "https://www.formula1.com/en/latest/article/explained-the-hybrid-power-unit"
+ ],
+ "places": {
+  "garage": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 22,
+     "cyl": 4,
+     "layout": "I",
+     "cover": [
+      0.2,
+      0.45,
+      0.95
+     ],
+     "id": "road",
+     "run": 0.8
+    },
+    {
+     "m": "@engine",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "rot": -22,
+     "cyl": 6,
+     "layout": "V",
+     "induction": "turbo",
+     "block": [
+      0.32,
+      0.33,
+      0.37
+     ],
+     "cover": [
+      0.9,
+      0.12,
+      0.1
+     ],
+     "id": "f1",
+     "run": 1.2
+    }
+   ],
+   "prompt": "A bright home garage with white tiles, two engines on orange stands side by side"
+  },
+  "rev_bench": {
+   "world": "garage",
+   "remove": [
+    "stand_b"
+   ],
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 6,
+     "layout": "V",
+     "cutaway": true,
+     "block": [
+      0.62,
+      0.64,
+      0.68
+     ],
+     "cover": [
+      0.9,
+      0.12,
+      0.1
+     ],
+     "id": "v6",
+     "run": 1.0
+    }
+   ],
+   "prompt": "A cutaway V6 engine on an orange stand in a garage, pistons visible"
+  },
+  "turbo_bench": {
+   "world": "garage",
+   "remove": [],
+   "add": [
+    {
+     "m": "@turbo",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "s": 2.4,
+     "rot": 0,
+     "id": "turbo",
+     "run": 0.6
+    },
+    {
+     "m": "@motor",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "s": 1.3,
+     "rot": -20,
+     "id": "motor",
+     "run": 1.0
+    }
+   ],
+   "prompt": "A giant turbocharger and an electric motor on orange stands in a garage"
+  },
+  "strip": {
+   "world": "drag_strip",
+   "remove": [
+    "car_a",
+    "car_b"
+   ],
+   "add": [
+    {
+     "m": "race",
+     "at": [
+      -1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "id": "racer"
+    },
+    {
+     "m": "hatchback-sports",
+     "at": [
+      1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.15,
+      0.35,
+      1.0
+     ],
+     "tint_mode": "color",
+     "id": "hatch"
+    }
+   ],
+   "prompt": "A drag strip with an F1 car and a blue hatchback at the start line"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "These two engines are both 1.6 liters.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "road",
+     "f1"
+    ]
+   },
+   "callout": {
+    "text": "1.6 LITERS",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "This one makes about 120 horsepower.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.45
+    ],
+    "dist": 2.5,
+    "yaw": 14,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "HP",
+    "from": 0,
+    "to": 120,
+    "max": 1100,
+    "color": "orange"
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "This one makes a thousand. So how?",
+   "set": "garage",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.6,
+    "yaw": -14,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "HP",
+    "from": 0,
+    "to": 1000,
+    "max": 1100,
+    "rival": 120,
+    "rival_label": "ROAD CAR",
+    "color": "orange"
+   },
+   "moves": [
+    {
+     "id": "f1",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.3
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "First, it spins way faster.",
+   "set": "rev_bench",
+   "camera": "wide",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.6,
+    "yaw": 18,
+    "pitch": 8,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "v6",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.6
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Fifteen thousand RPM.",
+   "set": "rev_bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.35
+    ],
+    "dist": 1.7,
+    "yaw": 26,
+    "pitch": 4,
+    "lens": 34
+   },
+   "moves": [
+    {
+     "id": "v6",
+     "run_to": 9,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.4
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut",
+   "hud": {
+    "label": "RPM",
+    "fmt": "{v} RPM",
+    "from": 0,
+    "to": 15000,
+    "max": 16000,
+    "rival": 6500,
+    "rival_label": "ROAD CAR",
+    "color": "green",
+    "t0": 0.05,
+    "t1": 0.7
+   }
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "More spins, more bangs.",
+   "set": "rev_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.3
+    ],
+    "dist": 1.4,
+    "yaw": 34,
+    "pitch": 2,
+    "lens": 38
+   },
+   "moves": [
+    {
+     "id": "v6",
+     "run_to": 9,
+     "t0": 0,
+     "t1": 0.1
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.4
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then there's the turbo.",
+   "set": "turbo_bench",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 3.0,
+    "yaw": 12,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "TURBO",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.0
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It spins up to 125,000 times a minute.",
+   "set": "turbo_bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.0,
+     1.48
+    ],
+    "dist": 2.0,
+    "yaw": 4,
+    "pitch": 4,
+    "lens": 32
+   },
+   "hud": {
+    "label": "RPM",
+    "fmt": "{v} RPM",
+    "from": 0,
+    "to": 125000,
+    "max": 130000,
+    "color": "green"
+   },
+   "moves": [
+    {
+     "id": "turbo",
+     "run_to": 4,
+     "t0": 0.1,
+     "t1": 1.6
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But a turbo has lag. It waits for exhaust.",
+   "set": "turbo_bench",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.4,
+    "yaw": -10,
+    "pitch": 6,
+    "lens": 30
+   },
+   "hud": {
+    "label": "PSI BOOST",
+    "fmt": "{v} PSI BOOST",
+    "from": 0,
+    "to": 3,
+    "max": 50,
+    "color": "red"
+   },
+   "moves": [
+    {
+     "id": "turbo",
+     "run": 0,
+     "run_to": 0.2,
+     "t0": 0,
+     "t1": 0.1
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So F1 bolts an electric motor to it. Zero lag.",
+   "set": "turbo_bench",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.45
+    ],
+    "dist": 4.2,
+    "yaw": 0,
+    "pitch": 6,
+    "lens": 28,
+    "fit": [
+     "turbo",
+     "motor"
+    ]
+   },
+   "moves": [
+    {
+     "id": "motor",
+     "run_to": 6,
+     "t0": 0.1,
+     "t1": 0.8
+    },
+    {
+     "id": "turbo",
+     "run_to": 5,
+     "t0": 0.3,
+     "t1": 1.0
+    }
+   ],
+   "hud": {
+    "label": "PSI BOOST",
+    "fmt": "{v} PSI BOOST",
+    "from": 3,
+    "to": 50,
+    "max": 50,
+    "color": "green"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "A second motor adds 160 horsepower more.",
+   "set": "turbo_bench",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.3
+    ],
+    "dist": 2.2,
+    "yaw": -16,
+    "pitch": 8,
+    "lens": 32
+   },
+   "hud": {
+    "label": "HP",
+    "from": 840,
+    "to": 1000,
+    "max": 1100,
+    "color": "orange"
+   },
+   "moves": [
+    {
+     "id": "motor",
+     "run_to": 6,
+     "t0": 0,
+     "t1": 0.1
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Race it against a normal car?",
+   "set": "strip",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.7
+    ],
+    "dist": 16,
+    "yaw": 0,
+    "pitch": 10,
+    "lens": 26
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Not even close. Sixty in under three seconds.",
+   "set": "strip",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     -1.7,
+     4,
+     0.6
+    ],
+    "to": [
+     -1.7,
+     40,
+     0.6
+    ],
+    "dist": 9,
+    "yaw": 8,
+    "pitch": 9,
+    "lens": 26
+   },
+   "moves": [
+    {
+     "id": "racer",
+     "to": [
+      -1.7,
+      48,
+      0
+     ],
+     "t0": 0.15,
+     "t1": 2.4,
+     "ease": "in"
+    },
+    {
+     "id": "hatch",
+     "to": [
+      1.7,
+      14,
+      0
+     ],
+     "t0": 0.15,
+     "t1": 2.4,
+     "ease": "in"
+    }
+   ],
+   "hud": {
+    "label": "MPH",
+    "fmt": "{v} MPH",
+    "from": 0,
+    "to": 60,
+    "max": 70,
+    "color": "blue",
+    "t0": 0.05,
+    "t1": 0.85
+   },
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.1
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Half its fuel becomes power. Your car? A third.",
+   "set": "strip",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     60,
+     1.0
+    ],
+    "dist": 14,
+    "yaw": 0,
+    "pitch": 7,
+    "lens": 26
+   },
+   "hud": {
+    "label": "EFFICIENCY",
+    "fmt": "{v}% EFFICIENT",
+    "from": 0,
+    "to": 50,
+    "max": 60,
+    "rival": 33,
+    "rival_label": "YOUR CAR",
+    "color": "green"
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Same size engine. It's all how hard you spin it.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "road",
+     "f1"
+    ]
+   },
+   "moves": [
+    {
+     "id": "f1",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 34.15
+}

@@ -1,0 +1,334 @@
+{
+ "engine": "diorama",
+ "hdri": "day",
+ "sun": [
+  40,
+  35
+ ],
+ "about": "open field sliced side-on: grass, soil, gravel and rock bands; a stone well shaft (id well) cut in half at the face so you see down it to the water (id well_water, level 1.2) at z -7; a timber well frame with a little roof over it; pine trees and a car behind. Cast stands on the grass at y ~0.6..3.",
+ "marks": {
+  "A": [
+   1.6,
+   0.9
+  ],
+  "B": [
+   -1.6,
+   0.9
+  ],
+  "C": [
+   2.8,
+   2.0
+  ],
+  "D": [
+   0.0,
+   2.6
+  ],
+  "E": [
+   -2.8,
+   2.0
+  ],
+  "enter_l": [
+   -5.0,
+   1.0
+  ],
+  "enter_r": [
+   5.0,
+   1.0
+  ],
+  "deep": [
+   0.0,
+   4.0
+  ],
+  "well": [
+   0.0,
+   0.0
+  ]
+ },
+ "pieces": [
+  {
+   "m": "@slice",
+   "x": [
+    -14,
+    14
+   ],
+   "y": [
+    0,
+    40
+   ],
+   "layers": [
+    [
+     "grass",
+     0.12
+    ],
+    [
+     "soil",
+     1.5
+    ],
+    [
+     "gravel",
+     0.7
+    ],
+    [
+     "rock",
+     6.0
+    ]
+   ],
+   "cuts": [
+    {
+     "shape": "cyl",
+     "at": [
+      0,
+      0
+     ],
+     "r": 1.05,
+     "z0": -7.2,
+     "z1": 1.0
+    }
+   ],
+   "id": "ground"
+  },
+  {
+   "m": "@shaft",
+   "at": [
+    0,
+    0
+   ],
+   "r": 0.8,
+   "wall": 0.25,
+   "z0": -7.2,
+   "z1": 0.7,
+   "mat": "stone",
+   "id": "well"
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    0,
+    -7.4
+   ],
+   "size": [
+    2.2,
+    2.2,
+    0.2
+   ],
+   "mat": "rock"
+  },
+  {
+   "m": "@water",
+   "at": [
+    0,
+    0,
+    -7.2
+   ],
+   "r": 0.8,
+   "level": 1.2,
+   "id": "well_water"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    -1.15,
+    0.5,
+    0.7
+   ],
+   "b": [
+    -1.15,
+    0.5,
+    2.9
+   ],
+   "t": 0.16,
+   "mat": "bark"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    1.15,
+    0.5,
+    0.7
+   ],
+   "b": [
+    1.15,
+    0.5,
+    2.9
+   ],
+   "t": 0.16,
+   "mat": "bark"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    -1.3,
+    0.5,
+    2.6
+   ],
+   "b": [
+    1.3,
+    0.5,
+    2.6
+   ],
+   "t": 0.12,
+   "mat": "bark"
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    0.05,
+    2.95
+   ],
+   "size": [
+    3.0,
+    1.05,
+    0.07
+   ],
+   "mat": "planks",
+   "tilt": 28
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    0.95,
+    2.95
+   ],
+   "size": [
+    3.0,
+    1.05,
+    0.07
+   ],
+   "mat": "planks",
+   "tilt": -28
+  },
+  {
+   "m": "@beam",
+   "a": [
+    -1.15,
+    0.5,
+    2.9
+   ],
+   "b": [
+    -1.15,
+    0.5,
+    3.35
+   ],
+   "t": 0.12,
+   "mat": "bark"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    1.15,
+    0.5,
+    2.9
+   ],
+   "b": [
+    1.15,
+    0.5,
+    3.35
+   ],
+   "t": 0.12,
+   "mat": "bark"
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -6.5,
+    12,
+    0
+   ],
+   "s": 4.5,
+   "rot": 10
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -3.5,
+    20,
+    0
+   ],
+   "s": 5.5,
+   "rot": 70
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    5.5,
+    15,
+    0
+   ],
+   "s": 5.0,
+   "rot": 130
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    9.5,
+    24,
+    0
+   ],
+   "s": 6.0,
+   "rot": 200
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -10.5,
+    26,
+    0
+   ],
+   "s": 6.0,
+   "rot": 300
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    2.0,
+    30,
+    0
+   ],
+   "s": 6.5,
+   "rot": 20
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    13,
+    34,
+    0
+   ],
+   "s": 6.0,
+   "rot": 90
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    -4.2,
+    3.4,
+    0
+   ],
+   "s": 1.3,
+   "rot": 0
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    4.8,
+    5.0,
+    0
+   ],
+   "s": 1.3,
+   "rot": 120
+  },
+  {
+   "m": "ph:wooden_bucket_01",
+   "at": [
+    0,
+    0.35,
+    1.9
+   ],
+   "s": 1.6,
+   "id": "bucket"
+  }
+ ]
+}

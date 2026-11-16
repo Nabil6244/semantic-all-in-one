@@ -1,6 +1,8 @@
-"""Opening hook: a fast "Coming up!" teaser of the episode's funniest moments, placed before the cold open.
+"""Optional "Coming up!" teaser of the episode's funniest moments, placed before the cold open.
 
-Story render json: "hook": "auto" (default) | false | [[t0, dur], ...] (episode seconds).
+OFF by default: episodes open straight on their own hook line (the cold open), which storycheck requires; a
+"Coming up!" preview delays the hook and gives viewers a reason to leave. Opt in per story only.
+Story render json: "hook": false (default) | "auto" | [[t0, dur], ...] (episode seconds).
 render.py and mix.py both call windows(), so the picture and the sound are cut from the same moments.
 Output time t < length(win) plays episode time source_time(t); after that the episode runs shifted by length(win).
 """
@@ -9,7 +11,7 @@ CLIP, N_CLIPS, MIN_GAP, SKIP_START = 2.3, 4, 60.0, 35.0
 
 
 def windows(story, tl):
-    cfg = story.get("hook", "auto")
+    cfg = story.get("hook", False)
     if not cfg:
         return []
     if isinstance(cfg, list):
@@ -38,7 +40,21 @@ def windows(story, tl):
             kinds.add(top)
         if len(picked) == N_CLIPS:
             break
-    return [(max(0.0, t0), CLIP) for t0 in sorted(picked)]
+    return [(max(0.0, t0), clip_len(tl, max(0.0, t0))) for t0 in sorted(picked)]
+
+
+def clip_len(tl, t0, lo=1.6, hi=3.0):
+    """End each teaser clip in a pause (a mouth-rest cue or a line end), not mid-word: a fixed 2.3 s cut chopped words
+    in half and the teaser sounded like the voice glitching."""
+    quiet = []
+    for ln in tl["lines"]:
+        quiet.append(ln["end"] + 0.08)
+        for cues in (ln.get("cues_by") or {}).values():
+            for c in cues:
+                if c["shape"] == "X" and c["t1"] - c["t0"] >= 0.12:
+                    quiet.append(c["t0"] + 0.06)
+    ok = [q - t0 for q in quiet if lo <= q - t0 <= hi]
+    return round(min(ok, key=lambda d: abs(d - CLIP)), 3) if ok else CLIP
 
 
 def length(win):

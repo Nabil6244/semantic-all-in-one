@@ -1,0 +1,664 @@
+{
+ "paint": {
+  "wall": [
+   0.7,
+   0.82,
+   0.92
+  ],
+  "floorFull": [
+   0.85,
+   0.62,
+   0.42
+  ]
+ },
+ "about": "office: desks with computers, desk chairs, bookcases, windows; movers: none",
+ "clouds": false,
+ "sky": {
+  "top": [
+   0.26,
+   0.58,
+   0.97
+  ],
+  "low": [
+   0.8,
+   0.91,
+   1.0
+  ]
+ },
+ "ground": [
+  0.6,
+  0.5,
+  0.4
+ ],
+ "pieces": [
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wallWindow",
+   "at": [
+    -4.8,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -4.8,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -2.4,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -2.4,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -0.0,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -0.0,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wallWindow",
+   "at": [
+    2.4,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    2.4,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    4.8,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    4.8,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    0.0,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    -2.4,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    0.0,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    -2.4,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    2.4,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    0.0,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    2.4,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    0.0,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    4.8,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    2.4,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    4.8,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    2.4,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "desk",
+   "at": [
+    -5.4,
+    3.4,
+    0
+   ]
+  },
+  {
+   "m": "desk",
+   "at": [
+    -1.2,
+    3.4,
+    0
+   ]
+  },
+  {
+   "m": "desk",
+   "at": [
+    3.0,
+    3.4,
+    0
+   ]
+  },
+  {
+   "m": "computerScreen",
+   "at": [
+    -4.800000000000001,
+    3.6,
+    0.92
+   ]
+  },
+  {
+   "m": "computerScreen",
+   "at": [
+    -0.6,
+    3.6,
+    0.92
+   ]
+  },
+  {
+   "m": "computerScreen",
+   "at": [
+    3.6,
+    3.6,
+    0.92
+   ]
+  },
+  {
+   "m": "chairDesk",
+   "at": [
+    -4.800000000000001,
+    2.6,
+    0
+   ]
+  },
+  {
+   "m": "chairDesk",
+   "at": [
+    -0.6,
+    2.6,
+    0
+   ]
+  },
+  {
+   "m": "chairDesk",
+   "at": [
+    3.6,
+    2.6,
+    0
+   ]
+  },
+  {
+   "m": "bookcaseClosedWide",
+   "at": [
+    6.9,
+    0.2,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "pottedPlant",
+   "at": [
+    -6.4,
+    4.8,
+    0
+   ]
+  }
+ ]
+}

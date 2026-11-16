@@ -1,0 +1,662 @@
+{
+ "sky": {
+  "top": [
+   0.3,
+   0.16,
+   0.52
+  ],
+  "low": [
+   1.0,
+   0.52,
+   0.22
+  ]
+ },
+ "clouds": false,
+ "light": {
+  "lit": [
+   0.92,
+   0.86,
+   0.8
+  ],
+  "shade": [
+   0.48,
+   0.46,
+   0.6
+  ]
+ },
+ "sun": [
+  40,
+  160
+ ],
+ "about": "1880s prison: brick walls, iron bars, a bench, a lantern; cold and grim",
+ "paint": {
+  "wall": [
+   0.7,
+   0.62,
+   0.58
+  ],
+  "floorFull": [
+   0.5,
+   0.48,
+   0.46
+  ]
+ },
+ "ground": [
+  0.5,
+  0.48,
+  0.46
+ ],
+ "pieces": [
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wallWindow",
+   "at": [
+    -4.8,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -4.8,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -2.4,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -2.4,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -0.0,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -0.0,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wallWindow",
+   "at": [
+    2.4,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    2.4,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    4.8,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    4.8,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    0.0,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    -2.4,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    0.0,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    -2.4,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    2.4,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    0.0,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    2.4,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    0.0,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    4.8,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    2.4,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    4.8,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    2.4,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "iron-fence-bar",
+   "at": [
+    -4.8,
+    4.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "iron-fence-bar",
+   "at": [
+    -3.2,
+    4.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "iron-fence-bar",
+   "at": [
+    -1.6,
+    4.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "iron-fence-bar",
+   "at": [
+    1.6,
+    4.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "iron-fence-bar",
+   "at": [
+    3.2,
+    4.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "iron-fence-bar",
+   "at": [
+    4.8,
+    4.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "bench",
+   "at": [
+    0.0,
+    5.2,
+    0
+   ]
+  },
+  {
+   "m": "fantasy-town-kit/lantern",
+   "at": [
+    5.8,
+    4.8,
+    0
+   ],
+   "s": 0.8
+  }
+ ]
+}

@@ -1,0 +1,1138 @@
+{
+ "id": "two_minute_hands",
+ "title": "Why This Clock Has Two Minute Hands",
+ "topic": "Bristol Corn Exchange clock: Bristol time vs railway London time (1852)",
+ "hook_title": "WHY TWO MINUTE HANDS?",
+ "keywords": [
+  "clock",
+  "bristol",
+  "london",
+  "minutes",
+  "railway",
+  "train",
+  "time",
+  "hand"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Corn_Exchange,_Bristol",
+  "https://en.wikipedia.org/wiki/Railway_time"
+ ],
+ "places": {
+  "square_now": {
+   "world": "victorian_square",
+   "remove": [
+    "clock"
+   ],
+   "add": [
+    {
+     "m": "@clock",
+     "at": [
+      0,
+      35.85,
+      6.4
+     ],
+     "r": 1.6,
+     "hour": 9,
+     "min": 50,
+     "min2": 0,
+     "id": "clock2"
+    }
+   ],
+   "prompt": "A Victorian stone street at sunset, a grand stone hall with a big clock that has two minute hands"
+  },
+  "square_old": {
+   "world": "victorian_square",
+   "prompt": "A Victorian stone street in 1840 at sunset, a grand stone hall with a big clock, a market cart"
+  },
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian railway platform at sunset with a green steam train"
+  },
+  "line": {
+   "world": "railway_line",
+   "prompt": "A steam train crossing open country at sunset, telegraph poles"
+  },
+  "shop": {
+   "world": "clock_shop",
+   "remove": [
+    "shop_clock"
+   ],
+   "add": [
+    {
+     "m": "@clock",
+     "at": [
+      0,
+      5.8,
+      2.6
+     ],
+     "r": 0.9,
+     "hour": 9,
+     "min": 50,
+     "min2": 0,
+     "id": "shop_clock2"
+    }
+   ],
+   "prompt": "A Victorian clockmaker's shop, a big wall clock, a work desk, lantern light"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "This clock in Bristol has two minute hands.",
+   "set": "square_now",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     35.85,
+     6.4
+    ],
+    "dist": 12,
+    "yaw": 0,
+    "pitch": -4,
+    "lens": 30
+   },
+   "overlay": {
+    "type": "circle",
+    "text": "TWO?"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "One is ten minutes behind. Why keep two times?",
+   "set": "square_now",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.4
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "10 MIN?"
+   }
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "In 1840, every town sets its clocks by the sun.",
+   "set": "square_old",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.1
+      },
+      {
+       "do": "nod",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "SUN TIME"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Noon is when the sun is highest over your town.",
+   "set": "square_old",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.25,
+     "t0": 0,
+     "t1": 0.5
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Bristol is west of London,",
+   "set": "square_old",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "-10 MIN"
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "so its noon comes about ten minutes later.",
+   "set": "square_old",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.1
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.3,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "+10 MIN"
+   }
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Nobody minds. A coach",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "shop_clock2",
+     "run_to": 0.2,
+     "t0": 0,
+     "t1": 0.4
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "to London takes most of a day.",
+   "set": "shop",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "shop_clock2",
+     "run_to": 0.2,
+     "t0": 0,
+     "t1": 0.4
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Then the Great Western Railway arrives.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "vic_pike",
+   "text": "Every train runs on London time!",
+   "set": "station",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "LONDON TIME"
+    }
+   ],
+   "id": "s10",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The timetables are printed in London time too.",
+   "set": "station",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "vic_ned",
+     "text": "TIMETABLE"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "id": "s11",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "So a train leaving at noon goes ten minutes before Bristol's noon.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Ned checks the town clock. Plenty of time.",
+   "set": "square_old",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.2
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "He strolls to the station.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The train is gone.",
+   "set": "station",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "loco",
+     "to": [
+      40,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 1.2,
+     "ease": "in"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "vic_ned",
+   "text": "Your clock is wrong!",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "vic_pike",
+   "text": "No, your clock is wrong!",
+   "set": "station",
+   "camera": "over_shoulder",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.4
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Every day, two clocks. Every day, the same fight.",
+   "set": "station",
+   "camera": "wide",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Trains are fast now. Ten minutes decides who catches one.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [],
+   "moves": [
+    {
+     "id": "loco",
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.2,
+     "ease": "linear"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut",
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   }
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "vic_alder",
+   "text": "Bristol keeps Bristol time!",
+   "set": "square_old",
+   "camera": "low",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.1
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "vic_alder",
+   "text": "Our sun. Our noon. Our time!",
+   "set": "square_old",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So in 1852, they add a second minute hand.",
+   "set": "shop",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     5.8,
+     2.6
+    ],
+    "dist": 4.0,
+    "yaw": 0,
+    "pitch": 0,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "shop_clock2",
+     "run_to": 0.3,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 1.2
+    }
+   ],
+   "id": "s22",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The black hand shows Bristol. The red hand shows London.",
+   "set": "shop",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     5.8,
+     2.6
+    ],
+    "dist": 3.2,
+    "yaw": 0,
+    "pitch": 0,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "shop_clock2",
+     "run_to": 0.15,
+     "t0": 0.1,
+     "t1": 2.4
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s23"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "One for Bristol. One for London. Everyone is happy.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "LONDON"
+   },
+   "id": "s24",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Later that year, Bristol switches to London time for good.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      40,
+      7,
+      0
+     ],
+     "to": [
+      -40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "1852"
+   },
+   "id": "s25",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   }
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Railways soon put the whole country on one time.",
+   "set": "line",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 13,
+    "yaw": 10,
+    "pitch": 5,
+    "lens": 28
+   },
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s26"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "But the clock keeps both hands.",
+   "set": "square_now",
+   "camera": "two_shot",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.3
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s27",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "They are still there today.",
+   "set": "square_now",
+   "camera": "close",
+   "move": "pull",
+   "cast": [],
+   "id": "s28",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "look": {
+    "at": [
+     0,
+     35.85,
+     6.4
+    ],
+    "dist": 6,
+    "yaw": 6,
+    "pitch": -6,
+    "lens": 30
+   },
+   "overlay": {
+    "type": "circle",
+    "text": "STILL THERE"
+   }
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "That's why this clock in Bristol has two minute hands.",
+   "set": "square_now",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     35.85,
+     6.4
+    ],
+    "dist": 9,
+    "yaw": 0,
+    "pitch": -4,
+    "lens": 30
+   },
+   "id": "s29",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "clock2",
+     "run_to": 0.08,
+     "t0": 0,
+     "t1": 0.5
+    }
+   ]
+  }
+ ],
+ "est_total": 60.27
+}

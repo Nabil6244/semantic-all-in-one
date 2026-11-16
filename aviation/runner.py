@@ -324,7 +324,8 @@ def split_timeline(shots: Sequence[Any], layers: Sequence[Any], chunk_s: float =
 def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: str, *, work: str, chunk_s: float = 60.0, workers: int = 3,
                 progress: Callable[[float, str], None] = lambda k, m: None, cancel: Callable[[], bool] = lambda: False,
                 log: Callable[[str], None] = lambda m: None, map_extra: Optional[dict] = None,
-                extras: Optional[Dict[str, List[Dict[str, Any]]]] = None, sound: bool = True) -> Dict[str, Any]:
+                extras: Optional[Dict[str, List[Dict[str, Any]]]] = None, sound: bool = True,
+                wall: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     from cinematic_explainer import render as RD
 
     if cancel():
@@ -334,6 +335,19 @@ def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: st
     shots, layers, rep = BR.build_timeline(plan, scenes, clip_picker(scenes, plan, log, extras), black=str(wd / "black.mp4"), map_extra=map_extra)
     if rep["missing_footage"]:
         log(f"{rep['missing_footage']} footage slots had no clip: they show a fact card instead")
+    wall_rep: Dict[str, Any] = {"spans": [], "cues": []}
+    if wall and wall.get("on") and float(wall.get("pct", 0)) > 0:
+        # wall moments (docs/wall/PLAN.md): about a fifth of the film moves onto the evidence wall; nothing else changes
+        try:
+            from . import wall_moments as WM
+            if not wall.get("words"):
+                log("wall moments skipped: the voice-over has no word timings yet (Generate scenes makes them)")
+            else:
+                layers, wall_rep = WM.apply(shots, layers, scenes, wall["words"], pct=float(wall["pct"]), work=str(wd / "wall_frames"), log=log)
+                (wd / "wall_plan.json").write_text(json.dumps(wall_rep["plan"], default=list), encoding="utf-8")
+        except Exception as ex:  # noqa: BLE001 - the wall is an extra: a failure leaves today's film
+            log(f"wall moments skipped ({type(ex).__name__}: {ex}); the film is made as before")
+            wall_rep = {"spans": [], "cues": []}
     chunks = split_timeline(shots, layers, chunk_s)
     table = BR.card_table()
     parts = [wd / f"part_{i:03d}.mp4" for i in range(len(chunks))]
@@ -346,7 +360,7 @@ def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: st
         renders. Any failure leaves the plain voice-over: sound never stops a film."""
         try:
             from . import sound as SD
-            ev = SD.events(plan, scenes)
+            ev = SD.with_wall(SD.events(plan, scenes), wall_rep["spans"], wall_rep["cues"])
             mu = SD.music_plan(plan, scenes, total_s=total_s)
             dst = wd / "voice_mix.m4a"
             SD.mix(str(voice), ev, mu, str(dst), total_s)
@@ -399,9 +413,13 @@ def render_film(plan: Any, scenes: Sequence[Dict[str, Any]], voice: str, out: st
         log(f"thumbnails skipped: {ex}")
     for p in parts + [silent, lst]:
         Path(p).unlink(missing_ok=True)
+    if wall_rep["spans"]:
+        from wall import frames as WF
+        WF.forget()
+    shutil.rmtree(wd / "wall_frames", ignore_errors=True)       # decoded clip frames of the wall prints: only needed while rendering
     progress(1.0, "done")
     return {"chunks": len(chunks), "missing_footage": rep["missing_footage"], "clips": rep["clips"], "duration": shots[-1].end if shots else 0.0,
-            "thumbs": thumbs}
+            "thumbs": thumbs, "wall_moments": len(wall_rep["spans"]), "wall_share": wall_rep.get("share", 0.0)}
 
 
 def import_retention(csv_path: Any, scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[Dict[str, Any]]] = None,

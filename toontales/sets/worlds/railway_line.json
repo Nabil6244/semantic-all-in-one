@@ -1,0 +1,1031 @@
+{
+ "sky": {
+  "top": [
+   0.36,
+   0.42,
+   0.78
+  ],
+  "low": [
+   1.0,
+   0.7,
+   0.42
+  ]
+ },
+ "light": {
+  "lit": [
+   1.0,
+   0.88,
+   0.72
+  ],
+  "shade": [
+   0.6,
+   0.52,
+   0.72
+  ]
+ },
+ "sun": [
+  22,
+  140
+ ],
+ "about": "open country at sunset: a railway line crossing behind the cast, telegraph poles, fields and trees, a steam train (mover: loco, carriages ride with it)",
+ "ground": [
+  0.56,
+  0.66,
+  0.3
+ ],
+ "pieces": [
+  {
+   "m": "railroad-straight",
+   "at": [
+    -60,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -56,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -52,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -48,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -44,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -40,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -36,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -32,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -28,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -24,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -20,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -16,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -12,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -8,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    -4,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    0,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    4,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    8,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    12,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    16,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    20,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    24,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    28,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    32,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    36,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    40,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    44,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    48,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    52,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    56,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "railroad-straight",
+   "at": [
+    60,
+    7.0,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "train-locomotive-b",
+   "at": [
+    -30,
+    7.0,
+    0
+   ],
+   "rot": 90,
+   "id": "loco"
+  },
+  {
+   "m": "train-locomotive-passenger-a",
+   "at": [
+    -36.4,
+    7.0,
+    0
+   ],
+   "rot": 90,
+   "ride": "loco"
+  },
+  {
+   "m": "train-locomotive-passenger-a",
+   "at": [
+    -42.8,
+    7.0,
+    0
+   ],
+   "rot": 90,
+   "ride": "loco"
+  },
+  {
+   "m": "train-locomotive-passenger-a",
+   "at": [
+    -49.2,
+    7.0,
+    0
+   ],
+   "rot": 90,
+   "ride": "loco"
+  },
+  {
+   "m": "@box",
+   "at": [
+    -40,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -28,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -16,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -4,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    8,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    20,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    32,
+    10.5,
+    0
+   ],
+   "size": [
+    0.22,
+    0.22,
+    6.0
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -40,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -28,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -16,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    -4,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    8,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    20,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    32,
+    10.5,
+    5.6
+   ],
+   "size": [
+    1.4,
+    0.16,
+    0.16
+   ],
+   "color": [
+    0.42,
+    0.3,
+    0.2
+   ]
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -30,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -28,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -26,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -24,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -22,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -20,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -18,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -16,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -14,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -12,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -10,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -8,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -6,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    -4,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    4,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    6,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    8,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    10,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    12,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    14,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    16,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    18,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    20,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    22,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    24,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    26,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    28,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "fantasy-town-kit/fence",
+   "at": [
+    30,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "graveyard-kit/hay-bale",
+   "at": [
+    -9,
+    14,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "graveyard-kit/hay-bale",
+   "at": [
+    -7.6,
+    14.8,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "graveyard-kit/hay-bale",
+   "at": [
+    11,
+    16,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "@box",
+   "at": [
+    6.5,
+    9.3,
+    0
+   ],
+   "size": [
+    0.18,
+    0.18,
+    4.5
+   ],
+   "color": [
+    0.25,
+    0.25,
+    0.28
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    6.5,
+    9.2,
+    4.2
+   ],
+   "size": [
+    0.9,
+    0.12,
+    0.22
+   ],
+   "color": [
+    0.85,
+    0.14,
+    0.1
+   ]
+  },
+  {
+   "m": "survival-kit/rock-a",
+   "at": [
+    -4.5,
+    2.8,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "survival-kit/rock-b",
+   "at": [
+    5.0,
+    3.0,
+    0
+   ],
+   "s": 1.2
+  },
+  {
+   "m": "survival-kit/signpost",
+   "at": [
+    -3.6,
+    3.3,
+    0
+   ],
+   "s": 1.4,
+   "rot": 160
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "tree_default",
+    "tree_oak",
+    "tree_detailed",
+    "tree_fat"
+   ],
+   "from": [
+    -50,
+    22
+   ],
+   "to": [
+    50,
+    22
+   ],
+   "n": 14,
+   "jitter": 3,
+   "s": 1.4
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -70,
+    40
+   ],
+   "to": [
+    70,
+    40
+   ],
+   "n": 20,
+   "jitter": 4,
+   "s": 1.8
+  },
+  {
+   "m": [
+    "grass_large",
+    "grass_leafs",
+    "flower_yellowA",
+    "flower_redB",
+    "rock_smallA"
+   ],
+   "from": [
+    -9,
+    -2.5
+   ],
+   "to": [
+    -3.5,
+    -1.5
+   ],
+   "n": 6,
+   "jitter": 1.0,
+   "s": 0.35
+  },
+  {
+   "m": [
+    "grass_large",
+    "grass_leafs",
+    "flower_purpleA",
+    "plant_bushSmall"
+   ],
+   "from": [
+    3.5,
+    -1.5
+   ],
+   "to": [
+    9,
+    -2.5
+   ],
+   "n": 6,
+   "jitter": 1.0,
+   "s": 0.35
+  }
+ ]
+}

@@ -1,0 +1,41 @@
+{
+ "note": "Channel 3 cast: one realistic builder (MPFB, CC0 MakeHuman assets) built by toontales/diorama/build_actor.py into assets/diorama/cast/builder.blend. 'actor' entries are posed by sets/actor.py (acts in diorama/actor_acts.py), not the 2D puppet. legs/body.h/head_r only tell the shot compiler his size (head ~1.5 m).",
+ "characters": [
+  {
+   "id": "builder",
+   "name": "Sam",
+   "actor": "builder",
+   "hat": true,
+   "face": {},
+   "legs": 0.85,
+   "body": {
+    "h": 0.6,
+    "color": [
+     0.3,
+     0.36,
+     0.3
+    ]
+   },
+   "head_r": 0.12,
+   "voice": {
+    "name": "en-US-ChristopherNeural",
+    "rate": "+5%",
+    "pitch": "+0Hz",
+    "base_wpm": 175
+   }
+  }
+ ],
+ "narrator": {
+  "voice": {
+   "name": "en-US-ChristopherNeural",
+   "rate": "-5%",
+   "pitch": "+0Hz",
+   "base_wpm": 211
+  },
+  "role": "calm explainer",
+  "traits": [
+   "clear, steady, present tense",
+   "one build step per line, says why each step works"
+  ]
+ }
+}

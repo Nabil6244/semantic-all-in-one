@@ -184,6 +184,30 @@ def end_screen(frame, q, text="Watch next!"):
     return bg
 
 
+# ------------------------------------------------------------------ baby signs
+def sign_badge(frame, sign, q, hand=None):
+    """Bottom-left badge naming the sign being made ("Sign: more"), with a waving open hand."""
+    if q <= 0.02:
+        return
+    f = _font(64)
+    text = sign.replace("_", " ").upper()
+    w = int(f.getlength(text)) + 230
+    im = Image.new("RGBA", (w, 150), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    d.rounded_rectangle([8, 12, w - 2, 148], radius=60, fill=(0, 0, 0, 60))
+    d.rounded_rectangle([0, 0, w - 10, 136], radius=60, fill=(255, 255, 255, 245), outline=(120, 90, 220, 255), width=7)
+    d.text((132, 34), "SIGN", font=_font(30), fill=(120, 90, 220, 255), anchor="lm")
+    d.text((132, 88), text, font=f, fill=(90, 60, 200, 255), anchor="lm")
+    if hand is not None:
+        hh = 104
+        hw = int(hand.width * hh / hand.height)
+        im.alpha_composite(hand.resize((hw, hh), Image.BICUBIC), (int(66 - hw / 2), 16))
+    s = 0.6 + 0.4 * q
+    im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.BICUBIC)
+    im.putalpha(im.getchannel("A").point(lambda v: int(v * q)))
+    frame.alpha_composite(im, (48, frame.height - im.height - 54))
+
+
 # ------------------------------------------------------------------ alphabet blocks
 def make_blocks(out_dir, letters):
     from pathlib import Path

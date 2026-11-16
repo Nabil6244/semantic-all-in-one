@@ -1,0 +1,16 @@
+[
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 0,
+  "prompt": "2D cartoon background for a preschool TV show, modern children's animation style, flat bright colors, clean outlines, vector illustration. A sunny garden: bright blue sky with a few white clouds, green grass lawn, two round trees at the sides, a flower bed with red, yellow and blue flowers along the back, a small white picket fence. Wide shot, eye level, the middle of the lawn is empty open space for characters to stand. No characters, no people, no animals, no text.",
+  "status": "done",
+  "mediaIds": [
+   "b997d163-2474-4566-94f1-c219f441f106",
+   "bc959326-f851-47be-a8ac-0ce8b3397320"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/ep1/garden/account-7-3ff7a2/001-2.png",
+  "submitted": true
+ }
+]

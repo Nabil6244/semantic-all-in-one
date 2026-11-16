@@ -110,6 +110,7 @@ from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_sectio
 from ui import city_timelapse_section as _ct_section   # City Timelapse (ui/city_timelapse_section.py, citygrow-engine/)
 from ui import toon_tales_section as _tt_section   # Toon Tales (ui/toon_tales_section.py, toontales/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
+from ui import game_launch_section as _gl_section   # Game Launch (ui/game_launch_section.py, game_launch/)
 from ui import ocean_section as _oc_section   # Ocean Predators (ui/ocean_section.py, ocean/)
 from ui import kids_learn_section as _kl_section   # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/)
 from ui import rules_horror_section as _rh_section   # Rules Horror (ui/rules_horror_section.py, rules_horror/)
@@ -3237,6 +3238,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Toon Tales"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
             return "Aviation"
+        if getattr(self, "_gl_active", False):   # Game Launch (ui/game_launch_section.py): opt-in, per session
+            return "Game Launch"
         if getattr(self, "_oc_active", False):   # Ocean Predators (ui/ocean_section.py): opt-in, per session
             return "Ocean Predators"
         if getattr(self, "_rc_active", False):   # Roblox Cinema (ui/roblox_cinema_section.py): opt-in, per session
@@ -3318,6 +3321,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_gl_running", False):   # Game Launch
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         if getattr(self, "_oc_running", False):   # Ocean Predators
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
@@ -3379,6 +3386,12 @@ class VideoGeneratorApp(ctk.CTk):
             _av_section.deactivate(self)
         if choice == "Aviation":   # its own page (ui/aviation_section.py); nothing runs until Generate scenes
             _av_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Game Launch":
+            _gl_section.deactivate(self)
+        if choice == "Game Launch":   # its own page (ui/game_launch_section.py); nothing runs until Generate
+            _gl_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Ocean Predators":
@@ -3555,6 +3568,9 @@ class VideoGeneratorApp(ctk.CTk):
         av_block = getattr(self, "_av_block", None)
         if av_block is not None:
             av_block.grid() if active == "Aviation" else av_block.grid_remove()
+        gl_block = getattr(self, "_gl_block", None)
+        if gl_block is not None:
+            gl_block.grid() if active == "Game Launch" else gl_block.grid_remove()
         oc_block = getattr(self, "_oc_block", None)
         if oc_block is not None:
             oc_block.grid() if active == "Ocean Predators" else oc_block.grid_remove()
@@ -7506,6 +7522,8 @@ class VideoGeneratorApp(ctk.CTk):
             _tt_section.cta(self, action)
         elif action in ("av_generate", "av_render", "av_cancel"):
             _av_section.cta(self, action)
+        elif action in ("gl_generate", "gl_render", "gl_cancel"):
+            _gl_section.cta(self, action)
         elif action in ("oc_generate", "oc_render", "oc_cancel"):
             _oc_section.cta(self, action)
         elif action in ("kl_generate", "kl_render", "kl_cancel"):
@@ -8358,6 +8376,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _tt_section.sync_cta(self)
         if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
             return _av_section.sync_cta(self)
+        if getattr(self, "_gl_active", False) and getattr(self, "_gl_block", None) is not None:   # Game Launch owns the button while its page is up
+            return _gl_section.sync_cta(self)
         if getattr(self, "_oc_active", False) and getattr(self, "_oc_block", None) is not None:   # Ocean Predators owns the button while its page is up
             return _oc_section.sync_cta(self)
         if getattr(self, "_rc_active", False) and getattr(self, "_rc_block", None) is not None:   # Roblox Cinema owns the button while its page is up
@@ -9203,6 +9223,7 @@ class VideoGeneratorApp(ctk.CTk):
         _ct_section.deactivate(self, remember=False)   # City Timelapse likewise, until resume_on_open below
         _tt_section.deactivate(self, remember=False)   # Toon Tales likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
+        _gl_section.deactivate(self, remember=False)   # Game Launch likewise, until resume_on_open below
         _oc_section.deactivate(self, remember=False)   # Ocean Predators likewise, until resume_on_open below
         _kl_section.deactivate(self)   # Kids Learn likewise
         _rh_section.deactivate(self)   # Rules Horror likewise
@@ -9210,6 +9231,7 @@ class VideoGeneratorApp(ctk.CTk):
         _ct_section.resume_on_open(self)   # a project left on the City Timelapse page opens on it again; nothing runs until Generate
         _tt_section.resume_on_open(self)   # a project left on the Toon Tales page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
+        _gl_section.resume_on_open(self)   # a project left on the Game Launch page opens on it again; nothing runs until Generate
         _oc_section.resume_on_open(self)   # a project left on the Ocean Predators page opens on it again; nothing runs until Generate
         self._sync_export_csv_link()
         self._sync_primary_cta()
@@ -11559,7 +11581,7 @@ class VideoGeneratorApp(ctk.CTk):
         """Build one denser scene-table row (shared by sync / batch / window paths)."""
         from ui.scene_list import truncate as _trunc
 
-        badge_text, badge_fg, badge_bg = scene_source_badge(scene)
+        badge_text, badge_fg, badge_bg = self._scene_row_badge(scene)
         default_fg = _ROW_ALT if i % 2 else "transparent"
         row = ctk.CTkFrame(
             self._scenes_list, fg_color=default_fg, corner_radius=4, height=28,
@@ -11734,12 +11756,30 @@ class VideoGeneratorApp(ctk.CTk):
                 continue
             btn.configure(state="disabled" if busy else "normal")
 
+    def _scene_row_badge(self, scene) -> tuple[str, str, str]:
+        """Src badge: where the scene's picture really came from once it is fetched (the same source the
+        "Select by source" menu and the summary line count), else what the CSV row asks for. A War-library
+        clip says so: "Lib · Flow" (made by Flow earlier) or "Lib · YouTube" (real footage)."""
+        result = self._asset_results.get(_scene_key(scene.scene_number))
+        source = getattr(result, "source", None) if result is not None else None
+        if source is None or getattr(result, "status", None) != SceneStatus.READY:
+            return scene_source_badge(scene)
+        label, fg, bg = SOURCE_BADGE.get(source, scene_source_badge(scene))
+        meta = getattr(result, "metadata", None) or {}
+        if isinstance(meta, dict) and meta.get("library_file"):
+            label = "Lib · " + ("Flow" if source == AssetSource.FLOW_VIDEO else label)
+        return (label, fg, bg)
+
     def _set_scene_status(self, scene_number, status: str) -> None:
         widgets = self._scene_row_widgets.get(_scene_key(scene_number))
         if not widgets:
             return
         label, color = _status_display(status)
         widgets["status_label"].configure(text=label, text_color=color)
+        badge, scene = widgets.get("badge"), widgets.get("scene")
+        if badge is not None and scene is not None:   # Src follows the fetched source, not just the CSV type
+            text, fg, bg = self._scene_row_badge(scene)
+            badge.configure(text=text, text_color=fg, fg_color=bg)
         if status in ("ready", "success"):
             self._show_scene_resolution(scene_number, label)
         time_lbl = widgets.get("time_label")
@@ -17081,6 +17121,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_ct_running",)   # City Timelapse likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_tt_running",)   # Toon Tales likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_av_running",)   # Aviation likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_gl_running",)   # Game Launch likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_oc_running",)   # Ocean Predators likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_rh_running",)   # Rules Horror likewise

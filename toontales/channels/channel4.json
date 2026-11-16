@@ -1,0 +1,28 @@
+{
+ "id": "channel4",
+ "name": "Channel 4 - Car builds (no characters)",
+ "about": "Reference: ZerryCars. Low-poly cars and engines in a bright tiled garage and on a tree-lined drag strip; no characters, one fast casual narrator; big HUD meters (HP, PSI, RPM) with a rival marker; callout labels on a thin line; engine cutaways with moving pistons; 'what if' builds and head-to-head tests.",
+ "cast": "channel4_cast.json",
+ "backgrounds": "3d",
+ "paint_style": "Clean low-poly 3D render of cars and engines, bright daylight, white tiled garage, saturated colours",
+ "formula": [
+  "hook: two things side by side and one shocking number (meter on screen), ask how/what if",
+  "baseline: the normal one with its meter",
+  "build: one upgrade per line, each bumps a meter (rpm, boost, hp) on a close-up part",
+  "the catch (WAIT...), then the clever trick that beats it",
+  "the test: drag race or dyno with the numbers, last line loops to the first"
+ ],
+ "worlds": [
+  "garage",
+  "drag_strip"
+ ],
+ "parts": "sets/parts.py: @engine (cyl, layout I|V, induction none|turbo|twin_turbo|supercharger|electric, cutaway, block, cover, run), @turbo (size, run), @supercharger (electric), @stand (h), @strip, @start_tree, @finish",
+ "shot_layers": {
+  "hud": "edit/hud.py meter: label, from, to, max, rival, rival_label, color, fmt",
+  "callout": "edit/hud.py label: text, x, y"
+ },
+ "length": [
+  28,
+  45
+ ]
+}

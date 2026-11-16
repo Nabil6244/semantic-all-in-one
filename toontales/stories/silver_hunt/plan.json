@@ -1,0 +1,890 @@
+{
+ "id": "silver_hunt",
+ "title": "How Two Billionaires Tried to Own All the Silver",
+ "topic": "The Hunt brothers' silver corner and Silver Thursday (1979-1980)",
+ "hook_title": "WHY MELT YOUR FORKS?",
+ "keywords": [
+  "silver",
+  "billionaires",
+  "borrowed",
+  "crashed",
+  "bankruptcy",
+  "forks",
+  "rules",
+  "margin"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Silver_Thursday",
+  "https://www.investopedia.com/terms/s/silver-thursday.asp",
+  "https://www.federalreservehistory.org/essays/silver-thursday"
+ ],
+ "places": {
+  "kitchen": "A cozy 1980 American kitchen: wooden table with a silverware drawer pulled open, shiny forks and spoons, patterned wallpaper, warm window light",
+  "dallas": "A rich 1979 Dallas oilman's office: big dark wooden desk, leather chair, an oil derrick painting on the wall, Texas flag, cigar box, sunny window over the city",
+  "vault": {
+   "prompt": "A huge bank vault in 1980: a round steel vault door open, shelves stacked high with shiny silver bars, cool white light",
+   "ambient": "none"
+  },
+  "exchange": "A 1980 commodity trading floor: a big price board on the wall, trading pits with wooden railings, scattered paper tickets on the floor, traders only small in the far background",
+  "melt": {
+   "prompt": "A 1980 metal refinery: a glowing furnace pouring melted silver, piles of old silverware in crates, sparks, dark brick walls",
+   "ambient": "embers"
+  },
+  "court": "A 1988 federal courtroom: wooden judge's bench, flags, rows of empty benches, tall windows, quiet daylight"
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1980, Americans lined up to melt down their own forks.",
+   "set": "kitchen",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0
+      },
+      {
+       "do": "money",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.6
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "1980"
+   },
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Two Texas brothers caused it. So how?",
+   "set": "kitchen",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.3
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "WHY?"
+   },
+   "id": "s02",
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Nelson Bunker and Herbert Hunt were oil billionaires.",
+   "set": "dallas",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0
+      },
+      {
+       "do": "hips",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "THE HUNT BROTHERS"
+   },
+   "id": "s03",
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "walt",
+   "text": "Paper money keeps losing value.",
+   "set": "dallas",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0
+      },
+      {
+       "do": "point",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "So they bought silver. Mountains of it.",
+   "set": "vault",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0
+      },
+      {
+       "do": "money",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "SILVER"
+   },
+   "id": "s05",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Much of it bought with borrowed money.",
+   "set": "vault",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "LOAN",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.4
+    }
+   ],
+   "id": "s06",
+   "transition": "cut"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "narrator",
+   "text": "Silver jumped from 6 dollars an ounce to nearly 50.",
+   "set": "exchange",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0
+      },
+      {
+       "do": "cheer",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "$6 TO $50",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0
+    }
+   ],
+   "id": "s07",
+   "transition": "cut"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "pip",
+   "text": "Fifty dollars a spoon?",
+   "set": "kitchen",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boing",
+     "at": 0.3
+    }
+   ],
+   "id": "s08",
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Families sold their silverware to be melted down.",
+   "set": "melt",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "glass",
+     "at": 0.5
+    }
+   ],
+   "mood": "upbeat",
+   "id": "s09",
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Then the exchange changed the rules.",
+   "set": "exchange",
+   "camera": "high",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "text": "NEW RULES",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Limits on buying silver with borrowed money.",
+   "set": "exchange",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0
+      },
+      {
+       "do": "plead",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.4
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "LOANS"
+   },
+   "id": "s11",
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Then we buy even more!",
+   "set": "dallas",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0
+      },
+      {
+       "do": "fist_pump",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.4
+    }
+   ],
+   "mood": "sneaky",
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The brothers kept buying.",
+   "set": "vault",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0,
+       "params": {
+        "to": [
+         1.0,
+         0
+        ]
+       }
+      },
+      {
+       "do": "money",
+       "at": 0.76
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.5
+    }
+   ],
+   "id": "s13",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then silver prices started sliding.",
+   "set": "exchange",
+   "camera": "insert",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0
+      },
+      {
+       "do": "think",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "text": "SILVER DOWN",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then the brokers called in their loans.",
+   "set": "dallas",
+   "camera": "two_shot",
+   "move": "orbit_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.2
+      },
+      {
+       "do": "cower",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "text": "MARGIN CALL",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.2
+    }
+   ],
+   "id": "s15",
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "On March 27, 1980, silver crashed by half in one day.",
+   "set": "exchange",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fall",
+       "at": 0
+      },
+      {
+       "do": "dizzy",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.3
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "SILVER THURSDAY"
+   },
+   "freeze": "WAIT...",
+   "mood": "sad",
+   "id": "s16",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The Hunts could not pay a 100 million dollar margin call.",
+   "set": "dallas",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.4
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "$100 MILLION"
+   },
+   "id": "s17",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Banks lent them a billion dollars to calm the markets.",
+   "set": "exchange",
+   "camera": "low",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    }
+   ],
+   "id": "s18",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "By 1988, both billionaire brothers filed for bankruptcy.",
+   "set": "court",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "text": "HUNTS BANKRUPT",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "id": "s19",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The winners? Families who sold their forks near the top.",
+   "set": "melt",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0
+      },
+      {
+       "do": "money",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.3
+    }
+   ],
+   "mood": "upbeat",
+   "id": "s20",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "So... anyone buying silver?",
+   "set": "kitchen",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0
+      },
+      {
+       "do": "present",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s21",
+   "transition": "cut"
+  }
+ ],
+ "est_total": 41.54
+}

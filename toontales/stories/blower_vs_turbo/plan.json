@@ -1,0 +1,816 @@
+{
+ "id": "blower_vs_turbo",
+ "title": "Supercharger vs Turbo: Which One Wins?",
+ "topic": "How a belt-driven supercharger and an exhaust turbo make boost, and why some cars use both",
+ "hook_title": "BELT OR EXHAUST?",
+ "keywords": [
+  "supercharger",
+  "turbo",
+  "boost",
+  "belt",
+  "exhaust",
+  "lag",
+  "instant",
+  "both"
+ ],
+ "cast": [],
+ "channel": "channel4",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Supercharger",
+  "https://en.wikipedia.org/wiki/Twincharger"
+ ],
+ "places": {
+  "garage": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 22,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "supercharger",
+     "cover": [
+      0.85,
+      0.1,
+      0.1
+     ],
+     "id": "sc",
+     "run": 0.8
+    },
+    {
+     "m": "@engine",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "rot": -22,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "twin_turbo",
+     "block": [
+      0.32,
+      0.33,
+      0.37
+     ],
+     "cover": [
+      0.15,
+      0.35,
+      0.9
+     ],
+     "id": "tt",
+     "run": 0.8
+    }
+   ],
+   "prompt": "A bright garage with two V8 engines on orange stands, one with a blower on top, one with two turbos"
+  },
+  "blower_bench": {
+   "world": "garage",
+   "remove": [
+    "stand_b"
+   ],
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "supercharger",
+     "cutaway": true,
+     "block": [
+      0.62,
+      0.64,
+      0.68
+     ],
+     "cover": [
+      0.85,
+      0.1,
+      0.1
+     ],
+     "id": "v8",
+     "run": 1.0
+    }
+   ],
+   "prompt": "A cutaway V8 with a roots blower on top, on an orange stand"
+  },
+  "turbo_bench": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@turbo",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "s": 2.4,
+     "rot": 0,
+     "id": "turbo",
+     "run": 0.6
+    },
+    {
+     "m": "@supercharger",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "s": 1.6,
+     "rot": -20,
+     "electric": true,
+     "id": "esc",
+     "run": 1.0
+    }
+   ],
+   "prompt": "A giant turbo and an electric supercharger on orange stands"
+  },
+  "strip": {
+   "world": "drag_strip",
+   "remove": [
+    "car_a",
+    "car_b"
+   ],
+   "add": [
+    {
+     "m": "hatchback-sports",
+     "at": [
+      -1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.9,
+      0.1,
+      0.1
+     ],
+     "tint_mode": "color",
+     "id": "red"
+    },
+    {
+     "m": "sedan-sports",
+     "at": [
+      1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.15,
+      0.35,
+      1.0
+     ],
+     "tint_mode": "color",
+     "id": "blue"
+    }
+   ],
+   "prompt": "A drag strip with a red muscle car and a blue sports sedan at the start line"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Same V8. One has a blower, one has turbos.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "sc",
+     "tt"
+    ]
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Both force in extra air. So which one wins?",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.4
+    ],
+    "dist": 4.6,
+    "yaw": 0,
+    "pitch": 8,
+    "lens": 28,
+    "fit": [
+     "sc",
+     "tt"
+    ]
+   },
+   "moves": [
+    {
+     "id": "sc",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.2
+    },
+    {
+     "id": "tt",
+     "run_to": 4,
+     "t0": 0.4,
+     "t1": 1.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.3
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The blower sits on top, driven by a belt.",
+   "set": "blower_bench",
+   "camera": "wide",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.7
+    ],
+    "dist": 2.8,
+    "yaw": 18,
+    "pitch": 12,
+    "lens": 30
+   },
+   "callout": {
+    "text": "SUPERCHARGER",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 3,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Crank turns, blower turns.",
+   "set": "blower_bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 1.9,
+    "yaw": 26,
+    "pitch": 6,
+    "lens": 34
+   },
+   "hud": {
+    "label": "PSI BOOST",
+    "fmt": "{v} PSI BOOST",
+    "from": 0,
+    "to": 12,
+    "max": 30,
+    "color": "green",
+    "t0": 0.05,
+    "t1": 0.4
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 7,
+     "t0": 0,
+     "t1": 0.5
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.4
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Boost? Instant.",
+   "set": "blower_bench",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.75
+    ],
+    "dist": 1.5,
+    "yaw": -20,
+    "pitch": 10,
+    "lens": 36
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 7,
+     "t0": 0,
+     "t1": 0.5
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.4
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut",
+   "callout": {
+    "text": "INSTANT",
+    "x": 0.5,
+    "y": 0.42
+   }
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "But that belt steals power from the engine.",
+   "set": "blower_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.45
+    ],
+    "dist": 1.6,
+    "yaw": 34,
+    "pitch": 4,
+    "lens": 36
+   },
+   "hud": {
+    "label": "HP LOST",
+    "fmt": "-{v} HP",
+    "from": 0,
+    "to": 100,
+    "max": 150,
+    "color": "red"
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 7,
+     "t0": 0,
+     "t1": 0.1
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Big blowers can eat over a hundred horsepower.",
+   "set": "blower_bench",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 2.6,
+    "yaw": -12,
+    "pitch": 8,
+    "lens": 30
+   },
+   "freeze": "WAIT...",
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "hud": {
+    "label": "HP LOST",
+    "fmt": "-{v} HP",
+    "from": 60,
+    "to": 110,
+    "max": 150,
+    "rival": 40,
+    "rival_label": "SMALL BLOWER",
+    "color": "red"
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 9,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ]
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "The turbo is free. It spins on hot exhaust.",
+   "set": "turbo_bench",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 3.0,
+    "yaw": 12,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "TURBO",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "turbo",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.6
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.0
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Exhaust you'd waste anyway. But it needs time.",
+   "set": "turbo_bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.0,
+     1.48
+    ],
+    "dist": 2.0,
+    "yaw": 4,
+    "pitch": 4,
+    "lens": 32
+   },
+   "hud": {
+    "label": "PSI BOOST",
+    "fmt": "{v} PSI BOOST",
+    "from": 0,
+    "to": 4,
+    "max": 30,
+    "color": "red"
+   },
+   "moves": [
+    {
+     "id": "turbo",
+     "run": 0,
+     "run_to": 0.5,
+     "t0": 0,
+     "t1": 1.2
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "That wait is turbo lag.",
+   "set": "turbo_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.0,
+     1.48
+    ],
+    "dist": 1.7,
+    "yaw": -8,
+    "pitch": 4,
+    "lens": 34
+   },
+   "callout": {
+    "text": "LAG",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So some cars use both.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.0,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "sc",
+     "tt"
+    ]
+   },
+   "moves": [
+    {
+     "id": "sc",
+     "run_to": 6,
+     "t0": 0.1,
+     "t1": 0.8
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Blower down low, turbo up top.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.45
+    ],
+    "dist": 2.4,
+    "yaw": -14,
+    "pitch": 8,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "tt",
+     "run_to": 7,
+     "t0": 0.1,
+     "t1": 0.9
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Newer ones spin the blower with electricity instead.",
+   "set": "turbo_bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.35
+    ],
+    "dist": 2.2,
+    "yaw": -16,
+    "pitch": 8,
+    "lens": 32
+   },
+   "callout": {
+    "text": "ELECTRIC",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "esc",
+     "run_to": 6,
+     "t0": 0.1,
+     "t1": 0.6
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Line them up and launch.",
+   "set": "strip",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.7
+    ],
+    "dist": 16,
+    "yaw": 0,
+    "pitch": 10,
+    "lens": 26
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The blower jumps first. The turbo reels it in.",
+   "set": "strip",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     -1.7,
+     4,
+     0.6
+    ],
+    "to": [
+     -1.7,
+     40,
+     0.6
+    ],
+    "dist": 9,
+    "yaw": 8,
+    "pitch": 9,
+    "lens": 26
+   },
+   "moves": [
+    {
+     "id": "red",
+     "to": [
+      -1.7,
+      44,
+      0
+     ],
+     "t0": 0.1,
+     "t1": 2.6,
+     "ease": "out"
+    },
+    {
+     "id": "blue",
+     "to": [
+      1.7,
+      46,
+      0
+     ],
+     "t0": 0.4,
+     "t1": 2.6,
+     "ease": "in"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.1
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Instant punch, or free power. Which would you pick?",
+   "set": "garage",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "sc",
+     "tt"
+    ]
+   },
+   "moves": [
+    {
+     "id": "sc",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    },
+    {
+     "id": "tt",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 37.47
+}

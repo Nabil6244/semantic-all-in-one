@@ -1,0 +1,32 @@
+{
+ "id": "channel5",
+ "name": "Channel 5 - Trial & Eureka (realistic close-up objects)",
+ "about": "Reference: 'Why Old Soda Bottles Couldn't Stand Up', 'Why Vending Machines Used to Take Washers', 'Why Darwin's Potatoes Wouldn't Cook', 'Why a Cup Still Had Ice After a Car Fire', 'Why Your Shirt Doesn't Unravel Like a Bag of Rice'. Realistic 3D close-ups of everyday objects (glass, liquid, cork, steel caps, brass coins, magnets, glossy paint), shallow depth of field, warm studio light: a dark teal subway-tile wall over a walnut bar counter, or a mint studio backdrop with mechanism parts. 'Why X' history-of-engineering stories, 70-80 s, no characters, one calm narrator, short phrase captions in small white text.",
+ "cast": "channel5_cast.json",
+ "backgrounds": "3d",
+ "engine": "diorama",
+ "captions": "phrase",
+ "look": {
+  "render": "realistic close-up",
+  "dof": "f/2-2.8 on the object",
+  "sets": [
+   "dio_bar_counter",
+   "dio_mint_studio"
+  ]
+ },
+ "paint_style": "Photoreal 3D product close-up, warm studio light, shallow depth of field, glass and metal",
+ "formula": [
+  "hook: the odd object or fact itself in close-up + 'Why...?'",
+  "the old way: how it was done and why it made sense",
+  "the problem: what kept going wrong (leaks, cheats, failures), shown on the object",
+  "the inventor's trial and error: each attempt in close-up, one per line",
+  "the eureka fix in slow detail; payoff: it is still in your hand today"
+ ],
+ "length": [
+  68,
+  82
+ ],
+ "shot_max": 4.6,
+ "place_run": 8,
+ "title_card": false
+}

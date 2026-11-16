@@ -1,0 +1,228 @@
+{
+ "engine": "diorama",
+ "hdri": "day",
+ "sun": [
+  45,
+  30
+ ],
+ "about": "a small house on a soil bank sliced side-on, front wall removed: white plaster room with a wood floor, sofa and bookshelf, pitched tile roof; a river (id river) beside it on the right whose level can rise (level_to) and flood the bank. Cast stands in the room (marks A-E) at floor z 0.6.",
+ "marks": {
+  "A": [
+   -1.0,
+   1.4
+  ],
+  "B": [
+   0.6,
+   1.6
+  ],
+  "C": [
+   1.8,
+   2.2
+  ],
+  "D": [
+   -0.2,
+   2.6
+  ],
+  "E": [
+   -2.0,
+   2.4
+  ],
+  "enter_l": [
+   -3.4,
+   1.6
+  ],
+  "enter_r": [
+   3.4,
+   1.6
+  ],
+  "deep": [
+   0.0,
+   3.2
+  ]
+ },
+ "pieces": [
+  {
+   "m": "@slice",
+   "x": [
+    -14,
+    4.6
+   ],
+   "y": [
+    0,
+    40
+   ],
+   "layers": [
+    [
+     "grass",
+     0.12
+    ],
+    [
+     "soil",
+     1.5
+    ],
+    [
+     "gravel",
+     0.7
+    ],
+    [
+     "rock",
+     6.0
+    ]
+   ],
+   "id": "bank"
+  },
+  {
+   "m": "@slice",
+   "x": [
+    4.6,
+    30
+   ],
+   "y": [
+    0,
+    40
+   ],
+   "top": -1.4,
+   "layers": [
+    [
+     "wet_sand",
+     0.4
+    ],
+    [
+     "soil",
+     1.2
+    ],
+    [
+     "rock",
+     5.3
+    ]
+   ],
+   "id": "riverbed"
+  },
+  {
+   "m": "@water",
+   "at": [
+    17.3,
+    20,
+    -1.4
+   ],
+   "size": [
+    25.4,
+    40
+   ],
+   "level": 0.9,
+   "id": "river"
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    2.0,
+    0
+   ],
+   "size": [
+    6.4,
+    4.4,
+    0.6
+   ],
+   "mat": "concrete"
+  },
+  {
+   "m": "@house",
+   "at": [
+    0,
+    2.0,
+    0.6
+   ],
+   "size": [
+    6.0,
+    4.0,
+    2.7
+   ],
+   "floor": "wood_floor",
+   "walls": "plaster",
+   "roof": "roof",
+   "pitch": 28,
+   "id": "house"
+  },
+  {
+   "m": "ph:sofa_02",
+   "at": [
+    -0.6,
+    3.3,
+    0.6
+   ],
+   "s": 1.0,
+   "rot": 0
+  },
+  {
+   "m": "ph:wooden_bookshelf_worn",
+   "at": [
+    2.3,
+    3.6,
+    0.6
+   ],
+   "s": 1.0,
+   "rot": 0
+  },
+  {
+   "m": "ph:wooden_crate_01",
+   "at": [
+    -2.4,
+    3.2,
+    0.6
+   ],
+   "s": 1.0,
+   "rot": 15
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -8,
+    12,
+    0
+   ],
+   "s": 5.0,
+   "rot": 10
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -4,
+    18,
+    0
+   ],
+   "s": 6.0,
+   "rot": 80
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    2,
+    22,
+    0
+   ],
+   "s": 5.5,
+   "rot": 140
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -11,
+    26,
+    0
+   ],
+   "s": 6.5,
+   "rot": 200
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    -4.6,
+    1.5,
+    0
+   ],
+   "s": 1.4,
+   "rot": 30
+  }
+ ]
+}

@@ -86,7 +86,7 @@ def main():
     tl = json.loads((ROOT / st["timeline"]).read_text())
     m = package.META[ep]
     video = ROOT / st["build"] / f"{st['name']}.mp4"
-    shift = hook.length(hook.windows(st, tl))            # the episode file starts with the "Coming up!" teaser
+    shift = hook.length(hook.windows(st, tl))            # 0 unless the story opted in to the "Coming up!" teaser
     dest = ROOT / "cartoon2d" / "episodes" / m["folder"] / "Shorts"
     dest.mkdir(parents=True, exist_ok=True)
     picked = []

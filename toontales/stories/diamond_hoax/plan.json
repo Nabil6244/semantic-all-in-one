@@ -1,0 +1,848 @@
+{
+ "id": "diamond_hoax",
+ "title": "How Two Miners Sold a Fake Diamond Mine",
+ "topic": "The Great Diamond Hoax of 1872 (Arnold and Slack, Clarence King)",
+ "hook_title": "A MINE FULL OF FAKE DIAMONDS?",
+ "keywords": [
+  "diamonds",
+  "mine",
+  "bank",
+  "salted",
+  "King",
+  "Tiffany",
+  "investors",
+  "Arnold"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume",
+  "sheriff"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Diamond_hoax_of_1872",
+  "https://en.wikipedia.org/wiki/Clarence_King"
+ ],
+ "places": {
+  "bank": {
+   "world": "frontier_office",
+   "prompt": "An 1870s San Francisco bank office with a big iron safe"
+  },
+  "town": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin"
+   ],
+   "prompt": "A Wild West main street at dusk"
+  },
+  "trail": {
+   "world": "frontier_desert",
+   "prompt": "A dusty trail with a wagon at sunset"
+  },
+  "desert": {
+   "world": "frontier_desert",
+   "remove": [
+    "wagon"
+   ],
+   "prompt": "Remote high desert with red rocks and scrub"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Two miners walk into a bank with a sack of diamonds.",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "driver"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Every diamond is real. The mine is not. How?",
+   "set": "bank",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "FAKE MINE"
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "San Francisco, 1872. Everyone is hungry for the next big strike.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1872"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Philip Arnold and John Slack say they found a diamond field.",
+   "set": "town",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "bart",
+     "text": "DIAMOND FIELD"
+    }
+   ],
+   "id": "s04",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Where? They won't say.",
+   "set": "town",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "SECRET"
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "They leave the sack at the bank, very reluctantly.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "driver"
+    }
+   ],
+   "moves": [
+    {
+     "id": "safe",
+     "run_to": 0,
+     "t0": 0,
+     "t1": 0.1
+    }
+   ],
+   "id": "s06",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The bankers peek inside. Diamonds and rubies.",
+   "set": "bank",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gold",
+     "held_by": "sheriff"
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "GEMS"
+   },
+   "id": "s07",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Now the richest men in town want in.",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "sheriff"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So the miners agree to show an expert. Blindfolded.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -20,
+      2,
+      0
+     ],
+     "to": [
+      -4,
+      2,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Days of riding in circles, deep into the wild.",
+   "set": "desert",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "WHERE ARE WE?"
+   },
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The expert digs, and finds gems everywhere.",
+   "set": "desert",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.2
+      },
+      {
+       "do": "cheer",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "held_by": "sheriff"
+    }
+   ],
+   "id": "s11",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Tiffany's in New York calls the sample a fortune.",
+   "set": "town",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "sheriff",
+     "text": "TIFFANY SAYS YES"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Investors pay Arnold and Slack about six hundred thousand dollars.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "bart"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "$600,000"
+   },
+   "id": "s13",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But a government geologist, Clarence King, is mapping that same land.",
+   "set": "desert",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "CLARENCE KING"
+   },
+   "freeze": "WAIT...",
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "He tracks down the secret field himself.",
+   "set": "desert",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "held_by": "hume",
+     "text": "FIELD"
+    }
+   ],
+   "id": "s15",
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The gems are only in loose, dug up dirt.",
+   "set": "desert",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "LOOSE DIRT"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "One diamond even has a jeweler's cut on it.",
+   "set": "desert",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gold",
+     "held_by": "hume"
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "CUT MARKS"
+   },
+   "id": "s17",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The field was salted. Cheap gems, scattered by hand.",
+   "set": "trail",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "driver"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "SALTED"
+   },
+   "id": "s18",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "King races to warn the bankers before they lose more.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      8,
+      4,
+      0
+     ],
+     "to": [
+      -6,
+      4,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The investors are ruined. The newspapers howl.",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "hume",
+     "text": "HOAX!"
+    }
+   ],
+   "id": "s20",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And Arnold? He's already home in Kentucky, with the cash.",
+   "set": "trail",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "bart"
+    }
+   ],
+   "id": "s21",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Two miners, one sack of real diamonds, and a whole fake mine.",
+   "set": "bank",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "driver"
+    }
+   ],
+   "id": "s22",
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 53.56
+}

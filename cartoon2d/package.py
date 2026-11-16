@@ -74,6 +74,27 @@ META = {
         "next": "Next episode: K to T with Bobo!",
         "tip": "Parent tip: hide a toy block (or any toy) at home and let your child find it, then say its first letter together.",
     },
+    # ---- Channel 2: Baby Talk (speech, signs, first words; ages 0-3). Folders under "Channel 2 - Baby Talk/".
+    "baby01": {
+        "folder": "Channel 2 - Baby Talk/01 - First Words with Ms Molly",
+        "title": "Baby's First Words with Ms Molly 👶 Learn to Talk, Baby Signs, Songs | Speech for Babies & Toddlers",
+        "word": "First Words!",
+        "thumbs": ["Look! A ball", "Look! A dog", "Mama. Mama"],
+        "intro": "Learn first words with Ms Molly! 👶 Slow, clear speech and big friendly faces help babies and toddlers copy "
+                 "sounds and words: ba, ma, da, ball, dog, duck, car, milk and more, with simple baby signs and gentle songs.",
+        "learn": ["🗣️ First sounds: ba, ma, da", "👪 Mama and dada (with signs)", "⚽ First words: ball, dog, duck, car, cup, book, shoes",
+                  "🍌 Snack words: banana, apple, milk, eat, more, all done", "🤟 Baby signs: more, eat, milk, all done, please, thank you",
+                  "🙈 Peek-a-boo with Bobo the bear", "🎵 Songs: Twinkle Twinkle, Row Row Row Your Boat, Head Shoulders Knees and Toes"],
+        "tags": ["baby first words", "learn to talk", "baby sign language", "speech for toddlers", "toddler speech",
+                 "baby learning video", "first words for babies", "baby songs", "talking for toddlers", "speech practice"],
+        "common_tags": ["ms molly", "baby talk", "videos for babies", "toddler learning video", "learning videos for toddlers",
+                        "nursery rhymes", "educational videos for babies"],
+        "next": "Next video: Animal sounds with Ms Molly!",
+        "tip": "Parent tip: say one word slowly while pointing at the real thing (ball, cup, shoes), then wait a few seconds. "
+               "Any sound your baby makes is a great try. Cheer for it! If you are worried about speech, ask your doctor.",
+        "made_for": "Made for babies and toddlers (ages 0 to 3). Watch together, copy the mouth and hand shapes, and cheer every try!",
+        "hashtags": "#BabyTalk #FirstWords #BabySignLanguage",
+    },
 }
 
 
@@ -86,7 +107,8 @@ def main():
         video = build / f"{st['name']}.mp4"
         dest = OUT / m["folder"]
         dest.mkdir(parents=True, exist_ok=True)
-        shutil.copy(video, dest / f"{m['folder']}.mp4")
+        fname = Path(m["folder"]).name
+        shutil.copy(video, dest / f"{fname}.mp4")
         tl = json.loads((ROOT / st["timeline"]).read_text())
         times = []
         for key in m["thumbs"]:
@@ -97,13 +119,13 @@ def main():
             shutil.copy(build / f"thumb_{i}.jpg", dest / f"thumbnail_{i}.jpg")
         chapters = (build / "chapters.txt").read_text().strip()
         dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)]))
-        tags = ", ".join(m["tags"] + COMMON_TAGS)
+        tags = ", ".join(m["tags"] + m.get("common_tags", COMMON_TAGS))
         desc = "\n".join([m["intro"], "", "In this video your little one will:", *m["learn"], "", "Chapters:", chapters, "",
-                          "Made for toddlers and preschoolers (ages 1 to 5). Sing, clap, jump and dance along with Ms Molly and Bobo!",
+                          m.get("made_for", "Made for toddlers and preschoolers (ages 1 to 5). Sing, clap, jump and dance along with Ms Molly and Bobo!"),
                           m["next"] + " Subscribe so you don't miss it.", *(["", m["tip"]] if m.get("tip") else []), "",
-                          "#ToddlerLearning #KidsSongs #MsMolly"])
+                          m.get("hashtags", "#ToddlerLearning #KidsSongs #MsMolly")])
         (dest / "UPLOAD.md").write_text(
-            f"# {m['folder']}\n\nLength: {int(dur // 60)}:{int(dur % 60):02d}\n\n## Title\n\n{m['title']}\n\n"
+            f"# {fname}\n\nLength: {int(dur // 60)}:{int(dur % 60):02d}\n\n## Title\n\n{m['title']}\n\n"
             f"## Description\n\n```\n{desc}\n```\n\n## Tags ({len(tags)} characters)\n\n```\n{tags}\n```\n\n"
             "## Settings\n\nMade for Kids = Yes · Category: Education · Language: English · Captions: auto (check them)\n\n"
             "## Thumbnails\n\nthumbnail_1.jpg, thumbnail_2.jpg, thumbnail_3.jpg - use YouTube Studio's Test & compare with all three.\n")

@@ -19,6 +19,7 @@ MAX_QUIET = 40.0          # s without anything new
 MAX_TALK = 20.0           # s of talking with no action / picture / card
 MAX_NO_TURN = 75.0        # s between "Your turn!" moments
 GOAL_BY = 15.0
+HOOK_BY = 2.0             # s: the first line (the hook) starts by then
 CALM_IN_LAST = 180.0
 TEASER_IN_LAST = 90.0
 END_SCREEN = 20.0
@@ -49,8 +50,18 @@ def busy(ln):
     return bool(events(ln) or ln.get("card") or (ln.get("act") and ln.get("act") not in ("talk", None)))
 
 
+RULES = {"max_quiet": MAX_QUIET, "max_talk": MAX_TALK, "max_no_turn": MAX_NO_TURN, "goal_by": GOAL_BY, "hook_by": HOOK_BY, "calm_in_last": CALM_IN_LAST,
+         "teaser_in_last": TEASER_IN_LAST, "end_screen": END_SCREEN, "learn_min": 3, "turn_gap": 0.0}
+
+
 def check(story, tl, script=None):
+    """Limits come from RULES, and a story may change them for its channel ("rules" in the render json), e.g. the baby
+    speech channel: {"learn_min": 5, "turn_gap": 2.5, "max_no_turn": 45}. turn_gap = the silence a child gets after a
+    "your turn" line before anyone speaks again."""
     lines, total = tl["lines"], tl["total"]
+    R = {**RULES, **(story.get("rules") or {})}
+    MAX_QUIET, MAX_TALK, MAX_NO_TURN, GOAL_BY = R["max_quiet"], R["max_talk"], R["max_no_turn"], R["goal_by"]
+    CALM_IN_LAST, TEASER_IN_LAST, END_SCREEN = R["calm_in_last"], R["teaser_in_last"], R["end_screen"]
     probs, notes = [], []
     # something new at least every MAX_QUIET s
     last = 0.0
@@ -78,6 +89,13 @@ def check(story, tl, script=None):
         if t - prev > MAX_NO_TURN and not (t == total and total - prev < MAX_NO_TURN + 40):
             probs.append(f"no 'Your turn!' {_mmss(prev)}-{_mmss(t)} ({t - prev:.0f} s)")
         prev = t
+    # the hook: no preview, no slow hello: the very first line grabs attention (a surprise, a sound, something to see)
+    if lines:
+        h = lines[0]
+        loud = h.get("sfx") or h.get("fx") or h.get("pic") or h.get("game") or h.get("hold") or "move" in events(h)
+        if h["start"] > R["hook_by"] or not loud or h["text"].rstrip()[-1:] not in "!?":
+            probs.append(f"no hook: the first line must start by {R['hook_by']:.0f} s and grab attention (a big move, sound, "
+                         "effect or picture, said with ! or ?), not a plain hello")
     # the goal
     if not any(ln.get("goal") and ln["start"] <= GOAL_BY for ln in lines):
         probs.append(f"the goal is not said (goal: true) in the first {GOAL_BY:.0f} s")
@@ -109,8 +127,13 @@ def check(story, tl, script=None):
     # learning words
     for w in (script or {}).get("learn", []):
         n = sum(len(re.findall(rf"\b{re.escape(w)}\b", ln["text"], re.I)) for ln in lines)
-        if n < 3:
-            probs.append(f"learning word '{w}' said {n} time(s), needs 3+")
+        if n < R["learn_min"]:
+            probs.append(f"learning word '{w}' said {n} time(s), needs {R['learn_min']}+")
+    if R["turn_gap"] > 0:                                # babies need real silence to answer
+        for a, b in zip(lines, lines[1:]):
+            if a.get("your_turn") and b["start"] - a["end"] < R["turn_gap"] - 0.05:
+                probs.append(f"'your turn' at {_mmss(a['start'])} leaves {b['start'] - a['end']:.1f} s to answer, needs "
+                             f"{R['turn_gap']:.1f} s (gap_after)")
     probs += places.problems(story, tl)
     return probs, notes
 

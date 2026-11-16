@@ -1,0 +1,902 @@
+{
+ "sky": {
+  "top": [
+   0.36,
+   0.42,
+   0.78
+  ],
+  "low": [
+   1.0,
+   0.7,
+   0.42
+  ]
+ },
+ "light": {
+  "lit": [
+   1.0,
+   0.88,
+   0.72
+  ],
+  "shade": [
+   0.6,
+   0.52,
+   0.72
+  ]
+ },
+ "sun": [
+  22,
+  140
+ ],
+ "about": "Victorian stone town street at sunset: stone shop fronts both sides, a grand stone hall with a big clock at the end (id clock: hands hour/min, red min2), lanterns, a cart (mover: cart)",
+ "ground": [
+  0.58,
+  0.52,
+  0.46
+ ],
+ "pieces": [
+  {
+   "m": "fantasy-town-kit/wall-door",
+   "at": [
+    -6.775,
+    2.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    -6.775,
+    2.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    -6.775,
+    2.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    -6.775,
+    6.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    -6.775,
+    6.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    -6.775,
+    6.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    -6.775,
+    9.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    -6.775,
+    9.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    -6.775,
+    9.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-door",
+   "at": [
+    -6.775,
+    13.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    -6.775,
+    13.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    -6.775,
+    13.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    -6.775,
+    16.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    -6.775,
+    16.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    -6.775,
+    16.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    -6.775,
+    20.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    -6.775,
+    20.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    -6.775,
+    20.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-door",
+   "at": [
+    -6.775,
+    23.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    -6.775,
+    23.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    -6.775,
+    23.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    -6.775,
+    27.0,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    -6.775,
+    27.0,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    -6.775,
+    27.0,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    -6.775,
+    30.5,
+    0.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    -6.775,
+    30.5,
+    3.5
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    -6.775,
+    30.5,
+    7.0
+   ],
+   "rot": 0
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    2.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    2.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    6.775,
+    2.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-door",
+   "at": [
+    6.775,
+    6.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    6.775,
+    6.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    6.775,
+    6.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    6.775,
+    9.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    6.775,
+    9.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    6.775,
+    9.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    6.775,
+    13.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    13.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    6.775,
+    13.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-door",
+   "at": [
+    6.775,
+    16.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    16.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    6.775,
+    16.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    20.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    6.775,
+    20.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    6.775,
+    20.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-shutters",
+   "at": [
+    6.775,
+    23.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-stone",
+   "at": [
+    6.775,
+    23.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    6.775,
+    23.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-door",
+   "at": [
+    6.775,
+    27.0,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    27.0,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-detail-horizontal",
+   "at": [
+    6.775,
+    27.0,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    30.5,
+    0.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-window-glass",
+   "at": [
+    6.775,
+    30.5,
+    3.5
+   ],
+   "rot": 180
+  },
+  {
+   "m": "fantasy-town-kit/wall-block",
+   "at": [
+    6.775,
+    30.5,
+    7.0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    38,
+    0
+   ],
+   "size": [
+    16,
+    4,
+    10
+   ],
+   "color": [
+    0.9,
+    0.8,
+    0.64
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    38,
+    10
+   ],
+   "size": [
+    17,
+    4.6,
+    0.8
+   ],
+   "color": [
+    0.8,
+    0.7,
+    0.56
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    35.6,
+    0
+   ],
+   "size": [
+    5,
+    0.6,
+    3.4
+   ],
+   "color": [
+    0.3,
+    0.22,
+    0.18
+   ]
+  },
+  {
+   "m": "pillar-stone",
+   "at": [
+    -6.5,
+    35.1,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "pillar-stone",
+   "at": [
+    -4,
+    35.1,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "pillar-stone",
+   "at": [
+    4,
+    35.1,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "pillar-stone",
+   "at": [
+    6.5,
+    35.1,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "id": "clock",
+   "r": 1.6,
+   "hour": 9,
+   "min": 50,
+   "m": "@clock",
+   "at": [
+    0,
+    35.85,
+    6.4
+   ]
+  },
+  {
+   "m": "fantasy-town-kit/lantern",
+   "at": [
+    -3.9,
+    4,
+    0
+   ],
+   "s": 0.9
+  },
+  {
+   "m": "fantasy-town-kit/lantern",
+   "at": [
+    3.9,
+    9,
+    0
+   ],
+   "s": 0.9
+  },
+  {
+   "m": "fantasy-town-kit/lantern",
+   "at": [
+    -3.9,
+    16,
+    0
+   ],
+   "s": 0.9
+  },
+  {
+   "m": "cart",
+   "at": [
+    3.0,
+    12.0,
+    0
+   ],
+   "rot": 10,
+   "id": "cart"
+  },
+  {
+   "m": "stall-red",
+   "at": [
+    -3.0,
+    22,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    -3.9,
+    6.5,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    3.9,
+    6.5,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    -3.9,
+    14.5,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    3.9,
+    14.5,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    -3.9,
+    22.5,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    3.9,
+    22.5,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    -3.9,
+    30,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "graveyard-kit/lightpost-single",
+   "at": [
+    3.9,
+    30,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    -4.2,
+    7.4,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    -4.4,
+    8.4,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "survival-kit/barrel",
+   "at": [
+    4.3,
+    19.2,
+    0
+   ],
+   "s": 1.5
+  },
+  {
+   "m": "survival-kit/box-large",
+   "at": [
+    4.2,
+    5.2,
+    0
+   ],
+   "s": 1.4,
+   "rot": 12
+  },
+  {
+   "m": "survival-kit/box",
+   "at": [
+    4.4,
+    6.1,
+    0
+   ],
+   "s": 1.4,
+   "rot": -8
+  },
+  {
+   "m": "stall-green",
+   "at": [
+    3.3,
+    27,
+    0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "stall-bench",
+   "at": [
+    -3.4,
+    12,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "fountain-round",
+   "at": [
+    0,
+    28.5,
+    0
+   ],
+   "s": 1.1
+  },
+  {
+   "m": "cart-high",
+   "at": [
+    -3.2,
+    31,
+    0
+   ],
+   "rot": 30
+  },
+  {
+   "m": "tree-high-round",
+   "at": [
+    -9.0,
+    33,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "tree-high-round",
+   "at": [
+    9.0,
+    33,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "graveyard-kit/iron-fence",
+   "at": [
+    -7.5,
+    33.4,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "graveyard-kit/iron-fence",
+   "at": [
+    -5.2,
+    33.4,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "graveyard-kit/iron-fence",
+   "at": [
+    5.2,
+    33.4,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "graveyard-kit/iron-fence",
+   "at": [
+    7.5,
+    33.4,
+    0
+   ],
+   "s": 1.4
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "tree_default",
+    "tree_oak",
+    "tree_detailed",
+    "tree_fat"
+   ],
+   "from": [
+    -30,
+    52
+   ],
+   "to": [
+    30,
+    52
+   ],
+   "n": 10,
+   "jitter": 3,
+   "s": 1.3
+  }
+ ]
+}

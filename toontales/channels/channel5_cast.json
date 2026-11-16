@@ -1,0 +1,17 @@
+{
+ "note": "Channel 5: no on-screen characters, one calm narrator.",
+ "characters": [],
+ "narrator": {
+  "voice": {
+   "name": "en-US-AndrewNeural",
+   "rate": "-10%",
+   "pitch": "+0Hz",
+   "base_wpm": 222
+  },
+  "role": "calm curious explainer",
+  "traits": [
+   "warm, unhurried, present tense",
+   "each line shows one detail of the object"
+  ]
+ }
+}

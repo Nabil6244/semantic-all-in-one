@@ -5,7 +5,8 @@ python3 -m kids_audio.mixer job.json
 job = {"voice": "voice_processed.wav", "out": "mix.wav", "duration": 54.0,
        "music": {"bed": "playroom", "gap_db": -12, "duck_db": -10, "fade_in": 1.5, "fade_out": 2.5} | null,
        "sfx": [{"t": 5.0, "name": "pop", "gain_db": 0}, ...] | [],
-       "voice_lufs": -14, "target_lufs": -14, "duck_regions": [{"t0", "t1", "duck_db"}] (optional)}
+       "voice_lufs": -14, "target_lufs": -14, "duck_regions": [{"t0", "t1", "duck_db"}] (optional),
+       "voice_gain_db": 0 (optional: gain on the voice first; voice_lufs must be the level after it)}
 Prints a JSON report (levels, ducking, the quietest voice-over-music margin during speech).
 """
 import json
@@ -44,6 +45,8 @@ def mix(job):
     man = L.build(); dur = float(job["duration"]); N = int(round(dur * SR))
     voice = L.read_audio(job["voice"]) if job.get("voice") else np.zeros((2, N))
     voice = np.pad(voice, ((0, 0), (0, max(0, N - voice.shape[1]))))[:, :N]
+    if job.get("voice_gain_db"):                                  # a caller that measured its voice lifts it to voice_lufs here
+        voice = voice * 10 ** (float(job["voice_gain_db"]) / 20)
     out = voice.copy(); rep = {"duration": dur, "music": None, "sfx": 0}
     vlufs = float(job.get("voice_lufs", -14.0))
     act, vdb = voice_activity(voice); act = np.pad(act, (0, N - len(act)), constant_values=0)[:N]

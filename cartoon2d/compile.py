@@ -69,7 +69,7 @@ def main():
     title, eps = sys.argv[1], sys.argv[2:]
     dest = OUT / f"Compilation - {title}"
     dest.mkdir(parents=True, exist_ok=True)
-    vids = [OUT / package.META[e]["folder"] / f"{package.META[e]['folder']}.mp4" for e in eps]
+    vids = [OUT / package.META[e]["folder"] / f"{Path(package.META[e]['folder']).name}.mp4" for e in eps]
     lst = dest / "list.txt"
     lst.write_text("".join(f"file '{v}'\n" for v in vids))
     out = dest / f"{title}.mp4"
@@ -83,7 +83,7 @@ def main():
     chapters, off = [], 0.0
     for e, v in zip(eps, vids):
         m = package.META[e]
-        name = m["folder"].split(" - ", 1)[1]
+        name = Path(m["folder"]).name.split(" - ", 1)[1]
         st = json.loads((ROOT / "cartoon2d" / "scenes" / f"{e}_render.json").read_text())
         chap = (ROOT / st["build"] / "chapters.txt").read_text().strip().splitlines()
         chapters.append(f"{_mmss(off)} {name}")
@@ -93,7 +93,7 @@ def main():
         off += _dur(v)
     minutes = int(round(total / 60))
     thumb(eps, minutes, dest / "thumbnail.jpg")
-    names = [package.META[e]["folder"].split(" - ", 1)[1].replace(" with Ms Molly and Bobo", "") for e in eps]
+    names = [Path(package.META[e]["folder"]).name.split(" - ", 1)[1].replace(" with Ms Molly and Bobo", "") for e in eps]
     tags = ", ".join(sorted({t for e in eps for t in package.META[e]["tags"][:4]} | set(package.COMMON_TAGS) |
                             {"compilation for toddlers", "1 hour toddler learning", "long videos for kids"}))
     desc = "\n".join([f"{minutes} minutes of learning and fun with Ms Molly, Lily, Ollie and Bobo the Bear! 🐻",

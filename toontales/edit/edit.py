@@ -30,6 +30,7 @@ TT = S.TT
 ROOT = TT.parent
 sys.path[:0] = [str(TT / "audio"), str(TT / "edit")]
 import art  # noqa: E402
+import hud  # noqa: E402
 import sfx  # noqa: E402
 import voice  # noqa: E402
 
@@ -74,16 +75,50 @@ def caption_windows(words, dur):
     return out
 
 
+def phrase_windows(words, dur, max_words=4, max_chars=20):
+    """[(phrase, t0, t1)]: 2-4 words per caption, broken after punctuation; each holds until the next starts."""
+    groups, cur = [], []
+    ws = [w for w in words if art.clean_word(w["w"])]
+    for i, w in enumerate(ws):
+        cur.append(w)
+        text = " ".join(x["w"] for x in cur)
+        nxt = ws[i + 1]["w"] if i + 1 < len(ws) else ""
+        ends = w["w"][-1:] in ",.;:?!"
+        full = len(cur) >= max_words or len(text) >= max_chars
+        if full and not ends and nxt[-1:] in ",.;:?!" and len(cur) <= max_words and len(text) + len(nxt) < max_chars + 8:
+            continue  # let the clause's last word join this phrase instead of standing alone
+        if ends or full or len(cur) > max_words:
+            groups.append(cur)
+            cur = []
+    if cur:
+        if groups and len(cur) == 1 and len(" ".join(x["w"] for x in groups[-1])) < max_chars:
+            groups[-1] += cur  # no lonely last word
+        else:
+            groups.append(cur)
+    out = []
+    for i, g in enumerate(groups):
+        t0 = g[0]["t0"]
+        t1 = groups[i + 1][0]["t0"] if i + 1 < len(groups) else min(dur, g[-1]["t1"] + 0.35)
+        out.append((" ".join(x["w"] for x in g), round(t0, 3), round(min(t1, dur), 3)))
+    return out
+
+
 def is_hot(word, keywords):
     w = art.clean_word(word)
     return bool(HOT_RE.search(w)) or w.lower() in keywords
 
 
-def compose_shot(clip, words, overlay, dur, size, work, keywords=(), punch=False, title=None):
-    """Burn punch zoom, title card, captions and overlay into one shot clip (cached by content)."""
-    wins = caption_windows(words, dur)
-    key = hashlib.sha1(json.dumps([Path(clip).name, wins, overlay, size, art.VERSION, VERSION, sorted(keywords),
-                                   punch, title]).encode()).hexdigest()[:16]
+def compose_shot(clip, words, overlay, dur, size, work, keywords=(), punch=False, title=None, hud_spec=None,
+                 callout=None, phrases=False):
+    """Burn punch zoom, title card, captions, overlay and the car HUD (meter, callout) into one shot clip
+    (cached by content)."""
+    wins = phrase_windows(words, dur) if phrases else caption_windows(words, dur)
+    if title and callout:  # the hook title card owns the top third: hang the label below it
+        callout = dict(callout, text_y=max(callout.get("text_y", 0.2), 0.37), y=max(callout.get("y", 0.34), 0.5))
+    parts =[Path(clip).name, wins, overlay, size, art.VERSION, VERSION, sorted(keywords), punch, title, phrases]
+    if hud_spec or callout:
+        parts += [hud_spec, callout, hud.VERSION]
+    key = hashlib.sha1(json.dumps(parts).encode()).hexdigest()[:16]
     out = work / f"{key}.mp4"
     if out.exists():
         return out
@@ -99,11 +134,23 @@ def compose_shot(clip, words, overlay, dur, size, work, keywords=(), punch=False
         inputs += ["-i", str(art.title(title, size))]
         chain.append(f"{last}[{n}:v]overlay=0:0:enable='lt(t,{TITLE_T})'[v{n}]")
         last, n = f"[v{n}]", n + 1
+    if hud_spec:
+        inputs += ["-framerate", "30", "-i", hud.frames(hud_spec, dur, size, work)]
+        chain.append(f"{last}[{n}:v]overlay=0:0:eof_action=repeat[v{n}]")
+        last, n = f"[v{n}]", n + 1
+    if callout:
+        inputs += ["-i", str(hud.callout(callout, size, work))]
+        chain.append(f"{last}[{n}:v]overlay=0:0:enable='gte(t,{OVERLAY_IN})'[v{n}]")
+        last, n = f"[v{n}]", n + 1
     if overlay:
         inputs += ["-i", str(art.overlay(overlay, size))]
         chain.append(f"{last}[{n}:v]overlay=0:0:enable='gte(t,{OVERLAY_IN})'[v{n}]")
         last, n = f"[v{n}]", n + 1
-    for w, t0, t1 in wins:
+    for w, t0, t1 in (wins if phrases else []):  # calm phrase captions: one image per phrase, no pop
+        inputs += ["-i", str(art.phrase(w, size))]
+        chain.append(f"{last}[{n}:v]overlay=0:0:enable='between(t,{t0},{t1})'[v{n}]")
+        last, n = f"[v{n}]", n + 1
+    for w, t0, t1 in ([] if phrases else wins):
         hot = is_hot(w, keywords)
         big, small = art.caption(w, size, pop=True, hot=hot), art.caption(w, size, hot=hot)
         inputs += ["-i", str(big), "-i", str(small)]
@@ -277,6 +324,8 @@ def mix(clips, shots, starts, total, out, freezes=()):
 
 def edit(plan_path, draft=False):
     plan = S.load_plan(plan_path)
+    import os
+    os.environ["TT_CAST"] = str(S.cast_file_for(plan))  # word timing in the channel cast's voices
     sid = plan["id"]
     work = BUILD / "stories" / sid
     man = json.loads((work / ("clips_draft.json" if draft else "clips.json")).read_text())
@@ -290,11 +339,15 @@ def edit(plan_path, draft=False):
     ed.mkdir(parents=True, exist_ok=True)
     keywords = {k.lower() for k in man.get("keywords") or []}
     seq = []
+    ch = S.channel(plan)
+    phrases = ch.get("captions") == "phrase"  # Channel 5: calm phrase captions, no punch-ins, no title slab
     for i, c in enumerate(clips):
         ws = voice.speak_words(c["speaker"], c["text"], BUILD / "voice", dur=c["voice_dur"])
         punch = i == 0 or bool(c.get("punch")) or (c.get("overlay") or {}).get("type") == "stamp"
+        punch = punch and not phrases
+        title = man.get("hook_title") if i == 0 and ch.get("title_card", True) else None
         part = compose_shot(c["clip"], ws, c.get("overlay"), c["dur"], size, ed, keywords, punch,
-                            man.get("hook_title") if i == 0 else None)
+                            title, c.get("hud"), c.get("callout"), phrases)
         seq.append((part, c["dur"], c.get("transition", "cut")))
         if c.get("freeze") is not None:
             seq.append((freeze_part(part, c["freeze"], size, ed), FREEZE, "cut"))

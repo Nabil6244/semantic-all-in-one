@@ -47,6 +47,7 @@ from toontales.plan import schema as S
 TT = S.TT
 sys.path[:0] = [str(TT / "library")]
 import actions as A  # noqa: E402
+from toontales.diorama.actor_acts import ACTS as ACTOR_ACTS  # noqa: E402
 
 STRONG = {"jump", "fall", "bonk", "throw", "run", "celebrate", "shock", "cheer", "point", "point_you",
           "money", "laugh", "pick_up", "tremble", "cower", "facepalm", "dizzy"}
@@ -138,6 +139,8 @@ def _still_gap(acts, d):
 def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=S.STORIES):
     plan = copy.deepcopy(plan)
     rep = _Report()
+    if cast_file == S.CAST_FILE:
+        cast_file = S.cast_file_for(plan)
     cast, narrator = S.load_cast(cast_file)
     kits = S.load_kits(kits_file)
     eyes_ok, mouths_ok = _faces()
@@ -171,9 +174,10 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
                 rep.add("error", "cast_known", sid, f"cast member '{c.get('id')}' is not in the story cast")
             if kit and c.get("mark") not in kit["marks"]:
                 rep.add("error", "set_known", sid, f"mark '{c.get('mark')}' is not in set '{s.get('set')}'")
+            lib = ACTOR_ACTS if (cast.get(c.get("id")) or {}).get("actor") else A.ACTIONS  # realistic actor acts
             for a in c.setdefault("acts", []):
-                if a.get("do") not in A.ACTIONS:
-                    new = _fix_name(str(a.get("do")), A.ACTIONS)
+                if a.get("do") not in lib:
+                    new = _fix_name(str(a.get("do")), lib)
                     if fix and new:
                         rep.add("fixed", "library", sid, f"action '{a.get('do')}' -> '{new}'")
                         a["do"] = new
@@ -241,10 +245,14 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
     # ---- shot length: split long, merge short
     out = []
     i = 0
+    shot_max = S.channel(plan).get("shot_max", S.SHOT_MAX)  # a channel may hold shots longer (slow build shots)
     while i < len(shots):
         s = shots[i]
         d = S.shot_dur(s, cast, narrator)
-        if d > S.SHOT_MAX and not s.get("dur"):
+        if d > shot_max and not s.get("dur") and s.get("moves"):  # timed moves would replay in both halves
+            rep.add("error", "shot_len", _sid(s, i), f"{d:.1f}s is longer than {shot_max}s; it has timed moves, "
+                    f"so split the line by hand")
+        elif d > shot_max and not s.get("dur"):
             cut = _split_point(s["text"])
             if fix and cut:
                 a, b = copy.deepcopy(s), copy.deepcopy(s)
@@ -258,12 +266,14 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
                 rep.add("fixed", "shot_len", _sid(s, i), f"{d:.1f}s is too long, split in two")
                 shots[i:i + 1] = [a, b]
                 continue
-            rep.add("error", "shot_len", _sid(s, i), f"{d:.1f}s is longer than {S.SHOT_MAX}s")
-        elif d > S.SHOT_MAX:
-            rep.add("error", "shot_len", _sid(s, i), f"{d:.1f}s (real voice) is longer than {S.SHOT_MAX}s; split the line")
+            rep.add("error", "shot_len", _sid(s, i), f"{d:.1f}s is longer than {shot_max}s")
+        elif d > shot_max:
+            rep.add("error", "shot_len", _sid(s, i), f"{d:.1f}s (real voice) is longer than {shot_max}s; split the line")
         if d < S.SHOT_MIN and i + 1 < len(shots):
             n = shots[i + 1]
-            if fix and n.get("speaker") == s.get("speaker") and n.get("set") == s.get("set") and not s.get("dur"):
+            own = s.get("hud") or s.get("callout")  # a quick cut with its own meter/label: merging would lose it
+            if fix and n.get("speaker") == s.get("speaker") and n.get("set") == s.get("set") and not s.get("dur") \
+                    and not own:
                 n["text"] = s["text"].rstrip() + " " + n["text"].lstrip()
                 if s.get("beat") and not n.get("beat"):
                     n["beat"] = s["beat"]
@@ -283,7 +293,10 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
         sid = _sid(s, i)
         d = S.shot_dur(s, cast, narrator)
         total += d
-        if i and s["camera"] == shots[i - 1]["camera"] and s.get("set") == shots[i - 1].get("set"):
+        # a world shot aimed at parts ("look") is alive when a meter/callout plays, a part moves or the camera moves
+        alive = bool(s.get("look") and (s.get("hud") or s.get("callout") or s.get("moves")
+                                        or s.get("move", "drift") != "drift"))
+        if i and s["camera"] == shots[i - 1]["camera"] and s.get("set") == shots[i - 1].get("set") and not s.get("look"):
             new = CAM_NEXT.get(s["camera"], "medium")
             if new == shots[i - 1]["camera"]:
                 new = "wide"
@@ -294,7 +307,7 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
                 rep.add("warn", "camera_repeat", sid, f"same camera as the shot before ({s['camera']})")
         acts = _acts(s)
         moving = [a for _, a in acts if a.get("do") not in QUIET]
-        if not moving and not s.get("props") and not s.get("overlay") and not s.get("screen"):
+        if not moving and not s.get("props") and not s.get("overlay") and not s.get("screen") and not alive:
             target = s["speaker"] if s["speaker"] in [c["id"] for c in s["cast"]] else (s["cast"][0]["id"] if s["cast"] else None)
             if fix and target:
                 for c in s["cast"]:
@@ -305,7 +318,7 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
                 rep.add("error", "visual", sid, "nothing happens on screen (no action, prop or overlay)")
         starts = sorted(float(a.get("at", 0)) for _, a in acts)
         gap = _still_gap(acts, d)
-        if d > S.STILL_MAX and gap > S.STILL_MAX and not s.get("screen"):
+        if d > S.STILL_MAX and gap > S.STILL_MAX and not s.get("screen") and not alive:
             first = s["cast"][0] if s["cast"] else None
             if fix and first:
                 at = round(min(d - 0.6, max(starts + [0.0]) + S.STILL_MAX * 0.6), 2)
@@ -321,22 +334,47 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
                 else:
                     rep.add("error", "act_time", sid, f"{cid} {a['do']} starts outside the shot")
 
+    # ---- 3D toon-world places: layout exists, every model is in the packs, shot moves name real pieces
+    models = S.world_models()
+    for pname, pv in (plan.get("places") or {}).items():
+        if not S.is_world(plan, pname):
+            continue
+        try:
+            lay = S.world_layout(plan, pname)
+        except FileNotFoundError:
+            rep.add("error", "world", None, f"place '{pname}': world layout '{pv['world']}' does not exist "
+                    f"(have: {', '.join(S.world_names())})")
+            continue
+        names = [q["m"] for q in lay.get("pieces", [])] + [m for r in lay.get("rows", []) for m in
+                                                            (r["m"] if isinstance(r["m"], list) else [r["m"]])]
+        for n in sorted(set(names) - models):
+            rep.add("error", "world", None, f"place '{pname}': model '{n}' is not in the toon world packs")
+        ids = {q.get("id") for q in lay.get("pieces", []) if q.get("id")}
+        for sh in shots:
+            if sh.get("set") != pname:
+                continue
+            for mv in sh.get("moves", []):
+                if mv.get("id") not in ids:
+                    rep.add("error", "world", sh.get("id"), f"move of '{mv.get('id')}' but place '{pname}' has no "
+                            f"piece with that id (have: {', '.join(sorted(ids)) or 'none'})")
+
     # ---- places: the story travels; every narrator line is acted, not just talked
     sets = [s.get("set") for s in shots]
     if len(set(sets)) < MIN_PLACES:
         rep.add("error", "places", None, f"the whole story happens in {len(set(sets))} place(s); "
                 f"use at least {MIN_PLACES} (add plan places and move scenes there)")
-    run = 1
+    run, place_run = 1, S.channel(plan).get("place_run", PLACE_RUN)  # one diorama can carry a long build
     for i in range(1, len(shots)):
         run = run + 1 if sets[i] == sets[i - 1] else 1
-        if run == PLACE_RUN + 1:
+        if run == place_run + 1:
             rep.add("error", "places", shots[i]["id"], f"{run} shots in a row in '{sets[i]}'; cut to another place")
     for i, s in enumerate(shots):
         if s.get("speaker") != "narrator":
             continue
         story_act = any(a.get("do") not in GESTURES for _, a in _acts(s))
         new_place = i == 0 or sets[i] != sets[i - 1]
-        if not (story_act or s.get("props") or s.get("overlay") or new_place or s.get("screen")):
+        if not (story_act or s.get("props") or s.get("overlay") or new_place or s.get("screen") or s.get("moves")
+                or s.get("hud") or s.get("callout")):
             rep.add("error", "show_line", s["id"], f"'{s['text'][:50]}' is only gestured; show it "
                     "(a prop, overlay, a move/grab/throw, or cut to the place it happens)")
 
@@ -403,8 +441,9 @@ def check(plan, fix=True, cast_file=S.CAST_FILE, kits_file=S.KITS_FILE, stories=
         if k < last:
             rep.add("warn", "beat_order", s["id"], f"beat '{b}' comes after '{S.BEATS[last]}'")
         last = max(last, k)
-    if not S.STORY_MIN <= total <= S.STORY_MAX:
-        rep.add("warn", "length", None, f"story is {total:.0f}s (aim {S.STORY_MIN:.0f}-{S.STORY_MAX:.0f}s)")
+    lo, hi = S.channel(plan).get("length") or (S.STORY_MIN, S.STORY_MAX)  # a channel may set its own range
+    if not lo <= total <= hi:
+        rep.add("warn", "length", None, f"story is {total:.0f}s (aim {lo:.0f}-{hi:.0f}s)")
     topic = (plan.get("topic") or plan.get("title") or "").strip().lower()
     for old in S.used_topics(stories):
         if old.get("id") != plan.get("id") and topic and topic == str(old.get("topic", "")).strip().lower():

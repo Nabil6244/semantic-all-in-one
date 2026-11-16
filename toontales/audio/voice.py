@@ -118,16 +118,21 @@ def words(text, voice, rate="+0%", out_dir=".", pitch="+0Hz", dur=None, tries=8)
     return res
 
 
-def speak(who, text, out_dir, cast_path=CAST):
-    """Line in the character's own fixed voice from cast.json (same voice in every story)."""
-    data = json.loads(Path(cast_path).read_text())
+def _cast_path(p):
+    import os
+    return Path(p or os.environ.get("TT_CAST") or CAST)
+
+
+def speak(who, text, out_dir, cast_path=None):
+    """Line in the character's own fixed voice from the cast file (the channel's, or cast.json)."""
+    data = json.loads(_cast_path(cast_path).read_text())
     cast = {c["id"]: c for c in data["characters"]}
     v = data["narrator"]["voice"] if who == "narrator" else cast[who]["voice"]
     return line(text, v["name"], v.get("rate", "+0%"), out_dir, v.get("pitch", "+0Hz"))
 
 
-def speak_words(who, text, out_dir, dur=None, cast_path=CAST):
-    data = json.loads(Path(cast_path).read_text())
+def speak_words(who, text, out_dir, dur=None, cast_path=None):
+    data = json.loads(_cast_path(cast_path).read_text())
     cast = {c["id"]: c for c in data["characters"]}
     v = data["narrator"]["voice"] if who == "narrator" else cast[who]["voice"]
     return words(text, v["name"], v.get("rate", "+0%"), out_dir, v.get("pitch", "+0Hz"), dur=dur)

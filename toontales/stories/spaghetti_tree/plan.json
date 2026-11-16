@@ -1,0 +1,608 @@
+{
+ "id": "spaghetti_tree",
+ "title": "The TV Show That Grew Spaghetti on Trees",
+ "topic": "the BBC spaghetti-tree hoax (1957)",
+ "hook_title": "SPAGHETTI GROWS ON TREES?",
+ "keywords": [
+  "spaghetti",
+  "trees",
+  "bbc",
+  "harvest",
+  "april",
+  "fools",
+  "tomato"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Spaghetti-tree_hoax"
+ ],
+ "places": {
+  "orchard": {
+   "prompt": "A sunny Swiss orchard by a lake in spring: small trees, wooden ladders, baskets, green grass, mountains behind",
+   "ambient": "leaves"
+  },
+  "studio": "A 1957 BBC television studio: big black TV cameras on wheels, studio lights, a news desk, cables on the floor",
+  "livingroom": "A 1957 British living room: a small wooden television set, a sofa, patterned wallpaper, a tea set on a table",
+  "phones": "A 1957 BBC phone room: rows of desks with black telephones, papers everywhere, a big clock on the wall"
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1957, the BBC showed spaghetti growing on trees.",
+   "set": "orchard",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.6
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "walt",
+   "text": "And people believed it?",
+   "set": "orchard",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Panorama was a serious news show.",
+   "set": "studio",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "BBC PANORAMA"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "On April first, it ran a report from Switzerland.",
+   "set": "studio",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "APRIL 1"
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "A family picked long noodles off the branches.",
+   "set": "orchard",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "picked_by": "pip"
+    }
+   ],
+   "id": "s05",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "pip",
+   "text": "A great harvest this year!",
+   "set": "orchard",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The narrator said a mild winter helped the crop.",
+   "set": "orchard",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "MILD WINTER"
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And that every strand grew to the same length.",
+   "set": "orchard",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "pip",
+     "text": "SAME LENGTH"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Spaghetti was still unusual in Britain then.",
+   "set": "livingroom",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "PASTA?"
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "So that's where it comes from!",
+   "set": "livingroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Hundreds of viewers phoned the BBC.",
+   "set": "phones",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.4,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "tremble",
+       "at": 1.25
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    },
+    {
+     "name": "ding",
+     "at": 0.8
+    },
+    {
+     "name": "ding",
+     "at": 1.4
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Some asked how to grow their own spaghetti tree.",
+   "set": "phones",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "HOW?"
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The BBC's answer? Put a sprig of spaghetti",
+   "set": "phones",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "AND HOPE FOR THE BEST"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "in a tin of tomato sauce.",
+   "set": "phones",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "id": "s14",
+   "props": [
+    {
+     "type": "label",
+     "text": "TOMATO SAUCE",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "It became one of the most famous April Fools' jokes ever.",
+   "set": "studio",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "APRIL FOOLS!"
+   },
+   "sfx": [
+    {
+     "name": "laugh",
+     "at": 0.3
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "So spaghetti doesn't grow on trees?",
+   "set": "orchard",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "Shh. Pass me the tomato sauce.",
+   "set": "orchard",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 33.74
+}

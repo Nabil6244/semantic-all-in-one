@@ -1,0 +1,485 @@
+{
+ "about": "mountain road: road behind the cast along a cliff, big rock walls and pines behind, snow optional (place ground override); movers: rig (garbage-truck as heavy truck), car",
+ "ground": [
+  0.48,
+  0.62,
+  0.35
+ ],
+ "sky": {
+  "top": [
+   0.26,
+   0.58,
+   0.97
+  ],
+  "low": [
+   0.8,
+   0.91,
+   1.0
+  ]
+ },
+ "pieces": [
+  {
+   "m": "road-straight",
+   "at": [
+    -42,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -35,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -28,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -21,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -14,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -7,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    0,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    7,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    14,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    21,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    28,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    35,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    42,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "garbage-truck",
+   "at": [
+    -6,
+    4.6,
+    0
+   ],
+   "rot": 90,
+   "id": "rig"
+  },
+  {
+   "m": "suv",
+   "at": [
+    9,
+    7.5,
+    0
+   ],
+   "rot": -90,
+   "id": "car"
+  },
+  {
+   "m": "road-sign-warning",
+   "at": [
+    4.6,
+    3.4,
+    0
+   ],
+   "rot": 180,
+   "s": 0.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -48,
+    22,
+    0
+   ],
+   "rot": 180,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -40,
+    24,
+    0
+   ],
+   "rot": 192,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -32,
+    26,
+    0
+   ],
+   "rot": 204,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -24,
+    22,
+    0
+   ],
+   "rot": 216,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -16,
+    24,
+    0
+   ],
+   "rot": 180,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -8,
+    26,
+    0
+   ],
+   "rot": 192,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    0,
+    22,
+    0
+   ],
+   "rot": 204,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    8,
+    24,
+    0
+   ],
+   "rot": 216,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    16,
+    26,
+    0
+   ],
+   "rot": 180,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    24,
+    22,
+    0
+   ],
+   "rot": 192,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    32,
+    24,
+    0
+   ],
+   "rot": 204,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    40,
+    26,
+    0
+   ],
+   "rot": 216,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    48,
+    22,
+    0
+   ],
+   "rot": 180,
+   "s": 2.6
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    -50,
+    40,
+    0
+   ],
+   "rot": 170,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    -38,
+    40,
+    0
+   ],
+   "rot": 185,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    -26,
+    40,
+    0
+   ],
+   "rot": 200,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    -14,
+    40,
+    0
+   ],
+   "rot": 170,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    -2,
+    40,
+    0
+   ],
+   "rot": 185,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    10,
+    40,
+    0
+   ],
+   "rot": 200,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    22,
+    40,
+    0
+   ],
+   "rot": 170,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    34,
+    40,
+    0
+   ],
+   "rot": 185,
+   "s": 5
+  },
+  {
+   "m": "cliff_large_stone",
+   "at": [
+    46,
+    40,
+    0
+   ],
+   "rot": 200,
+   "s": 5
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -40,
+    10.5
+   ],
+   "to": [
+    40,
+    10.5
+   ],
+   "n": 10,
+   "jitter": 1.2,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -50,
+    30
+   ],
+   "to": [
+    50,
+    30
+   ],
+   "n": 16,
+   "jitter": 3,
+   "s": 1.8
+  },
+  {
+   "m": [
+    "rock_largeA",
+    "rock_largeB"
+   ],
+   "from": [
+    -14,
+    3.4
+   ],
+   "to": [
+    14,
+    3.4
+   ],
+   "n": 5,
+   "jitter": 1.5,
+   "s": 0.7
+  },
+  {
+   "m": [
+    "grass_large",
+    "grass_leafs",
+    "flower_yellowA",
+    "flower_redB",
+    "rock_smallA"
+   ],
+   "from": [
+    -9,
+    -2.5
+   ],
+   "to": [
+    -3.5,
+    -1.5
+   ],
+   "n": 6,
+   "jitter": 1.0,
+   "s": 0.35
+  },
+  {
+   "m": [
+    "grass_large",
+    "grass_leafs",
+    "flower_purpleA",
+    "plant_bushSmall"
+   ],
+   "from": [
+    3.5,
+    -1.5
+   ],
+   "to": [
+    9,
+    -2.5
+   ],
+   "n": 6,
+   "jitter": 1.0,
+   "s": 0.35
+  }
+ ]
+}

@@ -1,0 +1,1246 @@
+{
+ "id": "flood_wall",
+ "title": "How a River House Stays Dry When the River Rises",
+ "topic": "flood-proofing a riverside house: concrete flood wall on a footing, flap valve on the drain, pump, sandbags",
+ "hook_title": "THE RIVER IS HIGHER THAN THE YARD?",
+ "keywords": [
+  "river",
+  "flood",
+  "wall",
+  "concrete",
+  "drain",
+  "valve",
+  "pump",
+  "dry",
+  "storm",
+  "bank"
+ ],
+ "cast": [
+  "builder"
+ ],
+ "channel": "channel3",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Flood_wall",
+  "https://en.wikipedia.org/wiki/Flap_valve"
+ ],
+ "places": {
+  "home": {
+   "world": "dio_riverside_house",
+   "prompt": "A riverside house before: river low"
+  },
+  "dig": {
+   "world": "dio_riverside_house",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      4.1,
+      2.0,
+      -0.9
+     ],
+     "size": [
+      0.9,
+      9.0,
+      0.5
+     ],
+     "mat": "concrete",
+     "id": "footing"
+    }
+   ],
+   "prompt": "A trench dug along the river bank"
+  },
+  "walled": {
+   "world": "dio_riverside_house",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      4.1,
+      2.0,
+      -0.9
+     ],
+     "size": [
+      0.9,
+      9.0,
+      0.5
+     ],
+     "mat": "concrete",
+     "id": "footing"
+    },
+    {
+     "m": "@box",
+     "at": [
+      4.55,
+      2.0,
+      -1.4
+     ],
+     "size": [
+      0.35,
+      9.0,
+      3.2
+     ],
+     "mat": "concrete",
+     "id": "fwall"
+    }
+   ],
+   "prompt": "A concrete flood wall along the bank"
+  },
+  "fitted": {
+   "world": "dio_riverside_house",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      4.1,
+      2.0,
+      -0.9
+     ],
+     "size": [
+      0.9,
+      9.0,
+      0.5
+     ],
+     "mat": "concrete",
+     "id": "footing"
+    },
+    {
+     "m": "@box",
+     "at": [
+      4.55,
+      2.0,
+      -1.4
+     ],
+     "size": [
+      0.35,
+      9.0,
+      3.2
+     ],
+     "mat": "concrete",
+     "id": "fwall"
+    },
+    {
+     "m": "@beam",
+     "a": [
+      2.6,
+      2.0,
+      -0.4
+     ],
+     "b": [
+      4.6,
+      2.0,
+      -0.4
+     ],
+     "t": 0.14,
+     "mat": "metal",
+     "id": "drain"
+    },
+    {
+     "m": "@box",
+     "at": [
+      4.78,
+      2.0,
+      -0.52
+     ],
+     "size": [
+      0.06,
+      0.3,
+      0.26
+     ],
+     "mat": "metal",
+     "id": "flap"
+    },
+    {
+     "m": "@box",
+     "at": [
+      2.4,
+      3.4,
+      0.6
+     ],
+     "size": [
+      0.4,
+      0.4,
+      0.5
+     ],
+     "mat": "metal",
+     "tint": [
+      0.2,
+      0.4,
+      0.9
+     ],
+     "id": "pump"
+    }
+   ],
+   "prompt": "Wall, drain flap and pump fitted"
+  },
+  "ready": {
+   "world": "dio_riverside_house",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      4.1,
+      2.0,
+      -0.9
+     ],
+     "size": [
+      0.9,
+      9.0,
+      0.5
+     ],
+     "mat": "concrete",
+     "id": "footing"
+    },
+    {
+     "m": "@box",
+     "at": [
+      4.55,
+      2.0,
+      -1.4
+     ],
+     "size": [
+      0.35,
+      9.0,
+      3.2
+     ],
+     "mat": "concrete",
+     "id": "fwall"
+    },
+    {
+     "m": "@box",
+     "at": [
+      -0.2,
+      0.15,
+      0.6
+     ],
+     "size": [
+      0.42,
+      0.3,
+      0.18
+     ],
+     "mat": "sand",
+     "tint": [
+      0.75,
+      0.66,
+      0.45
+     ],
+     "id": "bag0"
+    },
+    {
+     "m": "@box",
+     "at": [
+      0.25,
+      0.15,
+      0.6
+     ],
+     "size": [
+      0.42,
+      0.3,
+      0.18
+     ],
+     "mat": "sand",
+     "tint": [
+      0.75,
+      0.66,
+      0.45
+     ],
+     "id": "bag1"
+    },
+    {
+     "m": "@box",
+     "at": [
+      0.7,
+      0.15,
+      0.6
+     ],
+     "size": [
+      0.42,
+      0.3,
+      0.18
+     ],
+     "mat": "sand",
+     "tint": [
+      0.75,
+      0.66,
+      0.45
+     ],
+     "id": "bag2"
+    },
+    {
+     "m": "@beam",
+     "a": [
+      2.6,
+      2.0,
+      -0.4
+     ],
+     "b": [
+      4.6,
+      2.0,
+      -0.4
+     ],
+     "t": 0.14,
+     "mat": "metal",
+     "id": "drain"
+    },
+    {
+     "m": "@box",
+     "at": [
+      4.78,
+      2.0,
+      -0.52
+     ],
+     "size": [
+      0.06,
+      0.3,
+      0.26
+     ],
+     "mat": "metal",
+     "id": "flap"
+    },
+    {
+     "m": "@box",
+     "at": [
+      2.4,
+      3.4,
+      0.6
+     ],
+     "size": [
+      0.4,
+      0.4,
+      0.5
+     ],
+     "mat": "metal",
+     "tint": [
+      0.2,
+      0.4,
+      0.9
+     ],
+     "id": "pump"
+    }
+   ],
+   "prompt": "Finished flood-proof house: wall, drain flap, pump, sandbags"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "text": "This river just rose higher than the yard. The house is still dry.",
+   "set": "ready",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.4,
+     2.0,
+     0.4
+    ],
+    "dist": 12.5,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 2.7,
+     "level_to": 2.7,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BONE DRY"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "text": "So how does a house beat a flood?",
+   "set": "ready",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2,
+       "params": {
+        "dir": [
+         0.9,
+         -0.2,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 6.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 2.7,
+     "level_to": 2.7,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "text": "Mia's little house sits right beside a lazy, slow river.",
+   "set": "home",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "idle",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.4,
+     2.0,
+     0.4
+    ],
+    "dist": 12.5,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "text": "Most days, the water stays far below the bank.",
+   "set": "home",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [],
+   "look": {
+    "at": [
+     6.0,
+     2.0,
+     -0.6
+    ],
+    "dist": 7.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "RIVER"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "setup",
+   "text": "But after one rainy spring week, it starts to climb.",
+   "set": "home",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 8.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 1.35,
+     "t0": 0.2,
+     "t1": 2.8
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "text": "Right up to the top of the bank.",
+   "set": "home",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 5.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 1.35,
+     "level_to": 1.4,
+     "t0": 0,
+     "t1": 1.0
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "con",
+   "text": "One more storm, and it pours into the living room.",
+   "set": "home",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wipe",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     2.4,
+     1.5
+    ],
+    "dist": 6.2,
+    "yaw": -6,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 1.4,
+     "level_to": 1.4,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "FLOOD RISK"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "escalate",
+   "text": "So the builder digs a deep trench along the bank,",
+   "set": "dig",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.2,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 7.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    },
+    {
+     "id": "footing",
+     "grow": "up",
+     "t0": 0.4,
+     "t1": 2.4
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "escalate",
+   "text": "and fills it with a heavy concrete footing.",
+   "set": "dig",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [],
+   "look": {
+    "at": [
+     4.2,
+     2.0,
+     -0.8
+    ],
+    "dist": 6.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "FOOTING"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "escalate",
+   "text": "On top, a thick concrete wall rises.",
+   "set": "walled",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "carry",
+       "at": 0.0,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 7.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    },
+    {
+     "id": "fwall",
+     "grow": "up",
+     "t0": 0.3,
+     "t1": 2.6
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s10",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "text": "Taller than the worst flood anyone remembers.",
+   "set": "walled",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look",
+       "at": 0.1,
+       "params": {
+        "yaw": 60,
+        "pitch": 35
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     4.5,
+     2.0,
+     0.8
+    ],
+    "dist": 5.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "1.8 M"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "obstacle",
+   "text": "But water is sneaky. It comes back up through the drains.",
+   "set": "walled",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_down",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     1.4,
+     2.0,
+     0.2
+    ],
+    "dist": 5.2,
+    "yaw": -6,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "text": "So he adds a flap valve on the drain.",
+   "set": "fitted",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "drill",
+       "at": 0.1,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     4.6,
+     2.0,
+     -0.45
+    ],
+    "dist": 4.0,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    },
+    {
+     "id": "flap",
+     "show": 0.8
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "twist",
+   "text": "Rain can flow out of the yard, but the river can't push back in.",
+   "set": "fitted",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     4.75,
+     2.0,
+     -0.5
+    ],
+    "dist": 2.4,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 40
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "ONE WAY"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "twist",
+   "text": "Then a pump inside, for any water that still seeps through.",
+   "set": "fitted",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3,
+       "params": {
+        "dir": [
+         0.3,
+         0.6,
+         -0.4
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.0,
+     3.0,
+     0.9
+    ],
+    "dist": 4.4,
+    "yaw": -6,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "text": "And sandbags at the door, just in case.",
+   "set": "ready",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "carry",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.3,
+     0.6,
+     0.8
+    ],
+    "dist": 4.2,
+    "yaw": -6,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 0.9,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "payoff",
+   "text": "Then the big storm hits.",
+   "set": "ready",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     2.4,
+     2.0,
+     0.4
+    ],
+    "dist": 12.5,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 0.9,
+     "level_to": 1.9,
+     "t0": 0.2,
+     "t1": 2.2
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "text": "The river climbs past the bank, past the yard,",
+   "set": "ready",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 7.6,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 1.9,
+     "level_to": 2.7,
+     "t0": 0.1,
+     "t1": 2.8
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "text": "and stops dead against the wall.",
+   "set": "ready",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     4.4,
+     2.0,
+     0.2
+    ],
+    "dist": 4.6,
+    "yaw": -8,
+    "pitch": 5,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 2.7,
+     "level_to": 2.7,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "HELD"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "text": "Inside, the floor stays bone dry.",
+   "set": "ready",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     2.4,
+     1.5
+    ],
+    "dist": 6.2,
+    "yaw": -6,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 2.7,
+     "level_to": 2.7,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "text": "That's how a river house stays dry when the water rises.",
+   "set": "ready",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.4,
+     2.0,
+     0.4
+    ],
+    "dist": 12.5,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "river",
+     "level_from": 2.7,
+     "level_to": 2.7,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  }
+ ],
+ "est_total": 60.53
+}

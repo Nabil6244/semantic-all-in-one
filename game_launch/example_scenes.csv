@@ -1,0 +1,13 @@
+narration,shot,game_clip,game_at,real,real_at,left,right,title,subtitle,place
+"In three days, GTA six finally drops.",title,gta6_trailer1.mp4,2.75,,,,,NOV 19,GTA VI · 3 days to launch,
+"But the state where it all happens, Leonida, is not made up.",title,gta6_trailer1.mp4,10.95,,,,,Is Leonida real?,,
+"Here are the regions of Leonida, and the real places behind them.",map,,,,,,,,,all
+"Region one. Vice City.",chapter,gta6_trailer1.mp4,39.85,,,,,Vice City,Region of Leonida,
+"Vice City is Miami. The highways, the skyline, even the green exit signs match.",map,,,,,,,,,Vice City=Miami@25.77,-80.19
+,split,gta6_trailer1.mp4,23.35,miami expressway aerial sunset,,VICE CITY,MIAMI,,,
+"Then there's the beach. Vice Beach is Miami Beach.",split,gta6_launch_trailer.mp4,54.6,miami beach aerial drone,,VICE BEACH,MIAMI BEACH,,,
+"Region two. The Leonida Keys.",chapter,gta6_trailer2.mp4,6.1,,,,,Leonida Keys,Region of Leonida,
+"These are the Florida Keys, linked by long bridges.",map,,,,,,,,,Leonida Keys=Florida Keys@24.72,-81.10
+,split,gta6_trailer1.mp4,35.75,seven mile bridge florida keys,,LEONIDA KEYS,SEVEN MILE BRIDGE,,,
+"The trailers show it again and again.",game,gta6_trailer2.mp4,8.2,,,,,,,
+"Subscribe so you don't miss the full comparison.",title,,,palm trees beach drone,,,,The real Leonida,Subscribe,

@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 from kids_audio.mixer import mix  # noqa: E402
-from kids_audio.library import read_audio, write_wav  # noqa: E402
+from kids_audio.library import read_audio, write_wav, lufs  # noqa: E402
 from kids_audio.synth import SR  # noqa: E402
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -47,9 +47,17 @@ for ln in tl["lines"]:
     if ln.get("chant"):
         duck.append({"t0": ln["start"], "t1": ln["end"], "duck_db": -4})
 sfx += games.sfx(tl)
-job = {"voice": str(build / "audio" / "dialogue.wav"), "out": str(build / "final_mix.wav"), "duration": total,
+# the mixer sets the music and the effects relative to voice_lufs, so it must be the voice's real level: Edge dialogue
+# with the voice chain sits near -30 LUFS, and with an assumed -14 the bed came out ~16 dB too loud (it swelled to the
+# voice's level in every pause and covered words under speech). Lift the voice to -16 LUFS, or as far as its peaks allow.
+dlg = build / "audio" / "dialogue.wav"
+_v = read_audio(str(dlg))
+v_lufs = lufs(_v)
+v_gain = min(-16.0 - v_lufs, -1.5 - 20 * float(np.log10(np.abs(_v).max() + 1e-9)))
+del _v
+job = {"voice": str(dlg), "voice_gain_db": round(v_gain, 2), "out": str(build / "final_mix.wav"), "duration": total,
        "music": {"segments": segs, "gap_db": -12, "duck_db": -10, "fade_in": 1.5, "fade_out": 3.0, "crossfade": 1.2},
-       "sfx": sfx, "duck_regions": duck, "voice_lufs": -14, "target_lufs": -14}
+       "sfx": sfx, "duck_regions": duck, "voice_lufs": round(v_lufs + v_gain, 2), "target_lufs": -14}
 (build / "mix_job.json").write_text(json.dumps(job, indent=1))
 print(json.dumps(mix(job)))
 # hook teaser: the same moments render.py puts in front of the cold open, cut from the finished mix, each with short
@@ -87,14 +95,20 @@ if win:
                 rows.append(f"{int(s_ // 60)}:{int(s_ % 60):02d} {rest}")
         (build / "chapters.txt").write_text("\n".join(rows) + "\n")
     print("HOOK", win, round(L, 2), "s")
+elif (build / "audio" / "chapters.txt").exists():     # no teaser: the chapters are the episode's own (drop a stale "Coming up!" list)
+    (build / "chapters.txt").write_text((build / "audio" / "chapters.txt").read_text())
+    (build / "final_mix_hook.wav").unlink(missing_ok=True)
 if "--mux" in sys.argv:
     name = st.get("name", build.name)
     out = build / f"{name}.mp4"
     # two-pass linear loudness: one gain for the whole film (single-pass loudnorm rides the level up and down = pumping)
-    meas = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(final), "-af", "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
+    # a soft peak limiter first: the lifted voice has rare peaks over 0 dBFS, and with them linear loudnorm cannot reach
+    # -14 inside TP -1.5 and silently falls back to its dynamic mode (the level pumps). Same chain in both passes.
+    pre = "alimiter=limit=0.5:attack=5:release=60:level=disabled,"
+    meas = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(final), "-af", pre + "loudnorm=I=-14:TP=-1.5:LRA=11:print_format=json",
                            "-f", "null", "-"], capture_output=True, text=True).stderr
     m = json.loads(meas[meas.rindex("{"):meas.rindex("}") + 1])
-    ln = (f"loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={m['input_i']}:measured_TP={m['input_tp']}"
+    ln = pre + (f"loudnorm=I=-14:TP=-1.5:LRA=11:linear=true:measured_I={m['input_i']}:measured_TP={m['input_tp']}"
           f":measured_LRA={m['input_lra']}:measured_thresh={m['input_thresh']}:offset={m['target_offset']}")
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(build / "video_silent.mp4"), "-i", str(final),
                     "-map", "0:v", "-map", "1:a", "-c:v", "copy", "-af", ln, "-ar", "48000",

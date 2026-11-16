@@ -1,0 +1,16 @@
+[
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 0,
+  "prompt": "2D cartoon background for a preschool TV show, modern children's animation style, flat bright colors, clean outlines, vector illustration. Inside a bright rainbow soft-play room: pastel sky mural with a rainbow and clouds on the back wall, a colourful ball pit on the left, a small slide on the right, soft padded floor in big tiles, toy blocks and balloons along the walls. Wide shot, eye level, the middle of the floor is empty open space for characters to stand. No characters, no people, no text.",
+  "status": "done",
+  "mediaIds": [
+   "5ec09087-6261-451e-a46f-6281e02f2daa",
+   "0338f414-baa8-4f51-8be7-a9ade67db92d"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/bg/account-7-3ff7a2/001-2.png",
+  "submitted": true
+ }
+]

@@ -120,3 +120,29 @@ class MoreCards(Cards):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ScriptPhrasings(unittest.TestCase):
+    """Owner 2026-11-16: the Ukraine script never triggered the counter / forces cards; these are its own sentences."""
+
+    def test_counter_from_then_and_against(self):
+        from cinematic_explainer.war import graphics_ref as GR
+
+        c = GR.counter_of("ISW counts 3,604 square kilometers for Russia in 2024, then 5,304 in 2025, including 473 retaken in Kursk.")
+        self.assertEqual((c["a"]["shown"], c["a"]["label"], c["b"]["shown"], c["b"]["label"]), ("3,604", "2024", "5,304", "2025"))
+        self.assertEqual(c["unit"], "square kilometers")
+        c = GR.counter_of("That is 0.38 square kilometers a day this year, against about 13 a day in 2025.")
+        self.assertEqual((c["a"]["shown"], c["a"]["label"], c["b"]["shown"], c["b"]["label"]), ("13", "2025", "0.38", "THIS YEAR"))
+        self.assertIsNone(GR.counter_of("Russia sent 289 drones on November 3, 310 on November 4 and 317 on November 9."))
+        self.assertIsNone(GR.counter_of("Between 2014 and 2022 the war changed."))
+
+    def test_forces_without_a_pictogram_and_with_comma_and(self):
+        from cinematic_explainer.war import direction as D, graphics_ref as GR
+
+        f = GR.forces_of("ISW found Russia seized only 148 square kilometers, while Ukraine liberated at least 972, as of September 19.", D._STICKERS)
+        self.assertEqual((f["left"]["name"], f["right"]["name"]), ("Russia", "Ukraine"))
+        self.assertEqual([(r["label"], r["a_shown"], r["b_shown"]) for r in f["rows"]], [("square kilometers", "148", "972")])
+        f = GR.forces_of("The next night Russia sent 310 drones, and Ukraine says it downed or neutralized 272, including 64 jet-powered.", D._STICKERS)
+        self.assertEqual([(r["a_shown"], r["b_shown"]) for r in f["rows"]], [("310", "272")])
+        self.assertIsNone(GR.forces_of("Russia lost 300 tanks, while Ukraine lost 90 jets.", D._STICKERS))
+        self.assertIsNone(GR.forces_of("In September, ISW says Russia seized 175 square kilometers but lost 256.", D._STICKERS))

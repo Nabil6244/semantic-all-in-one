@@ -1,0 +1,623 @@
+{
+ "id": "van_meegeren",
+ "title": "The Forger Who Fooled the Nazis",
+ "topic": "Han van Meegeren's fake Vermeers",
+ "hook_title": "HE SOLD A FAKE TO GÖRING?",
+ "keywords": [
+  "vermeer",
+  "fake",
+  "goring",
+  "painting",
+  "forger",
+  "treason",
+  "court"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Han_van_Meegeren"
+ ],
+ "places": {
+  "studio": "A 1930s painter's studio in the Netherlands: easels, old canvases, jars of paint, an oven, a big window with grey light",
+  "gallery": "A 1940s art gallery: gold frames on red walls, spotlights, a velvet rope, polished wooden floor",
+  "nazi": "Hermann Göring's grand 1943 villa hall: huge paintings in gold frames, a chandelier, a long carpet, dark wood",
+  "jail": {
+   "prompt": "A 1945 Dutch prison cell: brick walls, a small barred window, a cot, a bucket, grey light",
+   "ambient": "none"
+  },
+  "court": "A 1947 Amsterdam courtroom: wooden benches full of people far away, a judge's bench, painted portraits, tall windows"
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "One painter sold a fake masterpiece to a top Nazi.",
+   "set": "studio",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.8
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "How do you fake a masterpiece?",
+   "set": "studio",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Han van Meegeren was a Dutch painter.",
+   "set": "studio",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "HAN VAN MEEGEREN"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Critics said his paintings were boring.",
+   "set": "gallery",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BORING"
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Then I'll paint like Vermeer.",
+   "set": "studio",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He used old canvases and baked his paint hard.",
+   "set": "studio",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "throw",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "picked_by": "walt"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "BAKED"
+   },
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.4
+    }
+   ],
+   "id": "s06",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Experts called his fakes real Vermeers.",
+   "set": "gallery",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "\"A VERMEER!\""
+   },
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.3
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "A lost masterpiece!",
+   "set": "gallery",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "During the war, one was sold to Hermann Göring.",
+   "set": "nazi",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "HERMANN GORING"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.6
+    }
+   ],
+   "id": "s09",
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Göring traded over a hundred real paintings for it.",
+   "set": "nazi",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "100+ PAINTINGS"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "After the war, the Dutch arrested van Meegeren.",
+   "set": "jail",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.2
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Selling a national treasure to Nazis was treason.",
+   "set": "jail",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "TREASON"
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "walt",
+   "text": "It's not a treasure. I painted it!",
+   "set": "jail",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "To prove it, he painted a new fake in front of witnesses.",
+   "set": "court",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "spot": "wall_l",
+     "text": "NEW 'VERMEER'"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 1.0
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He went from traitor to the man who fooled Göring.",
+   "set": "court",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "FOLK HERO"
+   },
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.4
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the fake saved him?",
+   "set": "studio",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Wanna buy a Vermeer?",
+   "set": "studio",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 34.37
+}

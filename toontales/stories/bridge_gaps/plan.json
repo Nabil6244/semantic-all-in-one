@@ -1,0 +1,1669 @@
+{
+ "id": "bridge_gaps",
+ "title": "Why Bridges Have Gaps in the Road",
+ "topic": "bridge expansion joints",
+ "hook_title": "WHY BRIDGES HAVE GAPS",
+ "keywords": [
+  "gap",
+  "gaps",
+  "steel",
+  "heat",
+  "bridge",
+  "teeth",
+  "clunk",
+  "buckled",
+  "sydney",
+  "joints"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Expansion_joint",
+  "https://en.wikipedia.org/wiki/Sydney_Harbour_Bridge"
+ ],
+ "places": {
+  "walt_bridge": {
+   "world": "highway",
+   "clear": [
+    [
+     0,
+     7
+    ],
+    [
+     7,
+     7
+    ]
+   ],
+   "add": [
+    {
+     "m": "road-straight",
+     "at": [
+      0,
+      7,
+      0
+     ],
+     "rot": 90,
+     "id": "slab_a"
+    },
+    {
+     "m": "road-straight",
+     "at": [
+      7,
+      7,
+      0
+     ],
+     "rot": 90,
+     "id": "slab_b"
+    }
+   ]
+  },
+  "pip_bridge": {
+   "world": "town",
+   "add": [
+    {
+     "m": "construction-barrier",
+     "at": [
+      -5.5,
+      3.4,
+      0
+     ],
+     "rot": 180,
+     "s": 0.5
+    }
+   ]
+  },
+  "diner": {
+   "world": "kitchen"
+  },
+  "town": {
+   "world": "suburb"
+  },
+  "heat": {
+   "world": "desert_road",
+   "ambient": "dust"
+  },
+  "winter": {
+   "world": "mountain_road",
+   "ground": [
+    0.92,
+    0.95,
+    0.99
+   ],
+   "ambient": "snow"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Walt builds a bridge with no gaps at all.",
+   "set": "walt_bridge",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.4
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "walt",
+   "text": "Smooth as butter!",
+   "set": "walt_bridge",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Pip builds one with metal teeth across the road.",
+   "set": "pip_bridge",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "TEETH"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Every car that crosses goes clunk.",
+   "set": "pip_bridge",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     -3,
+     4.6,
+     1.0
+    ],
+    "to": [
+     8,
+     4.6,
+     1.0
+    ],
+    "dist": 13,
+    "pitch": 4,
+    "yaw": 22
+   },
+   "moves": [
+    {
+     "id": "taxi",
+     "to": [
+      14,
+      4.6,
+      0
+     ],
+     "t0": 0.0,
+     "t1": 2.0,
+     "ease": "linear"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.0
+    },
+    {
+     "name": "bonk",
+     "at": 1.0
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "So why would anyone build gaps?",
+   "set": "pip_bridge",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "At the diner, the drivers laugh at Pip's bridge.",
+   "set": "diner",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "laugh",
+     "at": 0.3
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "walt",
+   "text": "Clunk, clunk, clunk!",
+   "set": "diner",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Walt's bridge gets all the traffic.",
+   "set": "diner",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "ALL THE CARS"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Pip's gets none.",
+   "set": "pip_bridge",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "0 CARS"
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "narrator",
+   "text": "Then July hits forty degrees.",
+   "set": "heat",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "40°C"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Here is the thing about steel.",
+   "set": "heat",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "STEEL"
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Heat makes it grow.",
+   "set": "heat",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "GROWS"
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A hundred metres of bridge grows about five centimetres.",
+   "set": "heat",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "+5 CM"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "walt",
+   "text": "Five centimetres? That's a fingernail!",
+   "set": "heat",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "But on Walt's bridge, the steel has nowhere to go.",
+   "set": "walt_bridge",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0
+     ],
+     "to": [
+      0,
+      7,
+      0
+     ],
+     "tilt_from": 0,
+     "tilt_to": 0,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0
+     ],
+     "to": [
+      7,
+      7,
+      0
+     ],
+     "tilt_from": 0,
+     "tilt_to": 0,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "It pushes against itself.",
+   "set": "walt_bridge",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     3.5,
+     7,
+     0.4
+    ],
+    "dist": 13,
+    "yaw": 30,
+    "pitch": 4
+   },
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0
+     ],
+     "to": [
+      0,
+      7,
+      0.12
+     ],
+     "tilt_from": 0,
+     "tilt_to": 2,
+     "t0": 0.2,
+     "t1": 1.4,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0
+     ],
+     "to": [
+      7,
+      7,
+      0.12
+     ],
+     "tilt_from": 0,
+     "tilt_to": -2,
+     "t0": 0.2,
+     "t1": 1.4,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.5
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then it creaks, louder and louder.",
+   "set": "walt_bridge",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.12
+     ],
+     "to": [
+      0,
+      7,
+      0.12
+     ],
+     "tilt_from": 2,
+     "tilt_to": 2,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.12
+     ],
+     "to": [
+      7,
+      7,
+      0.12
+     ],
+     "tilt_from": -2,
+     "tilt_to": -2,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.2
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then the road snaps up like a tent.",
+   "set": "walt_bridge",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     3.5,
+     7,
+     0.6
+    ],
+    "dist": 14,
+    "yaw": 32,
+    "pitch": 4
+   },
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.12
+     ],
+     "to": [
+      0,
+      7,
+      0.43
+     ],
+     "tilt_from": 2,
+     "tilt_to": 7,
+     "t0": 0.05,
+     "t1": 0.5,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.12
+     ],
+     "to": [
+      7,
+      7,
+      0.43
+     ],
+     "tilt_from": -2,
+     "tilt_to": -7,
+     "t0": 0.05,
+     "t1": 0.5,
+     "ease": "out"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BUCKLED"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.1
+    },
+    {
+     "name": "glass",
+     "at": 0.3
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Pip sprints to warn the drivers.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.4,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "plead",
+       "at": 1.25
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Too late. A car slams on the brakes.",
+   "set": "walt_bridge",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     22,
+     8.4,
+     0.8
+    ],
+    "to": [
+     12,
+     8.2,
+     0.7
+    ],
+    "dist": 12,
+    "yaw": 26,
+    "pitch": 3
+   },
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.43
+     ],
+     "to": [
+      0,
+      7,
+      0.43
+     ],
+     "tilt_from": 7,
+     "tilt_to": 7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.43
+     ],
+     "to": [
+      7,
+      7,
+      0.43
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "car",
+     "from": [
+      30,
+      8.6,
+      0
+     ],
+     "to": [
+      14.2,
+      8.6,
+      0
+     ],
+     "t0": 0.0,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.0
+    },
+    {
+     "name": "glass",
+     "at": 1.2
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It stops inches from the bump.",
+   "set": "walt_bridge",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     10.5,
+     8.2,
+     0.5
+    ],
+    "dist": 7,
+    "yaw": 38,
+    "pitch": 2
+   },
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.43
+     ],
+     "to": [
+      0,
+      7,
+      0.43
+     ],
+     "tilt_from": 7,
+     "tilt_to": 7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.43
+     ],
+     "to": [
+      7,
+      7,
+      0.43
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "car",
+     "from": [
+      14.2,
+      8.6,
+      0
+     ],
+     "to": [
+      14.2,
+      8.6,
+      0
+     ],
+     "t0": 0,
+     "t1": 0.01
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "INCHES"
+   },
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "walt",
+   "text": "My beautiful bridge!",
+   "set": "walt_bridge",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.43
+     ],
+     "to": [
+      0,
+      7,
+      0.43
+     ],
+     "tilt_from": 7,
+     "tilt_to": 7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.43
+     ],
+     "to": [
+      7,
+      7,
+      0.43
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "car",
+     "from": [
+      14.2,
+      8.6,
+      0
+     ],
+     "to": [
+      14.2,
+      8.6,
+      0
+     ],
+     "t0": 0,
+     "t1": 0.01
+    }
+   ],
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "On Pip's bridge, the teeth just slide together.",
+   "set": "pip_bridge",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "GAP CLOSES"
+   },
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.6
+    }
+   ],
+   "id": "s23",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The gap shrinks, and the cars keep going.",
+   "set": "pip_bridge",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     -3,
+     4.6,
+     1.0
+    ],
+    "to": [
+     8,
+     4.6,
+     1.0
+    ],
+    "dist": 13,
+    "pitch": 4,
+    "yaw": -20
+   },
+   "moves": [
+    {
+     "id": "taxi",
+     "to": [
+      14,
+      4.6,
+      0
+     ],
+     "t0": 0.0,
+     "t1": 2.0,
+     "ease": "linear"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.0
+    },
+    {
+     "name": "bonk",
+     "at": 1.0
+    }
+   ],
+   "id": "s24",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "pip",
+   "text": "Clunk. And still standing!",
+   "set": "pip_bridge",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s25",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In winter, the steel shrinks again.",
+   "set": "winter",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "WINTER"
+   },
+   "id": "s26",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "And the teeth slide back apart.",
+   "set": "winter",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "GAP OPENS"
+   },
+   "id": "s27",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Sydney Harbour Bridge's arch moves up to eighteen centimetres.",
+   "set": "diner",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "18 CM"
+   },
+   "id": "s28",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Its joints let it breathe.",
+   "set": "diner",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "EXPANSION JOINTS"
+   },
+   "id": "s29",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "So the clunk is the point?",
+   "set": "walt_bridge",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.43
+     ],
+     "to": [
+      0,
+      7,
+      0.43
+     ],
+     "tilt_from": 7,
+     "tilt_to": 7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.43
+     ],
+     "to": [
+      7,
+      7,
+      0.43
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "car",
+     "from": [
+      14.2,
+      8.6,
+      0
+     ],
+     "to": [
+      14.2,
+      8.6,
+      0
+     ],
+     "t0": 0,
+     "t1": 0.01
+    }
+   ],
+   "id": "s30",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "Clunk means it's working.",
+   "set": "walt_bridge",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "slab_a",
+     "from": [
+      0,
+      7,
+      0.43
+     ],
+     "to": [
+      0,
+      7,
+      0.43
+     ],
+     "tilt_from": 7,
+     "tilt_to": 7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "slab_b",
+     "from": [
+      7,
+      7,
+      0.43
+     ],
+     "to": [
+      7,
+      7,
+      0.43
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0.0,
+     "t1": 0.01,
+     "ease": "out"
+    },
+    {
+     "id": "car",
+     "from": [
+      14.2,
+      8.6,
+      0
+     ],
+     "to": [
+      14.2,
+      8.6,
+      0
+     ],
+     "t0": 0,
+     "t1": 0.01
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s31",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 52.3
+}

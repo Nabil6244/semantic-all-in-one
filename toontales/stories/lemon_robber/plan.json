@@ -1,0 +1,667 @@
+{
+ "id": "lemon_robber",
+ "title": "The Robber Who Thought Lemon Juice Made Him Invisible",
+ "topic": "McArthur Wheeler's lemon-juice bank robberies (1995)",
+ "hook_title": "LEMON JUICE = INVISIBLE?",
+ "keywords": [
+  "lemon",
+  "juice",
+  "invisible",
+  "camera",
+  "banks",
+  "news",
+  "dunning",
+  "kruger"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Dunning%E2%80%93Kruger_effect"
+ ],
+ "places": {
+  "bank": "A 1995 Pittsburgh bank lobby: teller windows with glass, a security camera on the ceiling, marble floor, bright fluorescent light",
+  "kitchen": "A messy 1995 American apartment kitchen: lemons and a juicer on the counter, a Polaroid camera, a small TV, yellow light",
+  "street": {
+   "prompt": "A Pittsburgh street in winter 1995 at night: brick shops, a bank sign, parked cars, wet road, street lamps",
+   "ambient": "snow"
+  },
+  "newsroom": "A 1995 local TV news studio: a news desk, big studio cameras, monitors showing a bank camera picture, blue lighting",
+  "police": {
+   "prompt": "A 1995 police station interview room: grey walls, a metal table, a two-way mirror, a single hanging lamp",
+   "ambient": "none"
+  },
+  "university": "A 1999 university psychology office: bookshelves, a chalkboard full of graphs, a desk with papers and a coffee mug"
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1995, a man robbed two banks with no mask.",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.8
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Why didn't he hide his face?",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "McArthur Wheeler had a secret weapon.",
+   "set": "kitchen",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "MCARTHUR WHEELER"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Lemon juice, rubbed all over his face.",
+   "set": "kitchen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "picked_by": "walt",
+     "text": "LEMON JUICE"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.5
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "It works on invisible ink!",
+   "set": "kitchen",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He tested it with a Polaroid selfie.",
+   "set": "kitchen",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt",
+     "text": "POLAROID"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.6
+    }
+   ],
+   "id": "s06",
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "The photo came out blank.",
+   "set": "kitchen",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "BLANK PHOTO"
+    }
+   ],
+   "id": "s07",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "You're invisible!",
+   "set": "street",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So he walked into two banks in one day.",
+   "set": "bank",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "money",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.1
+    },
+    {
+     "name": "footsteps",
+     "at": 0.3
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "He smiled right at the cameras.",
+   "set": "bank",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "CAMERA"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then he strolled out.",
+   "set": "street",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -1.6,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "laugh",
+       "at": 0.76
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "walt"
+    }
+   ],
+   "id": "s11",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "That night, his face was on the eleven o'clock news.",
+   "set": "newsroom",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "pip",
+     "text": "WANTED"
+    }
+   ],
+   "freeze": "WAIT...",
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Police arrested him within the hour.",
+   "set": "police",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "ARRESTED"
+   },
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.3
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "walt",
+   "text": "But I wore the juice!",
+   "set": "police",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "His case inspired a famous study on overconfidence.",
+   "set": "university",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "DUNNING-KRUGER"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The less you know, the smarter you feel.",
+   "set": "university",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "KNOW LESS = FEEL SMART"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So lemon juice doesn't work?",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Not on a camera, Pip.",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 31.51
+}

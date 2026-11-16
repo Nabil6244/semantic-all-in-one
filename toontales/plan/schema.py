@@ -95,6 +95,87 @@ def place_image(plan, name, stories=STORIES):
     return Path(stories) / plan["id"] / "places" / f"{name}.png"
 
 
+WORLDS = Path(__file__).resolve().parents[1] / "sets" / "worlds"
+
+
+CHANNELS = Path(__file__).resolve().parents[1] / "channels"
+
+
+def channel(plan):
+    """The plan's channel preset (toontales/channels/<name>.json): cast, look, backgrounds, captions. {} = Toon Tales."""
+    name = plan.get("channel")
+    if not name:
+        return {}
+    return json.loads((CHANNELS / f"{name}.json").read_text())
+
+
+def channel_names():
+    return sorted(p.stem for p in CHANNELS.glob("*.json"))
+
+
+def cast_file_for(plan):
+    ch = channel(plan)
+    return (CHANNELS / ch["cast"]) if ch.get("cast") else CAST_FILE
+
+
+def bg_mode(plan):
+    """'3d' (Blender toon world) or 'flow' (painted picture): plan setting, else the channel default, else 3d."""
+    return plan.get("backgrounds") or channel(plan).get("backgrounds") or "3d"
+
+
+def world_layout(plan, name):
+    """A 3D toon-world place: {"world": "<layout in sets/worlds>", "add": [pieces], "sky"/"ground"/"sun"?: overrides}.
+    Returns the merged layout dict, or None for a painted place."""
+    p = (plan.get("places") or {}).get(name)
+    if not is_world(plan, name):
+        return None
+    base = json.loads((WORLDS / f"{p['world']}.json").read_text())
+    for k, v in (channel(plan).get("look") or {}).items():  # the channel's light/sky over the world's own
+        if k in ("sky", "light", "sun", "clouds"):
+            base[k] = v
+    base["pieces"] = list(base.get("pieces", [])) + list(p.get("add", []))
+    clear = p.get("clear", [])  # spots [x, y] where this place drops the layout's own piece (to put its own there)
+    base["pieces"] = [q for q in base["pieces"] if q in p.get("add", []) or not any(
+        abs(q.get("at", [0, 0])[0] - c[0]) < 0.2 and abs(q.get("at", [0, 0])[1] - c[1]) < 0.2 for c in clear)]
+    drop = set(p.get("remove", []))  # piece ids from the layout this place does not want
+    base["pieces"] = [q for q in base["pieces"] if q.get("id") not in drop]
+    for k in ("sky", "ground", "sun", "clouds"):
+        if k in p:
+            base[k] = p[k]
+    return base
+
+
+PACKS = Path(__file__).resolve().parents[2] / "assets" / "toon_world" / "kenney"
+
+
+def world_models():
+    """Every model name a world layout may use: file stems and pack/stem."""
+    out = set()
+    for g in PACKS.glob("*/Models/*/*.glb"):
+        out.add(g.stem)
+        out.add(f"{g.parts[len(PACKS.parts)]}/{g.stem}")
+    ph = {f"ph:{d.name}" for d in (Path(__file__).resolve().parents[2] / "assets" / "diorama" / "models").glob("*")
+          if d.is_dir()}
+    return out | {"@" + k for k in PART_KINDS + DIORAMA_KINDS} | ph
+
+
+DIORAMA_KINDS = ("slice", "shaft", "water", "room", "house", "beam", "bottle", "cap", "cork", "coin", "magnet", "ball", "wall", "lathe", "shears", "shavings", "scale_stand",
+                 "scale_beam", "magnifier")  # sets/diorama.py (realistic cut-aways)
+PART_KINDS = ("engine", "turbo", "supercharger", "stand", "tiles", "pegboard", "start_tree", "finish", "box", "strip", "clock", "motor")  # sets/parts.py
+
+
+def world_names():
+    return sorted(p.stem for p in WORLDS.glob("*.json"))
+
+
+def is_world(plan, name):
+    """A place is built in 3D when it has a world and the background mode is 3d (or it has no picture prompt)."""
+    p = (plan.get("places") or {}).get(name)
+    if not (isinstance(p, dict) and p.get("world")):
+        return False
+    return bg_mode(plan) == "3d" or not p.get("prompt")
+
+
 def kit_for(plan, set_name, kits):
     """Set kit for a shot: a built set ("mine") or one of the plan's places on the painted stage."""
     kit = kits.get(set_name)
@@ -104,7 +185,14 @@ def kit_for(plan, set_name, kits):
     if set_name in places:
         k = dict(kits["stage"], place=set_name)
         p = places[set_name]
-        k["about"] = p if isinstance(p, str) else p.get("prompt", "")
+        k["about"] = p if isinstance(p, str) else p.get("prompt", p.get("world", ""))
+        if is_world(plan, set_name):
+            k["world"] = p["world"]
+            lay = world_layout(plan, set_name) or {}
+            k["pieces"] = lay.get("pieces", [])  # the camera sizes shots to these
+            if lay.get("marks"):  # a layout with its own cast spots (dioramas): cameras aim there too
+                k["marks"] = dict(k["marks"], **lay["marks"])
+            k["bounds"] = {"x": [-40.0, 40.0], "y": [-40.0, 30.0], "z": [0.25, 25.0]}  # a real place: the camera roams
         return k
     return None
 

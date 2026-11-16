@@ -85,7 +85,7 @@ def _bursts(tmp_path, starts, lens):
 
 def _check_chant_puts_every_word_on_the_beat(tmp_path, man):
     from kids_audio.chant import chant
-    starts, lens = [0.10, 0.47, 0.73, 1.21, 1.60, 1.83], [0.25, 0.2, 0.3, 0.9, 0.15, 0.2]       # "four" is too long for its beat
+    starts, lens = [0.10, 0.47, 0.73, 1.21, 2.25, 2.48], [0.25, 0.2, 0.3, 0.9, 0.15, 0.2]       # "four" is too long for its beat
     words = [{"text": w, "t0": s, "t1": s + l} for w, s, l in zip(["One,", "two,", "three,", "four!", "with", "me!"], starts, lens)]
     r = chant({"voice": _bursts(tmp_path, starts, lens), "words": words, "bpm": 120, "out": str(tmp_path / "c.wav")})
     beat = 0.5; assert [w["t0"] / beat for w in r["words"]] == [0, 1, 2, 3, 4, 4.5]   # "with me" share a beat
@@ -98,6 +98,20 @@ def _check_chant_puts_every_word_on_the_beat(tmp_path, man):
         i = int(w["t0"] * SR); lo = max(0, i - int(0.05 * SR)); seg = x[lo:i + int(0.05 * SR)]
         assert abs((lo + np.argmax(seg > 0.04)) / SR - w["t0"]) < 0.012, w
     four = x[int(1.5 * SR):int(2.0 * SR)]; assert four.max() > 0.1 and x[int(1.995 * SR):int(2.0 * SR)].max() < 0.05, "a long word is fitted into its beat"
+
+
+def _check_chant_never_chops_run_together_words(tmp_path, man):
+    """Edge timestamps say "row" ends at 0.70 s, but the sound runs on into "your" with no pause (baby01 song bug)."""
+    from kids_audio.chant import chant
+    p = _bursts(tmp_path, [0.10, 0.60, 1.45], [0.40, 0.60, 0.40])               # Row | row-your (one sound) | boat
+    words = [{"text": "Row,", "t0": 0.10, "t1": 0.50}, {"text": "row", "t0": 0.60, "t1": 0.70},
+             {"text": "your", "t0": 0.72, "t1": 0.85}, {"text": "boat!", "t0": 1.45, "t1": 1.85}]
+    r = chant({"voice": p, "words": words, "bpm": 120, "out": str(tmp_path / "c.wav")})
+    x = np.abs(L.read_audio(r["file"])).max(0)
+    seg = x[int(r["words"][1]["t0"] * SR):int(r["words"][2]["t1"] * SR)]          # "row your" plays as one unbroken sound
+    frames = seg[: len(seg) // 240 * 240].reshape(-1, 240).max(1)
+    assert len(frames) > 40 and frames[:-2].min() > 0.1, "a word was cut in the middle"
+    assert [w["text"] for w in r["words"]] == ["Row,", "row", "your", "boat!"] and r["words"][3]["t0"] == 1.5
 
 
 def _check_music_follows_the_set_with_a_crossfade(tmp_path, man):
@@ -167,6 +181,9 @@ class KidsAudio(unittest.TestCase):
 
     def test_chant_puts_every_word_on_the_beat(self):
         _check_chant_puts_every_word_on_the_beat(self.tmp, _man())
+
+    def test_chant_never_chops_run_together_words(self):
+        _check_chant_never_chops_run_together_words(self.tmp, _man())
 
     def test_singing_lands_on_the_notes(self):
         _check_singing_lands_on_the_notes(self.tmp)

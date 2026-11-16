@@ -253,6 +253,50 @@ def _hat(cfg, head_c, r, parent):
         band = _cyl(f"{cfg['id']}_hat_band", 1.0, r * 0.16, (head_c.x, head_c.y, top - r * 0.08), mb, parent,
                     scale=(r * 0.875, r * 0.41, 1), rot=(math.radians(-8), 0, 0), outline=0)
         parts += [brim, crown, band]
+    elif t in ("conductor", "shako"):
+        band_c = h.get("band", [200, 160, 60])
+        mb = mat_toon(f"TT_hatband_{cfg['id']}", band_c, shade=0.68)
+        tilt = (math.radians(-6), 0, 0)
+        tall = r * (0.42 if t == "conductor" else 0.95)
+        wide = r * (0.80 if t == "conductor" else 0.74)
+        crown = _cyl(f"{cfg['id']}_hat_crown", 1.0, tall, (head_c.x, head_c.y, top - r * 0.10 + tall / 2), m, parent,
+                     scale=(wide, r * 0.40, 1), rot=tilt)
+        band = _cyl(f"{cfg['id']}_hat_band", 1.0, r * 0.12, (head_c.x, head_c.y, top - r * 0.04), mb, parent,
+                    scale=(wide + r * 0.015, r * 0.41, 1), rot=tilt, outline=0)
+        bill = _cyl(f"{cfg['id']}_hat_bill", 1.0, r * 0.04, (head_c.x, head_c.y - r * 0.24, top - r * 0.12), mat_ink(), parent,
+                    rot=(math.radians(-18), 0, 0), scale=(r * 0.62, r * 0.26, 1), outline=0)
+        parts += [crown, band, bill]
+        if t == "shako":  # badge plate + plume ball on top
+            plate = _cyl(f"{cfg['id']}_hat_plate", 1.0, r * 0.02, (head_c.x, head_c.y - r * 0.42, top + tall * 0.42), mb, parent,
+                         rot=(math.radians(90), 0, 0), scale=(r * 0.22, r * 0.26, 1), outline=0)
+            plume = _ellipsoid(f"{cfg['id']}_hat_plume", (r * 0.16, r * 0.16, r * 0.26),
+                               (head_c.x, head_c.y, top - r * 0.10 + tall + r * 0.22),
+                               mat_toon(f"TT_plume_{cfg['id']}", h.get("plume", [245, 245, 245]), shade=0.7), parent)
+            parts += [plate, plume]
+    elif t in ("cowboy", "tophat", "bowler"):
+        band_c = h.get("band", [60, 40, 30])
+        mb = mat_toon(f"TT_hatband_{cfg['id']}", band_c, shade=0.68)
+        tilt = (math.radians(-8), 0, 0)
+        if t == "cowboy":  # wide brim, tall pinched crown
+            brim = _cyl(f"{cfg['id']}_hat_brim", 1.0, r * 0.06, (head_c.x, head_c.y, top - r * 0.16), m, parent,
+                        scale=(r * 1.75, r * 0.72, 1), rot=tilt)
+            crown = _ellipsoid(f"{cfg['id']}_hat_crown", (r * 0.74, r * 0.40, r * 0.60), (head_c.x, head_c.y, top + r * 0.20), m, parent)
+            band = _cyl(f"{cfg['id']}_hat_band", 1.0, r * 0.12, (head_c.x, head_c.y, top - r * 0.06), mb, parent,
+                        scale=(r * 0.83, r * 0.44, 1), rot=tilt, outline=0)
+        elif t == "tophat":  # tall straight crown, narrow brim
+            brim = _cyl(f"{cfg['id']}_hat_brim", 1.0, r * 0.05, (head_c.x, head_c.y, top - r * 0.12), m, parent,
+                        scale=(r * 1.15, r * 0.50, 1), rot=tilt)
+            crown = _cyl(f"{cfg['id']}_hat_crown", 1.0, r * 1.05, (head_c.x, head_c.y, top + r * 0.42), m, parent,
+                         scale=(r * 0.72, r * 0.36, 1), rot=tilt)
+            band = _cyl(f"{cfg['id']}_hat_band", 1.0, r * 0.16, (head_c.x, head_c.y, top - r * 0.02), mb, parent,
+                        scale=(r * 0.735, r * 0.37, 1), rot=tilt, outline=0)
+        else:  # bowler: round dome, small curled brim
+            brim = _cyl(f"{cfg['id']}_hat_brim", 1.0, r * 0.05, (head_c.x, head_c.y, top - r * 0.14), m, parent,
+                        scale=(r * 1.08, r * 0.48, 1), rot=tilt)
+            crown = _ellipsoid(f"{cfg['id']}_hat_crown", (r * 0.78, r * 0.40, r * 0.52), (head_c.x, head_c.y, top + r * 0.02), m, parent)
+            band = _cyl(f"{cfg['id']}_hat_band", 1.0, r * 0.12, (head_c.x, head_c.y, top - r * 0.08), mb, parent,
+                        scale=(r * 0.80, r * 0.41, 1), rot=tilt, outline=0)
+        parts += [brim, crown, band]
     return parts
 
 
@@ -276,7 +320,7 @@ def build(cfg, faces_dir, out_dir, at=(0, 0, 0)):
     body = _ellipsoid(f"{cfg['id']}_body", (bw / 2, bd / 2, bh / 2), body_c, mat_toon(f"TT_body_{cfg['id']}", image=img), root)
 
     # head disc + face planes
-    head_m = mat_toon(f"TT_head_{cfg['id']}", (255, 255, 255), shade=0.86, soft=0.25)
+    head_m = mat_toon(f"TT_head_{cfg['id']}", tuple(cfg.get("skin", (255, 255, 255))), shade=0.86, soft=0.25)
     head = _cyl(f"{cfg['id']}_head", r, r * 0.22, head_c, head_m, root, rot=(math.pi / 2, 0, 0), outline=0.014)
     front = head_c.y - r * 0.11
     face = {}

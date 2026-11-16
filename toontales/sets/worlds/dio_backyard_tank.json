@@ -1,0 +1,496 @@
+{
+ "engine": "diorama",
+ "hdri": "day",
+ "sun": [
+  44,
+  25
+ ],
+ "about": "backyard sliced side-on: a house (open front) on the left, lawn, a pit cut into the ground next to it (x 1.2..4.2, 2.32 m deep) shown in cut-away, garden shrubs on the right. Build-stage pieces by id: turf, plug_soil, plug_gravel (undug ground), tank_floor, tank_back, tank_l, tank_r (concrete lining), lid, turf2, pipe_a/pipe_b/pipe_c (roof downpipe into the tank, visible in the cut face), pump, pump_pipe, water (level 0..1.9). Marks: B pit's left edge, A right of the pit by the garden, C by the house.",
+ "marks": {
+  "A": [
+   5.05,
+   1.3
+  ],
+  "B": [
+   0.55,
+   1.0
+  ],
+  "C": [
+   -0.9,
+   1.2
+  ],
+  "D": [
+   5.2,
+   2.6
+  ],
+  "E": [
+   0.2,
+   2.6
+  ],
+  "enter_l": [
+   -1.2,
+   0.8
+  ],
+  "enter_r": [
+   8.5,
+   1.0
+  ],
+  "deep": [
+   2.7,
+   4.2
+  ]
+ },
+ "pieces": [
+  {
+   "m": "@slice",
+   "x": [
+    -14,
+    14
+   ],
+   "y": [
+    0,
+    40
+   ],
+   "layers": [
+    [
+     "grass",
+     0.12
+    ],
+    [
+     "soil",
+     1.5
+    ],
+    [
+     "gravel",
+     0.7
+    ],
+    [
+     "rock",
+     6.0
+    ]
+   ],
+   "id": "ground",
+   "cuts": [
+    {
+     "shape": "box",
+     "at": [
+      2.7,
+      1.3,
+      -2.32
+     ],
+     "size": [
+      3.0,
+      2.6,
+      3.32
+     ]
+    }
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    1.3,
+    -2.32
+   ],
+   "size": [
+    3.0,
+    2.6,
+    0.7
+   ],
+   "mat": "gravel",
+   "id": "plug_gravel"
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    1.3,
+    -1.62
+   ],
+   "size": [
+    3.0,
+    2.6,
+    1.5
+   ],
+   "mat": "soil",
+   "id": "plug_soil"
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    1.3,
+    -0.12
+   ],
+   "size": [
+    3.0,
+    2.6,
+    0.12
+   ],
+   "mat": "grass",
+   "id": "turf"
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    1.3,
+    -2.32
+   ],
+   "size": [
+    3.0,
+    2.6,
+    0.15
+   ],
+   "mat": "concrete",
+   "id": "tank_floor"
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    2.525,
+    -2.17
+   ],
+   "size": [
+    3.0,
+    0.15,
+    2.02
+   ],
+   "mat": "concrete",
+   "id": "tank_back"
+  },
+  {
+   "m": "@box",
+   "at": [
+    1.275,
+    1.3,
+    -2.17
+   ],
+   "size": [
+    0.15,
+    2.6,
+    2.02
+   ],
+   "mat": "concrete",
+   "id": "tank_l"
+  },
+  {
+   "m": "@box",
+   "at": [
+    4.125,
+    1.3,
+    -2.17
+   ],
+   "size": [
+    0.15,
+    2.6,
+    2.02
+   ],
+   "mat": "concrete",
+   "id": "tank_r"
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    1.3,
+    -0.15
+   ],
+   "size": [
+    3.0,
+    2.6,
+    0.15
+   ],
+   "mat": "concrete",
+   "id": "lid"
+  },
+  {
+   "m": "@box",
+   "at": [
+    2.7,
+    1.3,
+    0.0
+   ],
+   "size": [
+    3.0,
+    2.6,
+    0.05
+   ],
+   "mat": "grass",
+   "id": "turf2"
+  },
+  {
+   "m": "@water",
+   "at": [
+    2.7,
+    1.3,
+    -2.17
+   ],
+   "size": [
+    2.7,
+    2.3000000000000003
+   ],
+   "level": 0.001,
+   "id": "water"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    -1.3,
+    0.04,
+    3.05
+   ],
+   "b": [
+    -1.3,
+    0.04,
+    -0.45
+   ],
+   "t": 0.09,
+   "color": [
+    0.32,
+    0.33,
+    0.35
+   ],
+   "rough": 0.4,
+   "metal": 0.6,
+   "id": "pipe_a"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    -1.3,
+    0.04,
+    -0.45
+   ],
+   "b": [
+    1.5,
+    0.04,
+    -0.45
+   ],
+   "t": 0.09,
+   "color": [
+    0.32,
+    0.33,
+    0.35
+   ],
+   "rough": 0.4,
+   "metal": 0.6,
+   "id": "pipe_b"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    1.5,
+    0.04,
+    -0.45
+   ],
+   "b": [
+    1.5,
+    0.04,
+    -0.75
+   ],
+   "t": 0.09,
+   "color": [
+    0.32,
+    0.33,
+    0.35
+   ],
+   "rough": 0.4,
+   "metal": 0.6,
+   "id": "pipe_c"
+  },
+  {
+   "m": "@box",
+   "at": [
+    4.45,
+    0.6,
+    0.0
+   ],
+   "size": [
+    0.4,
+    0.34,
+    0.42
+   ],
+   "color": [
+    0.15,
+    0.45,
+    0.25
+   ],
+   "rough": 0.35,
+   "id": "pump"
+  },
+  {
+   "m": "@beam",
+   "a": [
+    4.45,
+    0.04,
+    0.05
+   ],
+   "b": [
+    3.7,
+    0.04,
+    -2.0
+   ],
+   "t": 0.06,
+   "color": [
+    0.1,
+    0.1,
+    0.1
+   ],
+   "rough": 0.6,
+   "id": "pump_pipe"
+  },
+  {
+   "m": "@box",
+   "at": [
+    -4.3,
+    2.2,
+    0.0
+   ],
+   "size": [
+    6.0,
+    4.6,
+    0.35
+   ],
+   "mat": "concrete"
+  },
+  {
+   "m": "@house",
+   "at": [
+    -4.3,
+    2.2,
+    0.35
+   ],
+   "size": [
+    5.6,
+    4.2,
+    2.7
+   ],
+   "floor": "wood_floor",
+   "walls": "plaster",
+   "roof": "roof",
+   "pitch": 26,
+   "id": "house"
+  },
+  {
+   "m": "ph:sofa_02",
+   "at": [
+    -4.8,
+    3.6,
+    0.35
+   ],
+   "s": 1.0
+  },
+  {
+   "m": "ph:wooden_bookshelf_worn",
+   "at": [
+    -2.3,
+    3.9,
+    0.35
+   ],
+   "s": 1.0
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    6.6,
+    1.2,
+    0
+   ],
+   "s": 1.5,
+   "rot": 0
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    7.6,
+    2.4,
+    0
+   ],
+   "s": 1.7,
+   "rot": 60
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    8.8,
+    1.1,
+    0
+   ],
+   "s": 1.4,
+   "rot": 140
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    9.8,
+    2.6,
+    0
+   ],
+   "s": 1.8,
+   "rot": 210
+  },
+  {
+   "m": "ph:shrub_01",
+   "at": [
+    7.1,
+    3.8,
+    0
+   ],
+   "s": 1.6,
+   "rot": 300
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -9,
+    12,
+    0
+   ],
+   "s": 5.0,
+   "rot": 10
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    -2,
+    16,
+    0
+   ],
+   "s": 6.0,
+   "rot": 80
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    5,
+    14,
+    0
+   ],
+   "s": 5.5,
+   "rot": 140
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    11,
+    20,
+    0
+   ],
+   "s": 6.5,
+   "rot": 200
+  },
+  {
+   "m": "ph:fir_sapling",
+   "at": [
+    1,
+    26,
+    0
+   ],
+   "s": 6.0,
+   "rot": 300
+  }
+ ]
+}

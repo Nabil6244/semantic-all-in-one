@@ -1,0 +1,34 @@
+{
+ "id": "channel3",
+ "name": "Channel 3 - World In A Box (realistic cut-away builds)",
+ "about": "Reference: World In A Box ('How a Well Becomes a Secret Bunker', 'How a Flooded House Becomes a Floating Home', 'How a Bookshelf Becomes a Secret Panic Room', 'How a Hole on a Beach Becomes a Tsunami Tower'). Realistic 3D diorama sliced open side-on: grass on top, soil, gravel and rock bands below, rooms with the front wall removed. One realistic builder (hard hat or hoodie, jeans) does each build step on screen; water fills and drains; a car or neighbour for scale. 'How an ordinary thing becomes a clever survival build', 60-72 s, one-word captions centre screen.",
+ "cast": "channel3_cast.json",
+ "backgrounds": "3d",
+ "engine": "diorama",
+ "look": {
+  "render": "realistic",
+  "sky": "photo daylight HDRI",
+  "materials": "Poly Haven CC0 PBR: grass, soil, gravel, rock, stone wall, brick, wood planks, plaster, tile, water",
+  "camera": "mostly side-on cut-away (front wall/soil removed), slow pushes and tilts down the cross-section, a few 3/4 outside views"
+ },
+ "paint_style": "Realistic 3D architectural cut-away render, soft daylight, PBR materials, clean white interiors",
+ "formula": [
+  "hook: the ordinary thing in its world (a house by a river, a well in a field) + 'How does X become Y?'",
+  "the threat: water, intruders, storm, shown hitting the plain version",
+  "the build: one step per line, the builder doing it in the cut-away (dig, line, brace, seal, fit a door)",
+  "the clever twist: a hidden mechanism moves (floats, slides, swings open)",
+  "the test: the threat comes back and the build holds; last line loops to the first"
+ ],
+ "worlds_planned": [
+  "field_well (ground slice + stone shaft + water table)",
+  "riverside_house (open-front house on soil slice, river, rising water)",
+  "apartment_section (two floors, brick party wall, bookshelf)",
+  "beach_slice (sand, sea, tide)"
+ ],
+ "length": [
+  58,
+  75
+ ],
+ "shot_max": 4.6,
+ "place_run": 8
+}

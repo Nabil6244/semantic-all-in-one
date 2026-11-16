@@ -134,9 +134,25 @@ def load(story_path):
         f = next((d / f"{n}.png" for d in dirs if (d / f"{n}.png").exists()), None)
         if f is None:
             raise FileNotFoundError(f"picture {n}.png not found in {dirs}")
-        G["pics"][n] = sticker(Image.open(f))
+        G["pics"][n] = photo_card(Image.open(f)) if n.startswith("photo_") else sticker(Image.open(f))
     plan()
     plan_fx()
+
+
+def photo_card(img):
+    """A real photo (first-words pictures) as a rounded flash card with a white border, not cut out: photo backgrounds
+    are off-white and a white cut-out would eat white objects (milk, bowls)."""
+    im = img.convert("RGB")
+    s = min(im.size)
+    im = im.crop(((im.width - s) // 2, (im.height - s) // 2, (im.width + s) // 2, (im.height + s) // 2)).resize((720, 720), Image.LANCZOS)
+    b, r = 26, 70
+    card = Image.new("RGBA", (720 + 2 * b, 720 + 2 * b), (0, 0, 0, 0))
+    ImageDraw.Draw(card).rounded_rectangle([0, 0, card.width - 1, card.height - 1], radius=r + b, fill=(255, 255, 255, 255),
+                                           outline=(255, 190, 70, 255), width=10)
+    m = Image.new("L", (720, 720), 0)
+    ImageDraw.Draw(m).rounded_rectangle([0, 0, 719, 719], radius=r, fill=255)
+    card.paste(im, (b, b), m)
+    return card
 
 
 def sticker(img):
@@ -384,6 +400,7 @@ def plan_fx():
             arr = max([tc for tc, n in G["place_changes"] if n == pl and tc <= ln["start"]] or [0.0])
             fd = next((l2["start"] for l2 in G["tl"]["lines"] if l2.get("found") == f["pic"] and l2["start"] >= ln["start"]), None)
             G["finds"].append({**f, "place": pl, "t0": arr, "found": fd, "size": f.get("size", 0.09)})
+    G["signs"] = [(ln["start"], ln["end"] + 0.6, ln["sign"]) for ln in G["tl"]["lines"] if ln.get("sign")]
     G["maps"] = [(ln["start"] - 0.1, ln["end"] + 0.5, ln["map"]) for ln in G["tl"]["lines"] if ln.get("map") is not None]
     ends = [ln["start"] for ln in G["tl"]["lines"] if ln.get("endcard")]
     G["end_screen"] = max(ends[-1], G["tl"]["total"] - 20.0) if ends and G["story"].get("end_screen", True) else None
@@ -414,7 +431,7 @@ def set_place(name):
 
 
 # ------------------------------------------------------------------ poses
-REST = {"u_sl": 0.0, "l_sl": 0.0, "u_sr": 0.0, "l_sr": 0.0, "head": 0.0, "hop": 0.0, "sx": 1.0, "sy": 1.0, "bob": 0.0,
+REST = {"fr_sl": 0.0, "fr_sr": 0.0, "u_sl": 0.0, "l_sl": 0.0, "u_sr": 0.0, "l_sr": 0.0, "head": 0.0, "hop": 0.0, "sx": 1.0, "sy": 1.0, "bob": 0.0,
         "spin": 0.0, "dx": 0.0, "sway": 0.0,
         # legs: hip swing / knee bend in 'outward' degrees, lift = knee toward camera (0..1), squat 0..1, lean deg (+ = to screen right)
         "h_sl": 0.0, "k_sl": 0.0, "f_sl": 0.0, "h_sr": 0.0, "k_sr": 0.0, "f_sr": 0.0, "squat": 0.0, "lean": 0.0}
@@ -501,6 +518,62 @@ def beat_phase(t):
     import bisect
     i = bisect.bisect_right(b, t) - 1
     return t - b[i] if i >= 0 else 99.0
+
+
+_REACH = {}
+
+
+def reach(who, side, tx, ty):
+    """Arm angles (u, l) that put the wrist on (tx, ty) in the character's source pixels: two-bone IK with the elbow
+    kept outward. Signs that touch the face (eat, mama, dada, thank you) need it: the front-view angle guesses could
+    not lift the hand past the chest."""
+    key = (who, side, round(tx), round(ty))
+    if key in _REACH:
+        return _REACH[key]
+    rig = G["cast"][who]["rig"]
+    a = rig["arms"][side]
+    S, E, W = (np.array(a[k], float) for k in ("S", "E", "W"))
+    A, Bl = np.linalg.norm(E - S), np.linalg.norm(W - E)
+    Tg = np.array([tx, ty], float)
+    d = Tg - S
+    dist = np.linalg.norm(d)
+    if dist > A + Bl - 1:                              # out of reach: as close as the arm goes
+        Tg = S + d / dist * (A + Bl - 1)
+        d, dist = Tg - S, A + Bl - 1
+    dist = max(dist, abs(A - Bl) + 1)
+    x = (dist * dist + A * A - Bl * Bl) / (2 * dist)   # elbow: intersection of the two circles
+    h = math.sqrt(max(A * A - x * x, 0.0))
+    u = d / dist
+    perp = np.array([-u[1], u[0]])
+    cands = [S + u * x + perp * h, S + u * x - perp * h]
+    mid = rig["neck"][0]
+    Ep = max(cands, key=lambda e: e[1] + 0.2 * abs(e[0] - mid))   # elbow low (fingers up), a little out from the body
+    ang = lambda v: math.atan2(v[1], v[0])
+    ru = -math.degrees(ang(Ep - S) - ang(E - S))
+    tot = -math.degrees(ang(Tg - Ep) - ang(W - E))
+    rl = (tot - ru + 180) % 360 - 180
+    ru = (ru + 180) % 360 - 180
+    _REACH[key] = (ru, rl)
+    return ru, rl
+
+
+def face_point(who, where, side):
+    """Wrist targets near the face, in source pixels (the hand picture extends past the wrist toward the fingers)."""
+    rig = G["cast"][who]["rig"]
+    mx, my = rig["mouth"]["c"]
+    mw = rig["mouth"]["w"]
+    sx = 1 if rig["arms"][side]["S"][0] > mx else -1
+    ey = sum(e[1] for e in rig["eyes"]) / len(rig["eyes"])
+    return {"mouth": (mx + sx * mw * 0.1, my + mw * 0.5), "chin": (mx + sx * mw * 0.25, my + mw * 0.8),
+            "forehead": (mx + sx * mw * 1.0, ey - mw * 0.25), "chest": (mx + sx * mw * 0.5, my + mw * 2.6),
+            "ball": (mx + sx * mw * 1.0, my + mw * 3.1),
+            "thanks": (mx + sx * mw * 1.7, my + mw * 2.0)}[where]      # "thank you": out and down from the chin
+
+
+def reach_pose(who, side, where, dy=0.0):
+    tx, ty = face_point(who, where, side)
+    ru, rl = reach(who, side, tx, ty + dy)
+    return {f"u_{side}": ru, f"l_{side}": rl, f"fr_{side}": 1.0}      # drawn in front of the body and head
 
 
 def act_pose(who, act, lt, dur, speaking, t=0.0):
@@ -682,6 +755,38 @@ def act_pose(who, act, lt, dur, speaking, t=0.0):
         p["head"] = 5
     elif act == "give":
         p.update(arm(inner_side(who), 70, 10))
+    elif act.startswith("sign_"):                    # baby signs (first words), with the hand shapes in HAND_OF_ACT
+        sg, ins, out = act[5:], inner_side(who), outer_side(who)
+        w2 = math.sin(2 * math.pi * 2.2 * lt)
+        if sg == "more":                             # fingertips tap together in front of the chest
+            p.update(arm("sl", 18, -112 + 9 * w2)); p.update(arm("sr", 18, -112 + 9 * w2))
+        elif sg == "all_done":                       # both hands up, twisting
+            p.update(arm("sl", 42, 92 + 22 * w2)); p.update(arm("sr", 42, 92 - 22 * w2))
+        elif sg == "eat":                            # fingers tap the mouth
+            p.update(reach_pose(who, ins, "mouth", 10 * max(0.0, w2)))
+        elif sg == "milk":                           # squeeze a fist in front (the hand opens and closes)
+            p.update(arm(out, 38, 42))
+        elif sg == "please":                         # flat hand circles on the chest
+            p.update(reach_pose(who, ins, "chest", 12 * math.sin(2 * math.pi * 1.2 * lt)))
+        elif sg == "thank_you":                      # from the chin out toward you
+            q = 0.5 - 0.5 * math.cos(2 * math.pi * min(lt, max(dur, 0.1)) / 1.8)
+            a0 = reach_pose(who, ins, "chin")
+            a1 = reach_pose(who, ins, "thanks")
+            p.update({k: a0[k] + (a1[k] - a0[k]) * q for k in a0})
+        elif sg == "mama":                           # thumb at the chin
+            p.update(reach_pose(who, ins, "chin", 8 * max(0.0, w2)))
+        elif sg == "dada":                           # thumb at the forehead
+            p.update(reach_pose(who, ins, "forehead", 8 * max(0.0, w2)))
+        elif sg == "ball":                           # both hands hold a round ball shape in front
+            p.update(reach_pose(who, "sl", "ball", 6 * w2)); p.update(reach_pose(who, "sr", "ball", 6 * w2))
+        elif sg == "dog":                            # pat the leg
+            p.update(arm(out, 6, 14 + 16 * math.sin(2 * math.pi * 2.5 * lt)))
+        elif sg == "book":                           # palms open like a book
+            q = 0.5 + 0.5 * math.sin(2 * math.pi * 0.9 * lt)
+            p.update(arm("sl", 30, -100 + 40 * q)); p.update(arm("sr", 30, -100 + 40 * q))
+        elif sg == "bye":
+            p.update(arm(out, 72, 88 + 20 * math.sin(2 * math.pi * 2.6 * lt)))
+        p["head"] = 2 * math.sin(2 * math.pi * 0.8 * lt)
     else:                                         # talk: a small presenting hand that moves with the words
         side = outer_side(who)
         p.update(arm(side, 18 + 6 * math.sin(2 * math.pi * 0.7 * lt), 34 + 10 * math.sin(2 * math.pi * 1.1 * lt)))
@@ -1079,6 +1184,12 @@ def cam_rect(t, start=False):
         w = max(span * 2.3, hh * 1.95) * (1.0 - 0.05 * prog)
         cx = kx - w * 0.06                             # kids a little right of centre: room for cards on the left
         cy = c[kids[0]]["floor"] - hh * 0.56
+    elif name.startswith("face:"):                     # baby speech mode: face and hands fill the screen (mouth + signs)
+        h = c[name.split(":", 1)[1]]
+        hp = h["char_h"] * h["k"]
+        w = hp * 1.25 * (1.0 - 0.03 * prog)
+        cx = h["x"] - w * 0.1                          # a little left of centre: room for the word card / picture
+        cy = h["floor"] - hp * 0.7
     else:                                              # cu:<who>: waist-up close-up, a little off centre
         who = name.split(":", 1)[1]
         h = c[who]
@@ -1091,10 +1202,64 @@ def cam_rect(t, start=False):
             cy = h["floor"] - hp * 0.86
     if name != "group":
         cx += drift * w * 0.025
+    if name.startswith(("cu:", "face:")) and not tramp_for(name.split(":", 1)[1], t):
+        w, cx, cy = fit_hands(k, t0, t1, name.split(":", 1)[1], w, cx, cy)
     h_ = w * OUT_H / OUT_W
     cx = min(max(cx, w / 2), WORLD_W - w / 2)
     cy = min(max(cy, h_ / 2), WORLD_H - h_ / 2)
     return cx - w / 2, cy - h_ / 2, w, name
+
+
+def shot_hands(k, t0, t1, who):
+    """Where the subject's hands go during shot k (world px): one box per hand over the whole shot, and the head box.
+    Close-ups used to frame waist-up from fixed numbers, so hands raised over the head, a waving inner arm or a
+    "thank you" reaching out left the frame (Bobo's hands were missing)."""
+    key = (k, round(t0, 3), who)
+    cache = G.setdefault("_hands_fit", {})
+    if key in cache:
+        return cache[key]
+    c = G["cast"][who]
+    rig, hp = c["rig"], c["char_h"] * c["k"]
+    r = hp * 0.13                                      # the hand picture reaches past the wrist
+    boxes = {}
+    ts = np.arange(t0, max(t1, t0 + 0.05), 0.15)
+    for tt in ts:
+        try:
+            pz = pose_at(who, float(tt))
+            M = char_matrix(who, pz) @ T(0, squat_drop(rig, pz))
+        except Exception:                              # noqa: BLE001  (a pose that needs frame state: keep the old framing)
+            continue
+        for side in ("sl", "sr"):
+            x, y = (M @ [*arm_points(rig, side, pz)[3], 1])[:2]
+            b = boxes.get(side)
+            boxes[side] = (x - r, y - r, x + r, y + r) if b is None else (min(b[0], x - r), min(b[1], y - r), max(b[2], x + r), max(b[3], y + r))
+    head = (c["x"] - hp * 0.3, c["floor"] - hp * 1.12, c["x"] + hp * 0.3, c["floor"] - hp * 0.6)
+    cache[key] = (boxes, head)
+    return cache[key]
+
+
+def fit_hands(k, t0, t1, who, w, cx, cy):
+    """Widen / shift a close-up just enough that both hands stay in the picture (never wider than 2.2 heights of the
+    character, and the head always wins)."""
+    boxes, head = shot_hands(k, t0, t1, who)
+    if not boxes:
+        return w, cx, cy
+    c = G["cast"][who]
+    hp = c["char_h"] * c["k"]
+    allb = list(boxes.values()) + [head]
+    X0, Y0 = min(b[0] for b in allb), min(b[1] for b in allb)
+    X1, Y1 = max(b[2] for b in allb), max(b[3] for b in allb)
+    need = max((X1 - X0) * 1.08, (Y1 - Y0) * 1.08 * OUT_W / OUT_H)
+    w = max(w, min(need, hp * 2.2))
+    h_ = w * OUT_H / OUT_W
+
+    def keep(c_, a, b, size):                          # move the window centre the least so [a, b] fits inside
+        if b - a > size:
+            return (a + b) / 2
+        return min(max(c_, b - size / 2 + size * 0.02), a + size / 2 - size * 0.02)
+    cx, cy = keep(cx, X0, X1, w), keep(cy, Y0, Y1, h_)
+    cx, cy = keep(cx, head[0], head[2], w), keep(cy, head[1], head[3], h_)
+    return w, cx, cy
 
 
 @lru_cache(maxsize=64)
@@ -1128,6 +1293,15 @@ def char_boxes(t):
         head = ((cx - hpx * 0.26 - x0) * z, (fl - hpx * 1.08 - y0) * z, (cx + hpx * 0.26 - x0) * z, (fl - hpx * 0.62 - y0) * z)
         body = ((cx - hpx * 0.30 - x0) * z, (fl - hpx * 0.62 - y0) * z, (cx + hpx * 0.30 - x0) * z, (fl - y0) * z)
         out.append((head, body))
+    shots = G["shots"]                                 # close-up: the subject's hands are no place for a card
+    k = max(i for i, s_ in enumerate(shots) if s_[0] <= t)
+    t0, name = shots[k]
+    if name.startswith(("cu:", "face:")):
+        t1 = shots[k + 1][0] if k + 1 < len(shots) else G["tl"]["total"]
+        boxes, _ = shot_hands(k, t0, t1, name.split(":", 1)[1])
+        for b in boxes.values():
+            hb = ((b[0] - x0) * z, (b[1] - y0) * z, (b[2] - x0) * z, (b[3] - y0) * z)
+            out.append((hb, hb))
     return out
 
 
@@ -1135,7 +1309,7 @@ def card_spot(t, cam, size, width=None, taken=()):
     def ov(a, b):
         return max(0, min(a[2], b[2]) - max(a[0], b[0])) * max(0, min(a[3], b[3]) - max(a[1], b[1]))
     boxes = char_boxes(t)
-    pref = {"host": (1400, 420), "kids": (330, 400), "group": (960, 260)}.get(cam, (1450, 380) if cam.startswith("cu:") else (960, 300))
+    pref = {"host": (1400, 420), "kids": (330, 400), "group": (960, 260)}.get(cam, (1450, 380) if cam.startswith(("cu:", "face:")) else (960, 300))
     best = None
     hw = (width or size * 1.2) / 2 + 12                # half the real card width, plus a margin from the frame edge
     for x in range(int(hw) + 20, OUT_W - int(hw) - 19, 40):
@@ -1180,7 +1354,11 @@ LINE_W = 5.5                                    # outline thickness in source pi
 HAND_OF_ACT = {"wave": ("open", "outer"), "point": ("point", "inner"), "count": ("point", "outer"), "thumbs_up": ("thumb", "outer"),
                "yay": ("fist", "both"), "cheer": ("open", "both"), "jump": ("open", "both"), "hands_up": ("open", "both"),
                "bounce": ("open", "both"), "dance": ("open", "both"), "bunny": ("open", "both"), "frog": ("open", "both"),
-               "open": ("open", "both"), "catch": ("open", "both")}
+               "open": ("open", "both"), "catch": ("open", "both"),
+               "sign_more": ("fist", "both"), "sign_all_done": ("open", "both"), "sign_eat": ("fist", "inner"),
+               "sign_milk": ("fist", "outer"), "sign_please": ("open", "inner"), "sign_thank_you": ("open", "inner"),
+               "sign_mama": ("open", "inner"), "sign_dada": ("open", "inner"), "sign_ball": ("open", "both"),
+               "sign_dog": ("open", "outer"), "sign_book": ("open", "both"), "sign_bye": ("open", "outer")}
 
 
 def hand_shape(who, side, t):
@@ -1200,6 +1378,8 @@ def hand_shape(who, side, t):
             a = ln.get("act") if who in speakers(ln) else (ln.get("also") or {}).get(who)
             if a in HAND_OF_ACT:
                 shp, which = HAND_OF_ACT[a]
+                if a == "sign_milk" and int((t - ln["start"]) * 5) % 2:   # milking: the fist opens and closes
+                    shp = "open"
                 if which == "both" or side == (outer_side(who) if which == "outer" else inner_side(who)):
                     return shp
             return None
@@ -1335,7 +1515,9 @@ def draw_arm_upper_only(frame, M, rig, side, pz):
 
 
 def crosses_body(pz, side):
-    """Forearm folded inward (clap, giggle): it must be drawn in front of the body."""
+    """Forearm folded inward (clap, giggle), or a hand reaching the face (signs): drawn in front of the body."""
+    if pz.get(f"fr_{side}", 0.0) > 0.5:
+        return True
     s = 1 if side == "sr" else -1
     return s * pz[f"l_{side}"] < -40
 
@@ -1829,6 +2011,10 @@ def compose(t, place_name):
             bb = b.resize((max(1, int(b.width * pop)), max(1, int(b.height * pop))), Image.BICUBIC)
             frame.alpha_composite(bb, (int(OUT_W / 2 - bb.width / 2), int(OUT_H * 0.06)))
             story_fx.countdown(frame, t, tu["t0"], tu["t1"], OUT_W / 2, int(OUT_H * 0.06) + bb.height + 70)
+    for s0, s1, sg in G.get("signs", []):               # "Sign: more" badge with an open hand, bottom left
+        if s0 <= t <= s1:
+            story_fx.sign_badge(frame, sg, smooth((t - s0) / 0.25) * (1 - smooth((t - s1 + 0.25) / 0.25)),
+                                G.get("hs", {}).get((HOST, "open", "sr")))
     fs = G.get("finds") or []
     if fs and G["story"].get("collection", True):       # the found objects collected at the top right
         got = [G["pics"][f["pic"]] for f in fs if f["found"] is not None and t >= f["found"] + 1.4]

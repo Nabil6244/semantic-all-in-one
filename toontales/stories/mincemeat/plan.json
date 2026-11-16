@@ -1,0 +1,648 @@
+{
+ "id": "mincemeat",
+ "title": "How a Dead Man Fooled Hitler",
+ "topic": "Operation Mincemeat (1943)",
+ "hook_title": "A DEAD MAN FOOLED HITLER?",
+ "keywords": [
+  "dead",
+  "hitler",
+  "fake",
+  "letters",
+  "sicily",
+  "greece",
+  "spies"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Operation_Mincemeat"
+ ],
+ "places": {
+  "office": {
+   "prompt": "A secret 1943 British intelligence office in London: maps of Europe on the walls, a desk with files and a lamp, a black telephone",
+   "ambient": "dust"
+  },
+  "sub": {
+   "prompt": "Inside a 1943 submarine: pipes and valves, dim red lights, a periscope, metal floor",
+   "ambient": "none"
+  },
+  "beach": "A sunny Spanish beach in 1943: golden sand, fishing boats, white houses on a hill, calm blue sea",
+  "hq": "A 1943 German army headquarters: a big table with a map of the Mediterranean, flags, filing cabinets, dark wood",
+  "sicily": "The coast of Sicily in July 1943: rocky shore, landing boats in the sea, hills with olive trees, smoke in the sky",
+  "morgue": {
+   "prompt": "A cold 1943 London hospital morgue: white tiled walls, a metal table under a sheet, a hanging lamp, a coat rack with a military uniform",
+   "ambient": "none"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1943, a dead man fooled Hitler.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "TOP SECRET"
+   },
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.6
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "How can a dead man trick anyone?",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "The Allies planned to invade Sicily.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "spot": "wall_l",
+     "text": "SICILY"
+    }
+   ],
+   "id": "s03",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Everyone could see it was the obvious target.",
+   "set": "office",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "TOO OBVIOUS"
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "So let's lose some fake secrets.",
+   "set": "office",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "British agents dressed a dead man as an officer.",
+   "set": "morgue",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "walt",
+     "text": "MAJOR WILLIAM MARTIN"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "OPERATION MINCEMEAT"
+   },
+   "id": "s06",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "They chained a briefcase of fake letters to him.",
+   "set": "morgue",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "INVADE GREECE"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "id": "s07",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Even love letters and theatre tickets, to look real.",
+   "set": "office",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "pip",
+     "text": "LOVE, PAM"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "A submarine left him off the coast of Spain.",
+   "set": "sub",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "throw",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 1.4
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "A fisherman found him.",
+   "set": "beach",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "shock",
+       "at": 0.76
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.1
+    },
+    {
+     "name": "gasp",
+     "at": 1.6
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The letters reached German spies.",
+   "set": "hq",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "pip",
+     "text": "INVADE GREECE"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    }
+   ],
+   "id": "s11",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "Greece! Move the troops!",
+   "set": "hq",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Hitler sent forces away from Sicily.",
+   "set": "hq",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -2.2,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "WRONG WAY"
+   },
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In July 1943, the Allies landed in Sicily.",
+   "set": "sicily",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "JULY 1943"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.3
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The Germans were waiting in the wrong place.",
+   "set": "sicily",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "FOOLED"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So a fake letter won a battle?",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. You didn't read this.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "TOP SECRET"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s17",
+   "transition": "cut"
+  }
+ ],
+ "est_total": 32.55
+}

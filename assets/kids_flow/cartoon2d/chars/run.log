@@ -1,0 +1,5 @@
+{"t":"PROMPT_RESULT","s":"rate_limited","i":1,"e":"Flow refused this account's request (PUBLIC_ERROR_UNUSUAL_ACTIVITY)."}
+{"t":"PROMPT_RESULT","s":"done","i":2,"p":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-9-882989/003-2.png","e":""}
+{"t":"PROMPT_RESULT","s":"done","i":0,"p":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/001-2.png","e":""}
+{"t":"PROMPT_RESULT","s":"done","i":1,"p":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/002-2.png","e":""}
+{"t":"GENERATE_DONE","e":""}

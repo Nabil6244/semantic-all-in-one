@@ -17,7 +17,8 @@ Kindness rules: the kids correct Bobo gently, everybody says sorry when needed, 
 
 ## 2. The show's fixed parts (same every episode: kids wait for them)
 
-1. **Hook** (engine: "Coming up!") then a **cold open**: a problem in the first 5 seconds.
+1. **Hook first, no "Coming up!" preview**: the very first line (by 2 s) grabs attention with a surprise, a big move,
+   a sound or a picture, then the **cold open** problem in the first 5 seconds. (The teaser is off; `"hook": "auto"` opts in.)
 2. **The goal** said by 15 s (`goal: true` on that line).
 3. **Theme chant**: "Ms Molly and Bobo! Here we go! Learning and playing, high and low!" with the title card.
 4. **Hello song** and the learning goal ("Today we're learning...").

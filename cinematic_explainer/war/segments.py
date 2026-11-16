@@ -167,9 +167,16 @@ def all_cards() -> Dict[str, Callable]:
     try:
         from . import registry  # type: ignore
 
-        return dict(registry.all_cards())
+        out = dict(registry.all_cards())
     except Exception:
-        return dict(_phase1_cards.CARDS)
+        out = dict(_phase1_cards.CARDS)
+    try:                                   # Wall Moments (docs/wall/PLAN.md): the evidence-wall layer
+        from wall import engine as _wall
+
+        out.update(_wall.CARDS)
+    except Exception:
+        pass
+    return out
 
 
 CARD_BLACK_LIFT = 24       # 2026-11-09 "no colour burn": the darkest pixel a card or map can have (0 crushed maps and title plates to black)
@@ -223,10 +230,16 @@ def _fallback_card(ly: Layer, t: float, active: Sequence[Layer], on_error, exc: 
         return None
 
 
+WALL_KIND = "wall.lay_wall"
+
+
 def _compose(t: float, active: Sequence[Layer], cards: Dict[str, Callable], on_error: Callable[[Layer, Exception], None]):
     from PIL import Image
 
     img = L.blank()
+    walls = [ly for ly in active if ly.kind == WALL_KIND]
+    if walls:                              # the wall is opaque and carries the shot's own look: drawn last, outside the black lift
+        active = [ly for ly in active if ly.kind != WALL_KIND]
     for ly in active:
         fn = cards.get(ly.kind)
         if fn is None:
@@ -243,7 +256,17 @@ def _compose(t: float, active: Sequence[Layer], cards: Dict[str, Callable], on_e
                 continue
         if out is not None:
             img = Image.alpha_composite(img, out)
-    return lift_blacks(img)
+    img = lift_blacks(img)
+    for ly in walls:
+        fn = cards.get(ly.kind)
+        try:
+            out = fn(t - ly.start, ly.end - ly.start, ly.params) if fn is not None else None
+        except Exception as exc:  # noqa: BLE001 - a wall frame that fails shows what is under it
+            on_error(ly, exc)
+            out = None
+        if out is not None:
+            img = Image.alpha_composite(img, out)
+    return img
 
 
 # --------------------------------------------------------------------------- probing

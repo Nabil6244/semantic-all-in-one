@@ -1,0 +1,357 @@
+{
+ "about": "town main street: road behind the cast, a row of shops, tall buildings behind, traffic light; movers: taxi, car, van",
+ "ground": [
+  0.55,
+  0.57,
+  0.6
+ ],
+ "sky": {
+  "top": [
+   0.26,
+   0.58,
+   0.97
+  ],
+  "low": [
+   0.8,
+   0.91,
+   1.0
+  ]
+ },
+ "pieces": [
+  {
+   "m": "road-straight",
+   "at": [
+    -42,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -35,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -28,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -21,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -14,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -7,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    0,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    7,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    14,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    21,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    28,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    35,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    42,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "taxi",
+   "at": [
+    -7,
+    4.6,
+    0
+   ],
+   "rot": 90,
+   "id": "taxi"
+  },
+  {
+   "m": "sedan-sports",
+   "at": [
+    12,
+    7.5,
+    0
+   ],
+   "rot": -90,
+   "id": "car"
+  },
+  {
+   "m": "van",
+   "at": [
+    4,
+    7.5,
+    0
+   ],
+   "rot": -90,
+   "id": "van"
+  },
+  {
+   "m": "traffic-light",
+   "at": [
+    3.2,
+    3.0,
+    0
+   ],
+   "rot": 180,
+   "s": 0.55
+  },
+  {
+   "m": "building-a",
+   "at": [
+    -30.0,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-c",
+   "at": [
+    -23.8,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-e",
+   "at": [
+    -17.6,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-g",
+   "at": [
+    -11.399999999999999,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-h",
+   "at": [
+    -5.199999999999999,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-k",
+   "at": [
+    1.0,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-a",
+   "at": [
+    7.200000000000003,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-c",
+   "at": [
+    13.399999999999999,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-e",
+   "at": [
+    19.6,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-g",
+   "at": [
+    25.800000000000004,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-h",
+   "at": [
+    32.0,
+    13.5,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-a",
+   "at": [
+    -36,
+    32,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-b",
+   "at": [
+    -24,
+    32,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-c",
+   "at": [
+    -12,
+    32,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-d",
+   "at": [
+    0,
+    32,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-e",
+   "at": [
+    12,
+    32,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-a",
+   "at": [
+    24,
+    32,
+    0
+   ],
+   "rot": 180
+  },
+  {
+   "m": "building-skyscraper-b",
+   "at": [
+    36,
+    32,
+    0
+   ],
+   "rot": 180
+  }
+ ],
+ "rows": [
+  {
+   "m": "tree-small",
+   "from": [
+    -30,
+    10.4
+   ],
+   "to": [
+    30,
+    10.4
+   ],
+   "n": 8,
+   "jitter": 0.2,
+   "s": 1.0
+  }
+ ]
+}

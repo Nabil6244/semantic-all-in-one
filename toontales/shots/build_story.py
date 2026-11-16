@@ -8,6 +8,7 @@ Steps: plan check (errors stop it) -> voice per shot (cached) -> compile shot.js
 shots whose content or engine code changed (one Blender run for all of them) -> clips.json manifest.
 """
 import hashlib
+import os
 import json
 import shutil
 import subprocess
@@ -31,23 +32,27 @@ CACHE = BUILD / "cache"
 WORKERS = 2
 ENGINE_FILES = ["cast/puppet.py", "cast/faces.py", "cast/cast.json", "library/actions.py", "library/poses.json",
                 "sets/mine.py", "sets/backdrop.py", "sets/kits.json", "props/props.py", "shots/shot.py", "cast/fx.py", "cast/fx_art.py",
-                "sets/ambient.py"]
+                "sets/ambient.py", "sets/world.py", "sets/parts.py", "sets/diorama.py", "sets/actor.py", "sets/objects.py",
+                "diorama/actor_acts.py"]
 
 
 def engine_hash():
     h = hashlib.sha1()
     for f in ENGINE_FILES:
         h.update((TT / f).read_bytes())
+    for f in sorted((TT.parent / "assets" / "diorama" / "cast").glob("*.blend")):  # realistic actors (Channel 3)
+        h.update(f.read_bytes())
     return h.hexdigest()[:10]
 
 
-def ensure_faces():
+def ensure_faces(cast_file=None):
+    cast_file = Path(cast_file or TT / "cast" / "cast.json")
     out = BUILD / "faces"
-    src = [TT / "cast" / "faces.py", TT / "cast" / "cast.json"]
-    stamp = out / ".stamp"
+    src = [TT / "cast" / "faces.py", cast_file]
+    stamp = out / f".stamp_{cast_file.stem}_{hashlib.sha1(str(cast_file).encode()).hexdigest()[:6]}"
     key = hashlib.sha1(b"".join(p.read_bytes() for p in src)).hexdigest()
     if not stamp.exists() or stamp.read_text() != key:
-        subprocess.run([sys.executable, str(TT / "cast" / "faces.py"), str(TT / "cast" / "cast.json"), str(out)],
+        subprocess.run([sys.executable, str(TT / "cast" / "faces.py"), str(cast_file), str(out)],
                        check=True, capture_output=True)
         stamp.write_text(key)
 
@@ -73,9 +78,12 @@ def build(plan_path, only=None, draft=False, rough=False):
         print(C.format_report(r))
         raise SystemExit("plan has errors: run the checker with --fix and fix the rest first")
     plan = r["plan"]  # normalized: ids and defaults filled in
-    ensure_faces()
+    cast_file = S.cast_file_for(plan)
+    os.environ["TT_CAST"] = str(cast_file)  # voices use the channel's cast
+    ensure_faces(cast_file)
     ensure_fx()
-    cast_cfg, _ = S.load_cast()
+    cast_cfg, _ = S.load_cast(cast_file)
+    cast_sha = hashlib.sha1(Path(cast_file).read_bytes()).hexdigest()[:12]
     kits = S.load_kits()
     sid = plan["id"]
     work = BUILD / "stories" / sid
@@ -99,11 +107,17 @@ def build(plan_path, only=None, draft=False, rough=False):
                           "voice_dur": line["dur"], "speaker": shot["speaker"], "text": shot["text"],
                           "transition": shot.get("transition", "cut"), "sfx": shot.get("sfx", []),
                           "overlay": shot.get("overlay"), "beat": shot.get("beat"), "set": shot.get("set"),
-                          "freeze": shot.get("freeze"), "punch": shot.get("punch"), "mood": shot.get("mood")})
+                          "freeze": shot.get("freeze"), "punch": shot.get("punch"), "mood": shot.get("mood"),
+                          "hud": shot.get("hud"), "callout": shot.get("callout")})
             continue
         kit = S.kit_for(plan, shot["set"], kits)
         sj = K.compile_shot(shot, i, line, cast_cfg, kit, art=art)
-        if kit.get("place"):
+        sj["cast_file"], sj["cast_sha"] = str(cast_file), cast_sha
+        if kit.get("world"):  # 3D toon world built from the model packs: no picture to paint
+            sj["world"] = S.world_layout(plan, kit["place"])
+            sj["moves"] = shot.get("moves", [])
+            sj["ambient"] = (plan["places"][kit["place"]].get("ambient")) or "none"
+        elif kit.get("place"):
             img = S.place_image(plan, kit["place"])
             if not img.exists():
                 raise SystemExit(f"place '{kit['place']}' has no picture yet ({img}); paint the places first:\n"
@@ -124,7 +138,8 @@ def build(plan_path, only=None, draft=False, rough=False):
                       "voice_dur": line["dur"], "speaker": shot["speaker"], "text": shot["text"],
                       "transition": shot.get("transition", "cut"), "sfx": shot.get("sfx", []),
                       "overlay": shot.get("overlay"), "beat": shot.get("beat"), "set": shot.get("set"),
-                      "freeze": shot.get("freeze"), "punch": shot.get("punch"), "mood": shot.get("mood")})
+                      "freeze": shot.get("freeze"), "punch": shot.get("punch"), "mood": shot.get("mood"),
+                          "hud": shot.get("hud"), "callout": shot.get("callout")})
         if clip.exists() or (only and shot["id"] not in only):
             continue
         frames = BUILD / "frames" / key

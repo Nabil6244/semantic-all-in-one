@@ -338,7 +338,7 @@ def light(P, layer, z):
     cr = layer.crop(bb)
     rgb, a = cr.convert("RGB"), cr.getchannel("A")
     rgb = Image.blend(rgb, ImageChops.multiply(rgb, Image.new("RGB", rgb.size, P["amb"])), 0.2)
-    ol = max(2.0, 4.0 * z / 0.75)
+    ol = float(max(2.0, 4.0 * z / 0.75))                # plain float: Pillow 12's GaussianBlur breaks on a numpy radius
     lx, ly = P["ldir"]
 
     def shifted(k):                                     # alpha sampled k px toward the light

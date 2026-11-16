@@ -1,0 +1,691 @@
+{
+ "id": "cottingley_fairies",
+ "title": "The Fairy Photos That Fooled Sherlock Holmes' Creator",
+ "topic": "the Cottingley Fairies (1917)",
+ "hook_title": "REAL FAIRIES ON FILM?",
+ "keywords": [
+  "fairies",
+  "photos",
+  "doyle",
+  "paper",
+  "fake",
+  "1983"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Cottingley_Fairies"
+ ],
+ "places": {
+  "beck": {
+   "prompt": "A small English stream with a little waterfall in 1917, green ferns, mossy rocks, sunlight through trees, a grassy bank",
+   "ambient": "leaves"
+  },
+  "house": "A cosy 1917 English cottage kitchen: wooden table, a big old camera on a tripod, a window with lace curtains, stone floor",
+  "study": "Arthur Conan Doyle's study in 1920: shelves of books, a desk with a typewriter and pipe, a globe, a fireplace",
+  "lecture": "A 1920 London lecture hall: rows of wooden seats, a stage with a big projection screen, red curtains",
+  "parlour": {
+   "prompt": "A small English living room in 1983: patterned wallpaper, an old television, armchairs, a lamp",
+   "ambient": "none"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1917, two girls photographed real fairies.",
+   "set": "beck",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.4
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "walt",
+   "text": "Wait. How did they fool everyone?",
+   "set": "beck",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Cousins Elsie and Frances played by a stream in Cottingley.",
+   "set": "beck",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "look_around",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "COTTINGLEY, 1917"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "They borrowed a camera.",
+   "set": "house",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 0.76
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "picked_by": "pip"
+    }
+   ],
+   "id": "s04",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The photos showed tiny fairies dancing around them.",
+   "set": "house",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "pip",
+     "text": "PHOTO: FAIRIES!"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "id": "s05",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "pip",
+   "text": "See? Real fairies!",
+   "set": "house",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then Arthur Conan Doyle saw them.",
+   "set": "study",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "ARTHUR CONAN DOYLE"
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The man who wrote Sherlock Holmes.",
+   "set": "study",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "walt",
+     "text": "SHERLOCK HOLMES"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "This is proof!",
+   "set": "study",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "In 1920, he published them in a famous magazine.",
+   "set": "lecture",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "walt",
+     "text": "FAIRIES PHOTOGRAPHED"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.4
+    },
+    {
+     "name": "crowd",
+     "at": 0.8
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Half of Britain argued about them.",
+   "set": "lecture",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.5
+      },
+      {
+       "do": "angry",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Photo experts said the pictures were not faked.",
+   "set": "lecture",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "NOT FAKED?"
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The girls never said a word.",
+   "set": "beck",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "SECRET"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Until 1983. The fairies were paper cutouts from a children's book.",
+   "set": "parlour",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "pip",
+     "text": "PAPER FAIRY"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Held up with hatpins.",
+   "set": "parlour",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "HATPINS"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But Frances always said the last photo was real.",
+   "set": "parlour",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "PHOTO 5?"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Doyle died believing they were real.",
+   "set": "study",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "So fairies aren't real?",
+   "set": "beck",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "Shh. Smile for the camera.",
+   "set": "beck",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 33.19
+}

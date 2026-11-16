@@ -1,0 +1,51 @@
+{
+ "id": "channel1",
+ "name": "Channel 1 - Wobbly-style Victorian tales",
+ "about": "Reference: Wobbly Tales ('Why He Cuts the Rope of His Own Elevator'). Peach-skinned big-nose cartoon Victorians (top hats, moustaches, uniforms) in 3D Victorian places: stone towns, steam railways, mines, mills; warm sunset light; 'Why he did a strange thing' history tricks, 60-75 s.",
+ "cast": "channel1_cast.json",
+ "backgrounds": "3d",
+ "look": {
+  "sky": {
+   "top": [
+    0.36,
+    0.42,
+    0.78
+   ],
+   "low": [
+    1.0,
+    0.7,
+    0.42
+   ]
+  },
+  "light": {
+   "lit": [
+    1.0,
+    0.88,
+    0.72
+   ],
+   "shade": [
+    0.6,
+    0.52,
+    0.72
+   ]
+  }
+ },
+ "paint_style": "Stylised 3D cartoon render of a Victorian scene, warm golden sunset light, saturated colours",
+ "formula": [
+  "hook: the strange act itself on screen + 'Why did he...?' question",
+  "the world before: how things worked and why it was fine",
+  "the change that breaks it (train, machine, crowd), quick cuts of trouble",
+  "WAIT... the mocker/stubborn one, then the clever fix",
+  "payoff: the fix is still there today; last line loops to the first"
+ ],
+ "worlds": [
+  "victorian_square",
+  "station",
+  "railway_line",
+  "clock_shop"
+ ],
+ "length": [
+  55,
+  80
+ ]
+}

@@ -17,9 +17,15 @@ fs.mkdirSync(raw, { recursive: true });
 
 // Matches the puppets: flat cartoon, bold dark outlines, warm storybook colours. The lower part of the
 // picture is the ground the puppets stand on (sets/backdrop.py lays it on the floor).
-const STYLE = "2D cartoon background painting for an animated history explainer show, flat colours with soft simple shading, clean bold dark-brown outlines, warm storybook palette, vector illustration";
+// channel preset: background mode (3d places are built in Blender, nothing to paint) and its own paint style
+const chFile = plan.channel ? path.join(path.dirname(new URL(import.meta.url).pathname), "..", "channels", `${plan.channel}.json`) : null;
+const ch = chFile && fs.existsSync(chFile) ? JSON.parse(fs.readFileSync(chFile, "utf8")) : {};
+const mode = plan.backgrounds || ch.backgrounds || "3d";
+const STYLE = ch.paint_style || "2D cartoon background painting for an animated history explainer show, flat colours with soft simple shading, clean bold dark-brown outlines, warm storybook palette, vector illustration";
 const FRAME = "Vertical 9:16 picture, eye-level view. The bottom 40% of the picture is open, empty, flat ground or floor in the foreground seen from slightly above, where characters will stand; the scenery is behind it. Nothing in the foreground. No text, no letters, no signs with writing, no logos";
-const names = Object.keys(plan.places || {}).filter(n => redo.has(n) || !fs.existsSync(path.join(dir, `${n}.png`)));
+const isWorld = n => { const p = plan.places[n]; return p && p.world && (mode === "3d" || !p.prompt); };
+const names = Object.keys(plan.places || {}).filter(n => !isWorld(n))  // 3D world places: nothing to paint
+  .filter(n => redo.has(n) || !fs.existsSync(path.join(dir, `${n}.png`)));
 if (!names.length) { console.log("all places painted"); process.exit(0); }
 const prompts = names.map(n => {
   const p = plan.places[n];

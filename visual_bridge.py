@@ -79,6 +79,13 @@ def _oc_dir(ws) -> Path:
 OWNERS["ocean"] = ("_oc_active", _oc_dir)   # Ocean Predators real clips (ui/ocean_section.py, ocean/clips.py)
 
 
+def _gl_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "game_launch" / "assets"
+
+
+OWNERS["game_launch"] = ("_gl_active", _gl_dir)   # Game Launch real-life clips (ui/game_launch_section.py, game_launch/)
+
+
 def _scene_key(scene_number) -> str:   # the table's own key (app._scene_key): "001"
     try:
         return f"{int(str(scene_number).strip()):03d}"

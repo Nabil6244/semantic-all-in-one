@@ -1,0 +1,52 @@
+{"type":"STATE","msg":""}
+{"type":"INFO","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Working 1/1 (saved 0) · \"2D cartoon character for a preschool TV …\""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Working 1/1 (saved 0) · \"2D cartoon character for a preschool TV …\""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Working 1/1 (saved 0) · \"2D cartoon character for a preschool TV …\""}
+{"type":"PROMPT_RESULT","status":"rate_limited","index":1,"msg":"Flow refused this account's request (PUBLIC_ERROR_UNUSUAL_ACTIVITY)."}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":1,"msg":"Account restricted (PUBLIC_ERROR_UNUSUAL_ACTIVITY) — rotating to another account…"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Downloading 003-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Downloading 001-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Downloading 003-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":2,"path":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-9-882989/003-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":2,"path":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-9-882989/003-2.png","msg":"Saved 1/1 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Downloading 001-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":0,"path":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/001-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":0,"path":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/001-2.png","msg":"Saved 1/1 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"status","msg":"Rate-limit rotation round 1: 1 account(s), 1 prompt(s)"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Working 1/1 (saved 0) · \"2D cartoon character for a preschool TV …\""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Downloading 002-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Downloading 002-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":1,"path":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/002-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":1,"path":"/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/chars/account-7-3ff7a2/002-2.png","msg":"Saved 1/1 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"GENERATE_DONE","msg":""}

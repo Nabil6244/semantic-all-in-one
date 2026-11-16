@@ -308,6 +308,14 @@ def draw_extras(traits):
             df.polygon([(_k(x), _k(yy)) for x, yy in lobe], fill=mc)
             _line(df, lobe, fill=INK, w=10)
         df.ellipse([_k(512 - 30), _k(y - 30), _k(512 + 30), _k(y + 26)], fill=mc)
+    nose = traits.get("nose")
+    if nose:  # big round cartoon nose over the mustache (Wobbly-style cast)
+        nc = tuple(nose) + (255,)
+        ny, nr = 615, traits.get("nose_size", 92)
+        pts = _arc_pts(512, ny, nr * 0.9, nr, 0, 360, 40)
+        df.polygon([(_k(x), _k(yy)) for x, yy in pts], fill=nc)
+        _line(df, pts, fill=INK, w=10)
+        df.ellipse([_k(512 - nr * 0.45), _k(ny - nr * 0.62), _k(512 - nr * 0.1), _k(ny - nr * 0.28)], fill=(255, 255, 255, 150))
     return _finish(back), _finish(front)
 
 
@@ -343,6 +351,69 @@ def outfit_image(cfg, out_dir):
         # ribbed hem + collar
         d.rectangle([0, int(H * 0.88), W, H], fill=st)
         d.ellipse([int(W * 0.40), -int(H * 0.04), int(W * 0.60), int(H * 0.06)], fill=st)
+    elif b.get("style") in ("frock", "railway", "redcoat"):
+        main = tuple(b["color"])
+        dark = tuple(max(0, int(c * 0.72)) for c in main)
+        gold = tuple(b.get("buttons", [226, 190, 80]))
+        if b["style"] == "frock":  # long Victorian coat: wide lapels, white shirt, cravat, watch chain
+            shirt = tuple(b.get("shirt", [240, 236, 226]))
+            d.rectangle([0, 0, W, H], fill=main)
+            d.polygon([(int(W * 0.38), 0), (int(W * 0.62), 0), (int(W * 0.56), int(H * 0.42)), (int(W * 0.44), int(H * 0.42))], fill=shirt)
+            d.polygon([(int(W * 0.38), 0), (int(W * 0.44), int(H * 0.42)), (int(W * 0.26), int(H * 0.34)), (int(W * 0.24), 0)], fill=dark, outline=ink)
+            d.polygon([(int(W * 0.62), 0), (int(W * 0.56), int(H * 0.42)), (int(W * 0.74), int(H * 0.34)), (int(W * 0.76), 0)], fill=dark, outline=ink)
+            cr = tuple(b.get("tie", [150, 30, 40]))
+            d.polygon([(int(W * 0.44), int(H * 0.03)), (int(W * 0.56), int(H * 0.03)), (int(W * 0.53), int(H * 0.16)), (int(W * 0.47), int(H * 0.16))], fill=cr, outline=ink)
+            d.arc([int(W * 0.30), int(H * 0.45), int(W * 0.50), int(H * 0.62)], 20, 160, fill=gold, width=5)
+            d.line([int(W * 0.5), int(H * 0.42), int(W * 0.5), H], fill=ink, width=4)
+        elif b["style"] == "railway":  # navy double-breasted uniform, two rows of gold buttons, collar
+            d.rectangle([0, 0, W, H], fill=main)
+            d.rectangle([int(W * 0.36), 0, int(W * 0.64), int(H * 0.08)], fill=dark)
+            for x0 in (0.40, 0.60):
+                for k in range(4):
+                    cy = int(H * (0.20 + k * 0.15))
+                    d.ellipse([int(W * x0) - 11, cy - 11, int(W * x0) + 11, cy + 11], fill=gold, outline=ink, width=2)
+            d.rectangle([int(W * 0.18), int(H * 0.56), int(W * 0.32), int(H * 0.60)], fill=gold)
+        else:  # redcoat: red tunic, white cross belts, gold buttons, white belt
+            d.rectangle([0, 0, W, H], fill=main)
+            white = (240, 238, 230)
+            d.line([int(W * 0.18), 0, int(W * 0.82), int(H * 0.80)], fill=white, width=34)
+            d.line([int(W * 0.82), 0, int(W * 0.18), int(H * 0.80)], fill=white, width=34)
+            d.ellipse([int(W * 0.5) - 22, int(H * 0.40) - 22, int(W * 0.5) + 22, int(H * 0.40) + 22], fill=gold, outline=ink, width=3)
+            d.rectangle([0, int(H * 0.80), W, int(H * 0.88)], fill=white)
+            for k in range(3):
+                cy = int(H * (0.12 + k * 0.2))
+                d.ellipse([int(W * 0.5) - 9, cy - 9, int(W * 0.5) + 9, cy + 9], fill=gold)
+    elif b.get("style") in ("vest", "duster", "suit"):
+        shirt = tuple(b.get("shirt", [236, 226, 204]))
+        main = tuple(b["color"])
+        dark = tuple(max(0, int(c * 0.72)) for c in main)
+        if b["style"] == "vest":  # shirt with an open vest, optional star badge and belt
+            d.rectangle([0, 0, W, H], fill=shirt)
+            d.polygon([(int(W * 0.14), 0), (int(W * 0.46), 0), (int(W * 0.46), int(H * 0.30)), (int(W * 0.40), int(H * 0.78)), (int(W * 0.14), int(H * 0.78))], fill=main, outline=ink)
+            d.polygon([(int(W * 0.86), 0), (int(W * 0.54), 0), (int(W * 0.54), int(H * 0.30)), (int(W * 0.60), int(H * 0.78)), (int(W * 0.86), int(H * 0.78))], fill=main, outline=ink)
+            for k in range(3):
+                d.ellipse([int(W * 0.37) - 7, int(H * (0.42 + k * 0.11)) - 7, int(W * 0.37) + 7, int(H * (0.42 + k * 0.11)) + 7], fill=dark)
+            if b.get("star"):
+                cx, cy, R = int(W * 0.29), int(H * 0.38), 34
+                import math as _m
+                pts = [(cx + (R if i % 2 == 0 else R * 0.45) * _m.sin(i * _m.pi / 5), cy - (R if i % 2 == 0 else R * 0.45) * _m.cos(i * _m.pi / 5)) for i in range(10)]
+                d.polygon(pts, fill=(236, 196, 70), outline=ink)
+            d.rectangle([0, int(H * 0.78), W, int(H * 0.86)], fill=tuple(b.get("belt", [70, 46, 30])))
+            d.rectangle([int(W * 0.45), int(H * 0.775), int(W * 0.55), int(H * 0.865)], fill=(210, 180, 90), outline=ink, width=3)
+        elif b["style"] == "duster":  # long dark coat, lapels, a sliver of shirt
+            d.rectangle([0, 0, W, H], fill=main)
+            d.polygon([(int(W * 0.40), 0), (int(W * 0.60), 0), (int(W * 0.53), int(H * 0.40)), (int(W * 0.47), int(H * 0.40))], fill=shirt)
+            d.polygon([(int(W * 0.40), 0), (int(W * 0.47), int(H * 0.40)), (int(W * 0.32), int(H * 0.30)), (int(W * 0.30), 0)], fill=dark, outline=ink)
+            d.polygon([(int(W * 0.60), 0), (int(W * 0.53), int(H * 0.40)), (int(W * 0.68), int(H * 0.30)), (int(W * 0.70), 0)], fill=dark, outline=ink)
+            d.line([int(W * 0.5), int(H * 0.40), int(W * 0.5), H], fill=ink, width=4)
+            for k in range(3):
+                d.ellipse([int(W * 0.46) - 8, int(H * (0.50 + k * 0.12)) - 8, int(W * 0.46) + 8, int(H * (0.50 + k * 0.12)) + 8], fill=(180, 160, 110), outline=ink, width=2)
+        else:  # suit: jacket, white shirt V, tie
+            d.rectangle([0, 0, W, H], fill=main)
+            d.polygon([(int(W * 0.38), 0), (int(W * 0.62), 0), (int(W * 0.5), int(H * 0.46))], fill=shirt)
+            tie = tuple(b.get("tie", [150, 30, 40]))
+            d.polygon([(int(W * 0.47), int(H * 0.04)), (int(W * 0.53), int(H * 0.04)), (int(W * 0.55), int(H * 0.38)), (int(W * 0.5), int(H * 0.45)), (int(W * 0.45), int(H * 0.38))], fill=tie, outline=ink)
+            d.line([int(W * 0.38), 0, int(W * 0.5), int(H * 0.46), int(W * 0.62), 0], fill=ink, width=4)
     p = Path(out_dir) / "outfit.png"
     im.save(p)
     return p
@@ -351,6 +422,8 @@ def outfit_image(cfg, out_dir):
 def build(cast, out):
     out = Path(out)
     for ch in cast["characters"]:
+        if ch.get("actor"):  # a realistic 3D actor (Channel 3 dioramas) has no drawn face parts
+            continue
         t = ch.get("face", {})
         cd = out / ch["id"]
         cd.mkdir(parents=True, exist_ok=True)
@@ -397,5 +470,6 @@ if __name__ == "__main__":
     cast = json.loads(Path(sys.argv[1]).read_text())
     o = build(cast, sys.argv[2])
     for ch in cast["characters"]:
-        board(o / ch["id"], o / f"{ch['id']}_board.jpg")
+        if not ch.get("actor"):  # realistic actors have no drawn face
+            board(o / ch["id"], o / f"{ch['id']}_board.jpg")
     print("faces ->", o)

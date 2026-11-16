@@ -1,0 +1,914 @@
+{
+ "id": "time_seller",
+ "title": "The Family Who Sold the Time",
+ "topic": "John, Maria and Ruth Belville sold Greenwich time door to door in London, 1836-1940",
+ "hook_title": "THEY SOLD THE TIME?",
+ "keywords": [
+  "time",
+  "watch",
+  "Greenwich",
+  "Ruth",
+  "clock",
+  "Arnold",
+  "telegraph",
+  "customers"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Ruth_Belville",
+  "https://en.wikipedia.org/wiki/John_Henry_Belville"
+ ],
+ "places": {
+  "street": {
+   "world": "victorian_square",
+   "prompt": "A busy Victorian London street with a big public clock"
+  },
+  "square": {
+   "world": "victorian_square",
+   "remove": [
+    "cart"
+   ],
+   "prompt": "A grand Victorian square before an observatory-like hall with a clock"
+  },
+  "shop": {
+   "world": "clock_shop",
+   "prompt": "A Victorian clockmaker's shop full of clocks"
+  },
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian railway platform with a steam train"
+  },
+  "line": {
+   "world": "railway_line",
+   "prompt": "A railway line with telegraph poles across the country"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "For a hundred years, one family sold something invisible.",
+   "set": "shop",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "?"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "They sold the time. Door to door. How?",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_alder",
+     "text": "THE TIME"
+    }
+   ],
+   "id": "s02",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "London, 1836. Clocks drift, and nobody knows the exact time.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.4
+      },
+      {
+       "do": "nod",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1836"
+   },
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.3,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "The only perfect clock is at the Greenwich Observatory.",
+   "set": "square",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "GREENWICH"
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "John Belville works there.",
+   "set": "square",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 0.77
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "JOHN BELVILLE"
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Every Monday he sets his pocket watch to Greenwich,",
+   "set": "square",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_alder",
+     "text": "GREENWICH TIME"
+    }
+   ],
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.5,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "id": "s06",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "then walks across London to his customers.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Clockmakers pay him to look at his watch.",
+   "set": "shop",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_ned"
+    }
+   ],
+   "moves": [
+    {
+     "id": "shop_clock",
+     "run_to": 0.4,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "That's it. Check the watch, set your clocks, pay up.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "SET IT"
+   },
+   "moves": [
+    {
+     "id": "shop_clock",
+     "run_to": 2.0,
+     "t0": 0.1,
+     "t1": 1.2
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "About two hundred customers bought the time every week.",
+   "set": "street",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "200"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "When John died, his wife Maria took over the round.",
+   "set": "square",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "1856"
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then their daughter Ruth, with the very same watch.",
+   "set": "shop",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_ned",
+     "text": "ARNOLD 485"
+    }
+   ],
+   "id": "s12",
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "She called the watch Arnold. It was made for a duke.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "ARNOLD"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Every Monday, rain or shine, Ruth walked the same long route.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "EVERY MONDAY"
+   },
+   "id": "s14",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "But the world was changing.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Telegraph wires now sent the time electrically.",
+   "set": "line",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -30,
+      0,
+      0
+     ],
+     "to": [
+      30,
+      0,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "TELEGRAPH"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "vic_pike",
+   "text": "Our time is modern! Hers is a joke!",
+   "set": "station",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "ELECTRIC TIME"
+    }
+   ],
+   "id": "s17",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "In 1908 a rival mocked her in a speech. The Times printed it.",
+   "set": "street",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "vic_ned",
+     "text": "THE TIMES"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s18",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But it backfired.",
+   "set": "street",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BACKFIRED"
+   },
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The story made her famous. New customers signed up.",
+   "set": "shop",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.4
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "FREE ADVERT"
+   },
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Ruth kept selling the time until 1940.",
+   "set": "square",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1940"
+   },
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.6,
+     "t0": 0,
+     "t1": 1.0
+    }
+   ],
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "She was eighty six years old.",
+   "set": "square",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "86"
+   },
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "By then, radio was beeping the exact time into every home.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.3
+      },
+      {
+       "do": "nod",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "RADIO PIPS"
+   },
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Three Belvilles, one watch, over a hundred years of selling the time.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_ned",
+     "text": "ARNOLD 485"
+    }
+   ],
+   "moves": [
+    {
+     "id": "shop_clock",
+     "run_to": 0.5,
+     "t0": 0,
+     "t1": 1.0
+    }
+   ],
+   "id": "s24",
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 56.11
+}

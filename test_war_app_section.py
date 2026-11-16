@@ -520,6 +520,21 @@ class TestReopenedApp(unittest.TestCase):
         csv.unlink()
         self.assertEqual(recall_scenes(app), "")                              # a file that is gone is not brought back
 
+    def test_saved_visuals_rows_are_seen_so_render_never_drops_them(self):
+        """Owner (2026-11-16): the CSV was set without Browse, so it was never remembered; after a restart Render planned 164 scenes
+        from the narration and ignored the 152 ready CSV scenes in the Visuals tab. csv_rows_waiting lets Render refuse instead."""
+        import json
+        from types import SimpleNamespace
+        from cinematic_explainer.war.app_section import csv_rows_waiting
+
+        root = Path(tempfile.mkdtemp())
+        app = SimpleNamespace(_workspace=SimpleNamespace(root=str(root)))
+        self.assertEqual(csv_rows_waiting(app), 0)                            # a narration-only project renders as before
+        d = root / "state" / "war" / "assets"
+        d.mkdir(parents=True)
+        (d / "visual_plan.json").write_text(json.dumps([{"scene_number": 1, "script_segment": "a"}, {"scene_number": 2, "script_segment": "b"}]), encoding="utf-8")
+        self.assertEqual(csv_rows_waiting(app), 2)
+
     def test_whisper_words_without_punctuation_still_make_short_scenes(self):
         from cinematic_explainer.war.app_section import sentences_from_words
 

@@ -1,0 +1,48 @@
+{
+ "id": "channel2",
+ "name": "Channel 2 - Wild West tales (round-head cast)",
+ "about": "Reference: 'Claude Knows My API Key' style. White round-head meme characters in costumes, stylised 3D sets with strong dusk / lamp colour, 'Why X' history tricks with a 'You see,' reveal.",
+ "cast": "channel2_cast.json",
+ "backgrounds": "3d",
+ "look": {
+  "sky": {
+   "top": [
+    0.3,
+    0.16,
+    0.52
+   ],
+   "low": [
+    1.0,
+    0.52,
+    0.22
+   ]
+  },
+  "light": {
+   "lit": [
+    1.0,
+    0.82,
+    0.6
+   ],
+   "shade": [
+    0.66,
+    0.46,
+    0.74
+   ]
+  }
+ },
+ "paint_style": "Stylised 3D cartoon render of a Wild West scene, warm dramatic sunset light, purple to orange sky, saturated colours, clean shapes",
+ "formula": [
+  "hook: the strangest true moment mid-action, no year opener",
+  "stakes + deadline, a mocker who laughs at the trick",
+  "the test / the clue, quick cuts",
+  "'You see,' + an everyday comparison explains why it works",
+  "ironic true payoff, last line loops to the first"
+ ],
+ "worlds": [
+  "frontier_town",
+  "frontier_desert",
+  "frontier_office",
+  "frontier_laundry",
+  "frontier_jail"
+ ]
+}

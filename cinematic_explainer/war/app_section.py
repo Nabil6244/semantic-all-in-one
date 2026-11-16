@@ -610,6 +610,13 @@ def build(app, parent, *, row: int) -> None:
     ctk = M.ctk
     app._war_scenes_var = ctk.StringVar(value="")
     app._war_scenes_var.trace_add("write", lambda *_: getattr(app, "_war_running", False) or app._sync_primary_cta())   # a new CSV: Generate scenes again
+
+    def _keep(*_: Any) -> None:     # however the field is filled (Browse, autorun, a reopened project), the project remembers it
+        p = app._war_scenes_var.get().strip()
+        if p and Path(p).is_file():
+            remember_scenes(app, p)
+
+    app._war_scenes_var.trace_add("write", _keep)
     app._war_ai_cap_var = ctk.StringVar(value=str((getattr(app, "_settings", None) or {}).get("war_ai_cap", DEFAULT_AI_CAP)))
     app._war_status_var = ctk.StringVar(value="")
     app._war_cancel = threading.Event()
@@ -641,6 +648,7 @@ def build(app, parent, *, row: int) -> None:
                  font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=2, sticky="w")
     ctk.CTkLabel(go, text="Without footage in the scenes, a scene gets a map or card, or no visual.", font=ctk.CTkFont(size=11),
                  text_color=M._MUTED).grid(row=0, column=1, sticky="w")
+    _wall_row(app, M, go, row=2)
     ctk.CTkLabel(controls, textvariable=app._war_status_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=560,
                  justify="left").grid(row=3, column=0, sticky="ew", pady=(8, 0))
     bar = ctk.CTkFrame(controls, fg_color="transparent")
@@ -658,6 +666,52 @@ def build(app, parent, *, row: int) -> None:
     ctk.CTkLabel(fl, textvariable=app._war_frontline_var, font=ctk.CTkFont(size=11), text_color=M._MUTED, anchor="w", wraplength=520,
                  justify="left").grid(row=0, column=1, sticky="w", padx=(10, 0))
     block.grid_remove()
+
+
+WALL_DEFAULT_ON, WALL_DEFAULT_PCT, WALL_MAX_PCT = True, 20, 30
+
+
+def _wall_row(app, M, parent, *, row: int) -> None:
+    """Wall Moments (docs/wall/PLAN.md): a switch and the share of the film, remembered in the app settings. Used only by Render."""
+    ctk = M.ctk
+    st = getattr(app, "_settings", None) or {}
+    app._war_wall_on = ctk.BooleanVar(value=bool(st.get("war_wall_on", WALL_DEFAULT_ON)))
+    app._war_wall_pct = ctk.IntVar(value=int(st.get("war_wall_pct", WALL_DEFAULT_PCT)))
+    box = ctk.CTkFrame(parent, fg_color="transparent")
+    box.grid(row=row, column=0, columnspan=2, sticky="w", pady=(8, 0))
+    ctk.CTkSwitch(box, text="Wall moments", variable=app._war_wall_on, onvalue=True, offvalue=False,
+                  font=ctk.CTkFont(size=12, weight="bold")).grid(row=0, column=0, padx=(0, 14))
+    label = ctk.StringVar(value="")
+
+    def show(*_a) -> None:
+        v = int(app._war_wall_pct.get())
+        label.set(f"{v}% of the film" + (" (the wall never takes more than 25%)" if v > 25 else ""))
+
+    def remember(*_a) -> None:
+        try:
+            app._settings["war_wall_on"] = bool(app._war_wall_on.get())
+            app._settings["war_wall_pct"] = int(app._war_wall_pct.get())
+            M.save_settings(app._settings)
+        except Exception:  # noqa: BLE001 - remembering is a convenience
+            pass
+
+    ctk.CTkSlider(box, from_=0, to=WALL_MAX_PCT, number_of_steps=WALL_MAX_PCT, variable=app._war_wall_pct, width=180,
+                  command=lambda v: app._war_wall_pct.set(int(round(float(v))))).grid(row=0, column=1, padx=(0, 10))
+    ctk.CTkLabel(box, textvariable=label, font=ctk.CTkFont(size=11), text_color=M._MUTED).grid(row=0, column=2, sticky="w")
+    ctk.CTkLabel(box, text="Numbers, stamps and red string land on the spoken words on a dark evidence wall; those moments replace their "
+                           "cards. Footage, maps and titles stay full screen.", font=ctk.CTkFont(size=11), text_color=M._MUTED,
+                 anchor="w", justify="left", wraplength=560).grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 0))
+    app._war_wall_pct.trace_add("write", show)
+    for v in (app._war_wall_on, app._war_wall_pct):
+        v.trace_add("write", remember)
+    show()
+
+
+def wall_options(app) -> Dict[str, Any]:
+    """What Render passes to run_war_documentary: the switch and the share (the worker adds the narration's Whisper words)."""
+    on = bool(getattr(app, "_war_wall_on", None) is not None and app._war_wall_on.get())
+    pct = int(app._war_wall_pct.get()) if getattr(app, "_war_wall_pct", None) is not None else WALL_DEFAULT_PCT
+    return {"on": on, "pct": pct}
 
 
 def frontline_summary() -> str:
@@ -824,6 +878,19 @@ def recall_scenes(app) -> str:
     return path if path and Path(path).is_file() else ""
 
 
+def csv_rows_waiting(app) -> int:
+    """How many CSV scenes the last Generate scenes saved for this project's Visuals tab (0: none, a narration-only project)."""
+    ws = getattr(app, "_workspace", None)
+    if ws is None:
+        return 0
+    try:
+        import visual_bridge
+
+        return len(visual_bridge.load(visual_bridge.folder(OWNER, ws)) or [])
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def browse_scenes(app) -> None:
     M = _m(app)
     path = M.filedialog.askopenfilename(title="Choose the scenes file", filetypes=[("Scenes CSV or JSON", "*.csv *.json"), ("All files", "*.*")])
@@ -948,6 +1015,14 @@ def on_render_click(app) -> None:
         M.messagebox.showerror("Cannot start", "Select or import a voiceover first.")
         return
     scenes_path = app._war_scenes_var.get().strip()
+    if not scenes_path:
+        scenes_path = recall_scenes(app)
+        if scenes_path:
+            app._war_scenes_var.set(scenes_path)
+    if not scenes_path and csv_rows_waiting(app):
+        M.messagebox.showerror("Cannot start", "The Visuals tab holds this project's CSV scenes, but no scenes file is chosen, so the render "
+                               "would ignore them and plan from the narration alone.\n\nChoose the CSV again (Scenes file > Browse), then click Render.")
+        return
     if scenes_path and not Path(scenes_path).is_file():
         M.messagebox.showerror("Cannot start", f"The scenes file was not found:\n{scenes_path}")
         return
@@ -1027,12 +1102,15 @@ def on_render_click(app) -> None:
 
         app.after(0, done)
 
+    wall = wall_options(app)          # read on the main thread (Tk variables)
+
     def worker() -> None:
         from . import integration, segments
 
         result: Optional[dict] = None
         error = ""
         rows: List[Any] = []
+        words = None
         try:
             scenes = read_scenes_file(scenes_path, project_dir) if scenes_path else None
             if scenes is None or needs_alignment(scenes):
@@ -1089,8 +1167,10 @@ def on_render_click(app) -> None:
                 if not scenes:
                     raise RuntimeError("the narration has no words to plan from")
                 log(f"{len(scenes)} scenes planned from the narration")
+            if wall["on"] and wall["pct"] > 0 and not words:       # Wall Moments needs the word times (cached: no second transcription)
+                words = app._pakmap_get_words(voiceover, model, state_dir, log)
             result = integration.run_war_documentary(str(project_dir), scenes, str(voiceover), str(out_path), cancel_check=app._war_cancel.is_set,
-                                                     progress_cb=progress)
+                                                     progress_cb=progress, wall=dict(wall, words=words or []))
         except segments.RenderCancelled:
             error = "Stopped."
         except segments.MissingInput as exc:
@@ -1121,6 +1201,8 @@ def on_render_click(app) -> None:
                 if rr.get("retried_pieces"):
                     msg += f"; {len(rr['retried_pieces'])} piece(s) re-rendered plainly"
                 msg += ")"
+                if result.get("wall_moments"):
+                    msg += f", {result['wall_moments']} wall moments ({result.get('wall_share', 0):.0f}% of the film)"
                 if rr.get("fallback_reason"):           # why the main renderer stopped, so it can be fixed (it is also in the plan report)
                     app._append_log(f"{TAG} fallback reason: {str(rr['fallback_reason'])[-300:]}\n")
                 app._war_status_var.set(msg)

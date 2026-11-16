@@ -1,0 +1,637 @@
+{
+ "id": "mechanical_turk",
+ "title": "The Chess Robot That Fooled Napoleon",
+ "topic": "the Mechanical Turk chess machine (1770)",
+ "hook_title": "A CHESS ROBOT IN 1770?",
+ "keywords": [
+  "robot",
+  "chess",
+  "napoleon",
+  "hidden",
+  "machine",
+  "fire"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Mechanical_Turk"
+ ],
+ "places": {
+  "palace": "The grand hall of an Austrian palace in 1770: gold mirrors, crystal chandeliers, a marble floor, tall windows",
+  "show": "An 18th-century traveling show room: a wooden stage with candles, red curtains, rows of chairs, painted posters",
+  "camp": "Napoleon's 1809 field tent: maps on a table, a campaign chair, a French flag, candles, canvas walls",
+  "inside": {
+   "prompt": "The dark cramped inside of a wooden cabinet: gears and brass clockwork, a small candle, a tiny chessboard, wood panels",
+   "ambient": "embers"
+  },
+  "museum": {
+   "prompt": "A burning 1854 Philadelphia museum at night: orange flames, smoke, falling sparks, a dark street",
+   "ambient": "embers"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1770, a machine beat people at chess.",
+   "set": "show",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "THE MECHANICAL TURK"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.4
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "So how could a robot play chess?",
+   "set": "show",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Wolfgang von Kempelen built it for an Empress.",
+   "set": "palace",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "WOLFGANG VON KEMPELEN"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "A wooden cabinet with a robed figure on top.",
+   "set": "palace",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "spot": "floor_front"
+    }
+   ],
+   "id": "s04",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Before each game, he opened the doors.",
+   "set": "show",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.6
+    }
+   ],
+   "id": "s05",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "See? Only gears!",
+   "set": "show",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "NO ONE INSIDE?"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then the Turk played, and usually won.",
+   "set": "show",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 1.2
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "It beat me!",
+   "set": "show",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It toured for decades and played Napoleon.",
+   "set": "camp",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "NAPOLEON, 1809"
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Napoleon tested it with illegal moves.",
+   "set": "camp",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "CHEAT"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The Turk swept the pieces off the board.",
+   "set": "camp",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "glass",
+     "at": 0.3
+    },
+    {
+     "name": "thud",
+     "at": 1.3
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The secret? A human chess master hid inside.",
+   "set": "inside",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "HIDDEN"
+   },
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.4
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Sliding seats hid him while the doors were open.",
+   "set": "inside",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         0.8,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "hold",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "SLIDE"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He followed the game by candlelight.",
+   "set": "inside",
+   "camera": "close",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.2
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "CANDLE"
+   }
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In 1854, the Turk burned in a museum fire.",
+   "set": "museum",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1854"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.2
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the robot was a guy in a box?",
+   "set": "show",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Wanna play chess?",
+   "set": "show",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 33.03
+}

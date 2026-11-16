@@ -1,0 +1,1135 @@
+{
+ "id": "cap_teeth",
+ "title": "Why Bottle Caps Have 21 Teeth",
+ "topic": "William Painter's crown cork (1892) and why 21 crimps became standard",
+ "hook_title": "WHY 21 TEETH?",
+ "keywords": [
+  "teeth",
+  "cap",
+  "cork",
+  "fizz",
+  "marble",
+  "Painter",
+  "twenty",
+  "Gillette"
+ ],
+ "cast": [],
+ "channel": "channel5",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Bottle_cap",
+  "https://en.wikipedia.org/wiki/William_Painter_(inventor)"
+ ],
+ "places": {
+  "lineup": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      -0.12,
+      0.05,
+      0.9
+     ],
+     "style": "cork",
+     "glass": "green",
+     "fill": 0.75,
+     "liquid": "amber",
+     "id": "b_cork"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.05,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.7,
+     "liquid": "water",
+     "id": "b_codd"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.12,
+      0.05,
+      0.9
+     ],
+     "style": "crown",
+     "glass": "amber",
+     "fill": 0.8,
+     "liquid": "cola",
+     "id": "b_crown"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.12,
+      0.05,
+      1.1360000000000001
+     ],
+     "mat": "red_paint",
+     "crimps": 21,
+     "id": "cap_on"
+    }
+   ],
+   "prompt": "Three old soda bottles on a walnut bar: cork, marble and crown cap"
+  },
+  "cork": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.05,
+      0.9
+     ],
+     "style": "cork",
+     "glass": "green",
+     "fill": 0.75,
+     "liquid": "amber",
+     "id": "bc"
+    },
+    {
+     "m": "@cork",
+     "at": [
+      0.0,
+      0.05,
+      1.115
+     ],
+     "id": "plug"
+    },
+    {
+     "m": "@cork",
+     "at": [
+      0.09,
+      -0.02,
+      0.9
+     ],
+     "id": "spare"
+    }
+   ],
+   "prompt": "A green glass bottle with a cork stopper"
+  },
+  "codd": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.05,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.7,
+     "liquid": "water",
+     "id": "bm"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.1,
+      0.1,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "green",
+     "fill": 0.5,
+     "liquid": "lemonade",
+     "id": "bm2"
+    }
+   ],
+   "prompt": "A Codd bottle with a glass marble in its neck"
+  },
+  "caps": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@cap",
+     "at": [
+      0.0,
+      0.0,
+      0.9
+     ],
+     "mat": "red_paint",
+     "crimps": 21,
+     "id": "c21"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      -0.05,
+      0.03,
+      0.9
+     ],
+     "mat": "steel",
+     "crimps": 21,
+     "id": "c_a"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.05,
+      0.03,
+      0.9
+     ],
+     "mat": "gold",
+     "crimps": 21,
+     "id": "c_b"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      -0.03,
+      -0.04,
+      0.9
+     ],
+     "mat": "steel",
+     "crimps": 21,
+     "id": "c_c"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.04,
+      -0.035,
+      0.9
+     ],
+     "mat": "red_paint",
+     "crimps": 21,
+     "id": "c_d"
+    }
+   ],
+   "prompt": "Crown caps scattered on a walnut bar"
+  },
+  "teeth": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@cap",
+     "at": [
+      -0.05,
+      0.0,
+      0.9
+     ],
+     "mat": "steel",
+     "crimps": 14,
+     "id": "few"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.0,
+      0.0,
+      0.9
+     ],
+     "mat": "red_paint",
+     "crimps": 21,
+     "id": "just"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.05,
+      0.0,
+      0.9
+     ],
+     "mat": "steel",
+     "crimps": 30,
+     "id": "many"
+    }
+   ],
+   "prompt": "Three crown caps with different numbers of teeth"
+  },
+  "pop": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0,
+      0.02,
+      0.96
+     ],
+     "size": [
+      0.3,
+      0.14,
+      0.04
+     ],
+     "color": [
+      0.42,
+      0.78,
+      0.76
+     ],
+     "rough": 0.6
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.02,
+      1.0
+     ],
+     "style": "crown",
+     "glass": "green",
+     "fill": 0.82,
+     "liquid": "lemonade",
+     "id": "hero"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.0,
+      0.02,
+      1.236
+     ],
+     "mat": "gold",
+     "crimps": 21,
+     "id": "hero_cap"
+    }
+   ],
+   "prompt": "A green soda bottle with a gold crown cap in a mint studio"
+  },
+  "razor": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0,
+      0.02,
+      0.96
+     ],
+     "size": [
+      0.3,
+      0.14,
+      0.04
+     ],
+     "color": [
+      0.42,
+      0.78,
+      0.76
+     ],
+     "rough": 0.6
+    },
+    {
+     "m": "@cap",
+     "at": [
+      -0.03,
+      0.02,
+      1.0
+     ],
+     "mat": "steel",
+     "crimps": 21,
+     "id": "rc"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.035,
+      0.02,
+      1.0
+     ],
+     "r": 0.016,
+     "h": 0.0012,
+     "mat": "steel",
+     "hole": 0.004,
+     "id": "blade"
+    }
+   ],
+   "prompt": "A crown cap next to a thin steel disc"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Count the teeth on a bottle cap.",
+   "set": "caps",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.904
+    ],
+    "dist": 0.08,
+    "yaw": -6,
+    "pitch": 60,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "c21",
+     "rot_to": 120,
+     "to": [
+      0,
+      0,
+      0.9
+     ],
+     "t0": 0,
+     "t1": 2.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "No matter the brand, it's almost always twenty one.",
+   "set": "caps",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.904
+    ],
+    "dist": 0.06,
+    "yaw": 10,
+    "pitch": 70,
+    "lens": 75
+   },
+   "hud": {
+    "label": "TEETH",
+    "fmt": "{v} TEETH",
+    "from": 0,
+    "to": 21,
+    "max": 30,
+    "color": "green",
+    "t0": 0.05,
+    "t1": 0.7
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Not twenty. Not thirty. Why?",
+   "set": "teeth",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.905
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 40,
+    "lens": 55
+   },
+   "freeze": "WAIT...",
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "In the 1800s, sealing a fizzy drink was a real problem.",
+   "set": "lineup",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.05,
+     1.02
+    ],
+    "dist": 0.62,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 45
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Some were plugged with corks, like wine.",
+   "set": "cork",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.05,
+     1.07
+    ],
+    "dist": 0.3,
+    "yaw": -10,
+    "pitch": 10,
+    "lens": 55
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "But corks dried out, shrank, and all the fizz escaped.",
+   "set": "cork",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.05,
+     1.115
+    ],
+    "dist": 0.12,
+    "yaw": -14,
+    "pitch": 12,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "to": [
+      0,
+      0.05,
+      1.145
+     ],
+     "t0": 0.4,
+     "t1": 1.8,
+     "ease": "out"
+    }
+   ],
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "And a cork could make the soda taste like wood.",
+   "set": "cork",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0.04,
+     0.02,
+     0.96
+    ],
+    "dist": 0.3,
+    "yaw": -6,
+    "pitch": 18,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "YUCK"
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Others trapped a glass marble in the neck.",
+   "set": "codd",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.05,
+     1.05
+    ],
+    "dist": 0.28,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "arrow",
+    "text": "MARBLE"
+   },
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Bottlers hated them. Kids smashed the bottles just to get the marble out.",
+   "set": "codd",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.05,
+     1.058
+    ],
+    "dist": 0.1,
+    "yaw": -12,
+    "pitch": 6,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "bm",
+     "tilt_to": 25,
+     "t0": 0.3,
+     "t1": 1.0
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then in 1892, a Baltimore inventor named William Painter had a better idea.",
+   "set": "lineup",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.12,
+     0.05,
+     1.1
+    ],
+    "dist": 0.25,
+    "yaw": -8,
+    "pitch": 10,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "1892"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A thin metal cap, crimped tight around the lip.",
+   "set": "pop",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.02,
+     1.236
+    ],
+    "dist": 0.1,
+    "yaw": -10,
+    "pitch": 18,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "hero_cap",
+     "to": [
+      0,
+      0.02,
+      1.236
+     ],
+     "rot_to": 60,
+     "t0": 0,
+     "t1": 2.0
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "With a cork disc inside to seal it.",
+   "set": "caps",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.05,
+     0.03,
+     0.904
+    ],
+    "dist": 0.07,
+    "yaw": -6,
+    "pitch": 75,
+    "lens": 75
+   },
+   "moves": [
+    {
+     "id": "c_a",
+     "to": [
+      -0.05,
+      0.03,
+      0.9065
+     ],
+     "tilt_to": 180,
+     "t0": 0,
+     "t1": 0.8
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He called it the crown cork.",
+   "set": "pop",
+   "camera": "medium",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.02,
+     1.15
+    ],
+    "dist": 0.4,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 50
+   },
+   "callout": {
+    "text": "CROWN CORK",
+    "x": 0.5,
+    "y": 0.36
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But how many teeth?",
+   "set": "teeth",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.905
+    ],
+    "dist": 0.18,
+    "yaw": -8,
+    "pitch": 45,
+    "lens": 55
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Too few, and the seal leaks.",
+   "set": "teeth",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.05,
+     0,
+     0.904
+    ],
+    "dist": 0.07,
+    "yaw": -8,
+    "pitch": 55,
+    "lens": 75
+   },
+   "hud": {
+    "label": "PRESSURE",
+    "fmt": "{v}% FIZZ LEFT",
+    "from": 100,
+    "to": 40,
+    "max": 100,
+    "color": "red"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Too many, and the cap grips so hard you can barely pop it off.",
+   "set": "teeth",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.05,
+     0,
+     0.904
+    ],
+    "dist": 0.07,
+    "yaw": 8,
+    "pitch": 55,
+    "lens": 75
+   },
+   "hud": {
+    "label": "GRIP",
+    "fmt": "{v}% GRIP",
+    "from": 40,
+    "to": 100,
+    "max": 100,
+    "color": "red"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Painter's first caps had twenty four.",
+   "set": "teeth",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.905
+    ],
+    "dist": 0.16,
+    "yaw": -8,
+    "pitch": 50,
+    "lens": 55
+   },
+   "hud": {
+    "label": "TEETH",
+    "fmt": "{v} TEETH",
+    "from": 0,
+    "to": 24,
+    "max": 30,
+    "color": "orange"
+   },
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Later, as bottling machines got faster, caps with twenty one teeth worked best.",
+   "set": "caps",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.904
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 40,
+    "lens": 55
+   },
+   "hud": {
+    "label": "TEETH",
+    "fmt": "{v} TEETH",
+    "from": 24,
+    "to": 21,
+    "max": 30,
+    "color": "green"
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So twenty one became the standard.",
+   "set": "teeth",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.904
+    ],
+    "dist": 0.06,
+    "yaw": -8,
+    "pitch": 62,
+    "lens": 75
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "21"
+   },
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And the twist? Painter's salesman watched those caps get thrown away.",
+   "set": "razor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.02,
+     1.005
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "His name was King Gillette.",
+   "set": "razor",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.035,
+     0.02,
+     1.001
+    ],
+    "dist": 0.08,
+    "yaw": -8,
+    "pitch": 50,
+    "lens": 70
+   },
+   "callout": {
+    "text": "GILLETTE",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Use it once, then toss it. What a business.",
+   "set": "razor",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.02,
+     1.005
+    ],
+    "dist": 0.16,
+    "yaw": 8,
+    "pitch": 35,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "USE ONCE"
+   },
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "So he invented the throwaway razor blade.",
+   "set": "razor",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.035,
+     0.02,
+     1.001
+    ],
+    "dist": 0.06,
+    "yaw": 10,
+    "pitch": 60,
+    "lens": 75
+   },
+   "moves": [
+    {
+     "id": "blade",
+     "rot_to": 90,
+     "to": [
+      0.035,
+      0.02,
+      1.0
+     ],
+     "t0": 0,
+     "t1": 2.0
+    }
+   ],
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Next time you pop one open, count them. Twenty one.",
+   "set": "pop",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0.02,
+     1.15
+    ],
+    "dist": 0.5,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 45
+   },
+   "moves": [
+    {
+     "id": "hero_cap",
+     "to": [
+      0,
+      0.02,
+      1.33
+     ],
+     "rot_to": 200,
+     "t0": 0.3,
+     "t1": 1.4,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.3
+    }
+   ],
+   "id": "s24",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Twenty one tiny teeth, holding in all that fizz.",
+   "set": "caps",
+   "camera": "insert",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.904
+    ],
+    "dist": 0.1,
+    "yaw": -6,
+    "pitch": 60,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "c21",
+     "rot_to": 240,
+     "to": [
+      0,
+      0,
+      0.9
+     ],
+     "t0": 0,
+     "t1": 2.4
+    }
+   ],
+   "id": "s25",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 69.81
+}

@@ -1,0 +1,195 @@
+{
+ "sky": {
+  "top": [
+   0.3,
+   0.16,
+   0.52
+  ],
+  "low": [
+   1.0,
+   0.52,
+   0.22
+  ]
+ },
+ "light": {
+  "lit": [
+   1.0,
+   0.82,
+   0.6
+  ],
+  "shade": [
+   0.66,
+   0.46,
+   0.74
+  ]
+ },
+ "sun": [
+  16,
+  145
+ ],
+ "about": "open desert outside town at dusk: cactus, rocks, far mesas, a lone wagon (mover: wagon)",
+ "ground": [
+  0.82,
+  0.46,
+  0.24
+ ],
+ "pieces": [
+  {
+   "m": "cart",
+   "at": [
+    -4.5,
+    7,
+    0
+   ],
+   "rot": 70,
+   "id": "wagon"
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -60,
+    50,
+    0
+   ],
+   "rot": 160,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -48,
+    56,
+    0
+   ],
+   "rot": 174,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -36,
+    50,
+    0
+   ],
+   "rot": 188,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -24,
+    56,
+    0
+   ],
+   "rot": 202,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -12,
+    50,
+    0
+   ],
+   "rot": 160,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    0,
+    56,
+    0
+   ],
+   "rot": 174,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    12,
+    50,
+    0
+   ],
+   "rot": 188,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    24,
+    56,
+    0
+   ],
+   "rot": 202,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    36,
+    50,
+    0
+   ],
+   "rot": 160,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    48,
+    56,
+    0
+   ],
+   "rot": 174,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    60,
+    50,
+    0
+   ],
+   "rot": 188,
+   "s": 4.5
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "cactus_tall",
+    "cactus_short"
+   ],
+   "from": [
+    -30,
+    10
+   ],
+   "to": [
+    30,
+    10
+   ],
+   "n": 9,
+   "jitter": 2.5,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "rock_largeA",
+    "rock_largeC",
+    "rock_smallA"
+   ],
+   "from": [
+    -30,
+    18
+   ],
+   "to": [
+    30,
+    18
+   ],
+   "n": 10,
+   "jitter": 3,
+   "s": 1.0
+  }
+ ]
+}

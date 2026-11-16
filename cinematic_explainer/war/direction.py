@@ -1298,6 +1298,18 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
     full = lambda k, p: Layer(k, r["_start"], r["_end"], dict(p, seed=seed), dim=(k in DIM))   # noqa: E731
     if kind == "facility":
         return _facility_layer(r, full)
+    if kind in ("compare", "number") or kind in LIGHT_ASKS:
+        # 2026-11-16 owner ("these are the rich graphics I like"): a compare / number ask on a sentence that gives two sides' figures or a
+        # figure at two times is the side-by-side forces card or the rising counter, not a plain stat panel
+        from . import graphics_ref as GR
+
+        for sent in sents:
+            f = GR.forces_of(sent.text, _STICKERS)
+            if f:
+                return full("kit_forces", f), ""
+            c = GR.counter_of(sent.text)
+            if c:
+                return full("kit_counter", c), ""
     if kind in LIGHT_ASKS:
         # The owner (2026-11-10): the rich panels must show up every time the narration supports one. A light text ask (kinetic words, a
         # big word, a caption ...) on a sentence that carries a stat, a comparison, a weapon type, a person, dates or a cited source gets
@@ -2866,10 +2878,104 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
         protect_earned(plan, rows, counts, log_by_no)
     if cfg.get("picture_floor", True):            # at least PICTURE_FLOOR of the film is full-screen video or pictures (owner 2026-11-12)
         _picture_floor(plan, max((r["_end"] for r in rows), default=0.0), counts, float(cfg.get("picture_floor_share", PICTURE_FLOOR)))
+    if cfg.get("clean_opening", True):            # the first seconds show the film's own pictures full screen (owner 2026-11-16)
+        _clean_opening(plan, counts, float(cfg.get("clean_opening_s", OPEN_CLEAN_S)), rows)
     if cfg.get("no_flash", True):                 # last word: nothing seen for a split second (a cut inside a clip, a glimpse between cards)
         no_flash(plan, counts)
     counts["empty_stretches"] = len(gap_notes)
     return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats, "engagement": eng}
+
+
+# ------------------------------------------------------------------------------------------------ clean opening ---------------------
+# Owner 2026-11-16 ("the opening is very very bad, no videos in the start"): the Ukraine film opened on a document card over a blurred
+# picture, an institution panel and two stat cards, although scenes 1-4 had their own Flow pictures and a news clip. In the first
+# OPEN_CLEAN_S seconds a full-screen or dimming card never sits on the scene's own footage: the picture plays full screen; an opening line
+# (title / date / quote) plays OVER it for a moment; small marks (tags, badges, captions, source chips) stay.
+OPEN_CLEAN_S = 15.0
+OPEN_SHARE = 0.1
+OPEN_PANEL_KINDS = {"kit_field", "institution_card", "evidence_card", "figure_card", "equipment_card", "stat_compare", "kit_dossier"}
+
+
+def _is_footage(path: Any) -> bool:
+    n = str(path or "").lower().rsplit("/", 1)[-1]
+    return bool(n) and not (n.startswith("black") or "backdrop" in n or "plate" in n)
+
+
+OPEN_OVER_MAX_S = 4.5
+OPEN_TEXT_MARKS = {"kit_tag", "bc_caption", "bc_label", "bc_bigword", "kicker", "shot_headline", "lay_inset"}
+
+
+def _opening_over(ly: Layer, text: str, used: List[str]) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """The over-the-clip motion graphic that carries what an opening card said: its figure as a kinetic line, else the scene's own date,
+    quote or file page (never the same kind twice running)."""
+    p = ly.params or {}
+    shown, label = str(p.get("shown") or "").strip(), str(p.get("label") or p.get("unit") or "").strip()
+    if shown and label:
+        return "kit_kinetic", {"text": f"{shown} {label}", "key": [shown]}
+    if not text.strip():
+        return None
+    from types import SimpleNamespace
+
+    h = _phrase_or_lead(text)
+    for kind, prm in _motion_options(SimpleNamespace(text=text), h):
+        if kind == "kit_radar" or kind in used[-1:]:
+            continue
+        main = str(prm.get("date") or prm.get("quote") or prm.get("title") or prm.get("text") or "")
+        if len(main.split()) < (1 if kind == "kit_datecard" else 3):
+            continue
+        return kind, prm
+    return None
+
+
+def _clean_opening(plan: Any, counts: Dict[str, int], window: float = OPEN_CLEAN_S, rows: Sequence[Dict[str, Any]] = ()) -> None:
+    total = max([s.end for s in plan.shots] + [ly.end for ly in plan.layers] + [0.0])
+    window = min(window, OPEN_SHARE * total)          # a 20-min film: 15 s; a 60 s Short: 6 s
+    if window <= 0:
+        return
+    from .story import OPENER_MAX_S, TEXT_OPENERS
+
+    def footage_share(a: float, b: float) -> float:
+        tot = sum(max(0.0, min(b, s.end) - max(a, s.start)) for s in plan.shots if _is_footage(s.path))
+        return tot / max(0.01, b - a)
+
+    keep: List[Layer] = []
+    cleared: List[Layer] = []
+    for ly in plan.layers:
+        heavy = _opaque(ly) or bool(ly.dim) or ly.kind in OPEN_PANEL_KINDS
+        if ly.start >= window - 0.05 or not heavy or footage_share(ly.start, min(ly.end, window)) < 0.8:
+            keep.append(ly)
+            continue
+        if ly.kind in TEXT_OPENERS:                    # the opening words land over the picture, then it plays clean
+            ly.params = dict(ly.params or {}, over=True)
+            ly.dim = False
+            ly.end = fr(min(ly.end, ly.start + OPENER_MAX_S))
+            keep.append(ly)
+            counts["opening_over"] = counts.get("opening_over", 0) + 1
+            continue
+        if ly.end > window + 2.0 and ly.kind not in OPEN_PANEL_KINDS:   # a long card reaching past the opening keeps its later part
+            ly.start = fr(window)
+            keep.append(ly)
+            counts["opening_trimmed"] = counts.get("opening_trimmed", 0) + 1
+            continue
+        counts["opening_cleared"] = counts.get("opening_cleared", 0) + 1
+        cleared.append(ly)
+    plan.layers[:] = keep
+    used: List[str] = []
+    for ly in sorted(cleared, key=lambda x: x.start):    # the opening keeps its graphics, over the playing picture instead of hiding it
+        row = next((r for r in rows if r["_start"] - 0.05 <= ly.start < r["_end"]), None)
+        got = _opening_over(ly, str((row or {}).get("text") or ""), used)
+        if got is None:
+            continue
+        a = fr(max(ly.start, 0.6))                       # the film's first frame is its picture
+        b = fr(min(ly.end, a + OPEN_OVER_MAX_S, window))
+        if b - a < 2.0 or any(x.kind in MOTION_KINDS and x.start < b and x.end > a for x in plan.layers):
+            continue
+        kind, prm = got
+        plan.layers[:] = [x for x in plan.layers if not (x.kind in OPEN_TEXT_MARKS and x.start < b and x.end > a)]
+        plan.layers.append(Layer(kind, a, b, dict(prm, over=True, seed=len(used)), dim=False))
+        used.append(kind)
+        counts["opening_over_graphics"] = counts.get("opening_over_graphics", 0) + 1
+    plan.layers.sort(key=lambda x: (x.start, x.end))
 
 
 # ------------------------------------------------------------------------------------------------ final coverage --------------------

@@ -1,0 +1,697 @@
+{
+ "id": "ponzi",
+ "title": "How the First Ponzi Scheme Worked",
+ "topic": "Charles Ponzi and postal reply coupons (1920)",
+ "hook_title": "50% PROFIT IN 45 DAYS?",
+ "keywords": [
+  "ponzi",
+  "profit",
+  "coupons",
+  "investors",
+  "money",
+  "scheme",
+  "millions"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Charles_Ponzi"
+ ],
+ "places": {
+  "street": "A busy 1920 Boston street: brick buildings, old cars, a crowd far away outside an office door, sunny day",
+  "office": "A 1920 Boston investment office: wooden counters, piles of cash on the desks, a big safe, ceiling fan, tiled floor",
+  "post": "A 1920 post office counter: brass grilles, stamps and envelopes, wooden drawers, a clock on the wall",
+  "newsroom": "A 1920 newspaper office: desks with typewriters, piles of newspapers, a printing press in the back",
+  "court": {
+   "prompt": "A 1920 courtroom: dark wood benches, a judge's bench, an American flag, tall windows, grey light",
+   "ambient": "none"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1920, a man promised to make anyone rich fast.",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.6
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "So how did he do it?",
+   "set": "street",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "His name was Charles Ponzi.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "CHARLES PONZI"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "His idea used postal reply coupons, bought cheap abroad.",
+   "set": "post",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "REPLY COUPON"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "In America, they could be swapped for more stamps.",
+   "set": "post",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.7
+    }
+   ],
+   "id": "s05",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Fifty percent profit in forty five days!",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "+50%"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "People lined up to give him their savings.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.4,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    },
+    {
+     "name": "footsteps",
+     "at": 0.1
+    }
+   ],
+   "id": "s07",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "Take my money!",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And early investors really got paid.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "id": "s09",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "But not from coupons.",
+   "set": "office",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "COUPONS"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "From the money of newer investors.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "throw",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "picked_by": "walt"
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "NEW MONEY"
+   },
+   "id": "s11",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He was soon taking in millions.",
+   "set": "street",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "$ MILLIONS"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    }
+   ],
+   "id": "s12",
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Then a Boston newspaper started digging.",
+   "set": "newsroom",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "pip",
+     "text": "IS PONZI A FRAUD?"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.1
+    }
+   ],
+   "id": "s13",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The money ran out in August 1920.",
+   "set": "office",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BROKE"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.6
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Investors lost around twenty million dollars.",
+   "set": "court",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "-$20 MILLION"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "And his name became a word for the trick.",
+   "set": "court",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "PONZI SCHEME"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So new money just paid old money?",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Fifty percent. Forty five days.",
+   "set": "street",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 33.28
+}

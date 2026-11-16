@@ -1,0 +1,44 @@
+[
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "a6d0b7d3-89f6-4cc3-855d-cfd5983064f4",
+  "label": "Account 8",
+  "index": 1,
+  "prompt": "2D cartoon sticker of a happy cute yellow duck for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, full body standing, facing the viewer, centered, plain pure white background, no text",
+  "status": "done",
+  "mediaIds": [
+   "07acc599-ac1a-49af-85b7-724ac80df8a7",
+   "24145301-9414-4c66-8006-d0b5f328da50"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/account-8-a6d0b7/002-2.png",
+  "submitted": true
+ },
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "8829896c-1428-4f06-96fb-d2c24f3d791c",
+  "label": "Account 9",
+  "index": 2,
+  "prompt": "2D cartoon sticker of a happy cute orange cat for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, full body sitting, facing the viewer, centered, plain pure white background, no text",
+  "status": "done",
+  "mediaIds": [
+   "1363b36b-86e1-47aa-b523-1b87a532fe53",
+   "1d9534d7-6df5-4f75-8c9d-896baccc4fd6"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/account-9-882989/003-2.png",
+  "submitted": true
+ },
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 0,
+  "prompt": "2D cartoon sticker of a happy cute cow for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, full body standing, facing the viewer, centered, plain pure white background, no text",
+  "status": "done",
+  "mediaIds": [
+   "6d36742c-35b7-4649-af38-8f8701c7c538",
+   "044effa8-adee-415f-806e-9c058a2266ef"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/assets/kids_flow/cartoon2d/account-7-3ff7a2/001-2.png",
+  "submitted": true
+ }
+]

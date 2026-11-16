@@ -357,8 +357,10 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
                         out_path: Optional[str] = None, cancel_check: Optional[Callable[[], bool]] = None,
                         progress_cb: Optional[Callable[[float, str], None]] = None, *, assets: Optional[dict] = None,
                         config: Optional[dict] = None, plan_fn: Optional[Callable[..., Any]] = None, workers: Optional[int] = None,
-                        write_report: bool = True) -> Dict[str, Any]:
+                        write_report: bool = True, wall: Optional[dict] = None) -> Dict[str, Any]:
     """Plan from the narration, then render with the bounded-memory segmented renderer. Returns a result dict; raises RenderCancelled on cancel.
+
+    wall = {"on": bool, "pct": 0-30, "words": narration Whisper words}: Wall Moments (docs/wall/PLAN.md) for about pct % of the film.
 
     result: {ok, out, plan_log (list), credits (list), stats, render (the renderer's dict), report_path, credits_path, seconds}
     Writes next to the output: <out>.report.json (per scene: visual, asset, status, flags, reasons) and <out>.credits.txt.
@@ -395,6 +397,21 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
     total_end = max([float(x.get("end") or 0.0) for x in sc] + [0.0])
     plate_path = _bd.ensure_backdrop(state)
     shots = _bd.fill_gaps(shots, total_end, plate_path)
+    wall_rep: Dict[str, Any] = {"spans": [], "cues": [], "share": 0.0}
+    if wall and wall.get("on") and float(wall.get("pct") or 0) > 0:
+        try:                               # Wall Moments: about a fifth of the film on the evidence wall; nothing else changes
+            from . import wall_moments as _wm
+
+            if not wall.get("words"):
+                log.warning("wall moments skipped: no narration word timings")
+            else:
+                shots, layers, wall_rep = _wm.apply(shots, layers, sc, wall["words"], pct=float(wall["pct"]), work=str(state / "wall_frames"),
+                                                    log=lambda m: log.warning("%s", m))
+                (state / "war_wall_plan.json").write_text(json.dumps(wall_rep["plan"], default=list), encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001 - the wall is an extra: a failure leaves today's film
+            log.warning("wall moments skipped (%s: %s); the film is made as before", type(exc).__name__, exc)
+            shots, layers = _bd.fill_gaps(list(plan.shots), total_end, plate_path), list(plan.layers)
+            wall_rep = {"spans": [], "cues": [], "share": 0.0}
 
     def prog(k: float, msg: str) -> None:
         if progress_cb:
@@ -405,12 +422,19 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
         from . import audio as _audio
 
         prog(0.0, "mixing the sound")
-        audio_path = _audio.build_mix(voiceover_path, total_end, layers, str(state / "war_mix.m4a"), config or {})
+        audio_path = _audio.build_mix(voiceover_path, total_end, layers, str(state / "war_mix.m4a"),
+                                      dict(config or {}, wall_cues=wall_rep["cues"]) if wall_rep["cues"] else (config or {}))
     except Exception as exc:  # noqa: BLE001 - the voice alone still makes the film
         log.warning("sound mix skipped: %s", exc)
     res = segments.render_with_fallback(shots, layers, str(out), audio_path=audio_path, audio_fallback=voiceover_path,
                                         backdrop_path=str(plate_path) if plate_path else None, state_dir=str(state), cancel_check=cancel_check,
                                         progress_cb=prog, workers=workers)
+    if wall_rep["spans"]:                  # the wall prints' decoded frames are only needed while rendering
+        import shutil as _sh
+
+        from wall import frames as _wf
+        _wf.forget()
+        _sh.rmtree(state / "wall_frames", ignore_errors=True)
     rep = build_report(sc, plan)
     credit_lines = list(getattr(plan, "credits", []) or [])
     fl_credits = list(((getattr(plan, "stats", {}) or {}).get("direction") or {}).get("frontline", {}).get("credits") or [])
@@ -420,7 +444,7 @@ def run_war_documentary(project_dir: str, scenes: Optional[List[dict]] = None, v
     result: Dict[str, Any] = {"ok": bool(res.get("ok")), "out": str(out), "render": res, "credits": credit_lines, "rights_not_established": unresolved,
                               "plan_log": [_decision_dict(d) for d in (getattr(plan, "log", []) or [])],
                               "stats": getattr(plan, "stats", {}), "seconds": time.time() - t0, "report_path": None, "credits_path": None,
-                              "graphics": graphics_count(layers)}
+                              "graphics": graphics_count(layers), "wall_moments": len(wall_rep["spans"]), "wall_share": wall_rep.get("share", 0.0)}
     if write_report:
         try:
             cp = out.with_suffix(".credits.txt")

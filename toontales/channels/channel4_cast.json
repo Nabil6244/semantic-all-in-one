@@ -1,0 +1,17 @@
+{
+ "note": "Channel 4 cast: no characters, narrator only (car builds told over parts and cars).",
+ "characters": [],
+ "narrator": {
+  "voice": {
+   "name": "en-US-BrianNeural",
+   "rate": "+18%",
+   "pitch": "+0Hz",
+   "base_wpm": 168
+  },
+  "role": "car guy",
+  "traits": [
+   "fast, casual, excited by numbers",
+   "short punchy lines, one idea each"
+  ]
+ }
+}

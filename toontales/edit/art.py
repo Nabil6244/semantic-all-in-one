@@ -14,6 +14,7 @@ TT = Path(__file__).resolve().parents[1]
 OUT = TT / "build" / "edit_art"
 FONTS = Path("/System/Library/Fonts/Supplemental")
 CAPTION_Y = 0.70
+PHRASE_Y = 0.66  # Channel 5 phrase captions
 CHALK_Y = 0.085                    # chalk and stamps sit above the heads (they covered faces at 0.24-0.3)
 STAMP_Y = 0.095
 VERSION = "v4"
@@ -59,6 +60,34 @@ def caption(word, size, pop=False, hot=False):
            stroke_fill=(10, 8, 8, 255))
     if hot:
         im = im.rotate(-3, resample=Image.BICUBIC, center=(cx, cy))
+    im.save(p)
+    return p
+
+
+def phrase(text, size):
+    """Calm phrase caption (Channel 5 look): small clean white type with a soft shadow, lower middle, up to 2 lines."""
+    W, H = size
+    OUT.mkdir(parents=True, exist_ok=True)
+    p = OUT / f"phr_{_key(text, W, H)}.png"
+    if p.exists():
+        return p
+    s = W / 1080
+    try:
+        f = ImageFont.truetype("/System/Library/Fonts/Avenir Next.ttc", int(58 * s), index=2)  # Demi Bold
+    except OSError:
+        f = _font("Arial Bold.ttf", int(56 * s))
+    im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    lines = _wrap(d, text, f, W * 0.62)
+    lh = int(66 * s)
+    cy0 = H * PHRASE_Y - (len(lines) - 1) * lh / 2
+    sh = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ds = ImageDraw.Draw(sh)
+    for i, ln in enumerate(lines):
+        ds.text((W / 2 + 2 * s, cy0 + i * lh + 3 * s), ln, font=f, anchor="mm", fill=(0, 0, 0, 170))
+    im.alpha_composite(sh.filter(ImageFilter.GaussianBlur(5 * s)))
+    for i, ln in enumerate(lines):
+        d.text((W / 2, cy0 + i * lh), ln, font=f, anchor="mm", fill=(255, 255, 255, 255))
     im.save(p)
     return p
 

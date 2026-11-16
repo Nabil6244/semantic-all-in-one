@@ -1,0 +1,294 @@
+{
+ "about": "forest clearing: pines, a river behind, logs, rocks, campfire; movers: none",
+ "ground": [
+  0.36,
+  0.58,
+  0.24
+ ],
+ "sky": {
+  "top": [
+   0.26,
+   0.58,
+   0.97
+  ],
+  "low": [
+   0.8,
+   0.91,
+   1.0
+  ]
+ },
+ "pieces": [
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    -42,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    -35,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    -28,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    -21,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    -14,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    -7,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    0,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    7,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    14,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    21,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    28,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    35,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "ground_riverStraight",
+   "at": [
+    42,
+    8,
+    0.01
+   ],
+   "rot": 90,
+   "s": 2.3
+  },
+  {
+   "m": "log_large",
+   "at": [
+    -3.4,
+    3.2,
+    0
+   ],
+   "rot": 20
+  },
+  {
+   "m": "campfire_stones",
+   "at": [
+    3.0,
+    2.6,
+    0
+   ]
+  },
+  {
+   "m": "rock_largeB",
+   "at": [
+    5.6,
+    4.4,
+    0
+   ]
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -40,
+    4.4
+   ],
+   "to": [
+    -6,
+    4.4
+   ],
+   "n": 6,
+   "jitter": 1.2,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    6,
+    4.4
+   ],
+   "to": [
+    40,
+    4.4
+   ],
+   "n": 6,
+   "jitter": 1.2,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -50,
+    14
+   ],
+   "to": [
+    50,
+    14
+   ],
+   "n": 20,
+   "jitter": 3,
+   "s": 1.4
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -70,
+    30
+   ],
+   "to": [
+    70,
+    30
+   ],
+   "n": 26,
+   "jitter": 4,
+   "s": 2.0
+  },
+  {
+   "m": [
+    "grass_large",
+    "grass_leafs",
+    "flower_yellowA",
+    "flower_redB",
+    "rock_smallA"
+   ],
+   "from": [
+    -9,
+    -2.5
+   ],
+   "to": [
+    -3.5,
+    -1.5
+   ],
+   "n": 6,
+   "jitter": 1.0,
+   "s": 0.35
+  },
+  {
+   "m": [
+    "grass_large",
+    "grass_leafs",
+    "flower_purpleA",
+    "plant_bushSmall"
+   ],
+   "from": [
+    3.5,
+    -1.5
+   ],
+   "to": [
+    9,
+    -2.5
+   ],
+   "n": 6,
+   "jitter": 1.0,
+   "s": 0.35
+  }
+ ]
+}

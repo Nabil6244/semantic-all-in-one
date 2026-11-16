@@ -118,7 +118,7 @@ class TextRules(unittest.TestCase):
 
 class Sound(Clip):
     def test_sfx_events_spaced_and_mix_normalised(self):
-        ls = [Layer("tac_map", 1.0, 4.0, {}), Layer("bc_bigword", 1.5, 3.0, {}), Layer("bc_label", 5.0, 7.0, {})]
+        ls = [Layer("tac_map", 1.0, 4.0, {}), Layer("bc_bigword", 1.5, 3.0, {}), Layer("bc_label", 5.5, 7.0, {})]
         ev = AU.sfx_events(ls)
         self.assertEqual([e[1] for e in ev], ["whoosh", "text"])        # the impact 0.65 s after the whoosh is dropped
         out = AU.build_mix(self.voice, 8.0, ls, str(Path(self.tmp.name, "mix.m4a")), {})
@@ -126,6 +126,13 @@ class Sound(Clip):
         r = subprocess.run(["ffmpeg", "-hide_banner", "-nostats", "-i", out, "-af", "ebur128", "-f", "null", "-"], capture_output=True, text=True)
         lufs = float([l for l in r.stderr.splitlines() if l.strip().startswith("I:")][-1].split()[1])
         self.assertAlmostEqual(lufs, -14.0, delta=1.5)
+
+    def test_transitions_and_bed_sit_well_under_the_voice(self):
+        """Owner 2026-11-16: background and transitions very loud (whooshes peaked level with the voice, one every ~10 s)."""
+        self.assertLessEqual(max(AU.SFX_GAIN.values()), 0.12)
+        self.assertLessEqual(AU.MUSIC_DB, -22.0)
+        ls = [Layer("tac_map", 1.0, 3.0, {}), Layer("lay_stat_split", 3.5, 6.0, {}), Layer("kit_chart", 6.0, 9.0, {})]
+        self.assertEqual([round(e[0], 2) for e in AU.sfx_events(ls)], [0.85, 5.85])     # at most one transition sound every 4 s
 
     def test_no_voice_no_mix(self):
         self.assertIsNone(AU.build_mix(None, 8.0, [], str(Path(self.tmp.name, "x.m4a")), {}))
@@ -145,6 +152,55 @@ class Maps(Clip):
     def test_article_plate_from_the_scenes_clip(self):
         im = GL.lay_document(2.0, 5.0, {"text": "The ministry said the plant was hit.", "outlet": "Reuters", "title": "Plant hit", "plate": self.clips[0]})
         self.assertEqual(im.size, (1280, 720))
+
+
+class CleanOpening(unittest.TestCase):
+    """Owner 2026-11-16: 'the opening is very very bad, no videos in the start' (cards over the opening scenes' own pictures)."""
+
+    def test_first_seconds_show_the_scenes_own_pictures(self):
+        from cinematic_explainer.war import direction as D
+
+        shots = [Shot("/x/001.war.mp4", 0.0, 7.0, 0.0), Shot("/x/002.mp4", 7.0, 14.0, 0.0), Shot("/x/war_backdrop_v3.mp4", 14.0, 30.0, 0.0)]
+        layers = [Layer("lay_document", 0.0, 5.0, {}, dim=True), Layer("institution_card", 5.0, 7.0, {}), Layer("kit_badge", 0.0, 7.0, {}),
+                  Layer("kit_title", 0.5, 6.0, {"text": "Who is winning"}, dim=True), Layer("lay_stat_split", 8.0, 12.0, {}),
+                  Layer("lay_stat_split", 16.0, 20.0, {}), Layer("kit_grain", 0.0, 200.0, {})]
+        plan, counts = P(shots, layers), {}
+        D._clean_opening(plan, counts, 15.0)
+        kinds = [(l.kind, l.start) for l in plan.layers]
+        self.assertNotIn(("lay_document", 0.0), kinds)
+        self.assertNotIn(("institution_card", 5.0), kinds)
+        self.assertNotIn(("lay_stat_split", 8.0), kinds)
+        self.assertIn(("kit_badge", 0.0), kinds)                       # small marks stay
+        self.assertIn(("lay_stat_split", 16.0), kinds)                 # after the opening nothing changes
+        title = [l for l in plan.layers if l.kind == "kit_title"][0]
+        self.assertTrue(title.params.get("over"))
+        self.assertLessEqual(title.end - title.start, 3.61)
+
+    def test_opening_cards_come_back_as_graphics_over_the_picture(self):
+        """Owner 2026-11-16: 'still opening have no rich graphics': the cleared cards return as motion graphics over the playing clip."""
+        from cinematic_explainer.war import direction as D
+
+        shots = [Shot("/x/001.war.mp4", 0.0, 8.0, 0.0), Shot("/x/002.mp4", 8.0, 14.0, 0.0)]
+        layers = [Layer("lay_document", 0.0, 5.0, {}, dim=True), Layer("bc_caption", 1.0, 3.0, {"text": "x"}), Layer("kit_badge", 0.0, 8.0, {}),
+                  Layer("lay_stat_split", 8.5, 13.0, {"shown": "365", "label": "missiles", "value": 365}, dim=True), Layer("kit_grain", 0.0, 200.0, {})]
+        rows = [{"_start": 0.0, "_end": 8.0, "_no": 1, "text": "In October 2026, Russia lost more ground in Ukraine than it gained."},
+                {"_start": 8.0, "_end": 14.0, "_no": 2, "text": "Russia sent 365 missiles and drones at the grid in one night."}]
+        plan = P(shots, layers)
+        D._clean_opening(plan, {}, 15.0, rows)
+        over = [l for l in plan.layers if (l.params or {}).get("over")]
+        self.assertEqual([l.kind for l in over], ["kit_datecard", "kit_kinetic"])
+        self.assertGreaterEqual(over[0].start, 0.6)                       # the first frame is the picture itself
+        self.assertEqual(over[1].params["text"], "365 missiles")
+        self.assertFalse(any(l.dim for l in over))
+        self.assertNotIn("bc_caption", [l.kind for l in plan.layers])      # one text at a time
+        self.assertIn("kit_badge", [l.kind for l in plan.layers])
+
+    def test_cards_stay_where_the_opening_has_no_footage(self):
+        from cinematic_explainer.war import direction as D
+
+        plan = P([Shot("/x/war_backdrop_v3.mp4", 0.0, 20.0, 0.0)], [Layer("lay_document", 0.0, 5.0, {}, dim=True)])
+        D._clean_opening(plan, {}, 15.0)
+        self.assertEqual([l.kind for l in plan.layers], ["lay_document"])
 
 
 if __name__ == "__main__":

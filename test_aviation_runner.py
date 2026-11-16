@@ -127,8 +127,9 @@ class RenderTests(unittest.TestCase):
             voice = _voice(Path(d) / "v.m4a", 6.0)
             plan = P.plan(sc)
             out = Path(d) / "film.mp4"
+            words = [[w.lower(), 0.2 * k, 0.2 * k + 0.2] for k, w in enumerate((sc[0]["text"] + " " + sc[1]["text"]).split())]
             r = RN.render_film(plan, sc, voice, str(out), work=str(Path(d) / "work"), chunk_s=3.0, workers=2,
-                               map_extra={"fetch_tile": fake_tile, "cache": d})
+                               map_extra={"fetch_tile": fake_tile, "cache": d}, wall={"on": True, "pct": 20, "words": words})
             self.assertTrue(out.is_file())
             probe = subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type", "-of", "csv=p=0", str(out)]).decode()
             self.assertIn("video", probe)
@@ -136,6 +137,7 @@ class RenderTests(unittest.TestCase):
             dur = float(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)]).strip())
             self.assertAlmostEqual(dur, 6.0, delta=0.25)
             self.assertEqual(r["chunks"], 2)
+            self.assertEqual(r["wall_moments"], 0)          # wall moments on: a 6 s film has no 8 s stretch for the wall, so nothing changes
 
     def test_cancel_stops_before_writing(self):
         with tempfile.TemporaryDirectory() as d:

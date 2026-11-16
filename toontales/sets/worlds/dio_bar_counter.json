@@ -1,0 +1,170 @@
+{
+ "engine": "diorama",
+ "hdri": "studio",
+ "sky_strength": 0.12,
+ "sun": null,
+ "dof": {
+  "fstop": 2.2
+ },
+ "about": "walnut bar counter (top at z 0.9) against a dark teal subway-tile wall (y 0.55) with a dark wooden shelf rail; warm key light from front-left, cool rim from back-right. Put close-up objects on the counter at z 0.9 between x -0.4..0.4, y -0.1..0.3; aim cameras at z ~1.0, dist 0.4-1.2.",
+ "marks": {
+  "A": [
+   0.0,
+   0.1
+  ],
+  "B": [
+   -0.2,
+   0.1
+  ],
+  "C": [
+   0.2,
+   0.1
+  ],
+  "D": [
+   0.0,
+   0.3
+  ],
+  "E": [
+   -0.3,
+   0.3
+  ],
+  "enter_l": [
+   -0.6,
+   0.1
+  ],
+  "enter_r": [
+   0.6,
+   0.1
+  ],
+  "deep": [
+   0.0,
+   0.4
+  ]
+ },
+ "pieces": [
+  {
+   "m": "@wall",
+   "at": [
+    0,
+    0.55,
+    0.0
+   ],
+   "size": [
+    6.0,
+    3.0
+   ],
+   "tiles": [
+    0.03,
+    0.24,
+    0.25
+   ],
+   "tile": 0.075
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    0.15,
+    0.0
+   ],
+   "size": [
+    6.0,
+    1.0,
+    0.9
+   ],
+   "mat": "walnut",
+   "tint": [
+    0.55,
+    0.38,
+    0.28
+   ]
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    0.5,
+    1.32
+   ],
+   "size": [
+    6.0,
+    0.1,
+    0.05
+   ],
+   "mat": "walnut"
+  },
+  {
+   "m": "@box",
+   "at": [
+    0,
+    0.47,
+    1.37
+   ],
+   "size": [
+    6.0,
+    0.12,
+    0.02
+   ],
+   "mat": "brass"
+  }
+ ],
+ "lights": [
+  {
+   "at": [
+    -0.9,
+    -0.8,
+    1.7
+   ],
+   "aim": [
+    0,
+    0.1,
+    1.0
+   ],
+   "size": 0.5,
+   "w": 45,
+   "color": [
+    1.0,
+    0.82,
+    0.6
+   ]
+  },
+  {
+   "at": [
+    0.8,
+    0.45,
+    1.6
+   ],
+   "aim": [
+    0,
+    0.1,
+    1.0
+   ],
+   "size": 0.3,
+   "w": 30,
+   "color": [
+    0.7,
+    0.85,
+    1.0
+   ]
+  },
+  {
+   "at": [
+    0.0,
+    -1.2,
+    0.95
+   ],
+   "aim": [
+    0,
+    0.1,
+    1.0
+   ],
+   "size": 1.0,
+   "w": 6,
+   "color": [
+    1.0,
+    0.95,
+    0.9
+   ]
+  }
+ ]
+}

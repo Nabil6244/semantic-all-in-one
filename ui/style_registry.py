@@ -184,3 +184,13 @@ EXTRA_BLURBS[TOON_TALES] = ("Walt and Pip, two flat cartoon puppets, act out a ~
                             "story: hook card, punch-ins, yellow key-word captions, sweat/sparkle/anger reactions, a WAIT break and music that "
                             "follows the beats. From a story plan written with Claude's toon-tales skill; places are painted once with Flow.")
 EXTRA_CARDS[TOON_TALES] = ("\u263A", "Cartoon history Shorts with Walt and Pip", "A story plan (plan.json)", "How X worked, cons, hoaxes, trading psychology")
+
+
+# Game Launch (ui/game_launch_section.py, game_launch/): appended here so nothing above changes
+GAME_LAUNCH = "Game Launch"
+STANDALONE = STANDALONE + (GAME_LAUNCH,)
+GROUPS = tuple((title, names + (GAME_LAUNCH,) if title == "Documentary" else names) for title, names in GROUPS)
+EXTRA_BLURBS[GAME_LAUNCH] = ("A big game launch, game vs real life: the official trailers side by side with the real places they copy, a "
+                             "satellite map of the game's regions, chapter cards, glitch cuts and a synthwave bed, plus Shorts (one per "
+                             "chapter) and a thumbnail. From a scenes CSV and the trailer files; the voice is free.")
+EXTRA_CARDS[GAME_LAUNCH] = ("\u25B6", "Game trailers vs the real places", "A scenes CSV + trailer files", "GTA 6 Leonida vs Florida, any game set in a real place")

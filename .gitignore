@@ -74,3 +74,14 @@ assets/aviation/library/
 skysim/assets/
 
 cartoon2d/episodes/
+
+# Toon Tales / Channels (2026-11-17): Kenney packs keep only the GLB models the engine loads
+assets/toon_world/kenney/*/Models/*
+!assets/toon_world/kenney/*/Models/GLB format/
+assets/toon_world/kenney/*/Previews/
+# Game Launch: downloaded stock footage and render work files stay local
+gta6_launch/footage/
+gta6_launch/work_engine/
+
+# temporary render files
+*.rendering.mp4

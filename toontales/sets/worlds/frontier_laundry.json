@@ -1,0 +1,663 @@
+{
+ "sky": {
+  "top": [
+   0.3,
+   0.16,
+   0.52
+  ],
+  "low": [
+   1.0,
+   0.52,
+   0.22
+  ]
+ },
+ "clouds": false,
+ "light": {
+  "lit": [
+   1.0,
+   0.84,
+   0.62
+  ],
+  "shade": [
+   0.62,
+   0.44,
+   0.4
+  ]
+ },
+ "sun": [
+  40,
+  160
+ ],
+ "about": "1880s San Francisco laundry: steaming tubs (barrels), baskets, folded linen on tables, buckets",
+ "paint": {
+  "wall": [
+   0.8,
+   0.86,
+   0.9
+  ],
+  "floorFull": [
+   0.62,
+   0.48,
+   0.34
+  ]
+ },
+ "ground": [
+  0.6,
+  0.4,
+  0.25
+ ],
+ "pieces": [
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -7.2,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -4.8,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -2.4,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    -0.0,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    2.4,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -9.6,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -7.2,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -4.8,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    -2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    0.0,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    2.4,
+    0
+   ]
+  },
+  {
+   "m": "floorFull",
+   "at": [
+    4.8,
+    4.8,
+    0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wallWindow",
+   "at": [
+    -4.8,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -4.8,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -2.4,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -2.4,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -0.0,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -0.0,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wallWindow",
+   "at": [
+    2.4,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    2.4,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    4.8,
+    6.0,
+    0.0
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    4.8,
+    6.0,
+    3.1
+   ]
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    0.0,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    -2.4,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    0.0,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    -2.4,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    2.4,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    0.0,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    2.4,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    0.0,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    4.8,
+    0.0
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    2.4,
+    0.0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    -7.2,
+    4.8,
+    3.1
+   ],
+   "rot": -90
+  },
+  {
+   "m": "furniture-kit/wall",
+   "at": [
+    7.2,
+    2.4,
+    3.1
+   ],
+   "rot": 90
+  },
+  {
+   "m": "survival-kit/barrel-open",
+   "at": [
+    -5.0,
+    4.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "survival-kit/barrel-open",
+   "at": [
+    -3.2,
+    4.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "survival-kit/barrel-open",
+   "at": [
+    3.6,
+    4.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "survival-kit/barrel-open",
+   "at": [
+    5.4,
+    4.4,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "tableCloth",
+   "at": [
+    -0.8,
+    4.2,
+    0
+   ],
+   "s": 1.3
+  },
+  {
+   "m": "survival-kit/bucket",
+   "at": [
+    2.2,
+    3.2,
+    0
+   ],
+   "s": 1.4
+  },
+  {
+   "m": "survival-kit/box-open",
+   "at": [
+    -2.4,
+    2.6,
+    0
+   ],
+   "s": 1.6
+  },
+  {
+   "m": "cardboardBoxClosed",
+   "at": [
+    4.8,
+    1.4,
+    0
+   ],
+   "s": 1.4
+  }
+ ]
+}

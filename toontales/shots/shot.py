@@ -31,7 +31,7 @@ import actions as A  # noqa: E402
 import fx  # noqa: E402
 import props as P  # noqa: E402
 import puppet  # noqa: E402
-from sets import ambient, backdrop, mine  # noqa: E402
+from sets import actor, ambient, backdrop, diorama, mine, world  # noqa: E402
 
 SETS = {"mine": mine}
 FACES = TT / "build" / "faces"
@@ -65,6 +65,7 @@ def _scene(fps, size, samples=32):
     cam = bpy.context.active_object
     sc.camera = cam
     cam.data.sensor_fit = "VERTICAL"
+    cam.data.clip_start = 0.005  # close-ups sit ~10 cm from a coin: the 10 cm default clipped the subject away
     return sc, cam
 
 
@@ -106,6 +107,7 @@ def _cam_at(cam, a, b, k, t, drift):
     tgt[0] += drift * math.sin(t * 1.3)
     tgt[2] += drift * 0.6 * math.sin(t * 0.9 + 1.0)
     puppet.aim(cam, tgt, p["dist"], yaw=p["yaw"], pitch=p["pitch"], lens=p["lens"])
+    return p["dist"]
 
 
 def _norm_acts(acts):
@@ -156,15 +158,27 @@ def render_shot(shot, out):
     out.mkdir(parents=True, exist_ok=True)
     fps = shot.get("fps", 30)
     sc, cam = _scene(fps, shot.get("size", [1080, 1920]), shot.get("samples", 32))
-    marks = backdrop.build(shot["backdrop"]) if shot.get("backdrop") else SETS[shot["set"]].build()
+    engine = world
+    if shot.get("world") and shot["world"].get("engine") == "diorama":  # realistic cut-away (Channel 3)
+        engine = diorama
+    if shot.get("world"):
+        marks = engine.build(shot["world"], seed=len(shot.get("id", "")) + 1)
+    elif shot.get("backdrop"):
+        marks = backdrop.build(shot["backdrop"])
+    else:
+        marks = SETS[shot["set"]].build()
     props = []
     for i, spec in enumerate(shot.get("props", [])):
         o = P.build(spec, i)
         props.append({"spec": spec, "obj": o, "home": o.location.copy()})
-    cfgs = {c["id"]: c for c in json.loads(CAST.read_text())["characters"]}
-    chars = {}
+    cfgs = {c["id"]: c for c in json.loads(Path(shot.get("cast_file") or CAST).read_text())["characters"]}
+    chars, actors = {}, {}
     for i, c in enumerate(shot["cast"]):
         x, y = marks["cast"][c["mark"]]
+        if cfgs[c["id"]].get("actor") and engine is diorama:  # realistic actor (Channel 3), not a 2D puppet
+            actors[c["id"]] = actor.build(cfgs[c["id"]], (x, y, 0.0), c["id"])
+            actors[c["id"]]["_acts"] = [a for a in shot.get("actions", []) if a["who"] == c["id"]]
+            continue
         chars[c["id"]] = puppet.build(cfgs[c["id"]], FACES, out, at=(x, y, 0))
         ch = chars[c["id"]]
         ch["_blink_off"] = 0.9 + i * 1.3
@@ -209,9 +223,17 @@ def render_shot(shot, out):
             for pr in props:
                 _prop_frame(pr, chars, t)
             fx.step(sprites, chars, t)
+        for A_ in actors.values():
+            actor.step(A_, A_["_acts"], t)
         ambient.step(amb, t)
-        _cam_at(cam, cm["from"], cm["to"], _ease(cm.get("ease", "inout"), t / shot["dur"], shot["dur"]), t,
-                cm.get("drift", 0.01))
+        if shot.get("world"):
+            engine.step(marks, shot.get("moves"), t)
+        focus = _cam_at(cam, cm["from"], cm["to"], _ease(cm.get("ease", "inout"), t / shot["dur"], shot["dur"]), t,
+                        cm.get("drift", 0.01))
+        if marks.get("dof"):  # realistic close-ups (Channel 5): sharp on the aimed object, soft background
+            cam.data.dof.use_dof = True
+            cam.data.dof.aperture_fstop = marks["dof"].get("fstop", 2.8)
+            cam.data.dof.focus_distance = focus
         sc.render.filepath = str(out / f"f{f:04d}.png")
         bpy.ops.render.render(write_still=True)
         print("FRAME", f + 1, "/", n, flush=True)

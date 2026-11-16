@@ -1,0 +1,341 @@
+{
+ "about": "desert highway: road behind the cast, sand, cactus, red rock cliffs far away; movers: rig, car",
+ "ground": [
+  0.86,
+  0.7,
+  0.45
+ ],
+ "sky": {
+  "top": [
+   0.3,
+   0.6,
+   0.95
+  ],
+  "low": [
+   0.95,
+   0.88,
+   0.75
+  ]
+ },
+ "pieces": [
+  {
+   "m": "road-straight",
+   "at": [
+    -42,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -35,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -28,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -21,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -14,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    -7,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    0,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    7,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    14,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    21,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    28,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    35,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "road-straight",
+   "at": [
+    42,
+    6,
+    0
+   ],
+   "rot": 90
+  },
+  {
+   "m": "delivery",
+   "at": [
+    -5,
+    4.6,
+    0
+   ],
+   "rot": 90,
+   "id": "rig"
+  },
+  {
+   "m": "sedan",
+   "at": [
+    10,
+    7.5,
+    0
+   ],
+   "rot": -90,
+   "id": "car"
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -60,
+    48,
+    0
+   ],
+   "rot": 160,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -48,
+    54,
+    0
+   ],
+   "rot": 174,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -36,
+    48,
+    0
+   ],
+   "rot": 188,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -24,
+    54,
+    0
+   ],
+   "rot": 202,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    -12,
+    48,
+    0
+   ],
+   "rot": 160,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    0,
+    54,
+    0
+   ],
+   "rot": 174,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    12,
+    48,
+    0
+   ],
+   "rot": 188,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    24,
+    54,
+    0
+   ],
+   "rot": 202,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    36,
+    48,
+    0
+   ],
+   "rot": 160,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    48,
+    54,
+    0
+   ],
+   "rot": 174,
+   "s": 4.5
+  },
+  {
+   "m": "cliff_large_rock",
+   "at": [
+    60,
+    48,
+    0
+   ],
+   "rot": 188,
+   "s": 4.5
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "cactus_tall",
+    "cactus_short"
+   ],
+   "from": [
+    -30,
+    10
+   ],
+   "to": [
+    30,
+    10
+   ],
+   "n": 9,
+   "jitter": 2.5,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "rock_largeA",
+    "rock_largeC",
+    "rock_smallA"
+   ],
+   "from": [
+    -30,
+    16
+   ],
+   "to": [
+    30,
+    16
+   ],
+   "n": 10,
+   "jitter": 3,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "rock_smallA",
+    "rock_smallC",
+    "cactus_short"
+   ],
+   "from": [
+    -9,
+    -2.5
+   ],
+   "to": [
+    -3.5,
+    -1.5
+   ],
+   "n": 4,
+   "jitter": 1.0,
+   "s": 0.6
+  },
+  {
+   "m": [
+    "rock_smallB",
+    "cactus_short"
+   ],
+   "from": [
+    3.5,
+    -1.5
+   ],
+   "to": [
+    9,
+    -2.5
+   ],
+   "n": 4,
+   "jitter": 1.0,
+   "s": 0.6
+  }
+ ]
+}

@@ -1,0 +1,662 @@
+{
+ "id": "red_paperclip",
+ "title": "How One Red Paperclip Became a House",
+ "topic": "Kyle MacDonald's red paperclip trades (2005-2006)",
+ "hook_title": "PAPERCLIP TO HOUSE?",
+ "keywords": [
+  "paperclip",
+  "house",
+  "trade",
+  "trades",
+  "kiss",
+  "snowmobile",
+  "movie",
+  "kipling"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/One_red_paperclip"
+ ],
+ "places": {
+  "desk": "A small 2005 Montreal apartment desk: a laptop, a single red paperclip, sticky notes, a window with snowy rooftops",
+  "road": {
+   "prompt": "A long empty Canadian highway in 2006 through snowy fields, a lone box truck parked on the shoulder, grey sky",
+   "ambient": "snow"
+  },
+  "garage": "A 2006 Canadian garage: a red snowmobile, a camping stove, a generator, a beer keg, tools on a pegboard",
+  "studio": "A 2006 Hollywood film set: a director's chair, studio lights, a movie camera on a dolly, a film clapboard",
+  "house": {
+   "prompt": "A small white farmhouse with a porch in Kipling, Saskatchewan in 2006, flat prairie, wide blue sky, a picket fence",
+   "ambient": "leaves"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "One man traded a red paperclip for a house.",
+   "set": "house",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "HOUSE DEED"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.6
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. How is that possible?",
+   "set": "house",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "In 2005, Kyle MacDonald posted one paperclip online.",
+   "set": "desk",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "TRADE: 1 RED PAPERCLIP"
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "KYLE MACDONALD"
+   },
+   "id": "s03",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Trade me something bigger!",
+   "set": "desk",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "His goal: trade up to a house in one year.",
+   "set": "desk",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "GOAL: HOUSE"
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A paperclip is worth about nothing.",
+   "set": "desk",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "$0.01"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "First, a pen shaped like a fish.",
+   "set": "garage",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "walt",
+     "text": "FISH PEN"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.5
+    }
+   ],
+   "id": "s07",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then a doorknob. A camping stove. A generator.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "picked_by": "walt",
+     "text": "GENERATOR"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.5
+    }
+   ],
+   "id": "s08",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "A party keg. A snowmobile.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "SNOWMOBILE!"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.6
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A trip, a truck, a record deal.",
+   "set": "road",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         2.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "celebrate",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A year of rent, and an afternoon with Alice Cooper.",
+   "set": "road",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "ALICE COOPER"
+   },
+   "freeze": "WAIT...",
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then he traded a KISS snow globe for a movie role.",
+   "set": "studio",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt",
+     "text": "KISS SNOW GLOBE"
+    }
+   ],
+   "id": "s12",
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "A little town wanted that movie role.",
+   "set": "studio",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "plead",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "KIPLING, SASKATCHEWAN"
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So the town of Kipling traded him a house.",
+   "set": "house",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "HOUSE DEED"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Fourteen trades. One year. One paperclip.",
+   "set": "house",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "14 TRADES"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So what do I do with my paperclip?",
+   "set": "house",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 0.6
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Trade it. For a house.",
+   "set": "house",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 35.26
+}

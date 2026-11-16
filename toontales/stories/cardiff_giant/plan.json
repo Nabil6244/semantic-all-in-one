@@ -1,0 +1,684 @@
+{
+ "id": "cardiff_giant",
+ "title": "The Stone Giant That Fooled America",
+ "topic": "the Cardiff Giant hoax (1869)",
+ "hook_title": "A 10-FOOT STONE GIANT?",
+ "keywords": [
+  "giant",
+  "barnum",
+  "fake",
+  "gypsum",
+  "cents",
+  "crowds"
+ ],
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Cardiff_Giant"
+ ],
+ "places": {
+  "farm": {
+   "prompt": "A farm in Cardiff, New York in 1869: a barn, a fresh muddy hole in the ground, a big canvas tent, green hills",
+   "ambient": "dust"
+  },
+  "workshop": "A Chicago stone carver's workshop in 1868: a huge block of grey stone, chisels and hammers, dust, wooden beams",
+  "church": "A small 1860s country church: wooden pews, a pulpit, a plain cross, tall windows with sunlight",
+  "barnum": "A loud 1869 New York museum show hall: red curtains, posters, a stage, gas lamps, a ticket booth"
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1869, farmers dug up a ten-foot stone giant.",
+   "set": "farm",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.5
+    },
+    {
+     "name": "gasp",
+     "at": 1.2
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. Where did a giant come from?",
+   "set": "farm",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "It began with George Hull arguing with a preacher.",
+   "set": "church",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "GEORGE HULL"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "The preacher said giants once walked the Earth.",
+   "set": "church",
+   "camera": "two_shot",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s04",
+   "props": [
+    {
+     "type": "sign",
+     "text": "GIANTS WERE REAL",
+     "spot": "wall_r"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Fine. I'll make one.",
+   "set": "workshop",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He had a giant man carved from gypsum.",
+   "set": "workshop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "throw",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.5
+    },
+    {
+     "name": "pick",
+     "at": 1.3
+    }
+   ],
+   "id": "s06",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then buried it on his cousin's farm.",
+   "set": "farm",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "sneak",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.0
+    }
+   ],
+   "id": "s07",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "A year later, well diggers found it.",
+   "set": "farm",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.4
+    },
+    {
+     "name": "gasp",
+     "at": 1.2
+    }
+   ],
+   "id": "s08",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "A petrified giant!",
+   "set": "farm",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Crowds paid fifty cents to see it.",
+   "set": "farm",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.4,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "spot": "floor_front"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "50 CENTS"
+   },
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    },
+    {
+     "name": "coins",
+     "at": 0.8
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Showman P. T. Barnum wanted to buy it.",
+   "set": "barnum",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "P. T. BARNUM"
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "When they said no, he made his own copy.",
+   "set": "barnum",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "COPY"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 1.0
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Barnum's fake of the fake drew even bigger crowds.",
+   "set": "barnum",
+   "camera": "low",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "FAKE x2"
+   },
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Then Hull admitted the giant was carved stone.",
+   "set": "farm",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "GIANT"
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "People kept paying to see it anyway.",
+   "set": "farm",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.4
+    }
+   ],
+   "id": "s15",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So I paid to see a rock?",
+   "set": "farm",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Fifty cents for the second one.",
+   "set": "farm",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.9
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 34.7
+}

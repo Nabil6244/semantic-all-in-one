@@ -1,0 +1,170 @@
+{
+ "about": "quarter-mile drag strip: straight road running away from the camera, grass and trees both sides, start lights at the line, a red FINISH gantry far down; movers: car_a (left lane, red), car_b (right lane, blue) both at the start line y 0 facing down the strip",
+ "ground": [
+  0.42,
+  0.7,
+  0.28
+ ],
+ "sky": {
+  "top": [
+   0.26,
+   0.58,
+   0.97
+  ],
+  "low": [
+   0.8,
+   0.91,
+   1.0
+  ]
+ },
+ "pieces": [
+  {
+   "m": "@strip",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "w": 8.0,
+   "finish_y": 150
+  },
+  {
+   "m": "@start_tree",
+   "at": [
+    -4.6,
+    3.0,
+    0
+   ],
+   "rot": 20
+  },
+  {
+   "m": "@finish",
+   "at": [
+    0,
+    150,
+    0
+   ],
+   "w": 12
+  },
+  {
+   "m": "sedan-sports",
+   "at": [
+    -1.7,
+    0,
+    0
+   ],
+   "rot": 180,
+   "s": 0.8,
+   "tint": [
+    1.0,
+    0.12,
+    0.1
+   ],
+   "tint_mode": "color",
+   "id": "car_a"
+  },
+  {
+   "m": "sedan-sports",
+   "at": [
+    1.7,
+    0,
+    0
+   ],
+   "rot": 180,
+   "s": 0.8,
+   "tint": [
+    0.15,
+    0.35,
+    1.0
+   ],
+   "tint_mode": "color",
+   "id": "car_b"
+  }
+ ],
+ "rows": [
+  {
+   "m": [
+    "tree_default",
+    "tree_oak",
+    "tree_detailed",
+    "tree_fat",
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -9,
+    -10
+   ],
+   "to": [
+    -9,
+    170
+   ],
+   "n": 40,
+   "jitter": 2.0,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "tree_default",
+    "tree_oak",
+    "tree_detailed",
+    "tree_fat",
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    9,
+    -10
+   ],
+   "to": [
+    9,
+    170
+   ],
+   "n": 40,
+   "jitter": 2.0,
+   "s": 1.0
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    -24,
+    0
+   ],
+   "to": [
+    -24,
+    200
+   ],
+   "n": 30,
+   "jitter": 4,
+   "s": 1.5
+  },
+  {
+   "m": [
+    "tree_pineRoundA",
+    "tree_pineTallA",
+    "tree_pineDefaultA",
+    "tree_pineRoundC"
+   ],
+   "from": [
+    24,
+    0
+   ],
+   "to": [
+    24,
+    200
+   ],
+   "n": 30,
+   "jitter": 4,
+   "s": 1.5
+  }
+ ]
+}

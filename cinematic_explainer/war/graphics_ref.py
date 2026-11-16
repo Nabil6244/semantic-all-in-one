@@ -505,6 +505,8 @@ def _disc(name: str, r: int) -> Image.Image:
     im.alpha_composite(g.filter(ImageFilter.GaussianBlur(9)))
     d = ImageDraw.Draw(im)
     d.ellipse([c - r, c - r, c + r, c + r], fill=(14, 16, 24, 255), outline=ORANGE, width=4)
+    if not name:                       # no pictogram for the thing counted: a plain disc, never a question mark
+        return im
     try:
         ic = ST.draw_sticker(name, int(r * 1.15))
         im.alpha_composite(ic, (int(c - ic.width / 2), int(c - ic.height / 2)))
@@ -991,11 +993,49 @@ _RISE = re.compile(
     r"(?:[^.]*?\b(?:in|by)\s+(?P<by>(?:19|20)\d\d))?", re.IGNORECASE)
 
 
+_N = r"\d[\d,]*(?:\.\d+)?"
+_WHEN = r"(?:this year|last year|in (?:19|20)\d\d|(?:19|20)\d\d|now|today)"
+# 2026-11-16 owner: the Ukraine script said it as "3,604 square kilometers for Russia in 2024, then 5,304 in 2025" and "0.38 square
+# kilometers a day this year, against about 13 a day in 2025": both are a counter, neither said "rose from X to Y".
+_THEN = re.compile(r"(?P<a>" + _N + r")\s+(?P<unit>(?:[A-Za-z-]+\s+){0,5}?)(?:in|for|during)\s+(?P<ay>(?:19|20)\d\d),?\s+(?:then|and|but|before|after)\s+"
+                   r"(?:only |just |about |around |nearly |some |over |more than )?(?P<b>" + _N + r")(?:\s+[A-Za-z-]+){0,3}?\s+in\s+(?P<by>(?:19|20)\d\d)\b", re.I)
+_VERSUS = re.compile(r"(?P<a>" + _N + r")\s+(?P<unit>(?:[A-Za-z-]+\s+){0,5}?)(?P<al>" + _WHEN + r"),?\s+(?:against|compared (?:with|to)|versus|vs\.?)\s+"
+                     r"(?:only |just |about |around |nearly |some |over |more than )?(?P<b>" + _N + r")(?P<per>\s+(?:a|per)\s+(?:day|week|month|year))?"
+                     r"\s*(?:in\s+)?(?P<bl>" + _WHEN + r")\b", re.I)
+
+
+def _counter_said(text: str) -> Optional[Dict[str, Any]]:
+    for rx in (_THEN, _VERSUS):
+        m = rx.search(text or "")
+        if not m:
+            continue
+        va, vb = (float(m.group(k).replace(",", "")) for k in ("a", "b"))
+        if va == vb:
+            continue
+        words = [w for w in (m.group("unit") or "").split() if w.lower() not in _UNIT_STOP and w.lower() not in ("for", "russia", "ukraine")]
+        unit = " ".join(words[:4])
+        per = m.groupdict().get("per") or re.search(r"\b(?:a|per)\s+(day|week|month|year)\b", m.group("unit") or "")
+        if per:
+            pw = per.group(1) if hasattr(per, "group") and per.lastindex else str(per).split()[-1]
+            unit = " ".join(w for w in unit.split() if w.lower() != pw.lower()) + f" a {pw.lower()}"
+        la = (m.groupdict().get("ay") or m.groupdict().get("al") or "THEN").upper().replace("IN ", "")
+        lb = (m.groupdict().get("by") or m.groupdict().get("bl") or "NOW").upper().replace("IN ", "")
+        if rx is _VERSUS and re.search(r"(?:19|20)\d\d", la) and re.search(r"(?:19|20)\d\d", lb) and la > lb:
+            pass
+        if rx is _VERSUS and not re.search(r"\d", la) and re.search(r"\d", lb):    # "this year, against 2025": the earlier year goes first
+            m_a, m_b, la, lb, va, vb = m.group("b"), m.group("a"), lb, la, vb, va
+        else:
+            m_a, m_b = m.group("a"), m.group("b")
+        return {"a": {"value": va, "shown": m_a, "label": la}, "b": {"value": vb, "shown": m_b, "label": lb}, "unit": unit, "title": unit.upper()}
+    return None
+
+
 def counter_of(text: str) -> Optional[Dict[str, Any]]:
-    """A figure the script says rose or fell "from X to Y" (never a date range): both values as written, years as the bar labels."""
+    """A figure the script says rose or fell "from X to Y" (never a date range), or gives for two times ("X in 2024, then Y in 2025",
+    "X this year, against Y in 2025"): both values as written, the times as the bar labels."""
     m = _RISE.search(text or "")
     if not m:
-        return None
+        return _counter_said(text)
     va = float(m.group("a").replace(",", "")) * _MULT.get((m.group("am") or "").lower(), 1)
     vb = float(m.group("b").replace(",", "")) * _MULT.get((m.group("bm") or "").lower(), 1)
     pct = bool(m.group("ap") or m.group("bp"))
@@ -1015,7 +1055,10 @@ def counter_of(text: str) -> Optional[Dict[str, Any]]:
             "unit": unit, "title": title.upper()}
 
 
-_SPLIT = re.compile(r"\b(?:while|whereas|compared (?:with|to)|against|versus|vs\.?)\b|;|,?\s\bbut\b", re.IGNORECASE)
+_SPLIT = re.compile(r"\b(?:while|whereas|compared (?:with|to)|against|versus|vs\.?)\b|;|,?\s\bbut\b|,\s+and\b", re.IGNORECASE)
+_MONTH_BEFORE = re.compile(r"\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s*$", re.I)
+_LINK_WORDS = {"including", "according", "as", "more", "or", "of", "them"}
+_FIG = re.compile(r"(?<![\w.])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)(?![\d,]\d)(?:\s+((?:[A-Za-z-]+\s*){1,3}))?")
 _DEMONYM = {"russian": "Russia", "ukrainian": "Ukraine", "chinese": "China", "taiwanese": "Taiwan", "american": "United States", "israeli": "Israel",
             "iranian": "Iran", "british": "United Kingdom", "french": "France", "german": "Germany", "polish": "Poland", "indian": "India",
             "pakistani": "Pakistan", "japanese": "Japan", "korean": "South Korea", "turkish": "Turkey", "syrian": "Syria"}
@@ -1055,6 +1098,19 @@ def forces_of(text: str, stickers: Sequence[Tuple[str, str, str]]) -> Optional[D
             continue
         rows.append({"name": a_["name"], "label": re.sub(r"^(?:\w+\s)?(?:[\w-]+\s)?", "", a_["what"]) if len(a_["what"].split()) > 2 else a_["what"],
                      "a": a_["value"], "b": b_["value"], "a_shown": a_["shown"], "b_shown": b_["shown"]})
+    if not rows:          # 2026-11-16: "Russia seized only 148 square kilometers, while Ukraine liberated at least 972" (no pictogram)
+        def figs(half: str) -> List[Any]:
+            return [m for m in _FIG.finditer(half) if not 1900 <= float(m.group(1).replace(",", "")) <= 2100
+                    and not _MONTH_BEFORE.search(half[:m.start()])]
+
+        fa, fb = figs(parts[0]), figs(parts[1])
+        if len(fa) == 1 and fb:
+            unit = " ".join(w for w in (fa[0].group(2) or "").split() if w.lower() not in _UNIT_STOP)[:28].strip()
+            ub = " ".join(w for w in (fb[0].group(2) or "").split() if w.lower() not in _UNIT_STOP and w.lower() not in _LINK_WORDS)
+            if unit and (not ub or ub.split()[0].lower().rstrip("s") == unit.split()[0].lower().rstrip("s")):
+                a_, b_ = fa[0].group(1), fb[0].group(1)
+                icon = next((nm for rx, nm, _lab in stickers if re.search(rx, unit, re.IGNORECASE)), "")
+                rows = [{"name": icon, "label": unit, "a": _value(a_), "b": _value(b_), "a_shown": a_, "b_shown": b_}]
     if not rows:
         return None
     return {"left": {"name": la}, "right": {"name": lb}, "rows": rows[:4], "title": ""}

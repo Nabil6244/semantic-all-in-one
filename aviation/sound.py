@@ -135,6 +135,28 @@ def events(plan: Any, scenes: Sequence[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return sorted(kept, key=lambda e: e["t"])
 
 
+def with_wall(evs: Sequence[Dict[str, Any]], spans: Sequence[Tuple[float, float]], cues: Sequence[Tuple[float, str]]) -> List[Dict[str, Any]]:
+    """Wall moments (wall/, docs/wall/PLAN.md): the card sounds inside a moment go with the cards it replaced, the wall's own item
+    sounds (assets/bundled-sfx/wall/) come in, and the MIN_GAP rule still holds (the stronger sound keeps its slot)."""
+    if not spans and not cues:
+        return list(evs)
+    from wall import sfx as WS
+    WS.ensure()
+    keep = [e for e in evs if not any(a - 1e-6 <= _f(e.get("t")) < b for a, b in spans) or e.get("kind") == "hit"]
+    raw = list(keep)
+    for t, cue in cues:
+        name = WS.base(cue)
+        if name not in WS.KIND:
+            continue
+        raw.append({"t": round(float(t), 3), "file": str(WS.file_for(cue)), "gain_db": WS.GAIN_DB[name], "kind": WS.KIND[name]})
+    raw.sort(key=lambda e: (PRIORITY.get(e["kind"], 9), e["t"]))
+    kept: List[Dict[str, Any]] = []
+    for e in raw:
+        if all(abs(e["t"] - k["t"]) >= MIN_GAP_S for k in kept):
+            kept.append(e)
+    return sorted(kept, key=lambda e: e["t"])
+
+
 # ---------------------------------------------------------------------------------------------------------------- music
 
 def _chapters(scenes: Sequence[Dict[str, Any]], modes: Sequence[str], total: float) -> List[List[Any]]:
