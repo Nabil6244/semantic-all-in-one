@@ -36,7 +36,7 @@ def _settings() -> Dict:
 def make(requests: Dict[str, str], out_dir: Path, log: Callable[[str], None] = print) -> Dict[str, str]:
     """{key: picture path} for every request Flow made (or that was made before)."""
     from providers.base import SceneRow
-    from providers.flow.engine_manager import FlowEngineManager
+    from flow_shared_engine import shared_or_new
     from providers.flow.provider import FlowProvider
 
     out_dir = Path(out_dir)
@@ -59,7 +59,7 @@ def make(requests: Dict[str, str], out_dir: Path, log: Callable[[str], None] = p
         prof = next((p for p in s.get("video_profiles") or [] if p.get("id") == s.get("default_video_profile_id")), None) or \
             ((s.get("video_profiles") or [None])[0])
         accounts = (prof or {}).get("account_ids") or None
-    em = FlowEngineManager(log=log)
+    em = shared_or_new(log=log)
     em.ensure_running()
     fp = FlowProvider(em, media_kind="image", account_ids=accounts, flow_settings=fs)
     keys = list(todo)

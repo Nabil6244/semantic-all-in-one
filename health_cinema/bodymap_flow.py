@@ -20,9 +20,9 @@ def generate(entries: list, account_ids=None, mode: str = "ui", log=print, setti
         else: todo.append(e)
     if not todo: return out
     from providers.base import SceneRow
-    from providers.flow.engine_manager import FlowEngineManager
+    from flow_shared_engine import shared_or_new
     from providers.flow.provider import FlowProvider
-    mgr = FlowEngineManager(log=log)
+    mgr = shared_or_new(log=log)
     fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE", "generationMode": mode}; fs.update(settings or {})
     prov = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=fs)
     tmp = Path(tempfile.mkdtemp(prefix="hc_ill_")); rows = [SceneRow(scene_number=str(i + 1), script_segment=e["subject"], asset_type="image", prompt=ILL.full_prompt(e["subject"])) for i, e in enumerate(todo)]

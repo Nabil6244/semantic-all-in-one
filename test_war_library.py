@@ -13,6 +13,9 @@ from pathlib import Path
 
 from cinematic_explainer.war import library as L
 
+_REAL_REVIEWED = L.reviewed
+L.reviewed = lambda path=None: {}     # the fake library reuses real clip names: the shipped eye-review list is tested on its own below
+
 CLIPS = {
     "moskva/moskva_001.mp4": ("moskva", "Moskva cruiser warship Black Sea Fleet flagship"),
     "refinery_fire/refinery_fire_001.mp4": ("refinery_fire", "refinery fire black smoke oil plant"),
@@ -282,3 +285,34 @@ def test_old_cached_tool_failure_is_checked_again():
     (lib / L.USABILITY).write_text(json.dumps(cache), encoding="utf-8")
     out = L.usable_clips(clips, lib, check=lambda p: "")
     assert len(out) == len(clips)
+
+
+def test_reviewed_verdict_beats_the_automatic_check():
+    """2026-11-16: 19 of 23 dropped clips were signs, code screens, pylons or a fireball read as text or a presenter."""
+    lib = make_library()
+    clips = L.load(lib)
+    (lib / L.USABILITY).write_text("{}", encoding="utf-8")
+    first, second = clips[0]["file"], clips[1]["file"]
+    out = L.usable_clips(clips, lib, check=lambda p: "picture: text over the footage (text_graphic 5 of 16 frames)", window=lambda p: None,
+                         review={first: {"verdict": "ok"}, second: {"verdict": "reject", "note": "logo"}})
+    assert [c["file"] for c in out] == [first]
+
+
+def test_a_clip_with_text_in_part_keeps_its_clean_stretch():
+    lib = make_library()
+    clips = L.load(lib)
+    (lib / L.USABILITY).write_text("{}", encoding="utf-8")
+    out = L.usable_clips(clips, lib, check=lambda p: "picture: text over the footage (overlay_text 7 of 15 frames)",
+                         window=lambda p: [3.62, 7.38], review={})
+    assert len(out) == len(clips)
+    assert out[0]["clean"] == [3.62, 7.38] and out[0]["usable_s"] == 3.76
+    again = L.usable_clips(clips, lib, check=lambda p: (_ for _ in ()).throw(AssertionError("checked twice")), review={})
+    assert again[0]["clean"] == [3.62, 7.38]                 # cached with the result
+    assert L.record_for(out[0], type("R", (), {"asset_type": "youtube_video"})(), lib / "x.mp4")["library_clean"] == [3.62, 7.38]
+
+
+def test_shipped_review_list_reads():
+    rv = _REAL_REVIEWED()
+    assert rv["moskva/moskva_001.mp4"]["verdict"] == "reject"
+    assert rv["power_lines/power_lines_002.mp4"]["verdict"] == "ok"
+    assert all(v["verdict"] in ("ok", "reject") for v in rv.values())

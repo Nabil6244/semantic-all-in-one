@@ -227,11 +227,11 @@ def generate(items: Optional[Sequence[Tuple[str, str]]] = None, log=print, mode:
         log("[OCEAN] art library complete: nothing to make")
         return []
     from providers.base import SceneRow
-    from providers.flow.engine_manager import FlowEngineManager
+    from flow_shared_engine import shared_or_new
     from providers.flow.provider import FlowProvider
 
     ART_DIR.mkdir(parents=True, exist_ok=True)
-    mgr = manager or FlowEngineManager(log=log)
+    mgr = manager or shared_or_new(log=log)
     fs: Dict[str, Any] = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE"}
     if mode:
         fs["generationMode"] = mode

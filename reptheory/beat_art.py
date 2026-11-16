@@ -237,9 +237,9 @@ def prepare(scenes: List[dict], mode: str = "agent", account_ids=None, log=print
         elif generate_missing: todo[i] = p
     if todo:
         from providers.base import SceneRow
-        from providers.flow.engine_manager import FlowEngineManager
+        from flow_shared_engine import shared_or_new
         from providers.flow.provider import FlowProvider
-        mgr = FlowEngineManager(log=log); fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE", "generationMode": mode}; fs.update(settings or {})
+        mgr = shared_or_new(log=log); fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE", "generationMode": mode}; fs.update(settings or {})
         prov = FlowProvider(mgr, media_kind="image", account_ids=account_ids, flow_settings=fs); ids = list(todo)
         def make_one(pr):      # one picture now (the Elder host's reference, before the pictures that use it)
             r1 = prov.resolve_batch([SceneRow(scene_number="1", script_segment="reference", asset_type="image", prompt=pr)], Path(tempfile.mkdtemp(prefix="rt_ref_")), log=log).get("1")

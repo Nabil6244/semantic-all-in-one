@@ -378,7 +378,7 @@ def record_for(clip: Dict[str, Any], row: Any, dest: Path) -> Dict[str, Any]:
         "clip_start": 0.0, "clip_duration": round(n, 2), "timestamp_end": round(n, 2), "duration": round(n, 2),
         "selection_method": METHOD, "library_file": str(clip["file"]), "library_subject": clip.get("subject") or "",
         "script_segment": getattr(row, "script_segment", ""), "prompt": getattr(row, "prompt", ""), "ai_generated": ai,
-        "authenticity": "library", "resolved_at": time.time(), "error": None,
+        "authenticity": "library", "resolved_at": time.time(), "error": None, "library_clean": clip.get("clean"),
     }
 
 
@@ -429,8 +429,72 @@ def _tool_failure(why: str) -> bool:
     return why == "no frames" or why.startswith("check failed")
 
 
+REVIEW = Path(__file__).resolve().parent / "data" / "library_visual_review.json"   # clips a person looked at: their verdict beats the automatic check
+CLEAN_FPS = 4.0          # the clean-stretch scan reads this many frames a second
+CLEAN_MIN_S = 2.5        # a clean stretch shorter than this is not worth keeping (scenes run ~3 s)
+
+
+def reviewed(path: Path = REVIEW) -> Dict[str, Dict[str, Any]]:
+    """{library file: {"verdict": "ok" | "reject", "note": ...}}; the file ships with the code, so every Mac with a copy of the library
+    gets the same verdicts (2026-11-16: 19 of 23 dropped clips were signs, code screens, pylons or a fireball read as text / a presenter)."""
+    try:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k): v for k, v in d.items() if isinstance(v, dict) and not str(k).startswith("_")}
+
+
+def clean_window(path: Path, fps: float = CLEAN_FPS, min_s: float = CLEAN_MIN_S) -> Optional[List[float]]:
+    """[start, end] of the longest stretch with no laid-over text (subtitles that come in halfway, a caption at the end), or None."""
+    import subprocess
+
+    import numpy as np
+
+    from . import director_frames as F
+
+    try:
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-vf", f"fps={fps},scale=320:180", "-f", "rawvideo",
+                              "-pix_fmt", "rgb24", "-"], capture_output=True, timeout=120).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if not raw:
+        return None
+    frames = np.frombuffer(raw, np.uint8).reshape(-1, 180, 320, 3)
+    best, run_start = (0, 0), None
+    for i, f in enumerate(list(frames) + [None]):
+        clean = f is not None and not F.text_kind(f)
+        if clean and run_start is None:
+            run_start = i
+        elif not clean and run_start is not None:
+            if i - run_start > best[1] - best[0]:
+                best = (run_start, i)
+            run_start = None
+    a, b = best[0] / fps, best[1] / fps
+    if best[0] > 0:
+        a += 0.5 / fps                      # half a frame step away from the text on either side
+    if best[1] < len(frames):
+        b -= 0.5 / fps
+    return [round(a, 2), round(b, 2)] if b - a >= min_s else None
+
+
+def file_clip(src: Path, dest: Path, clip: Dict[str, Any]) -> None:
+    """Copies a library clip into the scene file; a clip kept for its clean stretch is cut to that stretch."""
+    tmp = dest.with_suffix(".lib.tmp")
+    win = clip.get("clean")
+    if win:
+        import subprocess
+
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{win[0]:.2f}", "-i", str(src), "-t", f"{win[1] - win[0]:.2f}", "-an",
+                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "16", "-pix_fmt", "yuv420p", "-f", "mp4", str(tmp)],
+                       check=True, capture_output=True, timeout=300)
+    else:
+        shutil.copyfile(src, tmp)
+    tmp.replace(dest)
+
+
 def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Path], str] = picture_problem,
-                 log: Callable[[str], None] = lambda m: None) -> List[Dict[str, Any]]:
+                 log: Callable[[str], None] = lambda m: None, review: Optional[Dict[str, Dict[str, Any]]] = None,
+                 window: Callable[[Path], Optional[List[float]]] = clean_window) -> List[Dict[str, Any]]:
     """The clips whose frames pass the visual check (render 050 review: the reviewed library still held the Moskva infographic, subtitled
     interviews and watermarked clips). Results are cached in <library>/.usability.json; a changed file is checked again."""
     p = Path(lib) / USABILITY
@@ -442,7 +506,16 @@ def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Pa
     changed = False
     dropped: List[str] = []
     unchecked: List[str] = []
+    trimmed: List[str] = []
+    review = reviewed() if review is None else review
     for c in clips:
+        verdict = str((review.get(str(c["file"])) or {}).get("verdict") or "")
+        if verdict == "ok":
+            out.append(c)
+            continue
+        if verdict == "reject":
+            dropped.append(f"{c['file']} (reviewed: {str((review.get(str(c['file'])) or {}).get('note') or 'rejected')[:50]})")
+            continue
         f = Path(lib) / str(c["file"])
         try:
             st = f.stat()
@@ -463,7 +536,16 @@ def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Pa
                 continue
             cache[str(c["file"])] = hit = {"sig": sig, "why": why}
             changed = True
-        if hit.get("why"):
+        if str(hit.get("why") or "").startswith("picture: text over") and "clean" not in hit:
+            try:                                    # subtitles in part of the clip: the rest is still good footage (older caches too)
+                hit["clean"] = window(f)
+            except Exception:  # noqa: BLE001
+                hit["clean"] = None
+            changed = True
+        if hit.get("why") and hit.get("clean"):
+            out.append(dict(c, clean=list(hit["clean"]), usable_s=round(hit["clean"][1] - hit["clean"][0], 2)))
+            trimmed.append(f"{c['file']} {hit['clean'][0]:.1f}-{hit['clean'][1]:.1f}s")
+        elif hit.get("why"):
             dropped.append(f"{c['file']} ({hit['why'][:60]})")
         else:
             out.append(c)
@@ -474,6 +556,8 @@ def usable_clips(clips: Sequence[Dict[str, Any]], lib: Path, check: Callable[[Pa
             pass
     if unchecked:
         log(f"War library: visual check could not run on {len(unchecked)} clips, used as reviewed: {'; '.join(unchecked[:3])}")
+    if trimmed:
+        log(f"War library: {len(trimmed)} clips used for their clean stretch only (text over the rest): {'; '.join(trimmed[:4])}")
     if dropped:
         log(f"War library: {len(dropped)} clips not used (their frames fail the visual check): {'; '.join(dropped[:6])}")
     return out
@@ -507,10 +591,10 @@ def apply(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: Pat
         if d["source"] == "library":
             src = lib / str(d["clip"]["file"])
             dest = images_dir / (f"{int(no):03d}.mp4" if no.isdigit() else f"{no}.mp4")
-            if not (rec.get("selection_method") == METHOD and rec.get("library_file") == d["clip"]["file"] and _same_file(src, dest)):
-                tmp = dest.with_suffix(".lib.tmp")
-                shutil.copyfile(src, tmp)
-                tmp.replace(dest)
+            same = rec.get("library_file") == d["clip"]["file"] and rec.get("library_clean") == d["clip"].get("clean") and (
+                Path(dest).is_file() if d["clip"].get("clean") else _same_file(src, dest))
+            if not (rec.get("selection_method") == METHOD and same):
+                file_clip(src, dest, d["clip"])
                 man.set(no, record_for(d["clip"], by_no[no], dest))
         elif rec.get("selection_method") == METHOD:      # the library changed: an older library clip is not left behind
             man.set(no, dict(rec, status="failed", error="War library: " + d.get("why", "no clip of this subject any more")))
@@ -624,9 +708,7 @@ def fallback(scenes: Sequence[Dict[str, Any]], rows: Sequence[Any], images_dir: 
         if pick is None:
             continue
         dest = images_dir / (f"{int(no):03d}.mp4" if no.isdigit() else f"{no}.mp4")
-        tmp = dest.with_suffix(".lib.tmp")
-        shutil.copyfile(lib / str(pick["file"]), tmp)
-        tmp.replace(dest)
+        file_clip(lib / str(pick["file"]), dest, pick)
         man.set(no, dict(record_for(pick, r, dest), match_level="illustrative", library_fallback=True,
                                                                fallback_note=f"the line's kind of picture ({pick.get('subject')}), not footage of the event"))
         uses[source_key(pick)] = uses.get(source_key(pick), 0) + 1

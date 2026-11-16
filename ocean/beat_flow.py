@@ -22,7 +22,7 @@ def make(slots: Sequence[Dict[str, Any]], images_dir: Path, log: Callable[[str],
     import visual_bridge
     from asset_manager import AssetManifest
     from providers.base import SceneRow
-    from providers.flow.engine_manager import FlowEngineManager
+    from flow_shared_engine import shared_or_new
     from providers.flow.provider import FlowProvider
 
     images_dir = Path(images_dir)
@@ -46,7 +46,7 @@ def make(slots: Sequence[Dict[str, Any]], images_dir: Path, log: Callable[[str],
     if mode is None:                                     # headless: the app's own saved choice (Settings -> Flow)
         mode, saved_accounts = _saved_mode()
         account_ids = account_ids or saved_accounts
-    mgr = manager or FlowEngineManager(log=log)
+    mgr = manager or shared_or_new(log=log)
     if manager is None:
         mgr.ensure_running()
     fs: Dict[str, Any] = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE"}

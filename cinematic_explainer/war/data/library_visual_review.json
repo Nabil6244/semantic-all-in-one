@@ -1,0 +1,23 @@
+{
+ "_about": "Library clips checked by eye on contact sheets (2026-11-16). 'ok' = the automatic text/presenter check was wrong (signs, code screens, pylons, a fireball); 'reject' = really has laid-over text. Keys are paths inside the War library.",
+ "ai_cyber/ai_cyber_002.mp4": {"verdict": "ok", "note": "code on screens is part of the scene"},
+ "ai_question/ai_question_001.mp4": {"verdict": "ok", "note": "man on a pier, no text"},
+ "ai_grain_ship/ai_grain_ship_001.mp4": {"verdict": "ok", "note": "ship and cranes at sunset"},
+ "ai_ending/ai_ending_001.mp4": {"verdict": "ok", "note": "tree at sunset"},
+ "ai_transformers/ai_transformers_002.mp4": {"verdict": "ok", "note": "copper coil being wound"},
+ "kharkiv_city/kharkiv_city_002.mp4": {"verdict": "ok", "note": "street sign in the scene"},
+ "power_lines/power_lines_002.mp4": {"verdict": "ok", "note": "pylons read as text lines"},
+ "cargo_port_cranes/cargo_port_cranes_002.mp4": {"verdict": "ok", "note": "container yard from above"},
+ "cargo_port_cranes/cargo_port_cranes_004.mp4": {"verdict": "ok", "note": "cranes and container ship"},
+ "chemical_plant/chemical_plant_007.mp4": {"verdict": "ok", "note": "plant from above"},
+ "grain_exports/grain_exports_002.mp4": {"verdict": "ok", "note": "port at night"},
+ "kremlin_moscow/kremlin_moscow_001.mp4": {"verdict": "ok", "note": "city road at dusk"},
+ "oil_terminal_port/oil_terminal_port_004.mp4": {"verdict": "ok", "note": "port at night"},
+ "oil_terminal_port/oil_terminal_port_005.mp4": {"verdict": "ok", "note": "tanker at berth"},
+ "ammo_depot_explosion/ammo_depot_explosion_001.mp4": {"verdict": "ok", "note": "orange fireball read as a presenter"},
+ "moskva/moskva_001.mp4": {"verdict": "reject", "note": "labelled infographic"},
+ "russian_warships_sea/russian_warships_sea_001.mp4": {"verdict": "reject", "note": "channel watermark and logo"},
+ "russian_warships_port/russian_warships_port_001.mp4": {"verdict": "reject", "note": "watermark and a glitch transition"},
+ "snake_island/snake_island_001.mp4": {"verdict": "reject", "note": "subtitles and a REC overlay"},
+ "drone/drone_001.mp4": {"verdict": "reject", "note": "unit logo and subtitles"}
+}

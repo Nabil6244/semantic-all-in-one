@@ -119,10 +119,10 @@ def generate(items: Sequence[Dict[str, Any]], log=print, mode: Optional[str] = N
     if not items:
         return []
     from providers.base import SceneRow
-    from providers.flow.engine_manager import FlowEngineManager
+    from flow_shared_engine import shared_or_new
     from providers.flow.provider import FlowProvider
     from . import library as LIB
-    mgr = FlowEngineManager(log=log)
+    mgr = shared_or_new(log=log)
     fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE"}
     if mode:
         fs["generationMode"] = mode
@@ -206,13 +206,13 @@ def make_plates(items: Sequence[Dict[str, Any]], log=print, mode: Optional[str] 
     if not items:
         return []
     from providers.base import SceneRow
-    from providers.flow.engine_manager import FlowEngineManager
+    from flow_shared_engine import shared_or_new
     from providers.flow.provider import FlowProvider
     from . import library as LIB
     fs = {"model": "GEM_PIX_2", "aspectRatio": "IMAGE_ASPECT_RATIO_LANDSCAPE"}
     if mode:
         fs["generationMode"] = mode
-    prov = FlowProvider(FlowEngineManager(log=log), media_kind="image", flow_settings=fs)
+    prov = FlowProvider(shared_or_new(log=log), media_kind="image", flow_settings=fs)
     tmp = Path(tempfile.mkdtemp(prefix="av_plate_"))
     rows = [SceneRow(scene_number=str(i + 1), script_segment=f"{it['airline']} {it['era']} era plate", asset_type="image",
                      prompt=it["prompt"]) for i, it in enumerate(items)]
