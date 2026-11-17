@@ -119,5 +119,70 @@ class ConvertHookTests(unittest.TestCase):
             ev._convert_pieces([("a.mp3", [])], lambda s, d: None, tempfile.gettempdir(), None)
 
 
+FAKE_WORKER = """
+import json, sys, wave, math
+job = json.load(open(sys.argv[1]))
+print(json.dumps({"ready": "cpu", "model": "fake"}), flush=True)
+for i, p in enumerate(job["pieces"]):
+    with wave.open(p["out"], "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(24000)
+        w.writeframes(b"".join(int(8000 * math.sin(i + n / 20)).to_bytes(2, "little", signed=True) for n in range(12000)))
+    print(json.dumps({"done": i, "seconds": 0.5}), flush=True)
+"""
+
+
+@unittest.skipUnless(FFMPEG, "ffmpeg not installed")
+class ChatterboxTests(unittest.TestCase):
+    def setUp(self):
+        from voice_clone import chatterbox_engine as cbx
+        self.cbx = cbx
+        self.tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+
+    def _patch_worker(self, body):
+        import sys
+        w = Path(self.tmp) / "worker.py"
+        w.write_text(body)
+        old = (self.cbx.env_python, self.cbx.worker_path)
+        self.cbx.env_python, self.cbx.worker_path = (lambda: Path(sys.executable)), (lambda: w)
+        self.addCleanup(lambda: setattr(self.cbx, "env_python", old[0]) or setattr(self.cbx, "worker_path", old[1]))
+
+    def test_reference_drops_leading_silence_and_is_capped(self):
+        src = os.path.join(self.tmp, "s.wav")
+        subprocess.run([FFMPEG, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono:d=3", "-f", "lavfi",
+                        "-i", "sine=f=200:d=40:sample_rate=24000", "-filter_complex", "[0][1]concat=n=2:v=0:a=1", src], check=True)
+        dest = self.cbx.save_reference(src, Path(self.tmp) / "ref.wav", FFMPEG)
+        import wave
+        with wave.open(str(dest)) as w:
+            sec = w.getnframes() / w.getframerate()
+        self.assertLessEqual(sec, self.cbx.REF_SECONDS + 0.01)
+        self.assertGreater(sec, 11)          # a pure tone has no pause, so the cut lands at the earliest allowed point
+        a = engine.read_audio(str(dest), FFMPEG, seconds=0.2)
+        self.assertGreater(float(np.abs(a).max()), 0.1)     # starts on the voice, not on silence
+
+    def test_every_piece_is_made_and_joined(self):
+        self._patch_worker(FAKE_WORKER)
+        ref = Path(self.tmp) / "ref.wav"
+        engine.write_wav(_speechlike(6), str(ref))
+        ticks = []
+        text = " ".join(f"Sentence number {i} is right here." for i in range(40))
+        out = os.path.join(self.tmp, "out.mp3")
+        res = self.cbx.synthesize(text, out, str(ref), speed=1.1, ffmpeg=FFMPEG, ffprobe=shutil.which("ffprobe"),
+                                  progress=lambda d, t: ticks.append((d, t)))
+        self.assertGreaterEqual(res["pieces"], 4)
+        self.assertEqual(ticks[-1], (res["pieces"], res["pieces"]))
+        self.assertGreater(res["duration"], 0.4 * res["pieces"])
+        self.assertEqual(__import__("json").loads(Path(res["words_path"]).read_text()), [])
+
+    def test_worker_failure_and_missing_sample_are_errors(self):
+        self._patch_worker('import json; print(json.dumps({"error": "boom"}))')
+        ref = Path(self.tmp) / "ref.wav"
+        engine.write_wav(_speechlike(6), str(ref))
+        with self.assertRaisesRegex(RuntimeError, "boom"):
+            self.cbx.synthesize("Hello there.", os.path.join(self.tmp, "o.mp3"), str(ref), ffmpeg=FFMPEG)
+        with self.assertRaisesRegex(RuntimeError, "add the voice again"):
+            self.cbx.synthesize("Hello there.", os.path.join(self.tmp, "o.mp3"), os.path.join(self.tmp, "none.wav"), ffmpeg=FFMPEG)
+
+
 if __name__ == "__main__":
     unittest.main()

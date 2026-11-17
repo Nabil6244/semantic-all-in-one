@@ -103,15 +103,15 @@ def ensure_models(say: Optional[Callable[[str], None]] = None) -> bool:
     return True
 
 
-def read_audio(path: str, ffmpeg: str = "ffmpeg", start: float = 0.0, seconds: Optional[float] = None) -> np.ndarray:
-    """Any audio/video file -> mono float32 at the converter's rate."""
+def read_audio(path: str, ffmpeg: str = "ffmpeg", start: float = 0.0, seconds: Optional[float] = None, rate: int = SR) -> np.ndarray:
+    """Any audio/video file -> mono float32 at the converter's rate (or the given rate)."""
     cmd = [ffmpeg, "-v", "error", "-nostdin"]
     if start:
         cmd += ["-ss", str(start)]
     cmd += ["-i", str(path)]
     if seconds:
         cmd += ["-t", str(seconds)]
-    cmd += ["-vn", "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"]
+    cmd += ["-vn", "-ac", "1", "-ar", str(rate), "-f", "f32le", "-"]
     out = subprocess.run(cmd, capture_output=True, timeout=1800)
     if out.returncode != 0 or not out.stdout:
         raise ValueError("could not read audio: " + out.stderr.decode("utf-8", "replace")[:160])
@@ -127,6 +127,17 @@ def write_mp3(audio: np.ndarray, path: str, ffmpeg: str = "ffmpeg", rate: int = 
         raise OSError("could not write audio: " + r.stderr.decode("utf-8", "replace")[:160])
 
 
+def write_wav(audio: np.ndarray, path: str, rate: int = SR) -> None:
+    """Mono float samples -> 16-bit wav."""
+    import wave
+    pcm = (np.clip(audio, -1.0, 1.0) * 32767).astype("<i2").tobytes()
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(pcm)
+
+
 def speech_seconds(audio: np.ndarray) -> float:
     """Seconds with real speech energy (frames above a fraction of the loudest), to judge a sample before using it."""
     if audio.size < SR // 10:
@@ -137,12 +148,12 @@ def speech_seconds(audio: np.ndarray) -> float:
     return float((rms > max(0.01, 0.1 * float(rms.max()))).sum() * hop / SR)
 
 
-def split_windows(audio: np.ndarray, max_sec: float = MAX_WINDOW_SEC) -> list:
+def split_windows(audio: np.ndarray, max_sec: float = MAX_WINDOW_SEC, rate: int = SR) -> list:
     """Cut long audio into windows of at most max_sec at the quietest nearby point so no word is cut in half."""
-    limit = int(max_sec * SR)
+    limit = int(max_sec * rate)
     if audio.size <= limit:
         return [audio]
-    out, pos, hop = [], 0, SR // 100
+    out, pos, hop = [], 0, rate // 100
     while audio.size - pos > limit:
         lo, hi = pos + int(limit * 0.6), pos + limit
         seg = audio[lo:hi]
@@ -232,10 +243,14 @@ def check_sample(path: str, ffmpeg: str = "ffmpeg") -> tuple:
     return True, f"{sec:.0f} s of speech found{note}.", audio
 
 
-def make_voice(name: str, audio: np.ndarray, cloner: "Cloner") -> str:
-    """Save a cloned voice from checked sample audio; returns the embedding path."""
+def make_voice(name: str, audio: np.ndarray, cloner: "Cloner", source: str = "", ffmpeg: str = "ffmpeg") -> str:
+    """Save a cloned voice from checked sample audio; returns the embedding path. With the source recording given, a clean
+    ~20 s sample.wav is kept too, for Chatterbox (which reads the script straight in the voice)."""
     d = _voices_dir() / _slug(name)
     d.mkdir(parents=True, exist_ok=True)
+    if source:
+        from . import chatterbox_engine
+        chatterbox_engine.save_reference(source, d / "sample.wav", ffmpeg)
     cloner.torch.save(cloner.embedding(audio).cpu(), str(d / "se.pt"))
     (d / "voice.json").write_text(json.dumps({"name": name, "sample_seconds": round(audio.size / SR, 1)}), encoding="utf-8")
     return str(d / "se.pt")

@@ -79,6 +79,7 @@ LANGUAGES = [
 
 
 NO_CLONE = "Off - use the voice above as it is"
+CLONE_ENGINES = ["OpenVoice - fast, any language", "Chatterbox Turbo - closest match, slower (English)"]
 
 
 def voices_for(language: str) -> list:
@@ -131,6 +132,7 @@ def build(view: Any, app: Any) -> None:
     view._vo_count_var = ctk.StringVar(value="0 words")
     view._vo_clone_var = ctk.StringVar(value=NO_CLONE)
     view._vo_clone_status = ctk.StringVar(value="")
+    view._vo_clone_engine_var = ctk.StringVar(value=CLONE_ENGINES[0])
 
     script = Card(view._body, title="Script", subtitle="The text to speak. Nothing starts until you press Generate.")
     script.grid(row=0, column=0, sticky="ew", pady=(0, 12))
@@ -172,15 +174,19 @@ def build(view: Any, app: Any) -> None:
     ctk.CTkLabel(clone.body, text="Narrate in", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="w", padx=(0, 12), pady=4)
     view._vo_clone_menu = ctk.CTkOptionMenu(clone.body, values=[NO_CLONE], variable=view._vo_clone_var, width=330)
     view._vo_clone_menu.grid(row=0, column=1, sticky="w", pady=4)
+    ctk.CTkLabel(clone.body, text="Clone engine", text_color=T.MUTED, font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", padx=(0, 12), pady=4)
+    ctk.CTkOptionMenu(clone.body, values=CLONE_ENGINES, variable=view._vo_clone_engine_var, width=330).grid(row=1, column=1, sticky="w", pady=4)
     cb = ctk.CTkFrame(clone.body, fg_color="transparent")
-    cb.grid(row=1, column=0, columnspan=3, sticky="w", pady=(6, 0))
+    cb.grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 0))
     make_button(cb, "Add a voice from a recording...", lambda: _add_clone(view, app), width=230).grid(row=0, column=0, padx=(0, 8))
     make_button(cb, "Remove selected", lambda: _remove_clone(view), width=140).grid(row=0, column=1)
     ctk.CTkLabel(clone.body, text="Use 20-60 seconds of one person speaking clearly, with no music or background noise. Only clone a voice that is "
-                 "yours or whose owner has agreed. The Voice above is still used for the words, pace and language; the clone changes how it sounds.",
-                 text_color=T.MUTED, font=ctk.CTkFont(size=11), anchor="w", justify="left", wraplength=620).grid(row=2, column=0, columnspan=3, sticky="w", pady=(6, 0))
+                 "yours or whose owner has agreed. OpenVoice: the Voice above reads the words and sets the pace and accent; the clone changes how it sounds. "
+                 "Chatterbox Turbo: reads the script itself in the cloned voice, with its accent and rhythm (English only, about 1x real time "
+                 "on this computer, one-time 5 GB setup). Voices added before Chatterbox need adding again for it.",
+                 text_color=T.MUTED, font=ctk.CTkFont(size=11), anchor="w", justify="left", wraplength=620).grid(row=3, column=0, columnspan=3, sticky="w", pady=(6, 0))
     ctk.CTkLabel(clone.body, textvariable=view._vo_clone_status, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
-                 wraplength=620).grid(row=3, column=0, columnspan=3, sticky="w", pady=(4, 0))
+                 wraplength=620).grid(row=4, column=0, columnspan=3, sticky="w", pady=(4, 0))
     clone.grid(row=2, column=0, sticky="ew", pady=(0, 12))
     _refresh_clones(view)
 
@@ -205,7 +211,7 @@ def build(view: Any, app: Any) -> None:
     ctk.CTkLabel(go.body, textvariable=view._vo_status_var, text_color=T.MUTED, font=ctk.CTkFont(size=12), anchor="w", justify="left",
                  wraplength=620).grid(row=3, column=0, sticky="w", pady=(6, 0))
 
-    for var in (view._vo_clone_var, view._vo_voice_var, view._vo_lang_var):
+    for var in (view._vo_clone_var, view._vo_voice_var, view._vo_lang_var, view._vo_clone_engine_var):
         var.trace_add("write", lambda *_a: _update_plan(view))
     _update_plan(view)
 
@@ -239,13 +245,21 @@ def _clone_names() -> list:
         return []
 
 
+def _use_chatterbox(view: Any) -> bool:
+    return getattr(view, "_vo_clone_engine_var", None) is not None and view._vo_clone_engine_var.get() == CLONE_ENGINES[1]
+
+
 def _update_plan(view: Any) -> None:
     """The line above Generate: which voice the next Generate will make."""
     try:
         clone = view._vo_clone_var.get()
         base = view._vo_voice_var.get()
-        view._vo_plan_var.set(f"Next Generate: plain voice - {base}" if clone == NO_CLONE
-                              else f"Next Generate: the voice of '{clone}'. ('{base}' only reads the words and sets the pace and accent.)")
+        if clone == NO_CLONE:
+            view._vo_plan_var.set(f"Next Generate: plain voice - {base}")
+        elif _use_chatterbox(view):
+            view._vo_plan_var.set(f"Next Generate: Chatterbox Turbo reads the script in the voice of '{clone}' (English, slower, closest match).")
+        else:
+            view._vo_plan_var.set(f"Next Generate: the voice of '{clone}'. ('{base}' only reads the words and sets the pace and accent.)")
     except Exception:
         pass
 
@@ -314,7 +328,7 @@ def _add_clone(view: Any, app: Any) -> None:
                 ui(finish, "The voice model could not be downloaded. Check the internet connection and try again.")
                 return
             ui(view._vo_clone_status.set, "Learning the voice...")
-            engine.make_voice(name, audio, engine.Cloner(ff))
+            engine.make_voice(name, audio, engine.Cloner(ff), source=path, ffmpeg=ff)
             ui(finish, f"Saved the voice '{name}'. {msg} Pick it under 'Narrate in', then Generate.", name)
         except Exception as exc:  # noqa: BLE001
             import traceback
@@ -535,6 +549,10 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
     voice, speed, pitch = _voice_id(view), round(view._vo_speed_var.get(), 2), int(view._vo_pitch_var.get())
     clone_name = view._vo_clone_var.get()
     clone_name = "" if clone_name == NO_CLONE else clone_name
+    chatter = bool(clone_name) and _use_chatterbox(view)
+    if chatter and not view._vo_lang_var.get().lower().startswith("english"):
+        view._vo_status_var.set("Chatterbox Turbo speaks English only. Pick English, or switch the clone engine to OpenVoice.")
+        return
     view._vo_cancel.clear()
     view._vo_progress.set(0)
     view._vo_status_var.set("Starting...")
@@ -557,6 +575,25 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
                 if view._vo_cancel.is_set():
                     raise RuntimeError("stopped")
                 ui(_progress, view, done, total)
+
+            if chatter:
+                from voice_clone import chatterbox_engine as cbx
+                from voice_clone import engine
+
+                se = dict(engine.list_voices()).get(clone_name)
+                if not se:
+                    raise RuntimeError(f"the saved voice '{clone_name}' is missing; add it again")
+                ref = cbx.reference_path(se)
+                if not ref.is_file():
+                    raise RuntimeError(f"'{clone_name}' was added before Chatterbox; add it again from its recording to use Chatterbox")
+                if not cbx.ensure_env(lambda t: ui(view._vo_status_var.set, t)):
+                    raise RuntimeError("Chatterbox could not be set up (no internet, pip is blocked, low disk space, or a packaged build)")
+                ui(view._vo_status_var.set, "Loading Chatterbox (the first time also downloads the model)...")
+                res = cbx.synthesize(text, str(out), str(ref), speed=speed, ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"),
+                                     progress=lambda d, t: ui(_progress, view, d, t, "Chatterbox: piece"),
+                                     cancel=view._vo_cancel.is_set)
+                ui(_done, view, app, res, preview, ws is not None)
+                return
 
             convert = None
             if clone_name:
