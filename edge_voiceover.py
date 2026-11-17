@@ -21,8 +21,8 @@ import tempfile
 from typing import Callable, Optional
 
 DEFAULT_VOICE = "en-US-AndrewNeural"
-MAX_CHUNK_CHARS = 1500
-PARALLEL = 4
+MAX_CHUNK_CHARS = 500     # small pieces + many at once: Edge makes each piece at only ~1x real time (2026-11-17)
+PARALLEL = 12            # 1500 chars x 4 = 3.1x real time; 400 x 15 = 9.5x, no failures (fresh text, 2026-11-17)
 RETRIES = 3
 PAUSE_SEC = 0.25
 

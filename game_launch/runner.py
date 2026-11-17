@@ -155,6 +155,9 @@ async def _tts(text: str, voice: str, path: Path) -> None:
     await edge_tts.Communicate(text, voice, rate="+6%").save(str(path))
 
 
+VOICE_PARALLEL = 10   # Edge lines fetched at once (fresh text: 15 at once had no failures)
+
+
 def voice_line(text: str, voice: str, folder: Path, log=lambda m: None) -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     f = folder / (hashlib.sha1(f"{voice}|{text}".encode()).hexdigest()[:16] + ".mp3")
@@ -188,12 +191,20 @@ def prepare(csv_path: str, trailers_dir: str, work: str, voice: str = DEFAULT_VO
                 trailers[s["game"]] = {"path": str(f), "cuts": detect_cuts(f, work_d / "cache"), "seconds": duration(f)}
                 if cancel():
                     raise Cancelled()
-    for i, ln in enumerate(plan["lines"]):
-        if cancel():
-            raise Cancelled()
-        progress(0.3 + 0.7 * i / max(1, len(plan["lines"])), f"voice {i + 1}/{len(plan['lines'])}")
-        f = voice_line(ln["text"], voice, work_d / "voice", log)
-        ln["vo"], ln["vo_dur"] = str(f), duration(f)
+    # Edge makes each line at about real time (5-8 s for a short line, 2026-11-17), so ask for many at once
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    lines = plan["lines"]
+    with ThreadPoolExecutor(VOICE_PARALLEL) as ex:
+        futs = {ex.submit(voice_line, ln["text"], voice, work_d / "voice", log): ln for ln in lines}
+        for n, fut in enumerate(as_completed(futs), 1):
+            if cancel():
+                for x in futs:
+                    x.cancel()
+                raise Cancelled()
+            progress(0.3 + 0.7 * n / max(1, len(lines)), f"voice {n}/{len(lines)}")
+            f = fut.result()
+            futs[fut]["vo"], futs[fut]["vo_dur"] = str(f), duration(f)
     data = {"csv": str(csv_path), "trailers_dir": str(trailers_dir), "voice": voice, "plan": plan, "trailers": trailers}
     (work_d / PLAN_FILE).write_text(json.dumps(data, indent=1), encoding="utf-8")
     shots, _vo, total = timeline(plan)

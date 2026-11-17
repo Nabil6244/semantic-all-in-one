@@ -56,7 +56,7 @@ async def speak(text, v, mp3):
             await asyncio.sleep(2.0)
 
 
-async def speak_all(jobs, limit=6):
+async def speak_all(jobs, limit=12):   # Edge makes each line at ~real time: many at once (2026-11-17)
     sem = asyncio.Semaphore(limit)
 
     async def one(j):

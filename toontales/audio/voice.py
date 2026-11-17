@@ -138,6 +138,36 @@ def speak_words(who, text, out_dir, dur=None, cast_path=None):
     return words(text, v["name"], v.get("rate", "+0%"), out_dir, v.get("pitch", "+0Hz"), dur=dur)
 
 
+VOICE_PARALLEL = 10   # Edge makes each line at ~real time (5-8 s each, 2026-11-17): fetch many at once
+
+
+def _parallel(fn, jobs):
+    """Run fn(*job) for every distinct job at once; the results land in the caches, so the in-order calls after are instant.
+    A failed job is left for the in-order call, which retries it and raises its own clear error."""
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = list(dict.fromkeys(jobs))
+    if len(jobs) < 2:
+        return
+
+    def safe(job):
+        try:
+            fn(*job)
+        except Exception:  # noqa: BLE001
+            pass
+    with ThreadPoolExecutor(VOICE_PARALLEL) as ex:
+        list(ex.map(safe, jobs))
+
+
+def prefetch(lines, out_dir, cast_path=None):
+    """lines = [(speaker, text)]: make every line's wav + mouth cues at once."""
+    _parallel(lambda who, text: speak(who, text, out_dir, cast_path), lines)
+
+
+def prefetch_words(lines, out_dir, cast_path=None):
+    """lines = [(speaker, text, dur)]: fetch every line's word timings at once."""
+    _parallel(lambda who, text, dur: speak_words(who, text, out_dir, dur=dur, cast_path=cast_path), lines)
+
+
 def shape_at(cues, t):
     for c in cues:
         if c["t0"] <= t < c["t1"]:

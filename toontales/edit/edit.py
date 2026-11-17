@@ -341,6 +341,7 @@ def edit(plan_path, draft=False):
     seq = []
     ch = S.channel(plan)
     phrases = ch.get("captions") == "phrase"  # Channel 5: calm phrase captions, no punch-ins, no title slab
+    voice.prefetch_words([(c["speaker"], c["text"], c["voice_dur"]) for c in clips], BUILD / "voice")
     for i, c in enumerate(clips):
         ws = voice.speak_words(c["speaker"], c["text"], BUILD / "voice", dur=c["voice_dur"])
         punch = i == 0 or bool(c.get("punch")) or (c.get("overlay") or {}).get("type") == "stamp"

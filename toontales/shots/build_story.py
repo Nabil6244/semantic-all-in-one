@@ -91,6 +91,7 @@ def build(plan_path, only=None, draft=False, rough=False):
     CACHE.mkdir(parents=True, exist_ok=True)
     eng = engine_hash()
     clips, jobs = [], []
+    voice.prefetch([(s["speaker"], s["text"]) for s in plan["shots"]], BUILD / "voice")
     for i, shot in enumerate(plan["shots"]):
         line = voice.speak(shot["speaker"], shot["text"], BUILD / "voice")
         if shot.get("screen"):  # trading-screen shot: drawn in Python (edit/chart.py), no Blender
