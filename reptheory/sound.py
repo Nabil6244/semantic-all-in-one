@@ -25,6 +25,13 @@ MUSIC_UNDER_VOICE_LU, MUSIC_GAIN_RANGE = 15.0, (0.02, 0.6)      # 12 -> 15 (owne
 TRANSITION_SFX = ("fast_whoosh", "soft_transition", "deep_thud")      # the transition / hit sounds
 TRANSITION_SCALE, SFX_SCALE, AMBIENCE_SCALE = 0.5, 0.7, 0.5      # owner, 2026-11-11: transition and background sounds too loud (-6 dB, other effects -3 dB, scene beds -6 dB)
 QUIET_PREFIX = "rtq_"
+# Elder Health Theory is a calm clinic look (owner, 2026-11-17: "loud whoosh and sounds" in the Gimli-night Elder render: effects stood 7-15 dB over the
+# voice around them and a whoosh played on almost every scene change). Elder only: a whoosh only at a chapter, small effects far quieter, ticking
+# sounds dropped, at most 3 effects in 10 s, and a calm music bed (never "Stormfront").
+CALM_THEMES = ("elder",)
+CALM_TRANSITION_SCALE, CALM_SFX_SCALE, CALM_MAX_PER_WINDOW = 0.22, 0.35, 3
+CALM_DROP = ("counter_ticks", "clock_ticking", "deep_thud", "fast_whoosh")      # loud or busy sounds a calm health video never plays (a chapter whoosh is the soft one)
+CALM_MOOD = "wonder"
 
 def _quiet(sound_id: str, kind: str = "sfx") -> str:
     """A quieter copy of a pakMap sound for these styles only (the shared vocabulary in pakmap/sounds.py is untouched). Returns its id."""
@@ -32,10 +39,16 @@ def _quiet(sound_id: str, kind: str = "sfx") -> str:
     from pakmap.sounds import SOUNDS
     s = SOUNDS.get(sound_id)
     if s is None or s.kind == "composite": return sound_id
-    scale = AMBIENCE_SCALE if kind == "ambience" else TRANSITION_SCALE if sound_id in TRANSITION_SFX else SFX_SCALE
-    qid = QUIET_PREFIX + sound_id
+    from . import theme as T
+    calm = T.THEME in CALM_THEMES
+    scale = AMBIENCE_SCALE if kind == "ambience" else (CALM_TRANSITION_SCALE if calm else TRANSITION_SCALE) if sound_id in TRANSITION_SFX else (CALM_SFX_SCALE if calm else SFX_SCALE)
+    qid = QUIET_PREFIX + ("calm_" if calm else "") + sound_id
     if qid not in SOUNDS: SOUNDS[qid] = dataclasses.replace(s, id=qid, volume=s.volume * scale)
     return qid
+
+def _mood():
+    from . import theme as T
+    return "mystery" if T.THEME == "jung" else CALM_MOOD if T.THEME in CALM_THEMES else None
 
 def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str, ffmpeg: str = "ffmpeg", log: Callable[[str], None] = lambda m: None):
     """The music volume that puts the bed MUSIC_UNDER_VOICE_LU under this voiceover (2026-11-02: a fixed volume left the music as loud as a quiet voice in every
@@ -48,11 +61,11 @@ def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str
     quiet = Path(work) / "rt_silence.wav"
     subprocess.run([ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", f"{duration:.3f}", str(quiet)], check=True, capture_output=True, timeout=300)
     from . import theme as T
-    bed_only, _ = add_music(quiet, Path(work) / "rt_bed_only.wav", duration, text, seed=seed, ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN, mood="mystery" if T.THEME == "jung" else None)      # the bed that will play
+    bed_only, _ = add_music(quiet, Path(work) / "rt_bed_only.wav", duration, text, seed=seed, ffmpeg=ffmpeg, log=log, gain=MUSIC_GAIN, mood=_mood())      # the bed that will play
     if not bed_only: return None
     bed = measure_loudness(str(bed_only), ffmpeg)["lufs"]
     if not (voice > -70 and bed > -70): return None
-    under = MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME == "survival" else 0.0)      # Survival: the bed 3 dB further under the voice (owner, 2026-11-10: a bit too loud)
+    under = MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME in ("survival",) + CALM_THEMES else 0.0)      # Survival: the bed 3 dB further under the voice (owner, 2026-11-10: a bit too loud)
     g = MUSIC_GAIN * 10 ** ((voice - under - bed) / 20)
     return max(MUSIC_GAIN_RANGE[0], min(MUSIC_GAIN_RANGE[1], g)), voice, bed
 
@@ -64,6 +77,11 @@ def cues(scenes: List[dict]) -> List[dict]:
         if e["type"] == "primary": out.append({"t": e["t"], "sfx": "fast_whoosh" if e["t"] in chapter_at else "soft_transition", "source": e["what"]})
         elif e["meaningful"] and e["what"] in KIND_SFX: out.append({"t": e["t"], "sfx": KIND_SFX[e["what"]], "source": e["what"]})
     from . import theme as T
+    calm = T.THEME in CALM_THEMES
+    if calm:      # Elder: a soft transition only where a chapter starts; no whoosh on every scene change; busy/loud effects dropped
+        out = [dict(c, sfx="soft_transition") if c["sfx"] == "fast_whoosh" and c["t"] in chapter_at else c for c in out]
+        out = [c for c in out if (c["sfx"] != "soft_transition" or c["t"] in chapter_at) and c["sfx"] not in CALM_DROP]
+    per_window = CALM_MAX_PER_WINDOW if calm else MAX_PER_WINDOW
     if T.THEME == "jung":      # Carl Jung Theory: a low hit when a quote card or a chapter card lands
         out += [{"t": float(sc["start"]) + 0.05, "sfx": "deep_thud", "source": "quote" if sc["kind"] == "quote" else "chapter"} for sc in scenes if sc["kind"] == "quote" or sc.get("chapter_card")]
     kept: List[dict] = []
@@ -72,7 +90,7 @@ def cues(scenes: List[dict]) -> List[dict]:
         if kept and c["t"] - kept[-1]["t"] < MIN_GAP_S:
             if c["sfx"] in MAJOR and kept[-1]["sfx"] not in MAJOR: kept.pop()      # a major sound replaces a small one just before it
             else: continue
-        if c["sfx"] not in MAJOR and sum(1 for k in kept if c["t"] - k["t"] < WINDOW_S) >= MAX_PER_WINDOW: continue
+        if c["sfx"] not in MAJOR and sum(1 for k in kept if c["t"] - k["t"] < WINDOW_S) >= per_window: continue
         kept.append(c)
     return kept
 
@@ -98,10 +116,10 @@ def mix(scenes: List[dict], voiceover: str, work: Path, duration: float, title: 
         gain = MUSIC_GAIN
         try:
             got = music_gain(voiceover, work, duration, text, title or text[:60], ffmpeg, log)
-            if got: from . import theme as T; gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME == 'survival' else 0.0):.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
+            if got: from . import theme as T; gain = got[0]; notes.append(f"music bed {MUSIC_UNDER_VOICE_LU + (3.0 if T.THEME in ("survival",) + CALM_THEMES else 0.0):.0f} LU under the voice (voice {got[1]:.1f} LUFS, music volume {gain:.3f})")
         except Exception as ex: notes.append(f"music level kept at its default ({type(ex).__name__}: {ex})")
         from . import theme as T
-        mood = "mystery" if T.THEME == "jung" else None      # Carl Jung Theory: the dark beds (Dark Fog, Interloper), never "wonder"
+        mood = _mood()      # Carl Jung Theory: the dark beds (Dark Fog, Interloper); Elder: calm "wonder" beds
         with_music, credits = add_music(Path(path), work / "rt_audio_music.wav", duration, text, seed=title or text[:60], ffmpeg=ffmpeg, log=log, gain=gain, mood=mood)
         if with_music: path = str(with_music); notes += [f"music: {c}" for c in credits]
     except Exception as ex: notes.append(f"music skipped ({type(ex).__name__}: {ex})")

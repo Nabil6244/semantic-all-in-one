@@ -1008,8 +1008,33 @@ def _date_of(text: str) -> str:
     # 'the largest warship lost since 1982' compares with a year: no date card (Moskva 044 showed a '1982' card)
     m = next((x for x in _DATE.finditer(text) if not _COMPARISON_YEAR.search(text[:x.end()])), None)
     if not m:
-        return ""
+        return _day_month_of(text)
     return m.group(2) if m.group(2) else m.group(0).strip(" ,")
+
+
+_DAY_ORD = {w: i for i, w in enumerate(("first second third fourth fifth sixth seventh eighth ninth tenth eleventh twelfth thirteenth fourteenth fifteenth "
+                                    "sixteenth seventeenth eighteenth nineteenth twentieth").split(), 1)}
+_DAY_ORD.update({"thirtieth": 30, "thirty first": 31, "thirty-first": 31})
+_DAY_ORD.update({f"twenty{sep}{w}": 20 + n for w, n in list(_DAY_ORD.items()) if n < 10 for sep in (" ", "-")})
+_DAY_ORD_RX = "|".join(sorted((re.escape(k) for k in _DAY_ORD), key=len, reverse=True))
+_DAY_MONTH = re.compile(r"\bthe\s+(" + _DAY_ORD_RX + r"|\d{1,2}(?:st|nd|rd|th))\s+of\s+" + _MONTHS + r"\b|\b" + _MONTHS + r"\s+(\d{1,2})(?:st|nd|rd|th)?\b(?!\s*,?\s*(?:19|20)\d{2})"
+                        r"|\b(\d{1,2})(?:st|nd|rd|th)?\s+" + _MONTHS + r"\b(?!\s*,?\s*(?:19|20)\d{2})", re.IGNORECASE)
+
+
+def _day_month_of(text: str) -> str:
+    """A day and month with no year, as narrators say them ('on the twenty fifth of April', 'May 21', '21 May') -> '25 April'; else ''.
+    (owner, 2026-11-17: the Falklands script dated every event this way and every CSV date card fell back to text.)"""
+    m = _DAY_MONTH.search(text or "")
+    if not m:
+        return ""
+    if m.group(1):
+        w = m.group(1).lower()
+        day, month = (_DAY_ORD.get(w) or int(re.sub(r"\D", "", w))), m.group(2)
+    elif m.group(3):
+        day, month = int(m.group(4)), m.group(3)
+    else:
+        day, month = int(m.group(5)), m.group(6)
+    return f"{day} {month.capitalize()}" if 1 <= day <= 31 else ""
 
 
 def _after_date(text: str, date: str) -> str:
@@ -1017,6 +1042,11 @@ def _after_date(text: str, date: str) -> str:
     the words before it when the date ends the sentence; never the date again."""
     i = text.lower().find(date.lower())
     rest = text[i + len(date):] if i >= 0 else text
+    dm = _DAY_MONTH.search(text) if i < 0 else None
+    if dm:                                         # a spoken date ('on the twenty fifth of April'): the words after it
+        rest = text[dm.end():]
+        if len(rest.strip(" ,;:.-").split()) < 3:
+            rest = re.sub(r"\b(?:on|in|by)\s*$", "", text[:dm.start()].strip(" ,")).strip(" ,")
     h = _phrase_or_lead(rest.strip(" ,;:.-"))
     if not h and i > 0:
         h = _phrase_or_lead(re.sub(r"\b(in|by|since|until|on)\s*$", "", text[:i].strip(" ,"), flags=re.IGNORECASE))

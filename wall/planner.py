@@ -467,8 +467,9 @@ def _camera(cells: List[_Cell], items: List[Dict[str, Any]], dur: float, has_ent
     fs_spans = [c.fs for c in cells if c.fs]
     body: List[Tuple[float, Dict[str, Any]]] = []
     for c in cells:
+        ready = min([float(i.get("t_in", c.t)) for i in c.items if i.get("t_in") is not None] or [c.t])
         for t, x, y, z in c.keys:
-            body.append((t, {"t": t, "x": x, "y": y, "z": z}))
+            body.append((t, {"t": t, "x": x, "y": y, "z": z, "_ready": ready}))
         if c.fs:
             vid, f0, f1 = c.fs
             body.append((f0, {"t": f0, "fs": vid}))
@@ -497,7 +498,28 @@ def _camera(cells: List[_Cell], items: List[Dict[str, Any]], dur: float, has_ent
     elif cells:
         c = cells[-1]
         keys.append({"t": round(dur, 3), "x": c.x, "y": c.y, "z": 1.1})
-    return _hold_then_move(keys, t_first)
+    return _hold_then_move(_wait_for_items(keys), t_first)
+
+
+READY_LEAD_S, MIN_MOVE_S = 0.25, 0.5
+
+
+def _wait_for_items(keys: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The camera never sets off for a part of the wall before anything is on it (owner, 2026-11-17: the Falklands film showed
+    ~0.6 s of empty wall at 2:02 - the camera reached the spot where the next photo would drop, before it dropped). The previous
+    framing holds (a slow push-in) until just before the next cell's first item lands, then the camera moves."""
+    out: List[Dict[str, Any]] = []
+    for k in keys:
+        ready = k.pop("_ready", None)
+        prev = out[-1] if out else None
+        if ready is not None and prev is not None and "x" in prev and not prev.get("edge"):
+            go = min(float(ready) - READY_LEAD_S, float(k["t"]) - MIN_MOVE_S)
+            if go > float(prev["t"]) + 0.05:
+                hold = dict(prev, t=round(go, 3))
+                hold["z"] = round(float(prev["z"]) * min(1.05, 1.0 + 0.02 * (go - float(prev["t"]))), 4)
+                out.append(hold)
+        out.append(k)
+    return out
 
 
 def _hold_then_move(keys: List[Dict[str, Any]], t_from: float) -> List[Dict[str, Any]]:

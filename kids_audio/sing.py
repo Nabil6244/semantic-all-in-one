@@ -3,7 +3,7 @@
 python3 -m kids_audio.sing job.json
 job = {"voice": "line.mp3", "words": [{"text","t0","t1"}...] (seconds in the voice file),
        "tune": [[[midi, beats], ...], ...] (one list of notes per word; a word with two notes has two syllables),
-       "bpm": 110, "out": "sung.wav", "transpose": optional semitones}
+       "bpm": 110, "out": "sung.wav", "transpose": optional semitones, "octave_only": optional (keep the written key)}
 Prints {"file", "dur", "words": [{"text","t0","t1"}] (seconds from the song start), "beat": s, "transpose": semitones}.
 
 Method: pitch-synchronous overlap-add. Each pitch period of the voice is cut out with a window and re-placed at the spacing of
@@ -151,6 +151,8 @@ def sing(job):
     home = 12 * np.log2(np.median(voiced) / 440.0) + 69 if len(voiced) else 60
     # a song passes one "transpose" for all its lines, so the key stays the same from line to line
     transpose = int(job["transpose"]) if job.get("transpose") is not None else int(round(home - np.median([n[0] for n in all_notes])))
+    if job.get("octave_only") and job.get("transpose") is None:   # over a backing track in a fixed key: move by whole octaves only
+        transpose = 12 * int(round(transpose / 12))
     marks = _pitch_marks(voice, f0)
     total = sum(n[1] for w in tune for n in w) * beat
     out, norm = np.zeros(int((total + 0.5) * SR)), np.zeros(int((total + 0.5) * SR))

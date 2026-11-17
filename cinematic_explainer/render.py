@@ -70,8 +70,12 @@ def filter_graph(shots: Sequence[Shot], layers: Sequence[Layer]) -> str:
     n = len(shots)
     parts = []
     for i, s in enumerate(shots):
-        parts.append(f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},setsar=1,"
-                     f"trim=duration={s.end - s.start:.3f},setpts=PTS-STARTPTS[v{i}]")
+        # each shot owns exactly the frames between its start and end on the film's frame grid: trim=duration rounded every
+        # shot UP to a whole frame, so the footage drifted up to a frame later per shot and a full-frame card's black base
+        # showed for 1-5 frames after the card had ended (Aviation Gimli render). A clip that runs short holds its last frame.
+        n_frames = max(1, int(round(s.end * FPS)) - int(round(s.start * FPS)))
+        parts.append(f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},setpts=PTS-STARTPTS,fps={FPS},setsar=1,"
+                     f"tpad=stop_mode=clone:stop={2 * FPS},trim=end_frame={n_frames},setpts=PTS-STARTPTS[v{i}]")
     parts.append("".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[base]")
     spans = dim_spans(layers)
     last = "base"

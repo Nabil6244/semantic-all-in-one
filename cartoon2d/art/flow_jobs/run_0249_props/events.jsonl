@@ -1,0 +1,125 @@
+{"type":"STATE","msg":""}
+{"type":"INFO","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Working 1/4 (saved 0) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"BATCH_PROGRESS","status":"running","index":8,"msg":"Working 1/4 (saved 0) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"BATCH_PROGRESS","status":"running","index":4,"msg":"Working 1/4 (saved 0) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Downloading 001.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":0,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/001.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":0,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/001.png","msg":"Saved 1/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":1,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Working 2/4 (saved 1) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":4,"msg":"Downloading 005.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":4,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/005.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":4,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/005.png","msg":"Saved 1/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":5,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":5,"msg":"Working 2/4 (saved 1) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":8,"msg":"Downloading 009.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":8,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/009.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":8,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/009.png","msg":"Saved 1/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":9,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":9,"msg":"Working 2/4 (saved 1) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Downloading 002.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":1,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/002.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":1,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/002.png","msg":"Saved 2/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":2,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Working 3/4 (saved 2) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":5,"msg":"Downloading 006.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":5,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/006.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":5,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/006.png","msg":"Saved 2/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":6,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":6,"msg":"Working 3/4 (saved 2) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Downloading 003.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":2,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/003.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":2,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/003.png","msg":"Saved 3/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":3,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":9,"msg":"Downloading 010.png…"}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":9,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/010.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":9,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/010.png","msg":"Saved 2/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":10,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":3,"msg":"Working 4/4 (saved 3) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":10,"msg":"Working 3/4 (saved 2) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":6,"msg":"Downloading 007.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":6,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/007.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":6,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/007.png","msg":"Saved 3/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":7,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":7,"msg":"Working 4/4 (saved 3) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":10,"msg":"Downloading 011.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":10,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/011.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":10,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/011.png","msg":"Saved 3/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":11,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":11,"msg":"Working 4/4 (saved 3) · \"2D cartoon sticker for a preschool TV sh…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":3,"msg":"Downloading 004.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":3,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/004.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":3,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-7-3ff7a2/004.png","msg":"Saved 4/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":7,"msg":"Downloading 008.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":7,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/008.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":7,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-8-a6d0b7/008.png","msg":"Saved 4/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":11,"msg":"Downloading 012.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":11,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/012.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":11,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_props/account-9-882989/012.png","msg":"Saved 4/4 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"GENERATE_DONE","msg":""}

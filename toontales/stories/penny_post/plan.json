@@ -1,0 +1,1084 @@
+{
+ "id": "penny_post",
+ "title": "Why a Servant Refused a Letter From Family",
+ "topic": "Receiver-pays post and the Coleridge letter story behind the 1840 Penny Post",
+ "hook_title": "WHY REFUSE THE LETTER?",
+ "keywords": [
+  "letter",
+  "shilling",
+  "penny",
+  "post",
+  "Coleridge",
+  "marks",
+  "sender",
+  "pays"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Uniform_Penny_Post",
+  "https://victorianweb.org/history/pennypos.html",
+  "https://en.wikipedia.org/wiki/Penny_Black"
+ ],
+ "places": {
+  "inn": {
+   "world": "victorian_square",
+   "remove": [
+    "cart"
+   ],
+   "prompt": "A Victorian village street with an inn at sunset"
+  },
+  "post": {
+   "world": "clock_shop",
+   "prompt": "A Victorian post office counter with letters and a wall clock"
+  },
+  "yard": {
+   "world": "victorian_square",
+   "prompt": "A Victorian inn yard with a market cart at sunset"
+  },
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian railway platform at sunset with a mail train"
+  },
+  "line": {
+   "world": "railway_line",
+   "prompt": "A mail train crossing open country at sunset, telegraph poles"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A servant gets a letter from family, and hands it straight back.",
+   "set": "inn",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 1.0
+      },
+      {
+       "do": "cross",
+       "at": 2.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_pike",
+     "text": "TO THE INN"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "No letter, and yet so pleased. Why?",
+   "set": "inn",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.2
+      },
+      {
+       "do": "hips",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "WHY?"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Britain, the 1830s. Whoever receives the letter pays for it.",
+   "set": "post",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_pike",
+     "text": "PAY ON ARRIVAL"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "RECEIVER PAYS"
+   },
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Priced by distance and by sheet. Often a shilling.",
+   "set": "post",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_pike"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "1 SHILLING"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "For a worker, that's most of a day's pay.",
+   "set": "post",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.2
+      },
+      {
+       "do": "sad",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "A DAY'S PAY"
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Poor families could hardly afford to hear from home.",
+   "set": "yard",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shake_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_ned",
+     "text": "FROM HOME"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "A poet walking by, Samuel Taylor Coleridge, feels sorry.",
+   "set": "inn",
+   "camera": "two_shot",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.7
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "COLERIDGE"
+   },
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "vic_alder",
+   "text": "Here, I'll pay for it!",
+   "set": "inn",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_alder"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "He hands the postman the shilling himself.",
+   "set": "yard",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_pike"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But the servant doesn't look grateful at all.",
+   "set": "inn",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.2
+      },
+      {
+       "do": "shake_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s10"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "vic_ned",
+   "text": "Sir, I never needed to open it.",
+   "set": "inn",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Here's the trick. The sheet inside was blank.",
+   "set": "inn",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_ned",
+     "text": "BLANK"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "EMPTY"
+   },
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Marks on the outside told her the brother was well.",
+   "set": "post",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_ned",
+     "text": "x  o  x"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "CODE"
+   },
+   "id": "s13"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Read the outside. Refuse it. Pay nothing.",
+   "set": "inn",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Plenty of people did it.",
+   "set": "station",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "FREE NEWS"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Refused. Refused. Refused.",
+   "set": "post",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_pike",
+     "text": "REFUSED"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "And the post office earns nothing.",
+   "set": "post",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.2
+      },
+      {
+       "do": "sigh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "0d"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Mail trains hauled letters nobody paid for.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "UNPAID"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s18",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Reformer Rowland Hill had a simple fix.",
+   "set": "post",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "SENDER PAYS"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 1.5
+    }
+   ],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "twist",
+   "speaker": "vic_pike",
+   "text": "The sender pays. Before it goes!",
+   "set": "post",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Make it cheap, and far more people will write.",
+   "set": "yard",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "CHEAP = MORE LETTERS"
+   },
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "In 1840 came the Penny Post, and then the Penny Black.",
+   "set": "post",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "vic_pike",
+     "text": "PENNY BLACK"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "1d"
+   },
+   "mood": "upbeat",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "One penny, any distance, paid up front.",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_ned",
+     "text": "1d PAID"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s23"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "In one year, the number of letters more than doubled.",
+   "set": "line",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.2
+      },
+      {
+       "do": "jump",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "x2"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s24"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "So nobody needed to hand back a family letter again.",
+   "set": "inn",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 1.0
+      },
+      {
+       "do": "wave",
+       "at": 2.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_pike",
+     "text": "TO THE INN"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s25"
+  }
+ ],
+ "est_total": 55.38
+}

@@ -1,0 +1,275 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "ur-PK-UzmaNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "lily": {
+   "voice": "ur-PK-UzmaNeural",
+   "rate": "+4%",
+   "pitch": "+38Hz"
+  },
+  "ollie": {
+   "voice": "ur-PK-AsadNeural",
+   "rate": "+8%",
+   "pitch": "+48Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 6.0,
+ "lines": [
+  {
+   "who": "ollie",
+   "text": "واہ! شہد دا مرتبان! ایہہ سارا شہد میرا اے!",
+   "act": "hands_up",
+   "cam": "cu:ollie",
+   "place": "home",
+   "pic": "honey",
+   "sfx": "pop",
+   "face": "happy",
+   "chapter": "Noraiz te shahad"
+  },
+  {
+   "who": "molly",
+   "text": "السلام علیکم بچیو! میں آں تہاڈی مبین امی۔ اج اسیں اک سوہنی جہی کہانی سناں گے!",
+   "act": "wave",
+   "cam": "host",
+   "goal": true,
+   "title": "Noraiz te\nShahad"
+  },
+  {
+   "who": "lily",
+   "text": "السلام علیکم! میں حورین آں!",
+   "act": "wave",
+   "cam": "kids",
+   "face": "happy"
+  },
+  {
+   "who": "ollie",
+   "text": "تے میں نوریز آں! مینوں شہد بڑا چنگا لگدا اے!",
+   "act": "cheer",
+   "cam": "kids",
+   "face": "happy",
+   "sfx": "boing"
+  },
+  {
+   "who": "molly",
+   "text": "اج اسیں باغ چوں مٹھے مٹھے سیب توڑاں گے۔ چلو، باغ چلدے آں!",
+   "act": "point",
+   "cam": "host",
+   "pic": "apple",
+   "card": "Seb"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "چلو، باغ چلدے آں!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run"
+   },
+   "cam": "group",
+   "place": "orchard",
+   "sfx": "whoosh",
+   "chapter": "Baagh vich",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "ویکھو، تن سیب! آؤ رل کے گنیے!",
+   "your_turn": true,
+   "act": "count",
+   "cam": "host",
+   "pic": "apple",
+   "card": "3",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "اک، دو تے تن! سیباں نال خوش اے من!",
+   "chant": true,
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap"
+   },
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": "ollie",
+   "text": "ایہہ سارے سیب میرے نیں! میں سارے کھاواں گا!",
+   "act": "hands_up",
+   "cam": "kids",
+   "pic": "apple"
+  },
+  {
+   "who": "ollie",
+   "text": "تے سارا شہد وی میرا! کسے نوں نئیں دیواں گا!",
+   "act": "stomp",
+   "cam": "cu:ollie",
+   "pic": "honey",
+   "sfx": "boing"
+  },
+  {
+   "who": "lily",
+   "text": "پر مینوں وی تے بھکھ لگی اے...",
+   "act": "talk",
+   "cam": "kids",
+   "face": "sad",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "رُکو رُکو بچیو! جے اک ای سب کجھ کھا لوے، تے دوجا اداس ہو جاوے گا۔",
+   "act": "open",
+   "cam": "host",
+   "face": "think",
+   "chapter": "Ral mil ke"
+  },
+  {
+   "who": "molly",
+   "text": "بچیو، تسیں دسو، کی سانوں رل مل کے کھانا چاہیدا اے؟",
+   "your_turn": true,
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.0
+  },
+  {
+   "who": "molly",
+   "text": "ہاں جی! شاباش!",
+   "act": "clap",
+   "cam": "host",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "تن سیب، تے اسیں تن جنے۔ تے ہر اک نوں کنے سیب ملن گے؟",
+   "your_turn": true,
+   "act": "count",
+   "cam": "host",
+   "card": "3",
+   "gap_after": 2.0
+  },
+  {
+   "who": "lily",
+   "text": "اک اک سیب!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "1",
+   "face": "happy",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "بالکل ٹھیک! اک سیب حورین دا، اک نوریز دا، تے اک امی دا!",
+   "act": "count",
+   "cam": "group",
+   "pic": "apple"
+  },
+  {
+   "who": "ollie",
+   "text": "اوہو... رل کے کھان دا تے ہور وی مزہ اے!",
+   "act": "talk",
+   "cam": "kids",
+   "face": "think"
+  },
+  {
+   "who": "ollie",
+   "text": "تے میں ساریاں نوں تھوڑا تھوڑا شہد وی دیواں گا! سیب تے شہد، واہ!",
+   "act": "giggle",
+   "cam": "cu:ollie",
+   "pic": "honey",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "واہ! سیب تے شہد!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay"
+   },
+   "cam": "group",
+   "fx": "hearts",
+   "sfx": "success"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "رل کے کھاؤ، رل کے کھاؤ، خوشیاں سب نوں ونڈو!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance"
+   },
+   "cam": "group",
+   "fx": "confetti",
+   "chapter": "Gaana",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "بچیو، اج اسیں سکھیا کہ جدوں اسیں چیزاں ونڈنے آں، تے سارے خوش ہوندے نیں۔",
+   "act": "open",
+   "cam": "host",
+   "calm": true,
+   "card": "Share",
+   "chapter": "Sabaq"
+  },
+  {
+   "who": "molly",
+   "text": "تسیں وی اج اپنے بہن بھراواں نال کجھ ونڈنا، ٹھیک اے؟",
+   "your_turn": true,
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "ٹھیک اے امی!",
+   "act": "thumbs_up",
+   "cam": "kids",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie"
+   ],
+   "text": "اللہ حافظ بچیو! فیر ملاں گے!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave"
+   },
+   "cam": "group",
+   "endcard": "Allah Hafiz!\nFer milange!",
+   "sfx": "success"
+  }
+ ]
+}

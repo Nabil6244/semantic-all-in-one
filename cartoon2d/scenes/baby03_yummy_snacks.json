@@ -1,0 +1,1062 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-16%",
+   "pitch": "+6Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-8%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 92,
+ "lead_in": 0.6,
+ "gap": 0.6,
+ "tail": 22.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Yum yum! Peekaboo! Is it snack time?",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "place": "pistachio",
+   "sfx": "pop",
+   "fx": "bubbles",
+   "face": "happy",
+   "chapter": "Peekaboo!"
+  },
+  {
+   "who": "molly",
+   "text": "Hi, baby! Hello! Today we will say yummy food words!",
+   "act": "wave",
+   "cam": "face:molly",
+   "chapter": "Hello song",
+   "goal": true,
+   "sign": "bye"
+  },
+  {
+   "who": "molly",
+   "text": "Can you wave hello? Hi!",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "wave",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "face:molly"
+  },
+  {
+   "who": "molly",
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "clap",
+   "cam": "face:molly",
+   "gap_after": 0.6
+  },
+  {
+   "who": "bobo",
+   "text": "Hi, baby! I'm Bobo! I'm hungry!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Baby talk, baby talk, la la la! Learning words with Ms Molly!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "title": "Yummy Snacks\nwith Ms Molly!",
+   "fx": "bubbles"
+  },
+  {
+   "who": "molly",
+   "text": "Let's make some yummy sounds. Watch my mouth.",
+   "act": "point",
+   "cam": "face:molly",
+   "chapter": "Mmm, yum, num"
+  },
+  {
+   "who": "molly",
+   "text": "Mmm... mmm... mmm.",
+   "act": "open",
+   "cam": "face:molly",
+   "card": "mmm",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Your turn. Mmm, mmm.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "mmm",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Mmm! So yummy!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Yum... yum... yum.",
+   "act": "open",
+   "cam": "face:molly",
+   "card": "yum",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Your turn. Yum, yum.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "yum",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Yum! So yummy!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Num... num... num.",
+   "act": "open",
+   "cam": "face:molly",
+   "card": "num",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Your turn. Num, num.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "num",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Num! So yummy!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Let's find some fruit!",
+   "act": "open",
+   "cam": "group",
+   "place": "coral",
+   "sfx": "sparkle",
+   "chapter": "Fruit"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A apple!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_apple",
+   "card": "apple",
+   "sfx": "pop",
+   "chapter": "Apple"
+  },
+  {
+   "who": "molly",
+   "text": "Apple... apple... apple.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "photo_apple",
+   "card": "apple",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say apple?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "apple",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Apple! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Apple.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "apple",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A banana!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_banana",
+   "card": "banana",
+   "sfx": "pop",
+   "chapter": "Banana"
+  },
+  {
+   "who": "molly",
+   "text": "Banana... banana... banana.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "photo_banana",
+   "card": "banana",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say banana?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "banana",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Banana! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Banana.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "banana",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "Peel, peel, peel! Yum!",
+   "act": "sign_eat",
+   "cam": "cu:bobo",
+   "sign": "eat",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A strawberry!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "strawberry",
+   "card": "strawberry",
+   "sfx": "pop",
+   "chapter": "Strawberry"
+  },
+  {
+   "who": "molly",
+   "text": "Strawberry... strawberry... strawberry.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "strawberry",
+   "card": "strawberry",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say strawberry?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "strawberry",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Strawberry! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Strawberry.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "strawberry",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A lemon!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "lemon",
+   "card": "lemon",
+   "sfx": "pop",
+   "chapter": "Lemon"
+  },
+  {
+   "who": "molly",
+   "text": "Lemon... lemon... lemon.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "lemon",
+   "card": "lemon",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say lemon?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "lemon",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Lemon! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Lemon.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "lemon",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Ooh, a lemon is sour! Make a sour face!",
+   "act": "giggle",
+   "cam": "face:molly",
+   "pic": "lemon"
+  },
+  {
+   "who": "molly",
+   "text": "When we want something, we say please.",
+   "act": "sign_please",
+   "cam": "face:molly",
+   "place": "periwinkle",
+   "sign": "please",
+   "chapter": "Please and thank you",
+   "card": "please"
+  },
+  {
+   "who": "molly",
+   "text": "Please. Please.",
+   "act": "sign_please",
+   "cam": "face:molly",
+   "card": "please",
+   "sign": "please",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say please?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_please",
+   "sign": "please",
+   "card": "please",
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "Cookie, please!",
+   "act": "sign_please",
+   "cam": "cu:bobo",
+   "sign": "please",
+   "face": "happy",
+   "pic": "cookie"
+  },
+  {
+   "who": "molly",
+   "text": "Here you go, Bobo!",
+   "act": "give",
+   "cam": "group",
+   "give": {
+    "from": "molly",
+    "to": "bobo",
+    "pic": "cookie"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Thank you!",
+   "act": "sign_thank_you",
+   "cam": "cu:bobo",
+   "sign": "thank_you",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Thank you. Thank you.",
+   "act": "sign_thank_you",
+   "cam": "face:molly",
+   "card": "thank you",
+   "sign": "thank_you",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say thank you?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_thank_you",
+   "sign": "thank_you",
+   "card": "thank you",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Do you want more? More. More.",
+   "act": "sign_more",
+   "cam": "face:molly",
+   "card": "more",
+   "sign": "more",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say more?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_more",
+   "sign": "more",
+   "card": "more",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "It's lunch time! Yum, yum!",
+   "act": "cheer",
+   "cam": "group",
+   "place": "butter",
+   "chapter": "Lunch time"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A egg!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "egg",
+   "card": "egg",
+   "sfx": "pop",
+   "chapter": "Egg"
+  },
+  {
+   "who": "molly",
+   "text": "Egg... egg... egg.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "egg",
+   "card": "egg",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say egg?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "egg",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Egg! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Egg.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "egg",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A sandwich!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "sandwich",
+   "card": "sandwich",
+   "sfx": "pop",
+   "chapter": "Sandwich"
+  },
+  {
+   "who": "molly",
+   "text": "Sandwich... sandwich... sandwich.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "sandwich",
+   "card": "sandwich",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say sandwich?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "sandwich",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Sandwich! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Sandwich.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "sandwich",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A pizza!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "pizza",
+   "card": "pizza",
+   "sfx": "pop",
+   "chapter": "Pizza"
+  },
+  {
+   "who": "molly",
+   "text": "Pizza... pizza... pizza.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "pizza",
+   "card": "pizza",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say pizza?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "pizza",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Pizza! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Pizza.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "pizza",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "Pizza! My favourite! Yum yum yum!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A bowl!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_bowl",
+   "card": "bowl",
+   "sfx": "pop",
+   "chapter": "Bowl"
+  },
+  {
+   "who": "molly",
+   "text": "Bowl... bowl... bowl.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "photo_bowl",
+   "card": "bowl",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say bowl?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "bowl",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Bowl! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Bowl.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "bowl",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A cup!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_cup",
+   "card": "cup",
+   "sfx": "pop",
+   "chapter": "Cup"
+  },
+  {
+   "who": "molly",
+   "text": "Cup... cup... cup.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "photo_cup",
+   "card": "cup",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say cup?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "cup",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Cup! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Cup.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "cup",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "We drink from a cup. Sip, sip!",
+   "act": "sign_milk",
+   "cam": "face:molly",
+   "pic": "photo_cup"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A milk!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_milk",
+   "card": "milk",
+   "sfx": "pop",
+   "chapter": "Milk"
+  },
+  {
+   "who": "molly",
+   "text": "Milk... milk... milk.",
+   "act": "sign_milk",
+   "cam": "face:molly",
+   "pic": "photo_milk",
+   "card": "milk",
+   "sign": "milk",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say milk?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_milk",
+   "card": "milk",
+   "sign": "milk",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Milk! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Milk.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_milk",
+   "card": "milk",
+   "sign": "milk",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Now we are all done. All done.",
+   "act": "sign_all_done",
+   "cam": "face:molly",
+   "card": "all done",
+   "sign": "all_done",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say all done?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_all_done",
+   "sign": "all_done",
+   "card": "all done",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "A little treat! And a song!",
+   "act": "cheer",
+   "cam": "group",
+   "place": "blush",
+   "chapter": "Treats and a song"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A cookie!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "cookie",
+   "card": "cookie",
+   "sfx": "pop",
+   "chapter": "Cookie"
+  },
+  {
+   "who": "molly",
+   "text": "Cookie... cookie... cookie.",
+   "act": "sign_eat",
+   "cam": "face:molly",
+   "pic": "cookie",
+   "card": "cookie",
+   "sign": "eat",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say cookie?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "cookie",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Cookie! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Cookie.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_eat",
+   "card": "cookie",
+   "sign": "eat",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A ice cream!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "ice_cream",
+   "card": "ice cream",
+   "sfx": "pop",
+   "chapter": "Ice cream"
+  },
+  {
+   "who": "molly",
+   "text": "Ice cream... ice cream... ice cream.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "ice_cream",
+   "card": "ice cream",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say ice cream?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "ice cream",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Ice cream! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Ice cream.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "ice cream",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Ice cream is cold! Brrr! Lick, lick!",
+   "act": "giggle",
+   "cam": "face:molly",
+   "pic": "ice_cream"
+  },
+  {
+   "who": "molly",
+   "text": "Pat-a-cake, pat-a-cake, baker's man!",
+   "chant": true,
+   "act": "clap",
+   "also": {
+    "bobo": "clap"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Bake me a cake as fast as you can!",
+   "chant": true,
+   "act": "clap",
+   "also": {
+    "bobo": "clap"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Roll it, and pat it, and mark it with a B!",
+   "chant": true,
+   "act": "clap",
+   "also": {
+    "bobo": "clap"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "And put it in the oven for baby and me!",
+   "chant": true,
+   "act": "clap",
+   "also": {
+    "bobo": "clap"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Can you clap? Pat-a-cake!",
+   "your_turn": true,
+   "cam": "group",
+   "act": "clap",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "After snacks, we wash our hands. Bubbles!",
+   "act": "open",
+   "cam": "group",
+   "place": "pistachio",
+   "chapter": "Bubbles and bye-bye",
+   "pic": "photo_bubbles",
+   "fx": "bubbles"
+  },
+  {
+   "who": "molly",
+   "text": "Pop, pop, pop the bubbles! Pop!",
+   "act": "clap",
+   "cam": "face:molly",
+   "fx": "bubbles",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say pop? Pop!",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "clap",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Now let's be calm. Take a big breath in... and out.",
+   "act": "open",
+   "cam": "face:molly",
+   "calm": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Today we said apple, banana, egg, pizza, cookie, and milk. Please and thank you too!",
+   "act": "count",
+   "cam": "face:molly",
+   "calm": true,
+   "card": "apple  banana  milk"
+  },
+  {
+   "who": "molly",
+   "text": "You are doing so well, baby. I'm so proud of you.",
+   "act": "sign_please",
+   "cam": "face:molly",
+   "calm": true,
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Next time, we will play with toys! Ball, car and boat!",
+   "act": "open",
+   "cam": "face:molly",
+   "teaser": true,
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Let's wave bye-bye. Bye-bye.",
+   "act": "sign_bye",
+   "cam": "face:molly",
+   "sign": "bye",
+   "your_turn": true,
+   "gap_after": 2.8
+  },
+  {
+   "who": "molly",
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "also": {
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Bye-bye, baby! See you next time!",
+   "act": "wave",
+   "also": {
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "endcard": "Bye-bye!\nSee you soon!",
+   "sfx": "success"
+  }
+ ],
+ "learn": [
+  "apple",
+  "banana",
+  "egg",
+  "pizza",
+  "cookie",
+  "milk",
+  "more",
+  "please",
+  "thank you",
+  "all done"
+ ]
+}

@@ -1,0 +1,12 @@
+narration,shot,game_clip,game_at,real,real_at,left,right,title,subtitle,place
+"Here are the five fastest ways to make money in GTA six, and the first one takes ten minutes.",title,gameplay_intro.mp4,4,,,,,FAST MONEY,GTA VI · the first hours,
+"Method one. The corner store run.",chapter,gameplay_store.mp4,2,,,,,The Store Run,Ten minutes · no gear,
+"Go in at night, when there is only one clerk.",steps,gameplay_store.mp4,12,,,,,The store run,Wait until night; Park the car by the back door; Rob the till; Lose the two stars in the canals,
+"The back door is easy to miss. It is right here, behind the dumpsters.",spot,gameplay_store.mp4,48,,,,,Back door,Behind the dumpsters on the left,0.64,0.52
+"Now the full list, from fifth best to the best.",chapter,gameplay_list.mp4,3,,,,,Top Five,Ranked by money per hour,
+"Number five. Selling stolen cars at the docks.",rank,gameplay_docks.mp4,20,,,,,The dock car sale,About nine thousand per car,
+"Number four. The armored truck.",rank,gameplay_truck.mp4,8,,,,,The armored truck,Needs a crew of two,
+"Number three. Boat races in the keys.",rank,gameplay_boats.mp4,15,,,,,Key Lanto boat races,Win three in a row,
+"Number two. The pawn shop flip.",rank,gameplay_pawn.mp4,6,,,,,The pawn shop flip,Buy low on Mondays,
+"And number one. The casino vault.",rank,gameplay_casino.mp4,30,,,,,The casino vault,Late game · biggest payout,
+"Do the first three in one evening and here is what you walk away with.",payout,gameplay_list.mp4,40,,,,,One evening's money,Store run=$2400; Dock car sale=$9k; Boat races=$15000

@@ -85,3 +85,4 @@ gta6_launch/work_engine/
 
 # temporary render files
 *.rendering.mp4
+toycolors/out/

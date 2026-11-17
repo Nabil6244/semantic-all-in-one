@@ -17,6 +17,16 @@ SETS = {  # wall top, wall bottom, floor, shape colours
     "lavender": ((222, 208, 250), (236, 226, 252), (246, 240, 254), [(180, 150, 240), (250, 170, 210), (150, 200, 250)]),
     "sky": ((188, 226, 252), (214, 238, 254), (236, 247, 255), [(120, 180, 245), (255, 210, 110), (160, 220, 180)]),
     "lemon": ((255, 240, 180), (255, 246, 206), (255, 251, 232), [(250, 200, 80), (255, 160, 140), (140, 210, 160)]),
+    "rose": ((255, 206, 216), (255, 226, 232), (255, 242, 246), [(250, 150, 170), (255, 200, 120), (170, 200, 250)]),
+    "aqua": ((186, 236, 240), (212, 246, 248), (236, 252, 252), [(110, 200, 210), (255, 190, 120), (170, 220, 150)]),
+    "apricot": ((255, 222, 180), (255, 236, 206), (255, 246, 230), [(250, 180, 110), (150, 200, 240), (240, 150, 170)]),
+    "lilac": ((232, 214, 244), (242, 230, 250), (250, 244, 254), [(200, 160, 230), (255, 190, 200), (150, 210, 200)]),
+    "cream": ((252, 240, 214), (254, 246, 230), (255, 251, 242), [(230, 190, 120), (170, 210, 160), (240, 160, 150)]),
+    "pistachio": ((214, 238, 196), (230, 246, 218), (244, 252, 238), [(150, 210, 120), (255, 200, 130), (160, 190, 245)]),
+    "coral": ((255, 200, 186), (255, 222, 212), (255, 240, 234), [(250, 140, 120), (255, 210, 110), (130, 200, 200)]),
+    "periwinkle": ((206, 214, 252), (224, 230, 254), (242, 245, 255), [(140, 160, 240), (250, 190, 210), (170, 220, 170)]),
+    "butter": ((255, 236, 170), (255, 244, 200), (255, 250, 228), [(245, 205, 90), (240, 150, 140), (150, 200, 230)]),
+    "blush": ((250, 214, 226), (252, 230, 238), (254, 244, 248), [(240, 160, 190), (180, 160, 240), (250, 210, 130)]),
 }
 LINE = (120, 100, 90)
 
@@ -47,18 +57,20 @@ def make(name, top, bottom, floor, cols):
     deco = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     dd = ImageDraw.Draw(deco)
     rnd = random.Random(name)
-    for side in (0, 1):                                  # shapes only at the sides, faded
-        for k in range(4):
-            x = (rnd.uniform(0.04, 0.2) if side == 0 else rnd.uniform(0.8, 0.96)) * W
-            y = rnd.uniform(0.1, 0.62) * H
+    # shapes only at the sides, faded, and low on the wall just above the floor (owner, 2026-11-17: stars, circles and clouds high on
+    # the wall peeked out from behind the word picture and word cards in the face close-ups; the cards live in the upper wall)
+    for side in (0, 1):
+        for k in range(3):
+            x = (rnd.uniform(0.03, 0.17) if side == 0 else rnd.uniform(0.83, 0.97)) * W
+            y = rnd.uniform(0.55, 0.6) * H
             col = cols[(k + side) % len(cols)] + (120,)
             kind = (k + side) % 3
             if kind == 0:
-                _cloud(dd, x, y, rnd.uniform(30, 46), (255, 255, 255, 170))
+                _cloud(dd, x, y, rnd.uniform(22, 32), (255, 255, 255, 170))
             elif kind == 1:
-                _star(dd, x, y, rnd.uniform(26, 40), col)
+                _star(dd, x, y, rnd.uniform(20, 30), col)
             else:
-                r = rnd.uniform(22, 36)
+                r = rnd.uniform(16, 26)
                 dd.ellipse([x - r, y - r, x + r, y + r], fill=col)
     im.paste(deco.filter(ImageFilter.GaussianBlur(1.2)), (0, 0), deco.filter(ImageFilter.GaussianBlur(1.2)))
     im.save(OUT / f"baby_{name}.png")

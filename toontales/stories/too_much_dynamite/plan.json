@@ -1,0 +1,963 @@
+{
+ "id": "too_much_dynamite",
+ "title": "The Robbers Who Used Too Much Dynamite",
+ "topic": "Wilcox train robbery (Wyoming, 1899), the Wild Bunch, messenger Charles Woodcock, then Tipton (1900)",
+ "hook_title": "WAY TOO MUCH DYNAMITE",
+ "keywords": [
+  "dynamite",
+  "safe",
+  "express",
+  "Woodcock",
+  "Wild Bunch",
+  "train",
+  "Tipton",
+  "boom"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume",
+  "sheriff"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Wilcox_train_robbery",
+  "https://historynet.com/the-wilcox-train-robbery/",
+  "https://en.wikipedia.org/wiki/Tipton_train_robbery"
+ ],
+ "places": {
+  "line": {
+   "world": "railway_line",
+   "prompt": "A railway line across Wyoming prairie at dusk, a steam train"
+  },
+  "car": {
+   "world": "frontier_office",
+   "prompt": "Inside an 1890s railway express car, a big iron safe, lanterns"
+  },
+  "prairie": {
+   "world": "frontier_desert",
+   "remove": [
+    "wagon"
+   ],
+   "prompt": "Open Wyoming prairie at dusk, rocks and scrub"
+  },
+  "town": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin"
+   ],
+   "prompt": "A Wild West main street at dusk"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Robbers blow up a train car, and money rains down.",
+   "set": "line",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.4
+      },
+      {
+       "do": "money",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "BOOM"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      2,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2,
+     "ease": "out"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "They used way too much dynamite. How?",
+   "set": "line",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "dynamite",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "HOW?"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Wyoming, June 2nd, 1899. Robbers stop a Union Pacific train.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.2
+      },
+      {
+       "do": "hips",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1899"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      2,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2,
+     "ease": "out"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Masked men wave lanterns on the track, and the engineer brakes.",
+   "set": "line",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.0
+      },
+      {
+       "do": "sneak",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "LANTERNS"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      2,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2,
+     "ease": "out"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "It's the Wild Bunch, Butch Cassidy's gang.",
+   "set": "town",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "WILD BUNCH"
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The prize sits in the express car safe.",
+   "set": "car",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.2
+      },
+      {
+       "do": "cross",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "SAFE"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Guarding it, express messenger Charles Woodcock.",
+   "set": "car",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cross",
+       "at": 0.2
+      },
+      {
+       "do": "hips",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "WOODCOCK"
+   },
+   "id": "s07"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "bart",
+   "text": "Open the door!",
+   "set": "line",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.2
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "driver",
+   "text": "Not a chance, boys!",
+   "set": "car",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.2
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "He won't budge. He's paid to guard that safe.",
+   "set": "car",
+   "camera": "two_shot",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.2
+      },
+      {
+       "do": "cross",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "NO!"
+   },
+   "freeze": "WAIT...",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So the gang blasts the door open.",
+   "set": "line",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.2
+      },
+      {
+       "do": "cower",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "dynamite",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.1
+    },
+    {
+     "name": "boom",
+     "at": 0.9
+    }
+   ],
+   "transition": "cut",
+   "mood": "sneaky",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Woodcock is knocked half silly.",
+   "set": "car",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "bonk",
+       "at": 0.2
+      },
+      {
+       "do": "dizzy",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Next, the safe. It's big and heavy.",
+   "set": "car",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "dynamite",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "More dynamite. Much more.",
+   "set": "car",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "dynamite",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "TOO MUCH"
+   },
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Light it. Run. Boom.",
+   "set": "line",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.1
+    },
+    {
+     "name": "boom",
+     "at": 0.9
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "BOOM"
+   },
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s15",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "You see, the blast rips the whole car apart.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "NO ROOF"
+   },
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "mood": "sad",
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Bank notes scatter across the prairie, some torn, some burned.",
+   "set": "prairie",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The gang grabs what it can and rides off.",
+   "set": "prairie",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "A year later, they rob another train, at Tipton.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.2
+      },
+      {
+       "do": "point",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1900"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      2,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2,
+     "ease": "out"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "mood": "upbeat",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And the messenger inside? Charles Woodcock. Again.",
+   "set": "car",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.2
+      },
+      {
+       "do": "sigh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "WOODCOCK AGAIN"
+   },
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And once again, the gang reaches for the dynamite.",
+   "set": "line",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "dynamite",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "fuse",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s21"
+  }
+ ],
+ "est_total": 43.63
+}

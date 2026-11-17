@@ -104,6 +104,22 @@ def _sfx():
         y[i] = y[i - 1] + k[i] * (x[i] - y[i - 1])
     S.place(b, y * np.sin(np.pi * t / 0.5) ** 2, 0)
     out["whoosh"] = b
+    b = S.one_shot(0.4); n = int(0.28 * SR); t = np.arange(n) / SR                    # chuff: one toy-train steam puff
+    x = np.random.default_rng(11).standard_normal(n)
+    y = np.zeros(n); k = 2 * np.pi * 900 / SR
+    for i in range(1, n):                                                              # soft low-passed hiss
+        y[i] = y[i - 1] + k * (x[i] - y[i - 1])
+    S.place(b, y * S._env(n, 0.01, 0.16), 0)
+    out["chuff"] = b
+    b = S.one_shot(1.3); n = int(1.0 * SR); t = np.arange(n) / SR                     # whistle: a cheerful two-note toot-toot
+    for at, f0 in ((0.0, 880.0), (0.48, 1047.0)):
+        m = int(0.42 * SR); tt = np.arange(m) / SR
+        f = f0 * (1 + 0.006 * np.sin(2 * np.pi * 6 * tt))
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        tone = np.sin(ph) + 0.35 * np.sin(2 * ph) + 0.12 * np.sin(3 * ph)
+        tone += 0.05 * np.random.default_rng(int(f0)).standard_normal(m)                 # a little breath
+        S.place(b, tone * S._env(m, 0.03, 0.1), at)
+    out["whistle"] = S.reverb_tail(b, 0.2)
     return out
 
 

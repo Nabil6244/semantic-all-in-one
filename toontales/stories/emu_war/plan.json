@@ -2,23 +2,9 @@
  "id": "emu_war",
  "title": "The War Australia Lost to Birds",
  "topic": "the Great Emu War (1932)",
- "hook_title": "AN ARMY LOST TO BIRDS?",
- "keywords": [
-  "emus",
-  "emu",
-  "army",
-  "machine",
-  "guns",
-  "war",
-  "wheat",
-  "lost"
- ],
  "cast": [
   "walt",
   "pip"
- ],
- "sources": [
-  "https://en.wikipedia.org/wiki/Emu_War"
  ],
  "places": {
   "field": {
@@ -33,6 +19,22 @@
    "ambient": "dust"
   }
  },
+ "hook_title": "AN ARMY LOST TO BIRDS?",
+ "keywords": [
+  "emus",
+  "army",
+  "machine",
+  "guns",
+  "bullets",
+  "truck",
+  "jammed",
+  "tanks",
+  "bounties",
+  "wheat"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Emu_War"
+ ],
  "shots": [
   {
    "beat": "hook",
@@ -62,31 +64,54 @@
      "acts": [
       {
        "do": "cower",
-       "at": 0.5
+       "at": 0.0
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "stamp",
     "text": "EMU WAR"
    },
-   "sfx": [
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "And the birds won.",
+   "set": "field",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
     {
-     "name": "boom",
-     "at": 0.3
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 0.8
+      }
+     ]
     }
    ],
-   "id": "s01",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s02"
   },
   {
    "beat": "hook",
    "speaker": "pip",
-   "text": "Wait. Who won?",
+   "text": "Wait. How do you lose to birds?",
    "set": "field",
-   "camera": "close",
+   "camera": "medium",
    "move": "crash_zoom",
    "cast": [
     {
@@ -99,20 +124,20 @@
       },
       {
        "do": "think",
-       "at": 0.7
+       "at": 1.0
       }
      ]
     }
    ],
-   "id": "s02",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s03"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
-   "text": "After World War One, veterans farmed wheat in Western Australia.",
+   "text": "After World War One, soldiers were given land to grow wheat.",
    "set": "farmhouse",
    "camera": "wide",
    "move": "pan_r",
@@ -127,7 +152,7 @@
       },
       {
        "do": "present",
-       "at": 1.4
+       "at": 1.3
       }
      ]
     }
@@ -138,14 +163,14 @@
      "picked_by": "pip"
     }
    ],
-   "id": "s03",
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s04"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
-   "text": "Then about twenty thousand emus arrived.",
+   "text": "Then twenty thousand emus showed up.",
    "set": "field",
    "camera": "medium",
    "move": "push",
@@ -160,29 +185,24 @@
       },
       {
        "do": "tremble",
-       "at": 1.0
+       "at": 0.9
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "chalk",
     "text": "20,000 EMUS"
    },
-   "sfx": [
-    {
-     "name": "footsteps",
-     "at": 0.2
-    }
-   ],
-   "id": "s04",
-   "props": [],
-   "transition": "cut"
+   "id": "s05"
   },
   {
    "beat": "setup",
    "speaker": "narrator",
-   "text": "They ate the wheat and smashed the fences.",
+   "text": "They ate the wheat and trampled the fences.",
    "set": "field",
    "camera": "wide",
    "move": "pan_l",
@@ -197,20 +217,18 @@
       },
       {
        "do": "fall",
-       "at": 1.2
+       "at": 1.0,
+       "params": {
+        "side": "right"
+       }
       }
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "thud",
-     "at": 1.6
-    }
-   ],
-   "id": "s05",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
   },
   {
    "beat": "setup",
@@ -230,20 +248,20 @@
       },
       {
        "do": "angry",
-       "at": 0.6
+       "at": 0.7
       }
      ]
     }
    ],
-   "id": "s06",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s07"
   },
   {
-   "beat": "con",
+   "beat": "setup",
    "speaker": "narrator",
-   "text": "The army sent Major Meredith with two machine guns.",
+   "text": "So the army sent Major Meredith with two machine guns.",
    "set": "army",
    "camera": "medium",
    "move": "push",
@@ -258,7 +276,7 @@
       },
       {
        "do": "fist_pump",
-       "at": 1.4
+       "at": 1.3
       }
      ]
     }
@@ -269,20 +287,52 @@
      "held_by": "walt"
     }
    ],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "MAJOR MEREDITH"
    },
-   "id": "s07",
-   "sfx": [],
-   "transition": "cut"
+   "id": "s08"
   },
   {
-   "beat": "con",
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "And ten thousand bullets.",
+   "set": "army",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "10,000 ROUNDS"
+   },
+   "id": "s09"
+  },
+  {
+   "beat": "deadline",
    "speaker": "walt",
    "text": "This will take a day.",
    "set": "army",
-   "camera": "close",
+   "camera": "medium",
    "move": "crash_zoom",
    "cast": [
     {
@@ -300,16 +350,15 @@
      ]
     }
    ],
-   "id": "s08",
    "props": [],
    "sfx": [],
    "transition": "cut",
-   "freeze": "WAIT..."
+   "id": "s10"
   },
   {
-   "beat": "con",
+   "beat": "obstacle",
    "speaker": "narrator",
-   "text": "But the emus split into small groups and ran.",
+   "text": "But emus run fifty kilometres an hour.",
    "set": "field",
    "camera": "wide",
    "move": "pan_r",
@@ -330,34 +379,24 @@
       },
       {
        "do": "shock",
-       "at": 1.6
+       "at": 1.3
       }
      ]
     }
    ],
-   "props": [
-    {
-     "type": "gun",
-     "held_by": "walt"
-    }
-   ],
-   "sfx": [
-    {
-     "name": "footsteps",
-     "at": 0.0
-    },
-    {
-     "name": "gunshot",
-     "at": 0.8
-    }
-   ],
-   "id": "s09",
-   "transition": "cut"
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "50 KM/H"
+   },
+   "id": "s11"
   },
   {
-   "beat": "con",
+   "beat": "obstacle",
    "speaker": "narrator",
-   "text": "Fast. Very fast.",
+   "text": "And they scatter the second you shoot.",
    "set": "field",
    "camera": "close",
    "move": "crash_zoom",
@@ -369,23 +408,28 @@
       {
        "do": "dizzy",
        "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 0.9
       }
      ]
     }
    ],
-   "overlay": {
-    "type": "chalk",
-    "text": "50 KM/H"
-   },
-   "id": "s10",
    "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "sfx": [
+    {
+     "name": "gunshot",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s12"
   },
   {
-   "beat": "escalate",
+   "beat": "con",
    "speaker": "narrator",
-   "text": "One gun jammed during an ambush.",
+   "text": "So Meredith set up an ambush at a dam.",
    "set": "bush",
    "camera": "medium",
    "move": "push",
@@ -395,37 +439,29 @@
      "mark": "A",
      "acts": [
       {
-       "do": "shock",
+       "do": "sneak",
        "at": 0.0
       },
       {
-       "do": "facepalm",
-       "at": 1.0
+       "do": "point",
+       "at": 1.1
       }
      ]
     }
    ],
-   "overlay": {
-    "type": "stamp",
-    "text": "JAMMED"
-   },
-   "sfx": [
-    {
-     "name": "bonk",
-     "at": 0.5
-    }
-   ],
-   "id": "s11",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s13"
   },
   {
-   "beat": "escalate",
+   "beat": "con",
    "speaker": "narrator",
-   "text": "They even mounted a gun on a truck.",
+   "text": "A thousand emus walked right in.",
    "set": "bush",
-   "camera": "two_shot",
-   "move": "orbit_r",
+   "camera": "wide",
+   "move": "push",
    "cast": [
     {
      "id": "walt",
@@ -437,43 +473,64 @@
       },
       {
        "do": "jump",
-       "at": 1.0
-      }
-     ]
-    },
-    {
-     "id": "pip",
-     "mark": "C",
-     "acts": [
-      {
-       "do": "look_around",
-       "at": 0.5
+       "at": 0.9
       }
      ]
     }
    ],
-   "props": [
-    {
-     "type": "gun",
-     "held_by": "walt"
-    }
-   ],
-   "sfx": [
-    {
-     "name": "car",
-     "at": 0.0
-    }
-   ],
-   "id": "s12",
-   "transition": "cut"
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1,000 EMUS"
+   },
+   "id": "s14"
   },
   {
-   "beat": "escalate",
+   "beat": "con",
    "speaker": "narrator",
-   "text": "The truck couldn't keep up.",
+   "text": "Then the gun jammed.",
    "set": "bush",
    "camera": "close",
    "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "JAMMED"
+   },
+   "id": "s15"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Twelve birds down.",
+   "set": "bush",
+   "camera": "medium",
+   "move": "push",
    "cast": [
     {
      "id": "walt",
@@ -490,21 +547,91 @@
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "thud",
-     "at": 0.4
-    }
-   ],
-   "id": "s13",
    "props": [],
+   "sfx": [],
    "transition": "cut",
-   "freeze": ""
+   "overlay": {
+    "type": "chalk",
+    "text": "12"
+   },
+   "id": "s16"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
-   "text": "Thousands of bullets were fired.",
+   "text": "So they bolted a gun onto a truck.",
+   "set": "field",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "run",
+       "at": 0.6,
+       "params": {
+        "to": [
+         -2.0,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Too slow. Too bumpy.",
+   "set": "field",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Meredith said the emus took bullets like tanks.",
    "set": "army",
    "camera": "medium",
    "move": "push",
@@ -514,7 +641,7 @@
      "mark": "A",
      "acts": [
       {
-       "do": "throw",
+       "do": "shock",
        "at": 0.0
       },
       {
@@ -524,29 +651,20 @@
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "chalk",
-    "text": "10,000 ROUNDS"
+    "text": "LIKE TANKS"
    },
-   "sfx": [
-    {
-     "name": "gunshot",
-     "at": 0.2
-    },
-    {
-     "name": "gunshot",
-     "at": 0.6
-    }
-   ],
-   "id": "s14",
-   "props": [],
-   "transition": "cut",
+   "id": "s19",
    "freeze": ""
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "Parliament laughed, and the soldiers were pulled out.",
+   "text": "Back home, politicians laughed, and the army was pulled out.",
    "set": "parliament",
    "camera": "medium",
    "move": "push",
@@ -566,19 +684,19 @@
      ]
     }
    ],
-   "overlay": {
-    "type": "cross",
-    "text": "THE ARMY"
-   },
+   "props": [],
    "sfx": [
     {
      "name": "laugh",
      "at": 0.3
     }
    ],
-   "id": "s15",
-   "props": [],
-   "transition": "cut"
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "THE ARMY"
+   },
+   "id": "s20"
   },
   {
    "beat": "twist",
@@ -598,38 +716,38 @@
       },
       {
        "do": "sad",
-       "at": 1.0
+       "at": 0.9
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "WINNER: THE EMUS"
    },
-   "id": "s16",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s21"
   },
   {
-   "beat": "twist",
+   "beat": "payoff",
    "speaker": "narrator",
-   "text": "Farmers were left to deal with the emus themselves.",
+   "text": "So farmers were paid a reward for each emu instead.",
    "set": "farmhouse",
    "camera": "medium",
-   "move": "pull",
+   "move": "push",
    "cast": [
     {
      "id": "pip",
      "mark": "A",
      "acts": [
       {
-       "do": "sigh",
+       "do": "pick_up",
        "at": 0.0
       },
       {
-       "do": "facepalm",
+       "do": "money",
        "at": 1.2
       }
      ]
@@ -637,18 +755,55 @@
    ],
    "props": [
     {
-     "type": "tool",
-     "held_by": "pip"
+     "type": "money",
+     "picked_by": "pip"
     }
    ],
-   "id": "s17",
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.9
+    }
+   ],
+   "transition": "cut",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Over fifty seven thousand rewards in six months.",
+   "set": "farmhouse",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "57,034"
+   },
+   "id": "s23"
   },
   {
    "beat": "payoff",
    "speaker": "pip",
-   "text": "So the birds won a war?",
+   "text": "So the farmers beat the birds?",
    "set": "field",
    "camera": "two_shot",
    "move": "push",
@@ -669,20 +824,20 @@
      "acts": [
       {
        "do": "look_around",
-       "at": 0.3
+       "at": 0.0
       }
      ]
     }
    ],
-   "id": "s18",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s24"
   },
   {
    "beat": "payoff",
    "speaker": "walt",
-   "text": "Shh. They might hear you.",
+   "text": "Shh. Don't mention the war.",
    "set": "field",
    "camera": "close",
    "move": "crash_zoom",
@@ -702,16 +857,12 @@
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "pop",
-     "at": 0.9
-    }
-   ],
-   "id": "s19",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s25"
   }
  ],
- "est_total": 33.34
+ "version": "engaging_v2",
+ "est_total": 45.25
 }

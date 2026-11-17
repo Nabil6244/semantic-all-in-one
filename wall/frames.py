@@ -56,6 +56,7 @@ class Frames:
     def __init__(self, path: str, a: float, b: float, res: Tuple[int, int], folder: Path, graph: str = ""):
         self.path, self.a, self.b, self.res, self.folder, self.graph = path, a, b, res, folder, graph
         self.files: Optional[List[Path]] = None
+        self.hold_end = False                 # a window slid back from past the clip's end: later times hold the last frame
         self._mem: "OrderedDict[int, Image.Image]" = OrderedDict()
         self._lock = threading.Lock()
 
@@ -100,7 +101,8 @@ class Frames:
         files = self._ensure()
         if not files:
             return None
-        i = pingpong(int(round((clip_t - self.a) * FPS)), len(files))
+        raw = int(round((clip_t - self.a) * FPS))
+        i = max(0, min(raw, len(files) - 1)) if self.hold_end else pingpong(raw, len(files))
         with self._lock:
             im = self._mem.get(i)
             if im is not None:
@@ -117,9 +119,28 @@ class Frames:
         return im
 
 
+def _length(path: str) -> float:
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+                           capture_output=True, text=True, timeout=30)
+        return float(r.stdout.strip() or 0.0)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
 def window(path: str, a: float, b: float, res: Tuple[int, int] = (1280, 720), work: Optional[str] = None, graph: str = "") -> Frames:
     a = max(0.0, float(a))
     b = max(a + 0.04, float(b))
+    n = _length(path)
+    slid = False
+    if n > 0.1 and b > n - 0.05:
+        slid = True
+        # the window runs past the clip's end (owner, 2026-11-17: a print seeking 8.04 s into an 8.04 s clip decoded nothing and
+        # stayed black on screen): the window slides back so it ends on the clip's last frames - the frame the film itself froze on
+        span = b - a
+        b = n - 0.05
+        a = max(0.0, b - span)
+        b = max(a + 0.04, b)
     root = Path(work) if work else default_work()
     k = _key(path, a, b, res, graph)
     with _LOCK:
@@ -127,6 +148,7 @@ def window(path: str, a: float, b: float, res: Tuple[int, int] = (1280, 720), wo
         if f is None:
             root.mkdir(parents=True, exist_ok=True)
             f = _WINDOWS[k] = Frames(path, a, b, res, root / k, graph)
+        f.hold_end = f.hold_end or slid
         return f
 
 

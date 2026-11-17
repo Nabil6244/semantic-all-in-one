@@ -187,6 +187,46 @@ def _stage_with_clips(shot: Dict[str, Any], scenes, i: int, j: int, cards: Seque
     return out
 
 
+def _named_place(c: Any, r: dict) -> bool:
+    return bool(_places(c) or r.get("from") or r.get("to"))
+
+
+def _keeps_look(r: dict) -> bool:
+    """A CSV row whose look is not a footage request: the map, a route, a cited article, a story/evidence mode."""
+    return bool(str(r.get("mode") or "").strip().lower() in ("map", "story", "evidence") or str(r.get("graphic") or "").strip().lower() == "routes"
+                or r.get("from") or r.get("to") or r.get("article"))
+
+
+def _clipless_to_story(scenes, cls, rows, modes: List[str], forced: List[bool]) -> List[str]:
+    """At Render (mark_clips has set has_clip on every line): a line with nothing filmed of its own goes on the sticker stage (stickers,
+    dossier cards, web photos) instead of footage slots that borrow a neighbour's clip (owner, 2026-11-17: the Gimli film showed 14 clips
+    in 44 slices - one still 6 times - while the stage, dossier and photo looks sat at 1-3%). A CSV footage mode (news / numbers / people /
+    fleet / flight) asks for a clip, so with no clip it falls back the same way; a CSV 'map' line, a line with from/to, an article and
+    evidence keep their own look; a flight line keeps its map when its stretch names a place (the map has something to show). At Generate (no has_clip yet)
+    nothing changes, so every line still asks for footage."""
+    if not any("has_clip" in sc for sc in scenes):
+        return modes
+    out = list(modes)
+    n = len(modes)
+    k = 0
+    while k < n:                               # flight / weather stretches that name no place anywhere: nothing for the map to show
+        if modes[k] not in MAP_MODES:
+            k += 1
+            continue
+        j = k
+        while j + 1 < n and modes[j + 1] in MAP_MODES:
+            j += 1
+        if not any(_named_place(cls[x], _row(rows, x)) for x in range(k, j + 1)):
+            for x in range(k, j + 1):
+                if scenes[x].get("has_clip") is False and not _keeps_look(_row(rows, x)):
+                    out[x] = "story"
+        k = j + 1
+    for x, m in enumerate(modes):
+        if m in JOIN_STORY and scenes[x].get("has_clip") is False and not _keeps_look(_row(rows, x)):
+            out[x] = "story"
+    return out
+
+
 def _story_join(modes: List[str], forced: List[bool], cls: Sequence[Any]) -> List[str]:
     """A line next to a story line stays on the sticker stage instead of breaking the story: always a numbers line (its figures
     become sticker graphics); a fleet / people / news line when it scored weakly (< STRONG: no clear event of its own - for a
@@ -320,6 +360,7 @@ def plan(scenes: Sequence[Dict[str, Any]], rows: Optional[Sequence[dict]] = None
             modes.append(c.mode); forced.append(False)
     modes = _smooth(cls, modes, forced)
     modes = _story_join(modes, forced, cls)
+    modes = _clipless_to_story(scenes, cls, rows, modes, forced)
     hplan = _hud_timeline(scenes, cls, rows)
     out = Plan(modes=modes)
     for i, c in enumerate(cls):
@@ -506,13 +547,17 @@ def _cap_holds(out: Plan, scenes, cls, rows) -> None:
             seen[key] = sh
     by_no = {s.get("scene_no", k + 1): k for k, s in enumerate(scenes)}
 
-    def filler(t: float, b: float, fallback_no: Any) -> None:
+    def filler(t: float, b: float, fallback_no: Any, keep: Optional[Callable[[float, float], None]] = None) -> None:
         while t < b - 1e-3:                                  # footage of the line(s) under it, one slot per line
             k = next((by_no[s_.get("scene_no", i_ + 1)] for i_, s_ in enumerate(scenes)
                       if float(s_["start"]) <= t + 1e-3 < float(s_["end"])), by_no.get(fallback_no, 0))
             e = min(b, float(scenes[k]["end"]))
             if e - t < 1e-3:
                 break
+            if keep is not None and scenes[k].get("has_clip") is False:
+                keep(t, e)                                   # at Render: nothing filmed for this line - the look carries on, no borrowed clip
+                t = e
+                continue
             out.shots.append({"kind": "footage", "start": t, "end": e, "scene": scenes[k].get("scene_no"),
                               "mode": out.modes[k] if k < len(out.modes) else "news", "queries": _queries(cls[k], _row(rows, k)),
                               "cut": (e - t, e - t), "filler": True})    # borrows a nearby clip; never asks for a new search
@@ -570,9 +615,39 @@ def _cap_holds(out: Plan, scenes, cls, rows) -> None:
                 continue
             cut = b - 1.0                  # never a sub-second flash of footage after a card: the card ends a little earlier
         sh["end"] = cut
+        all_cues = list(sh.get("cues") or [])
         if sh.get("cues"):
             sh["cues"] = [x for x in sh["cues"] if float(x[0]) <= cut]   # no sticker pop over the footage that follows
-        filler(cut, b, sh.get("scene"))
+        keep = None
+        if lay == "stage.lay_stage":
+            # the stage carries on (on its own clock, its stickers still arriving) over lines with nothing filmed; only a line with its
+            # own clip cuts away (owner, 2026-11-17: the cut-off rest of a stage borrowed the same few clips again and again)
+            off0, a0 = float((sh.get("params") or {}).get("t_offset") or 0.0), a
+
+            def keep(x: float, y: float, sh=sh, off0=off0, a0=a0, all_cues=all_cues) -> None:
+                prev = out.shots[-1] if out.shots and out.shots[-1].get("_stage_of") is sh and abs(float(out.shots[-1]["end"]) - x) < 1e-3 else None
+                if prev is not None and y - float(prev["start"]) <= STAGE_MAX_S:
+                    prev["end"] = y
+                    prev["cues"] = [c for c in all_cues if float(prev["start"]) <= float(c[0]) < y]
+                    return
+                k_ = _index_at(scenes, 0, len(scenes) - 1, x)
+                card = _line_card(cls[k_], _row(rows, k_)) if y - x >= 2.5 and (prev is not None or x - a0 >= STAGE_MAX_S - 1e-3) else None
+                if card is not None:      # the stage has run 12 s: this line's own graphic breaks it for up to 5 s, then the stage picks up
+                    ce = min(y, x + CARD_HOLD_S) if y - x - CARD_HOLD_S >= 1.0 else y
+                    out.shots.append({"layer": card[0], "params": dict(card[1]), "start": x, "end": ce, "scene": scenes[k_].get("scene_no"),
+                                      "full_frame": True, "mode": "story"})
+                    x = ce
+                    if y - x < 1e-3:
+                        return
+                elif prev is not None:
+                    prev["end"] = y
+                    prev["cues"] = [c for c in all_cues if float(prev["start"]) <= float(c[0]) < y]
+                    return
+                out.shots.append(dict(sh, start=x, end=y, params=dict(sh["params"], t_offset=off0 + x - a0), _stage_of=sh,
+                                      cues=[c for c in all_cues if x <= float(c[0]) < y]))
+        filler(cut, b, sh.get("scene"), keep)
+    for sh in out.shots:
+        sh.pop("_stage_of", None)
 
 
 FOOTAGE_MAX_S = 5.0            # a footage slot longer than this is split: a clip shorter than its slot would leave it empty
@@ -677,6 +752,12 @@ def _air_graphics(c: Any, r: dict) -> List[tuple]:
         name = (c.airlines[0]["name"] if c.airlines else "").upper()
         out.append(("gfx_air.lay_timeline", {"from_year": min(years), "to_year": SCRIPT_YEAR[0], "label": name}))
     return out[:2]
+
+
+def _line_card(c: Any, r: dict) -> Optional[tuple]:
+    """A line's own full-frame graphic: its dossier / aviation number graphic (the skin rotor), else its words as a fact card."""
+    first = _numbers_card(c, r, _air_graphics(c, r))
+    return first if first else (("cards.lay_article", {"fact": _fact(c.text)}) if len(c.text.split()) >= 6 else None)
 
 
 def _clip_stretch(out: Plan, scenes, cls, rows, modes, i: int, j: int, last_card: float) -> float:

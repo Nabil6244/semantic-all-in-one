@@ -2,22 +2,9 @@
  "id": "mincemeat",
  "title": "How a Dead Man Fooled Hitler",
  "topic": "Operation Mincemeat (1943)",
- "hook_title": "A DEAD MAN FOOLED HITLER?",
- "keywords": [
-  "dead",
-  "hitler",
-  "fake",
-  "letters",
-  "sicily",
-  "greece",
-  "spies"
- ],
  "cast": [
   "walt",
   "pip"
- ],
- "sources": [
-  "https://en.wikipedia.org/wiki/Operation_Mincemeat"
  ],
  "places": {
   "office": {
@@ -36,6 +23,22 @@
    "ambient": "none"
   }
  },
+ "hook_title": "A DEAD MAN FOOLED HITLER?",
+ "keywords": [
+  "dead",
+  "Hitler",
+  "Sicily",
+  "Greece",
+  "letters",
+  "briefcase",
+  "submarine",
+  "Spain",
+  "Fleming",
+  "Bond"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Operation_Mincemeat"
+ ],
  "shots": [
   {
    "beat": "hook",
@@ -70,24 +73,19 @@
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "stamp",
     "text": "TOP SECRET"
    },
-   "sfx": [
-    {
-     "name": "gasp",
-     "at": 0.6
-    }
-   ],
-   "id": "s01",
-   "props": [],
-   "transition": "cut"
+   "id": "s01"
   },
   {
    "beat": "hook",
    "speaker": "pip",
-   "text": "How can a dead man trick anyone?",
+   "text": "How does a dead man trick anyone?",
    "set": "office",
    "camera": "close",
    "move": "crash_zoom",
@@ -102,20 +100,20 @@
       },
       {
        "do": "think",
-       "at": 0.9
+       "at": 1.0
       }
      ]
     }
    ],
-   "id": "s02",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s02"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
-   "text": "The Allies planned to invade Sicily.",
+   "text": "The Allies wanted to invade Sicily.",
    "set": "office",
    "camera": "medium",
    "move": "push",
@@ -130,7 +128,7 @@
       },
       {
        "do": "present",
-       "at": 1.2
+       "at": 1.1
       }
      ]
     }
@@ -142,14 +140,14 @@
      "text": "SICILY"
     }
    ],
-   "id": "s03",
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s03"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
-   "text": "Everyone could see it was the obvious target.",
+   "text": "Problem: everyone knew Sicily was the obvious target.",
    "set": "office",
    "camera": "close",
    "move": "drift",
@@ -164,19 +162,19 @@
       },
       {
        "do": "facepalm",
-       "at": 1.2
+       "at": 1.3
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "circle",
     "text": "TOO OBVIOUS"
    },
-   "id": "s04",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s04"
   },
   {
    "beat": "setup",
@@ -196,20 +194,61 @@
       },
       {
        "do": "money",
-       "at": 0.8
+       "at": 0.9
       }
      ]
     }
    ],
-   "id": "s05",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s05"
   },
   {
    "beat": "setup",
    "speaker": "narrator",
-   "text": "British agents dressed a dead man as an officer.",
+   "text": "British spies found the body of a homeless Welshman.",
+   "set": "morgue",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "fall",
+       "at": 0.0,
+       "params": {
+        "side": "right"
+       }
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "GLYNDWR MICHAEL"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "They gave him a new name: Major William Martin.",
    "set": "morgue",
    "camera": "close",
    "move": "push",
@@ -224,7 +263,7 @@
       },
       {
        "do": "present",
-       "at": 1.3
+       "at": 1.2
       }
      ]
     }
@@ -236,18 +275,14 @@
      "text": "MAJOR WILLIAM MARTIN"
     }
    ],
-   "overlay": {
-    "type": "label",
-    "text": "OPERATION MINCEMEAT"
-   },
-   "id": "s06",
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s07"
   },
   {
    "beat": "con",
    "speaker": "narrator",
-   "text": "They chained a briefcase of fake letters to him.",
+   "text": "Then they built him a whole fake life.",
    "set": "morgue",
    "camera": "insert",
    "move": "push",
@@ -262,7 +297,73 @@
       },
       {
        "do": "nod",
-       "at": 1.2
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "LOVE, PAM"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Love letters, theatre tickets, even an unpaid bank bill.",
+   "set": "morgue",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "TICKETS + BILLS"
+   },
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And chained to his wrist, a briefcase of fake battle plans.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.3
       }
      ]
     }
@@ -274,54 +375,14 @@
      "text": "INVADE GREECE"
     }
    ],
-   "sfx": [
-    {
-     "name": "paper",
-     "at": 0.3
-    }
-   ],
-   "id": "s07",
-   "transition": "cut"
-  },
-  {
-   "beat": "con",
-   "speaker": "narrator",
-   "text": "Even love letters and theatre tickets, to look real.",
-   "set": "office",
-   "camera": "medium",
-   "move": "drift",
-   "cast": [
-    {
-     "id": "pip",
-     "mark": "C",
-     "acts": [
-      {
-       "do": "present",
-       "at": 0.0
-      },
-      {
-       "do": "laugh",
-       "at": 1.0
-      }
-     ]
-    }
-   ],
-   "props": [
-    {
-     "type": "letter",
-     "held_by": "pip",
-     "text": "LOVE, PAM"
-    }
-   ],
-   "id": "s08",
    "sfx": [],
    "transition": "cut",
-   "freeze": "WAIT..."
+   "id": "s10"
   },
   {
    "beat": "con",
    "speaker": "narrator",
-   "text": "A submarine left him off the coast of Spain.",
+   "text": "A submarine slipped him into the sea off Spain.",
    "set": "sub",
    "camera": "medium",
    "move": "push",
@@ -341,20 +402,20 @@
      ]
     }
    ],
+   "props": [],
    "sfx": [
     {
      "name": "splash",
-     "at": 1.4
+     "at": 1.6
     }
    ],
-   "id": "s09",
-   "props": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s11"
   },
   {
    "beat": "con",
    "speaker": "narrator",
-   "text": "A fisherman found him.",
+   "text": "A fisherman found him floating.",
    "set": "beach",
    "camera": "wide",
    "move": "pan_r",
@@ -375,30 +436,22 @@
       },
       {
        "do": "shock",
-       "at": 0.76
+       "at": 1.0
       }
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "footsteps",
-     "at": 0.1
-    },
-    {
-     "name": "gasp",
-     "at": 1.6
-    }
-   ],
-   "id": "s10",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s12"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
-   "text": "The letters reached German spies.",
-   "set": "hq",
+   "text": "Spain was neutral, but crawling with German spies.",
+   "set": "beach",
    "camera": "medium",
    "move": "push",
    "cast": [
@@ -412,7 +465,7 @@
       },
       {
        "do": "shock",
-       "at": 1.0
+       "at": 1.2
       }
      ]
     }
@@ -424,14 +477,48 @@
      "text": "INVADE GREECE"
     }
    ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "They secretly copied the letters.",
+   "set": "hq",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "pip",
+     "text": "INVADE GREECE"
+    }
+   ],
    "sfx": [
     {
      "name": "paper",
-     "at": 0.6
+     "at": 0.4
     }
    ],
-   "id": "s11",
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s14"
   },
   {
    "beat": "escalate",
@@ -451,20 +538,20 @@
       },
       {
        "do": "angry",
-       "at": 0.7
+       "at": 0.6
       }
      ]
     }
    ],
-   "id": "s12",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s15"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
-   "text": "Hitler sent forces away from Sicily.",
+   "text": "Hitler sent a tank division to Greece.",
    "set": "hq",
    "camera": "wide",
    "move": "pan_l",
@@ -486,25 +573,54 @@
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "arrow",
     "text": "WRONG WAY"
    },
-   "sfx": [
+   "id": "s16"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "In London, a message arrived: mincemeat swallowed.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
     {
-     "name": "footsteps",
-     "at": 0.0
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
     }
    ],
-   "id": "s13",
-   "props": [],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "MINCEMEAT SWALLOWED"
+    }
+   ],
+   "sfx": [],
    "transition": "cut",
+   "id": "s17",
    "freeze": ""
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "In July 1943, the Allies landed in Sicily.",
+   "text": "In July, the Allies landed in Sicily.",
    "set": "sicily",
    "camera": "wide",
    "move": "tilt_down",
@@ -519,29 +635,29 @@
       },
       {
        "do": "celebrate",
-       "at": 1.2
+       "at": 0.9
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
    "overlay": {
     "type": "chalk",
     "text": "JULY 1943"
    },
-   "sfx": [
-    {
-     "name": "boom",
-     "at": 0.3
-    }
-   ],
-   "id": "s14",
-   "props": [],
-   "transition": "cut"
+   "id": "s18"
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "The Germans were waiting in the wrong place.",
+   "text": "Much of Germany's strength was waiting in the wrong place.",
    "set": "sicily",
    "camera": "medium",
    "move": "push",
@@ -556,24 +672,123 @@
       },
       {
        "do": "facepalm",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "FOOLED"
+   },
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And the idea first came from a memo by a young officer.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
        "at": 1.2
       }
      ]
     }
    ],
-   "overlay": {
-    "type": "stamp",
-    "text": "FOOLED"
-   },
-   "id": "s15",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "His name? Ian Fleming.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "IAN FLEMING"
+   },
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He later created James Bond.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "walt",
+     "text": "007"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s22"
   },
   {
    "beat": "payoff",
    "speaker": "pip",
-   "text": "So a fake letter won a battle?",
+   "text": "So a dead man was a secret agent?",
    "set": "office",
    "camera": "two_shot",
    "move": "push",
@@ -594,20 +809,20 @@
      "acts": [
       {
        "do": "look_around",
-       "at": 0.3
+       "at": 0.0
       }
      ]
     }
    ],
-   "id": "s16",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s23"
   },
   {
    "beat": "payoff",
    "speaker": "walt",
-   "text": "Shh. You didn't read this.",
+   "text": "Shh. That file is top secret.",
    "set": "office",
    "camera": "close",
    "move": "crash_zoom",
@@ -634,15 +849,11 @@
      "text": "TOP SECRET"
     }
    ],
-   "sfx": [
-    {
-     "name": "pop",
-     "at": 0.9
-    }
-   ],
-   "id": "s17",
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s24"
   }
  ],
- "est_total": 32.55
+ "version": "engaging_v2",
+ "est_total": 48.87
 }

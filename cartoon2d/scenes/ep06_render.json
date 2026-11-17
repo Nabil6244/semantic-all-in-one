@@ -1,0 +1,186 @@
+{
+ "timeline": "cartoon2d/build/ep06/audio/timeline.json",
+ "build": "cartoon2d/build/ep06",
+ "name": "ep06_abc_k_to_t_with_ms_molly",
+ "host": "molly",
+ "kids": [
+  "lily",
+  "ollie"
+ ],
+ "start_place": "treehouse",
+ "places": {
+  "treehouse": {
+   "background": "cartoon2d/art/bg/ep06_treehouse.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   },
+   "outdoor": false
+  },
+  "meadow": {
+   "background": "cartoon2d/art/bg/ep06_meadow.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "lemons": {
+   "background": "cartoon2d/art/bg/ep06_lemons.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "treetops": {
+   "background": "cartoon2d/art/bg/ep06_treetops.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "woods": {
+   "background": "cartoon2d/art/bg/ep06_woods.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "rockpools": {
+   "background": "cartoon2d/art/bg/ep06_rockpools.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "pumpkins": {
+   "background": "cartoon2d/art/bg/ep06_pumpkins.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "palace": {
+   "background": "cartoon2d/art/bg/ep06_palace.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "rainbow": {
+   "background": "cartoon2d/art/bg/ep06_rainbow.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "sunflowers": {
+   "background": "cartoon2d/art/bg/ep06_sunflowers.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "station": {
+   "background": "cartoon2d/art/bg/ep06_station.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "height": 0.45,
+   "tilt": 1.0,
+   "hold_side": "sr"
+  },
+  "bobo": {
+   "dir": "cartoon2d/cast/bobo",
+   "height": 0.64,
+   "tilt": 0.6,
+   "hop": 0.1,
+   "listen": 3.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "treehouse": "playroom",
+  "meadow": "sunny",
+  "lemons": "sunny",
+  "treetops": "sunny",
+  "woods": "sunny",
+  "rockpools": "sunny",
+  "pumpkins": "sunny",
+  "palace": "sunny",
+  "rainbow": "sunny",
+  "sunflowers": "sunny",
+  "station": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/ep06_abc2.json",
+ "storycheck": true,
+ "journey": true,
+ "map_stops": [
+  "K",
+  "L",
+  "M",
+  "N",
+  "O",
+  "P",
+  "Q",
+  "R",
+  "S",
+  "T"
+ ],
+ "map_title": "Bobo's K to T map!"
+}

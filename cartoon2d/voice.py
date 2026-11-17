@@ -34,8 +34,9 @@ def sig(*parts):
 
 
 async def speak(text, v, mp3):
-    """Edge voice with word timings (needed for songs). Three tries: network hiccups happen on long scripts."""
-    for attempt in range(3):
+    """Edge voice with word timings (needed for songs). Six tries with a growing wait: Edge drops requests now and then
+    (seen often with the Urdu voices), so one bad answer must not stop the whole script."""
+    for attempt in range(6):
         try:
             words, audio = [], bytearray()
             com = edge_tts.Communicate(text, v["voice"], rate=v.get("rate", "+0%"), pitch=v.get("pitch", "+0Hz"), boundary="WordBoundary")
@@ -51,9 +52,9 @@ async def speak(text, v, mp3):
             mp3.with_suffix(".words.json").write_text(json.dumps(words))
             return
         except Exception as e:  # noqa: BLE001
-            if attempt == 2:
+            if attempt == 5:
                 raise RuntimeError(f"Edge voice failed for {text!r}: {e}")
-            await asyncio.sleep(2.0)
+            await asyncio.sleep(2.0 + 2.0 * attempt)
 
 
 async def speak_all(jobs, limit=12):   # Edge makes each line at ~real time: many at once (2026-11-17)

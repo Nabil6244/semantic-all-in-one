@@ -1,0 +1,2188 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 22.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Look at my magic spinner! It spins things opposite!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "place": "livingroom",
+   "chapter": "Bobo's opposite spinner",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "Oh no! The wind blew it out of the window!",
+   "act": "hands_up",
+   "also": {
+    "bobo": "tumble",
+    "ollie": "wobble"
+   },
+   "cam": "group",
+   "fx": "leaves",
+   "face": "surprised",
+   "sfx": "whoosh"
+  },
+  {
+   "who": "molly",
+   "text": "Let's follow the map and find Bobo's spinner! We'll learn opposites on the way!",
+   "act": "open",
+   "cam": "host",
+   "goal": true
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Opposites adventure!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "title": "Opposites with\nMs Molly & Bobo!",
+   "fx": "confetti",
+   "sfx": "success",
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Clap along with our song!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "chapter": "Hello song",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ms Molly and Bobo! Here we go! Learning and playing, high and low!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ms Molly and Bobo! Here we go! Learning and playing, high and low!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly! High and low are opposites! Today we learn lots of opposites!",
+   "act": "wave",
+   "cam": "host",
+   "card": "high  low"
+  },
+  {
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
+   "act": "wave",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "And I'm Ollie!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "And I'm Bobo! Please help me find my spinner!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Will you help Bobo? Shout yes!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yes!",
+   "act": "jump",
+   "also": {
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "ollie",
+   "text": "Let's go! Ready, steady...",
+   "act": "squat",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 0,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Go! Whoa! A garden with giant vegetables!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "giantveg",
+   "chapter": "Big and small",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is big!",
+   "act": "open",
+   "cam": "host",
+   "pic": "elephant",
+   "card": "big",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "And this one is small!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "mouse",
+   "card": "small"
+  },
+  {
+   "who": "molly",
+   "text": "Big and small are opposites! Big... small.",
+   "act": "count",
+   "cam": "host",
+   "card": "big  small"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say big? And small?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Big! Small!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "card": "big  small"
+  },
+  {
+   "who": "molly",
+   "text": "Show me big!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me small!",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Big, big, big like an elephant! Small, small, small like a mouse!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "The elephant is small! The mouse is big!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Big and small! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "Squeak, squeak! I'm a tiny mouse!",
+   "act": "squat",
+   "cam": "cu:ollie",
+   "pic": "mouse"
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 1,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Zoom! A running track!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "track",
+   "chapter": "Fast and slow",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is fast!",
+   "act": "open",
+   "cam": "host",
+   "pic": "rabbit",
+   "card": "fast",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "And this one is slow!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "turtle",
+   "card": "slow"
+  },
+  {
+   "who": "molly",
+   "text": "Fast and slow are opposites! Fast... slow.",
+   "act": "count",
+   "cam": "host",
+   "card": "fast  slow"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say fast? And slow?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Fast! Slow!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "card": "fast  slow"
+  },
+  {
+   "who": "molly",
+   "text": "Show me fast!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me slow!",
+   "act": "walk",
+   "also": {
+    "lily": "walk",
+    "ollie": "walk",
+    "bobo": "walk"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Fast, fast, run like a rabbit! Slow, slow, walk like a turtle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "The turtle is fast! Zoom zoom, turtle!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Fast and slow! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's race! Ready, steady, go! Run fast! Now... slow!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": "bobo",
+   "text": "I'm slow like a turtle... very... very... slow.",
+   "act": "walk",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 2,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Look up! Big mountains!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "mountain",
+   "chapter": "Up and down",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is up!",
+   "act": "open",
+   "cam": "host",
+   "pic": "balloon_red",
+   "card": "up",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "And this one is down!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "house",
+   "card": "down"
+  },
+  {
+   "who": "molly",
+   "text": "Up and down are opposites! Up... down.",
+   "act": "count",
+   "cam": "host",
+   "card": "up  down"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say up? And down?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Up! Down!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "card": "up  down"
+  },
+  {
+   "who": "molly",
+   "text": "Show me up!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me down!",
+   "act": "touch_toes",
+   "also": {
+    "lily": "touch_toes",
+    "ollie": "touch_toes",
+    "bobo": "touch_toes"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Up, up, up to the sky! Down, down, down to the ground!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Up is my toes! Down is the sky!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Up and down! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "The cable car goes up... and down! Point up! Point down!",
+   "act": "point",
+   "also": {
+    "lily": "point",
+    "ollie": "point",
+    "bobo": "point"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 3,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Brrr! A snowy village!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "snow",
+   "chapter": "Cold and hot",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is cold!",
+   "act": "open",
+   "cam": "host",
+   "pic": "snowman",
+   "card": "cold",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "And this one is hot!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "sun",
+   "card": "hot"
+  },
+  {
+   "who": "molly",
+   "text": "Cold and hot are opposites! Cold... hot.",
+   "act": "count",
+   "cam": "host",
+   "card": "cold  hot"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say cold? And hot?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Cold! Hot!",
+   "act": "wobble",
+   "also": {
+    "lily": "wobble",
+    "ollie": "wobble",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "cold  hot"
+  },
+  {
+   "who": "molly",
+   "text": "Show me cold!",
+   "act": "wobble",
+   "also": {
+    "lily": "wobble",
+    "ollie": "wobble",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me hot!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Cold, cold, shiver like a snowman! Hot, hot, sunny day!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "The snow is hot! The sun is cold!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Cold and hot! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "Brrr! I'm so cold! Ah... ah... ah-CHOO!",
+   "act": "sneeze",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Bless you, Bobo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 4,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Splash! A rainy street!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "rainy",
+   "chapter": "Wet and dry",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is wet!",
+   "act": "open",
+   "cam": "host",
+   "pic": "umbrella",
+   "card": "wet",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "And this one is dry!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "hat",
+   "card": "dry"
+  },
+  {
+   "who": "molly",
+   "text": "Wet and dry are opposites! Wet... dry.",
+   "act": "count",
+   "cam": "host",
+   "card": "wet  dry"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say wet? And dry?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Wet! Dry!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "card": "wet  dry"
+  },
+  {
+   "who": "molly",
+   "text": "Show me wet!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me dry!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Wet, wet, splash in the puddles! Dry, dry, under the umbrella!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "My umbrella makes me wet!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Wet and dry! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Time for the opposite freeze dance! Dance, and freeze when I say a word!",
+   "act": "dance",
+   "cam": "host",
+   "chapter": "Opposite freeze dance",
+   "fx": "stars"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Big!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "big",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Big! Big!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "bobo",
+   "text": "Whoa! Wobble, wobble! I'm a wobbly big bear!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Small!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "small",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Small! Small!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Fast!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "wobble",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "fast",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Fast! Fast!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "ollie",
+   "text": "Whoops! Fast feet, wobbly feet!",
+   "act": "wobble",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Great dancing! Take a big breath. In... and out.",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 5,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Listen! Music in the park!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "bandstand",
+   "chapter": "Loud and quiet",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is loud!",
+   "act": "open",
+   "cam": "host",
+   "pic": "drum",
+   "card": "loud",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "And this one is quiet!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "bird",
+   "card": "quiet"
+  },
+  {
+   "who": "molly",
+   "text": "Loud and quiet are opposites! Loud... quiet.",
+   "act": "count",
+   "cam": "host",
+   "card": "loud  quiet"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say loud? And quiet?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Loud! Quiet!",
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group",
+   "card": "loud  quiet"
+  },
+  {
+   "who": "molly",
+   "text": "Show me loud!",
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me quiet!",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Loud, loud, bang the drum! Quiet, quiet, shh, shh, shh!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Shh! The drum is quiet! BANG!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Loud and quiet! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Let's clap loud! Now clap quiet... shh...",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 6,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ooh! It's night time!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "night",
+   "chapter": "Night and day",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is night!",
+   "act": "open",
+   "cam": "host",
+   "pic": "moon",
+   "card": "night",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "And this one is day!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "sun",
+   "card": "day"
+  },
+  {
+   "who": "molly",
+   "text": "Night and day are opposites! Night... day.",
+   "act": "count",
+   "cam": "host",
+   "card": "night  day"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say night? And day?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Night! Day!",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "card": "night  day"
+  },
+  {
+   "who": "molly",
+   "text": "Show me night!",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me day!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Night, night, moon so bright! Day, day, sunny day!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "At night the sun comes out!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Night and day! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Twinkle, twinkle, little star! Let's twinkle our fingers!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "calm": true,
+   "fx": "stars",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 7,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Yum! A bakery!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "bakery",
+   "chapter": "Full and empty",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is full!",
+   "act": "open",
+   "cam": "host",
+   "pic": "cookie",
+   "card": "full",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "And this one is empty!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "photo_bowl",
+   "card": "empty"
+  },
+  {
+   "who": "molly",
+   "text": "Full and empty are opposites! Full... empty.",
+   "act": "count",
+   "cam": "host",
+   "card": "full  empty"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say full? And empty?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Full! Empty!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "card": "full  empty"
+  },
+  {
+   "who": "molly",
+   "text": "Show me full!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me empty!",
+   "act": "open",
+   "also": {
+    "lily": "open",
+    "ollie": "open",
+    "bobo": "open"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Full, full, a full plate! Empty, empty, nothing there!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "My tummy is full! No... it's empty!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Full and empty! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "But... there is only one cookie.",
+   "act": "think",
+   "cam": "cu:bobo",
+   "face": "sad",
+   "hold": {
+    "bobo": "cookie"
+   }
+  },
+  {
+   "who": "lily",
+   "text": "Bobo, can we share it?",
+   "act": "open",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Yes! A piece for you, and you, and you! Sharing is kind!",
+   "act": "give",
+   "cam": "group",
+   "face": "happy",
+   "give": {
+    "from": "bobo",
+    "to": "lily",
+    "pic": "cookie"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Thank you, Bobo! Now the plate is empty, and our tummies are full!",
+   "act": "thumbs_up",
+   "cam": "host",
+   "fx": "hearts"
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 8,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Shh! A library full of books!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "library",
+   "chapter": "Open and shut",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is open!",
+   "act": "open",
+   "cam": "host",
+   "pic": "photo_book",
+   "card": "open",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "And this one is shut!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "present",
+   "card": "shut"
+  },
+  {
+   "who": "molly",
+   "text": "Open and shut are opposites! Open... shut.",
+   "act": "count",
+   "cam": "host",
+   "card": "open  shut"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say open? And shut?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Open! Shut!",
+   "act": "open",
+   "also": {
+    "lily": "open",
+    "ollie": "open",
+    "bobo": "open"
+   },
+   "cam": "group",
+   "card": "open  shut"
+  },
+  {
+   "who": "molly",
+   "text": "Show me open!",
+   "act": "open",
+   "also": {
+    "lily": "open",
+    "ollie": "open",
+    "bobo": "open"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me shut!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Open, shut them, open, shut them, give a little clap!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "Open is shut! Shut is open!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Open and shut! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Open the book... and shut it! Open... shut!",
+   "act": "open",
+   "also": {
+    "lily": "open",
+    "ollie": "open",
+    "bobo": "open"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Where shall we go next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 9,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Woof! A garden with a doghouse!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "doghouse",
+   "chapter": "In and out",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "This one is in!",
+   "act": "open",
+   "cam": "host",
+   "pic": "dog",
+   "card": "in",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "And this one is out!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "puppy_bone",
+   "card": "out"
+  },
+  {
+   "who": "molly",
+   "text": "In and out are opposites! In... out.",
+   "act": "count",
+   "cam": "host",
+   "card": "in  out"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say in? And out?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "In! Out!",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "card": "in  out"
+  },
+  {
+   "who": "molly",
+   "text": "Show me in!",
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Now show me out!",
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "In, in, in the doghouse! Out, out, out to play!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "bobo",
+   "text": "The dog is out... of my sandwich!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! That's backwards!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! In and out! Opposites!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "lily",
+   "text": "Look! Bobo's spinner is in the doghouse!",
+   "act": "point",
+   "cam": "kids",
+   "sfx": "chime",
+   "fx": "stars"
+  },
+  {
+   "who": "bobo",
+   "text": "My spinner! Thank you, friends! Thank you, puppy!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "fx": "confetti"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing our opposite song! Sing with us!",
+   "act": "cheer",
+   "cam": "host",
+   "chapter": "Opposite song",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Big and small, short and tall!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Up and down, all around!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Fast and slow, here we go!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Loud and quiet, try it, try it!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hooray!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "sfx": "success",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Let's take the spinner home! Look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 10,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Home again! Back to the living room!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "livingroom",
+   "chapter": "Home again",
+   "sfx": "sparkle",
+   "gap_after": 0.4
+  },
+  {
+   "who": "molly",
+   "text": "How many opposites did we find? Let's count!",
+   "act": "count",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Ten pairs of opposites! Hooray!",
+   "act": "cheer",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "fx": "confetti",
+   "sfx": "success"
+  },
+  {
+   "who": "bobo",
+   "text": "Let's spin it! Spin, spin, spin!",
+   "act": "spin",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "ollie",
+   "text": "Wait! The spinner landed on a rainbow!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "rainbow",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "A rainbow! Next time, we'll learn all the colours of the rainbow!",
+   "act": "open",
+   "cam": "host",
+   "teaser": true,
+   "pic": "rainbow"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say rainbow?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "rainbow",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Rainbow! Yay!",
+   "act": "yay",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Now, let's sit and rest. Take a big breath in... and out.",
+   "act": "open",
+   "cam": "host",
+   "calm": true,
+   "chapter": "Quiet time and goodbye",
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Today we learned big and small, fast and slow, up and down, hot and cold, and wet and dry.",
+   "act": "count",
+   "cam": "host",
+   "calm": true,
+   "card": "big  small"
+  },
+  {
+   "who": "molly",
+   "text": "Loud and quiet, day and night, full and empty, open and shut, and in and out.",
+   "act": "count",
+   "cam": "host",
+   "calm": true,
+   "card": "in  out"
+  },
+  {
+   "who": "molly",
+   "text": "Wave goodbye with us! Let's sing our goodbye song!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, friends! See you next time!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "endcard": "Bye bye!\nSee you next time!",
+   "sfx": "success"
+  }
+ ],
+ "learn": [
+  "big",
+  "small",
+  "fast",
+  "slow",
+  "up",
+  "down",
+  "hot",
+  "cold",
+  "loud",
+  "quiet"
+ ]
+}

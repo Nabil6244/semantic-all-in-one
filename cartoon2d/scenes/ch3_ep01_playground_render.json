@@ -1,0 +1,201 @@
+{
+ "timeline": "cartoon2d/build/ch3_ep01_playground/audio/timeline.json",
+ "build": "cartoon2d/build/ch3_ep01_playground",
+ "name": "ch3_ep01_playground",
+ "host": "lina",
+ "kids": [
+  "tobi",
+  "rosie"
+ ],
+ "start_place": "gate",
+ "places": {
+  "gate": {
+   "background": "cartoon2d/art/bg/ch3e1_gate.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "nia": 0.3906,
+    "tobi": 0.5624,
+    "rosie": 0.7056,
+    "fizz": 0.8656,
+    "poppy": -0.4,
+    "pip": 1.5499999999999998,
+    "dot": -0.7
+   }
+  },
+  "slide": {
+   "background": "cartoon2d/art/bg/ch3e1_hill.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.566,
+    "rosie": 0.7074,
+    "fizz": 0.8656,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "pip": -0.7,
+    "dot": 1.8499999999999999
+   }
+  },
+  "swings": {
+   "background": "cartoon2d/art/bg/ch3e1_swings.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "rosie": 0.5473,
+    "pip": 0.8791,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "tobi": -0.7,
+    "fizz": 1.8499999999999999,
+    "dot": -1.0
+   }
+  },
+  "sandpit": {
+   "background": "cartoon2d/art/bg/ch3e1_sandpit.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.4096,
+    "dot": 0.6207,
+    "poppy": 0.8572,
+    "nia": -0.4,
+    "rosie": 1.5499999999999998,
+    "fizz": -0.7,
+    "pip": 1.8499999999999999
+   }
+  },
+  "train": {
+   "background": "cartoon2d/art/bg/ch3e1_railway.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.3763,
+    "rosie": 0.5304,
+    "fizz": 0.7014,
+    "pip": 0.8791,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "dot": -0.7
+   }
+  },
+  "softplay": {
+   "background": "cartoon2d/art/bg/ch3e1_softplay.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "pip": 0.3926,
+    "dot": 0.6305,
+    "rosie": 0.8583,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "tobi": -0.7,
+    "fizz": 1.8499999999999999
+   }
+  },
+  "splash": {
+   "background": "cartoon2d/art/bg/ch3e1_splash.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.3538,
+    "nia": 0.5141,
+    "poppy": 0.6997,
+    "fizz": 0.8769,
+    "rosie": -0.4,
+    "pip": 1.5499999999999998,
+    "dot": -0.7
+   }
+  },
+  "picnic": {
+   "background": "cartoon2d/art/bg/ch3e1_picnic.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.3678,
+    "rosie": 0.5135,
+    "fizz": 0.6761,
+    "dot": 0.8622,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "pip": -0.7
+   }
+  }
+ },
+ "cast": {
+  "lina": {
+   "dir": "cartoon2d/cast/lina",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hold_side": "sl",
+   "hop": 0.1,
+   "listen": 3.0
+  },
+  "nia": {
+   "dir": "cartoon2d/cast/nia",
+   "height": 0.55,
+   "tilt": 0.5,
+   "hold_side": "sl"
+  },
+  "poppy": {
+   "dir": "cartoon2d/cast/poppy",
+   "height": 0.55,
+   "tilt": 0.5,
+   "hold_side": "sr"
+  },
+  "tobi": {
+   "dir": "cartoon2d/cast/tobi",
+   "height": 0.4,
+   "tilt": 0.9,
+   "hold_side": "sr"
+  },
+  "rosie": {
+   "dir": "cartoon2d/cast/rosie",
+   "height": 0.38,
+   "tilt": 0.9,
+   "hold_side": "sl"
+  },
+  "fizz": {
+   "dir": "cartoon2d/cast/fizz",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sr"
+  },
+  "pip": {
+   "dir": "cartoon2d/cast/pip",
+   "height": 0.42,
+   "tilt": 0.6,
+   "hold_side": "sr"
+  },
+  "dot": {
+   "dir": "cartoon2d/cast/dot",
+   "height": 0.52,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  }
+ },
+ "music": {
+  "gate": "sunny",
+  "slide": "sunny",
+  "swings": "sunny",
+  "sandpit": "sunny",
+  "train": "sunny",
+  "softplay": "sunny",
+  "splash": "sunny",
+  "picnic": "calm"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/ch3_ep01_playground.json",
+ "storycheck": true,
+ "adventure": true,
+ "goal": {
+  "pic": "duckling",
+  "n": 5
+ },
+ "collection": false,
+ "rules": {
+  "max_stay": 240
+ }
+}

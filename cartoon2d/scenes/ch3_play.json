@@ -1,0 +1,118 @@
+{
+ "voices": {
+  "lina": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+0Hz"
+  },
+  "nia": {
+   "voice": "en-US-AnaNeural",
+   "rate": "-2%",
+   "pitch": "-6Hz"
+  },
+  "poppy": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+2%",
+   "pitch": "+4Hz"
+  },
+  "tobi": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-16Hz"
+  },
+  "rosie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+6%",
+   "pitch": "+10Hz"
+  },
+  "fizz": {
+   "voice": "en-US-GuyNeural",
+   "rate": "+4%",
+   "pitch": "+18Hz"
+  },
+  "pip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+10%",
+   "pitch": "-24Hz"
+  },
+  "dot": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-6%",
+   "pitch": "+8Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.5,
+ "gap": 0.4,
+ "tail": 1.5,
+ "lines": [
+  {
+   "who": "lina",
+   "text": "Welcome to the playground! What shall we play first?",
+   "act": "open",
+   "cam": "group"
+  },
+  {
+   "who": "tobi",
+   "text": "The slide! Wheeeee!",
+   "act": "cheer",
+   "game": {
+    "type": "slide",
+    "who": "tobi"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "rosie",
+   "text": "Push me on the swing! Higher, higher!",
+   "act": "giggle",
+   "game": {
+    "type": "swing",
+    "who": "rosie",
+    "lines": 2
+   },
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Up and down, up and down. Well done!",
+   "act": "clap",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "fizz",
+   "text": "Choo choo! Here comes the train! All aboard!",
+   "act": "wave",
+   "place": "garden",
+   "game": {
+    "type": "train",
+    "who": [
+     "tobi",
+     "rosie",
+     "fizz"
+    ]
+   },
+   "cam": "group",
+   "gap_after": 1.0
+  },
+  {
+   "who": "pip",
+   "text": "Jump in the ball pit with me! Ribbit!",
+   "act": "cheer",
+   "game": {
+    "type": "pit",
+    "who": [
+     "pip",
+     "dot"
+    ]
+   },
+   "also": {
+    "dot": "cheer"
+   },
+   "cam": "group",
+   "gap_after": 1.0
+  }
+ ]
+}

@@ -2,23 +2,9 @@
  "id": "mona_lisa_theft",
  "title": "The Theft That Made the Mona Lisa Famous",
  "topic": "Vincenzo Peruggia stealing the Mona Lisa (1911)",
- "hook_title": "THEY STOLE THE MONA LISA",
- "keywords": [
-  "mona",
-  "lisa",
-  "louvre",
-  "stole",
-  "famous",
-  "picasso",
-  "smock",
-  "trunk"
- ],
  "cast": [
   "walt",
   "pip"
- ],
- "sources": [
-  "https://en.wikipedia.org/wiki/Vincenzo_Peruggia"
  ],
  "places": {
   "louvre": "A grand gallery inside the Louvre in 1911: gold picture frames on red walls, a polished wooden floor, skylight, empty",
@@ -30,11 +16,27 @@
   "apartment": "A tiny 1911 Paris attic room: a narrow bed, a wooden trunk, a small window over rooftops, peeling wallpaper",
   "florence": "A 1913 Florence art dealer's shop: paintings stacked against the walls, a desk with a magnifying glass, warm lamp light"
  },
+ "hook_title": "THEY STOLE THE MONA LISA",
+ "keywords": [
+  "Mona",
+  "Lisa",
+  "Louvre",
+  "glass",
+  "smock",
+  "Picasso",
+  "trunk",
+  "Florence",
+  "famous",
+  "empty"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Vincenzo_Peruggia"
+ ],
  "shots": [
   {
    "beat": "hook",
    "speaker": "narrator",
-   "text": "In 1911, the Mona Lisa simply vanished.",
+   "text": "In 1911, the Mona Lisa vanished from the Louvre.",
    "set": "louvre",
    "camera": "two_shot",
    "move": "push",
@@ -49,7 +51,7 @@
       },
       {
        "do": "tremble",
-       "at": 1.1
+       "at": 1.0
       }
      ]
     },
@@ -59,7 +61,7 @@
      "acts": [
       {
        "do": "sneak",
-       "at": 0.4
+       "at": 0.0
       }
      ]
     }
@@ -71,21 +73,48 @@
      "text": "MONA LISA"
     }
    ],
-   "sfx": [
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Nobody noticed for over a day.",
+   "set": "louvre",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
     {
-     "name": "thud",
-     "at": 0.6
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.0
+      }
+     ]
     }
    ],
-   "id": "s01",
-   "transition": "cut"
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "28 HOURS"
+   },
+   "id": "s02"
   },
   {
    "beat": "hook",
    "speaker": "pip",
    "text": "Who steals the world's most famous painting?",
    "set": "louvre",
-   "camera": "close",
+   "camera": "medium",
    "move": "crash_zoom",
    "cast": [
     {
@@ -103,17 +132,17 @@
      ]
     }
    ],
-   "id": "s02",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s03"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
    "text": "Back then, it wasn't that famous.",
    "set": "louvre",
-   "camera": "medium",
+   "camera": "close",
    "move": "push",
    "cast": [
     {
@@ -126,25 +155,25 @@
       },
       {
        "do": "look_around",
-       "at": 1.2
+       "at": 0.9
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "cross",
     "text": "FAMOUS?"
    },
-   "id": "s03",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s04"
   },
   {
-   "beat": "setup",
+   "beat": "concept",
    "speaker": "narrator",
-   "text": "Vincenzo Peruggia had worked at the Louvre.",
-   "set": "closet",
+   "text": "The thief was Vincenzo Peruggia, a handyman.",
+   "set": "street",
    "camera": "medium",
    "move": "drift",
    "cast": [
@@ -163,19 +192,51 @@
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "VINCENZO PERUGGIA"
    },
-   "id": "s04",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s05"
   },
   {
    "beat": "setup",
    "speaker": "narrator",
-   "text": "One Sunday night, he hid in a closet.",
+   "text": "And the crazy part? He had helped put it behind glass.",
+   "set": "louvre",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "HIS GLASS"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "One Sunday, he hid in a storeroom overnight.",
    "set": "closet",
    "camera": "close",
    "move": "push",
@@ -195,22 +256,17 @@
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "door",
-     "at": 0.2
-    }
-   ],
-   "id": "s05",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
   },
   {
    "beat": "obstacle",
    "speaker": "narrator",
-   "text": "Monday morning, the museum was closed.",
+   "text": "Monday, the museum was closed.",
    "set": "closet",
-   "camera": "insert",
+   "camera": "medium",
    "move": "push",
    "cast": [
     {
@@ -220,60 +276,30 @@
       {
        "do": "sneak",
        "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 0.8
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "stamp",
     "text": "CLOSED"
    },
-   "id": "s06",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s08"
   },
   {
    "beat": "con",
    "speaker": "narrator",
-   "text": "He wore a white worker's smock.",
-   "set": "louvre",
-   "camera": "wide",
-   "move": "pan_r",
-   "cast": [
-    {
-     "id": "walt",
-     "mark": "enter_l",
-     "acts": [
-      {
-       "do": "sneak",
-       "at": 0.0,
-       "params": {
-        "to": [
-         1.0,
-         0.0
-        ]
-       }
-      },
-      {
-       "do": "look_around",
-       "at": 1.25
-      }
-     ]
-    }
-   ],
-   "id": "s07",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
-  },
-  {
-   "beat": "con",
-   "speaker": "walt",
-   "text": "Just a workman. Nothing to see.",
-   "set": "louvre",
+   "text": "He slipped on a white worker's smock.",
+   "set": "closet",
    "camera": "close",
-   "move": "crash_zoom",
+   "move": "push",
    "cast": [
     {
      "id": "walt",
@@ -284,8 +310,70 @@
        "at": 0.0
       },
       {
-       "do": "present",
-       "at": 0.8
+       "do": "hips",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Just a workman. Nothing to see.",
+   "set": "closet",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "He lifted it off the wall.",
+   "set": "louvre",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "pick_up",
+       "at": 1.0
       }
      ]
     }
@@ -297,19 +385,47 @@
      "text": "MONA LISA"
     }
    ],
-   "sfx": [
-    {
-     "name": "pick",
-     "at": 0.3
-    }
-   ],
-   "id": "s08",
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s11"
   },
   {
    "beat": "con",
    "speaker": "narrator",
-   "text": "He walked out with it under his smock.",
+   "text": "Ditched the frame.",
+   "set": "louvre",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.5
+    }
+   ],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And walked out with it under his smock.",
    "set": "street",
    "camera": "medium",
    "move": "pan_l",
@@ -330,7 +446,7 @@
       },
       {
        "do": "laugh",
-       "at": 1.5
+       "at": 1.6
       }
      ]
     }
@@ -342,54 +458,17 @@
      "text": "MONA LISA"
     }
    ],
-   "sfx": [
-    {
-     "name": "footsteps",
-     "at": 0.0
-    }
-   ],
-   "id": "s09",
-   "transition": "cut",
-   "freeze": "WAIT..."
-  },
-  {
-   "beat": "escalate",
-   "speaker": "narrator",
-   "text": "Nobody noticed for over a day.",
-   "set": "louvre",
-   "camera": "two_shot",
-   "move": "orbit_r",
-   "cast": [
-    {
-     "id": "pip",
-     "mark": "C",
-     "acts": [
-      {
-       "do": "look_around",
-       "at": 0.0
-      },
-      {
-       "do": "shrug",
-       "at": 1.2
-      }
-     ]
-    }
-   ],
-   "overlay": {
-    "type": "chalk",
-    "text": "28 HOURS"
-   },
-   "id": "s10",
-   "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s13"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
-   "text": "Then it was front page news everywhere.",
+   "text": "The next day, it was front page news everywhere.",
    "set": "street",
-   "camera": "medium",
+   "camera": "close",
    "move": "push",
    "cast": [
     {
@@ -417,22 +496,18 @@
    "sfx": [
     {
      "name": "paper",
-     "at": 0.1
-    },
-    {
-     "name": "crowd",
-     "at": 0.6
+     "at": 0.3
     }
    ],
-   "id": "s11",
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s14"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
    "text": "Police even questioned Pablo Picasso.",
    "set": "street",
-   "camera": "close",
+   "camera": "medium",
    "move": "push",
    "cast": [
     {
@@ -445,25 +520,90 @@
       },
       {
        "do": "shock",
-       "at": 1.0
+       "at": 0.9
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "PABLO PICASSO"
    },
-   "freeze": "WAIT...",
-   "id": "s12",
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "When the Louvre reopened, crowds lined up to stare at the empty wall.",
+   "set": "louvre",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "EMPTY WALL"
+   },
+   "id": "s16"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Thousands came to see nothing.",
+   "set": "louvre",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s17",
+   "freeze": ""
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "For two years, it sat in a trunk in his room.",
+   "text": "Meanwhile, it sat in a trunk in his tiny room.",
    "set": "apartment",
    "camera": "wide",
    "move": "tilt_down",
@@ -478,7 +618,7 @@
       },
       {
        "do": "present",
-       "at": 1.3
+       "at": 1.2
       }
      ]
     }
@@ -489,19 +629,46 @@
      "spot": "floor_front"
     }
    ],
-   "sfx": [
-    {
-     "name": "door",
-     "at": 0.3
-    }
-   ],
-   "id": "s13",
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "In 1913, he tried to sell it in Florence.",
+   "text": "For two whole years.",
+   "set": "apartment",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "2 YEARS"
+   },
+   "id": "s19"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Then he tried to sell it to an art dealer in Florence.",
    "set": "florence",
    "camera": "medium",
    "move": "push",
@@ -528,9 +695,9 @@
      "text": "MONA LISA"
     }
    ],
-   "id": "s14",
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s20"
   },
   {
    "beat": "twist",
@@ -555,24 +722,62 @@
      ]
     }
    ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
    "overlay": {
     "type": "stamp",
     "text": "CAUGHT"
    },
-   "sfx": [
-    {
-     "name": "bonk",
-     "at": 0.5
-    }
-   ],
-   "id": "s15",
-   "props": [],
-   "transition": "cut"
+   "id": "s21"
   },
   {
    "beat": "payoff",
    "speaker": "narrator",
-   "text": "The crowds came back, now huge.",
+   "text": "Many Italians cheered him, and he served just months in jail.",
+   "set": "florence",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And the Mona Lisa? Now the most famous painting on Earth.",
    "set": "louvre",
    "camera": "low",
    "move": "push",
@@ -587,24 +792,19 @@
       },
       {
        "do": "cheer",
-       "at": 1.2
+       "at": 1.3
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "chalk",
     "text": "MOST FAMOUS PAINTING"
    },
-   "sfx": [
-    {
-     "name": "crowd",
-     "at": 0.2
-    }
-   ],
-   "id": "s16",
-   "props": [],
-   "transition": "cut"
+   "id": "s23"
   },
   {
    "beat": "payoff",
@@ -630,15 +830,15 @@
      "acts": [
       {
        "do": "look_around",
-       "at": 0.3
+       "at": 0.0
       }
      ]
     }
    ],
-   "id": "s17",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s24"
   },
   {
    "beat": "payoff",
@@ -658,21 +858,17 @@
       },
       {
        "do": "point_you",
-       "at": 0.8
+       "at": 0.7
       }
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "pop",
-     "at": 0.9
-    }
-   ],
-   "id": "s18",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s25"
   }
  ],
- "est_total": 33.05
+ "version": "engaging_v2",
+ "est_total": 49.81
 }

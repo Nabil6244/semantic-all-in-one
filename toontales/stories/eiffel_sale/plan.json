@@ -2,22 +2,9 @@
  "id": "eiffel_sale",
  "title": "The Man Who Sold the Eiffel Tower",
  "topic": "Victor Lustig selling the Eiffel Tower (1925)",
- "hook_title": "HE SOLD THE EIFFEL TOWER?",
- "keywords": [
-  "eiffel",
-  "tower",
-  "sold",
-  "scrap",
-  "alcatraz",
-  "bribe",
-  "fake"
- ],
  "cast": [
   "walt",
   "pip"
- ],
- "sources": [
-  "https://en.wikipedia.org/wiki/Victor_Lustig"
  ],
  "places": {
   "tower": "The Eiffel Tower in Paris in 1925 seen from a wide stone plaza, blue sky, old street lamps, cobblestones",
@@ -32,11 +19,26 @@
    "ambient": "none"
   }
  },
+ "hook_title": "HE SOLD THE EIFFEL TOWER?",
+ "keywords": [
+  "tower",
+  "scrap",
+  "Lustig",
+  "Poisson",
+  "bribe",
+  "Capone",
+  "Alcatraz",
+  "twice",
+  "secret"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Victor_Lustig"
+ ],
  "shots": [
   {
    "beat": "hook",
    "speaker": "narrator",
-   "text": "In 1925, a man sold the Eiffel Tower.",
+   "text": "In 1925, a man sold the Eiffel Tower. Twice.",
    "set": "tower",
    "camera": "two_shot",
    "move": "push",
@@ -51,7 +53,7 @@
       },
       {
        "do": "money",
-       "at": 1.2
+       "at": 1.3
       }
      ]
     },
@@ -75,11 +77,11 @@
    "sfx": [
     {
      "name": "cash",
-     "at": 0.8
+     "at": 1.0
     }
    ],
-   "id": "s01",
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s01"
   },
   {
    "beat": "hook",
@@ -104,16 +106,16 @@
      ]
     }
    ],
-   "id": "s02",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s02"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
-   "text": "His name was Victor Lustig, a smooth con man.",
-   "set": "hotel",
+   "text": "Meet Victor Lustig, maybe the smoothest con man ever.",
+   "set": "tower",
    "camera": "medium",
    "move": "push",
    "cast": [
@@ -127,24 +129,24 @@
       },
       {
        "do": "sneak",
-       "at": 1.4
+       "at": 1.3
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "VICTOR LUSTIG"
    },
-   "id": "s03",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s03"
   },
   {
    "beat": "concept",
    "speaker": "narrator",
-   "text": "He read that the tower cost a fortune to repair.",
+   "text": "He read that the tower was rusting and cost a fortune to fix.",
    "set": "hotel",
    "camera": "insert",
    "move": "push",
@@ -159,7 +161,7 @@
       },
       {
        "do": "nod",
-       "at": 1.2
+       "at": 1.3
       }
      ]
     }
@@ -171,19 +173,14 @@
      "text": "TOWER TOO COSTLY?"
     }
    ],
-   "sfx": [
-    {
-     "name": "paper",
-     "at": 0.2
-    }
-   ],
-   "id": "s04",
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
   },
   {
    "beat": "setup",
    "speaker": "walt",
-   "text": "Then let's sell it for scrap.",
+   "text": "Then let's sell it for scrap!",
    "set": "hotel",
    "camera": "close",
    "move": "crash_zoom",
@@ -203,15 +200,15 @@
      ]
     }
    ],
-   "id": "s05",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s05"
   },
   {
    "beat": "setup",
    "speaker": "narrator",
-   "text": "He made fake government papers.",
+   "text": "He forged official government letters.",
    "set": "hotel",
    "camera": "medium",
    "move": "drift",
@@ -226,7 +223,7 @@
       },
       {
        "do": "present",
-       "at": 1.0
+       "at": 1.2
       }
      ]
     }
@@ -244,14 +241,14 @@
      "at": 0.6
     }
    ],
-   "id": "s06",
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s06"
   },
   {
-   "beat": "con",
+   "beat": "setup",
    "speaker": "narrator",
-   "text": "And invited scrap dealers to a secret meeting.",
-   "set": "office",
+   "text": "And invited six scrap dealers to a fancy hotel.",
+   "set": "hotel",
    "camera": "wide",
    "move": "pan_r",
    "cast": [
@@ -281,26 +278,25 @@
      "acts": [
       {
        "do": "look_around",
-       "at": 0.3
+       "at": 0.0
       }
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "door",
-     "at": 0.1
-    }
-   ],
-   "id": "s07",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "6 DEALERS"
+   },
+   "id": "s07"
   },
   {
-   "beat": "con",
-   "speaker": "walt",
-   "text": "The tower must go. Quietly.",
-   "set": "office",
+   "beat": "deadline",
+   "speaker": "narrator",
+   "text": "Keep it secret, he warned, or Paris will riot.",
+   "set": "hotel",
    "camera": "close",
    "move": "push",
    "cast": [
@@ -314,22 +310,53 @@
       },
       {
        "do": "point_you",
-       "at": 0.8
+       "at": 1.1
       }
      ]
     }
    ],
-   "id": "s08",
    "props": [],
    "sfx": [],
    "transition": "cut",
-   "freeze": "WAIT..."
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Seven thousand tons of iron, up for grabs.",
+   "set": "tower",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "7,000 TONS"
+   },
+   "id": "s09"
   },
   {
    "beat": "con",
    "speaker": "narrator",
    "text": "One dealer, André Poisson, wanted it badly.",
-   "set": "tower",
+   "set": "office",
    "camera": "medium",
    "move": "push",
    "cast": [
@@ -342,27 +369,59 @@
        "at": 0.0
       },
       {
-       "do": "celebrate",
-       "at": 1.2
+       "do": "cheer",
+       "at": 1.1
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "ANDRE POISSON"
    },
-   "id": "s09",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s10"
   },
   {
-   "beat": "con",
-   "speaker": "pip",
-   "text": "It's mine!",
-   "set": "tower",
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But his wife smelled a rat.",
+   "set": "office",
    "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "SUSPICIOUS"
+   },
+   "id": "s11"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "pip",
+   "text": "Hmm. This feels fishy.",
+   "set": "office",
+   "camera": "medium",
    "move": "crash_zoom",
    "cast": [
     {
@@ -370,28 +429,57 @@
      "mark": "B",
      "acts": [
       {
-       "do": "cheer",
+       "do": "think",
        "at": 0.0
       },
       {
-       "do": "fist_pump",
-       "at": 0.5
+       "do": "shrug",
+       "at": 0.8
       }
      ]
     }
    ],
-   "id": "s10",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s12"
   },
   {
-   "beat": "escalate",
+   "beat": "con",
    "speaker": "narrator",
-   "text": "Lustig even asked for a bribe on top.",
+   "text": "So Lustig made a confession. He was a crooked official.",
    "set": "office",
-   "camera": "two_shot",
-   "move": "orbit_r",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s13"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "I need a little bribe.",
+   "set": "office",
+   "camera": "medium",
+   "move": "crash_zoom",
    "cast": [
     {
      "id": "walt",
@@ -402,18 +490,46 @@
        "at": 0.0
       },
       {
-       "do": "laugh",
-       "at": 1.0
+       "do": "point_you",
+       "at": 0.7
       }
      ]
-    },
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Now Poisson believed him. Crooks take bribes!",
+   "set": "tower",
+   "camera": "two_shot",
+   "move": "orbit_r",
+   "cast": [
     {
      "id": "pip",
      "mark": "C",
      "acts": [
       {
-       "do": "plead",
-       "at": 0.4
+       "do": "nod",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.9
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
       }
      ]
     }
@@ -424,20 +540,15 @@
      "held_by": "pip"
     }
    ],
-   "sfx": [
-    {
-     "name": "cash",
-     "at": 0.6
-    }
-   ],
-   "id": "s11",
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s15"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
-   "text": "Poisson paid, and Lustig vanished.",
-   "set": "office",
+   "text": "Lustig grabbed a suitcase of cash and fled to Vienna.",
+   "set": "train",
    "camera": "wide",
    "move": "pan_l",
    "cast": [
@@ -456,16 +567,6 @@
        }
       }
      ]
-    },
-    {
-     "id": "pip",
-     "mark": "C",
-     "acts": [
-      {
-       "do": "shock",
-       "at": 0.8
-      }
-     ]
     }
    ],
    "props": [
@@ -476,17 +577,45 @@
    ],
    "sfx": [
     {
-     "name": "footsteps",
-     "at": 0.0
+     "name": "train",
+     "at": 0.2
     }
    ],
-   "id": "s12",
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s16"
   },
   {
    "beat": "escalate",
    "speaker": "narrator",
-   "text": "He fled to Austria with the money.",
+   "text": "Then he waited for the police.",
+   "set": "train",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "They never came.",
    "set": "train",
    "camera": "medium",
    "move": "push",
@@ -501,31 +630,21 @@
       },
       {
        "do": "money",
-       "at": 1.2
+       "at": 0.7
       }
      ]
     }
    ],
-   "props": [
-    {
-     "type": "sack",
-     "held_by": "walt"
-    }
-   ],
-   "sfx": [
-    {
-     "name": "train",
-     "at": 0.0
-    }
-   ],
-   "id": "s13",
+   "props": [],
+   "sfx": [],
    "transition": "cut",
+   "id": "s18",
    "freeze": ""
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "Poisson was too embarrassed to tell the police.",
+   "text": "Poisson was too embarrassed to report it.",
    "set": "office",
    "camera": "close",
    "move": "pull",
@@ -540,24 +659,24 @@
       },
       {
        "do": "sad",
-       "at": 1.2
+       "at": 1.0
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "stamp",
     "text": "SILENT"
    },
-   "id": "s14",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s19"
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "So Lustig came back and tried it again.",
+   "text": "So Lustig came back and sold it again!",
    "set": "hotel",
    "camera": "medium",
    "move": "push",
@@ -572,24 +691,89 @@
       },
       {
        "do": "money",
-       "at": 1.3
+       "at": 1.0
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "chalk",
     "text": "AGAIN?!"
    },
-   "id": "s15",
-   "props": [],
-   "sfx": [],
-   "transition": "cut"
+   "id": "s20"
   },
   {
    "beat": "twist",
    "speaker": "narrator",
-   "text": "Years later, counterfeiting landed him in Alcatraz.",
+   "text": "This time, the buyer went to the police.",
+   "set": "hotel",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He escaped to America and even conned Al Capone.",
+   "set": "hotel",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "AL CAPONE"
+   },
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "His fake money finally landed him in Alcatraz.",
    "set": "prison",
    "camera": "wide",
    "move": "tilt_down",
@@ -604,24 +788,19 @@
       },
       {
        "do": "sad",
-       "at": 1.3
+       "at": 1.1
       }
      ]
     }
    ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
    "overlay": {
     "type": "label",
     "text": "ALCATRAZ"
    },
-   "sfx": [
-    {
-     "name": "door",
-     "at": 0.2
-    }
-   ],
-   "id": "s16",
-   "props": [],
-   "transition": "cut"
+   "id": "s23"
   },
   {
    "beat": "payoff",
@@ -647,20 +826,20 @@
      "acts": [
       {
        "do": "look_around",
-       "at": 0.3
+       "at": 0.0
       }
      ]
     }
    ],
-   "id": "s17",
    "props": [],
    "sfx": [],
-   "transition": "cut"
+   "transition": "cut",
+   "id": "s24"
   },
   {
    "beat": "payoff",
    "speaker": "walt",
-   "text": "Shh. Wanna buy a bridge?",
+   "text": "Shh. Wanna buy a tower?",
    "set": "tower",
    "camera": "close",
    "move": "crash_zoom",
@@ -675,21 +854,17 @@
       },
       {
        "do": "point_you",
-       "at": 0.8
+       "at": 0.7
       }
      ]
     }
    ],
-   "sfx": [
-    {
-     "name": "pop",
-     "at": 0.9
-    }
-   ],
-   "id": "s18",
    "props": [],
-   "transition": "cut"
+   "sfx": [],
+   "transition": "cut",
+   "id": "s25"
   }
  ],
- "est_total": 34.38
+ "version": "engaging_v2",
+ "est_total": 51.29
 }

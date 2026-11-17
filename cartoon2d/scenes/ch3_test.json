@@ -1,0 +1,123 @@
+{
+ "voices": {
+  "lina": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+0Hz"
+  },
+  "nia": {
+   "voice": "en-US-AnaNeural",
+   "rate": "-2%",
+   "pitch": "-6Hz"
+  },
+  "poppy": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+2%",
+   "pitch": "+4Hz"
+  },
+  "tobi": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-16Hz"
+  },
+  "rosie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+6%",
+   "pitch": "+10Hz"
+  },
+  "fizz": {
+   "voice": "en-US-GuyNeural",
+   "rate": "+4%",
+   "pitch": "+18Hz"
+  },
+  "pip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+10%",
+   "pitch": "-24Hz"
+  },
+  "dot": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-6%",
+   "pitch": "+8Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.5,
+ "gap": 0.4,
+ "tail": 1.5,
+ "lines": [
+  {
+   "who": "lina",
+   "text": "Hello friends! I'm Ms Lina. Welcome to the park!",
+   "act": "wave",
+   "cam": "group"
+  },
+  {
+   "who": [
+    "nia",
+    "poppy"
+   ],
+   "text": "Hi everyone!",
+   "act": "hands_up",
+   "also": {
+    "tobi": "hands_up",
+    "rosie": "hands_up"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "tobi",
+   "text": "Jump, jump, jump!",
+   "act": "jump",
+   "also": {
+    "rosie": "jump"
+   },
+   "cam": "kids"
+  },
+  {
+   "who": "fizz",
+   "text": "I'm Fizz the fox! Clap with me!",
+   "act": "clap",
+   "also": {
+    "nia": "clap",
+    "poppy": "clap"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Look over there! Who is that?",
+   "act": "point",
+   "cam": "host",
+   "place": "garden",
+   "gap_after": 0.8
+  },
+  {
+   "who": "pip",
+   "text": "It's me, Pip! Ribbit ribbit!",
+   "act": "jump",
+   "cam": "group"
+  },
+  {
+   "who": "dot",
+   "text": "And me, Dot the dino! Let's dance!",
+   "act": "dance",
+   "also": {
+    "pip": "dance",
+    "lina": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "lina",
+    "pip",
+    "dot"
+   ],
+   "text": "Bye bye, friends!",
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 1.0
+  }
+ ]
+}

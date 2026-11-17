@@ -1,0 +1,789 @@
+{
+ "id": "reeves_tramp",
+ "title": "How a Marshal Caught Two Outlaws in Their Sleep",
+ "topic": "Deputy US Marshal Bass Reeves' tramp disguise and the two wanted brothers (Indian Territory)",
+ "hook_title": "THREE HOLES IN HIS HAT?",
+ "keywords": [
+  "hat",
+  "bullet",
+  "tramp",
+  "marshal",
+  "Reeves",
+  "reward",
+  "brothers",
+  "handcuffs"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume",
+  "sheriff"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://www.nps.gov/articles/000/bass-reeves-site-bulletin.htm",
+  "https://www.legendsofamerica.com/we-bassreeves/"
+ ],
+ "places": {
+  "cabin": {
+   "world": "frontier_desert",
+   "prompt": "A lonely log cabin in dry country at dusk"
+  },
+  "inside": {
+   "world": "frontier_office",
+   "remove": [
+    "safe"
+   ],
+   "prompt": "A small log cabin room with a table and a lantern"
+  },
+  "trail": {
+   "world": "frontier_desert",
+   "remove": [
+    "wagon"
+   ],
+   "prompt": "Empty dry hills and a long trail at dusk"
+  },
+  "town": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin"
+   ],
+   "prompt": "A Wild West main street at dusk"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A tramp knocks on a cabin door. Three bullet holes in his hat.",
+   "set": "cabin",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.2
+      },
+      {
+       "do": "plead",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "3 HOLES"
+   },
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "He's no tramp. He's a US marshal. So why the holes?",
+   "set": "cabin",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.2
+      },
+      {
+       "do": "think",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "BASS REEVES"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Bass Reeves. Deputy marshal in Indian Territory.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "DEPUTY US MARSHAL"
+   },
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Born enslaved, he became a legend of the frontier.",
+   "set": "town",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "LEGEND"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Two brothers are wanted. Five thousand dollar reward.",
+   "set": "town",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "sheriff",
+     "text": "WANTED $5,000"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "They hide out near their mother's cabin, by the Texas line.",
+   "set": "cabin",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A posse would be seen coming for miles.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "POSSE"
+   },
+   "id": "s07"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "driver",
+   "text": "Lawmen coming? We're gone.",
+   "set": "cabin",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "So Reeves leaves the posse, and hides his badge.",
+   "set": "trail",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "HIDDEN BADGE"
+   },
+   "freeze": "WAIT...",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "He wears an old hat with three bullet holes.",
+   "set": "trail",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "gunshot",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "3 HOLES"
+   },
+   "mood": "sneaky",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then he walks about twenty-eight miles. On foot.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "28 MILES"
+   },
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "sheriff",
+   "text": "Ma'am, a posse shot at me!",
+   "set": "cabin",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.2
+      },
+      {
+       "do": "tremble",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "She takes him in.",
+   "set": "inside",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.2
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Her sons come home. He offers to team up.",
+   "set": "inside",
+   "camera": "two_shot",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.6
+      }
+     ]
+    },
+    {
+     "id": "sheriff",
+     "mark": "E",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "PARTNERS?"
+   },
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Night falls over the cabin. Everyone sleeps.",
+   "set": "cabin",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "Zzz"
+   },
+   "id": "s15",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Everyone except Reeves. You see, nobody guards against a fellow fugitive.",
+   "set": "inside",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "E",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "ONE OF US?"
+   },
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Click. Handcuffs on both brothers, in their sleep.",
+   "set": "inside",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "CUFFED"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He marches them back to camp, their mother yelling behind.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "E",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "mood": "upbeat",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Reeves collects the five thousand dollars.",
+   "set": "town",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "sheriff"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "All thanks to three bullet holes in an old hat.",
+   "set": "cabin",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.2
+      },
+      {
+       "do": "hips",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "3 HOLES"
+   },
+   "id": "s20"
+  }
+ ],
+ "est_total": 46.37
+}

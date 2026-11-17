@@ -1,0 +1,1098 @@
+{
+ "id": "signal_bobbies",
+ "title": "Why Railway Signalmen Are Called Bobbies",
+ "topic": "Railway policemen and the time-interval system on early British railways (1830s)",
+ "hook_title": "POLICE RUNNING TRAINS?",
+ "keywords": [
+  "policeman",
+  "flag",
+  "minutes",
+  "time",
+  "signal",
+  "bobbies",
+  "block",
+  "train"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Rail_signaller",
+  "https://www.steamlocomotives.org/how-railways-work/railway-signals-and-signalling"
+ ],
+ "places": {
+  "line": {
+   "world": "railway_line",
+   "prompt": "A railway line crossing open country at sunset, telegraph poles"
+  },
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian railway platform at sunset with a green steam train"
+  },
+  "street": {
+   "world": "victorian_square",
+   "prompt": "A Victorian stone town street at sunset"
+  },
+  "hut": {
+   "world": "clock_shop",
+   "prompt": "A small Victorian railway hut with a big wall clock, lantern light"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A policeman stands by the railway, watch in hand, flag up.",
+   "set": "line",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "STOP"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Why is a policeman running the trains?",
+   "set": "line",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.2
+      },
+      {
+       "do": "shrug",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "WHY?"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "1830. The Liverpool and Manchester Railway opens.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.2
+      },
+      {
+       "do": "jump",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1830"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "No signal lights. No telegraph. Nothing.",
+   "set": "line",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "NO SIGNALS"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "And trains already run faster than any horse.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.4
+      },
+      {
+       "do": "run",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "FAST"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "So the railways hire their own police.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "RAILWAY POLICE"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Uniforms, like the new London police. Flags by day, lamps by night.",
+   "set": "street",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "STOP"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "FLAGS + LAMPS"
+   },
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "They guard the line, and they signal the trains.",
+   "set": "line",
+   "camera": "two_shot",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "STOP"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Their rule is time, not distance.",
+   "set": "hut",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "TIME INTERVAL"
+   },
+   "moves": [
+    {
+     "id": "shop_clock",
+     "run_to": 0.4,
+     "t0": 0,
+     "t1": 1.0
+    }
+   ],
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A train passes. The policeman starts his watch.",
+   "set": "line",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s10"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "vic_pike",
+   "text": "Under five minutes? Stop!",
+   "set": "line",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "STOP"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "After that, caution. Later still, all clear.",
+   "set": "line",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "CAUTION"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "5 MIN"
+   },
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "But a clock can't tell where the last train is.",
+   "set": "hut",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "WHERE?"
+   },
+   "freeze": "WAIT...",
+   "id": "s13"
+  },
+  {
+   "beat": "con",
+   "speaker": "vic_ned",
+   "text": "What if it broke down?",
+   "set": "line",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.2
+      },
+      {
+       "do": "shock",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "A stalled train sits just round the bend.",
+   "set": "line",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cower",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "STUCK"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      2,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.2,
+     "ease": "out"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "mood": "sneaky",
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Five minutes pass. All clear.",
+   "set": "line",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "ALL CLEAR"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The next train steams on.",
+   "set": "station",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.2
+      },
+      {
+       "do": "run",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "to": [
+      40,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 1.2,
+     "ease": "in"
+    }
+   ],
+   "id": "s17"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Right into the back of it. Crash.",
+   "set": "line",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.8
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "CRASH"
+   },
+   "id": "s18",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Here's the trick. Stop counting minutes. Count space.",
+   "set": "hut",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 1.5
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "SPACE"
+   },
+   "id": "s19"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So railways switched from time to space.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "ONE TRAIN PER BLOCK"
+   },
+   "mood": "sad",
+   "id": "s20"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Telegraph bells now kept one train per section.",
+   "set": "hut",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "BLOCK CLEAR"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The police moved out. Signalmen moved into signal boxes.",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "SIGNALMAN"
+   },
+   "mood": "upbeat",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "vic_ned",
+   "text": "Who's in the box today? The bobby!",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s23"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "But the name stuck. Railway staff still call signalmen bobbies.",
+   "set": "line",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "vic_pike",
+     "text": "BOBBY"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s24"
+  }
+ ],
+ "est_total": 51.13
+}

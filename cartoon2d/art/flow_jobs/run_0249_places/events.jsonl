@@ -1,0 +1,294 @@
+{"type":"STATE","msg":""}
+{"type":"INFO","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":8,"msg":"Working 1/7 (saved 0) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Working 1/8 (saved 0) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":15,"msg":"Working 1/7 (saved 0) · \"2D cartoon background for a preschool TV…\""}
+{"type":"BATCH_PROGRESS","status":"running","index":8,"msg":"Downloading 009-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Downloading 001-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":15,"msg":"Downloading 016-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":8,"msg":"Downloading 009-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":8,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/009-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":8,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/009-2.png","msg":"Saved 1/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":9,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":9,"msg":"Working 2/7 (saved 1) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":0,"msg":"Downloading 001-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":0,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/001-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":0,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/001-2.png","msg":"Saved 1/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":1,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Working 2/8 (saved 1) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":15,"msg":"Downloading 016-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":15,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/016-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":15,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/016-2.png","msg":"Saved 1/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":16,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":16,"msg":"Working 2/7 (saved 1) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":9,"msg":"Downloading 010-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Downloading 002-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":16,"msg":"Downloading 017-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":9,"msg":"Downloading 010-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":9,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/010-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":9,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/010-2.png","msg":"Saved 2/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":10,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":10,"msg":"Working 3/7 (saved 2) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":1,"msg":"Downloading 002-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":1,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/002-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":1,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/002-2.png","msg":"Saved 2/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":2,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Working 3/8 (saved 2) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":16,"msg":"Downloading 017-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":16,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/017-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":16,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/017-2.png","msg":"Saved 2/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":17,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":17,"msg":"Working 3/7 (saved 2) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":10,"msg":"Downloading 011-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Downloading 003-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":17,"msg":"Downloading 018-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":10,"msg":"Downloading 011-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":10,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/011-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":10,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/011-2.png","msg":"Saved 3/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":11,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":2,"msg":"Downloading 003-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":2,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/003-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":2,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/003-2.png","msg":"Saved 3/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":3,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":3,"msg":"Working 4/8 (saved 3) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":11,"msg":"Working 4/7 (saved 3) · \"2D cartoon background for a preschool TV…\""}
+{"type":"BATCH_PROGRESS","status":"running","index":17,"msg":"Downloading 018-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":17,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/018-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":17,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/018-2.png","msg":"Saved 3/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":18,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":18,"msg":"Working 4/7 (saved 3) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":3,"msg":"Downloading 004-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":11,"msg":"Downloading 012-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":18,"msg":"Downloading 019-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":3,"msg":"Downloading 004-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":3,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/004-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":3,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/004-2.png","msg":"Saved 4/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":4,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":4,"msg":"Working 5/8 (saved 4) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":11,"msg":"Downloading 012-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":11,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/012-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":11,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/012-2.png","msg":"Saved 4/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":12,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":12,"msg":"Working 5/7 (saved 4) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":18,"msg":"Downloading 019-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":18,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/019-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":18,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/019-2.png","msg":"Saved 4/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":19,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":4,"msg":"Downloading 005-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":19,"msg":"Working 5/7 (saved 4) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":12,"msg":"Downloading 013-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":4,"msg":"Downloading 005-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":4,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/005-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":4,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/005-2.png","msg":"Saved 5/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":5,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":19,"msg":"Downloading 020-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":5,"msg":"Working 6/8 (saved 5) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":12,"msg":"Downloading 013-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":12,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/013-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":12,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/013-2.png","msg":"Saved 5/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":13,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":13,"msg":"Working 6/7 (saved 5) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":5,"msg":"Downloading 006-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":19,"msg":"Downloading 020-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":19,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/020-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":19,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/020-2.png","msg":"Saved 5/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":20,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":20,"msg":"Working 6/7 (saved 5) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":13,"msg":"Downloading 014-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":5,"msg":"Downloading 006-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":5,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/006-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":5,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/006-2.png","msg":"Saved 6/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":6,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":6,"msg":"Working 7/8 (saved 6) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":20,"msg":"Downloading 021-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":13,"msg":"Downloading 014-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":13,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/014-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":13,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/014-2.png","msg":"Saved 6/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":14,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":14,"msg":"Working 7/7 (saved 6) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":6,"msg":"Downloading 007-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":20,"msg":"Downloading 021-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":20,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/021-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":20,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/021-2.png","msg":"Saved 6/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":21,"msg":"Waiting 3s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":21,"msg":"Working 7/7 (saved 6) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":14,"msg":"Downloading 015-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":6,"msg":"Downloading 007-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":6,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/007-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":6,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/007-2.png","msg":"Saved 7/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"waiting","index":7,"msg":"Waiting 4s…"}
+{"type":"BATCH_PROGRESS","status":"running","index":7,"msg":"Working 8/8 (saved 7) · \"2D cartoon background for a preschool TV…\""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":21,"msg":"Downloading 022-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":14,"msg":"Downloading 015-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":14,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/015-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":14,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-8-a6d0b7/015-2.png","msg":"Saved 7/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":7,"msg":"Downloading 008-1.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":21,"msg":"Downloading 022-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":21,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/022-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":21,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-9-882989/022-2.png","msg":"Saved 7/7 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"running","index":7,"msg":"Downloading 008-2.png…"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"PROMPT_RESULT","status":"done","index":7,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/008-2.png","msg":""}
+{"type":"STATE","msg":""}
+{"type":"BATCH_PROGRESS","status":"done","index":7,"path":"/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/run_0249_places/account-7-3ff7a2/008-2.png","msg":"Saved 8/8 on this account"}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"STATE","msg":""}
+{"type":"GENERATE_DONE","msg":""}

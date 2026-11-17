@@ -3,7 +3,7 @@ she speaks; sound effects land on lesson events. A final peak guard keeps the su
 
 python3 -m kids_audio.mixer job.json
 job = {"voice": "voice_processed.wav", "out": "mix.wav", "duration": 54.0,
-       "music": {"bed": "playroom", "gap_db": -12, "duck_db": -10, "fade_in": 1.5, "fade_out": 2.5} | null,
+       "music": {"bed": "playroom" | "file": "backing.wav", "gap_db": -12, "duck_db": -10, "fade_in": 1.5, "fade_out": 2.5} | null,
        "sfx": [{"t": 5.0, "name": "pop", "gain_db": 0}, ...] | [],
        "voice_lufs": -14, "target_lufs": -14, "duck_regions": [{"t0", "t1", "duck_db"}] (optional),
        "voice_gain_db": 0 (optional: gain on the voice first; voice_lufs must be the level after it)}
@@ -55,7 +55,11 @@ def mix(job):
     if m:
         segs = m.get("segments") or [{"t0": 0, "t1": dur, "bed": m.get("bed", "playroom")}]
         tile = {}
-        for name in {sg["bed"] for sg in segs}:                                  # every bed runs in time from the start of the video,
+        if m.get("file"):                                                        # a song-long backing track instead of a looped bed
+            y = L.read_audio(m["file"]); y = np.pad(y, ((0, 0), (0, max(0, N - y.shape[1]))))[:, :N]
+            segs = [{"t0": 0, "t1": dur, "bed": "_file"}]; tile["_file"] = y
+            man = dict(man, beds=dict(man["beds"], _file={"lufs": L.lufs(y)}))
+        for name in {sg["bed"] for sg in segs} - set(tile):                                  # every bed runs in time from the start of the video,
             y = L.read_audio(os.path.join(L.LIB, man["beds"][name]["file"]))     # so a bed that comes back (or a chant on its beat) stays on its grid
             tile[name] = np.tile(y, (1, int(np.ceil(N / y.shape[1]))))[:, :N]
         x = np.zeros((2, N)); t = np.arange(N) / SR; XF = float(m.get("crossfade", 1.5))

@@ -1,0 +1,66 @@
+{
+ "timeline": "cartoon2d/build/punjabi01/audio/timeline.json",
+ "build": "cartoon2d/build/punjabi01",
+ "name": "punjabi01_noraiz_te_shahad",
+ "host": "molly",
+ "kids": [
+  "lily",
+  "ollie"
+ ],
+ "start_place": "home",
+ "places": {
+  "home": {
+   "background": "cartoon2d/art/bg/ep07_livingroom.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.3,
+    "lily": 0.53,
+    "ollie": 0.72
+   },
+   "outdoor": false
+  },
+  "orchard": {
+   "background": "cartoon2d/art/bg/ep05_orchard.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.3,
+    "lily": 0.53,
+    "ollie": 0.72
+   }
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "height": 0.45,
+   "tilt": 1.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "home": "playroom",
+  "orchard": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/punjabi01_noraiz_shahad.json",
+ "storycheck": false,
+ "journey": false,
+ "hook": false,
+ "end_text": "Allah Hafiz!"
+}

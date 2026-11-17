@@ -66,6 +66,13 @@ def add(plan: Any) -> List[Dict[str, Any]]:
     return added
 
 
+def _mostly_opaque(im: Image.Image) -> bool:
+    if im.mode != "RGBA":
+        return True
+    a = im.getchannel("A").resize((64, 36))
+    return sum(a.tobytes()) >= 0.6 * 255 * 64 * 36
+
+
 def _frame(p: Dict[str, Any]) -> Optional[Image.Image]:
     key = (str(p.get("from_layer")), id(p.get("from_params")), round(float(p.get("from_t", 0)), 3))
     if key in _CACHE:
@@ -74,10 +81,16 @@ def _frame(p: Dict[str, Any]) -> Optional[Image.Image]:
     fn = BR.card_table().get(key[0])
     im = None
     if fn is not None:
-        try:
-            im = fn(float(p.get("from_t", 0)), float(p.get("from_dur", 1)), p.get("from_params") or {})
-        except Exception:
-            im = None
+        dur = float(p.get("from_dur", 1))
+        # the card that shrinks away must be the frame that was just on screen: a snapshot from 80% in showed a different
+        # backdrop / sticker for one frame at the cut (a flash). Only a last frame that has faded out falls back to from_t.
+        for at in (max(0.0, dur - 0.04), float(p.get("from_t", 0))):
+            try:
+                im = fn(at, dur, p.get("from_params") or {})
+            except Exception:
+                im = None
+            if im is not None and _mostly_opaque(im):
+                break
     if im is not None:
         im = im.convert("RGBA")
         if im.size != (W, H):

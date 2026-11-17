@@ -1,0 +1,76 @@
+{
+ "timeline": "cartoon2d/build/urdu01/audio/timeline.json",
+ "build": "cartoon2d/build/urdu01",
+ "name": "urdu01_ayan_bhalu_aur_shahad",
+ "host": "molly",
+ "kids": [
+  "lily",
+  "ollie"
+ ],
+ "start_place": "home",
+ "places": {
+  "home": {
+   "background": "cartoon2d/art/bg/ep07_livingroom.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   },
+   "outdoor": false
+  },
+  "orchard": {
+   "background": "cartoon2d/art/bg/ep05_orchard.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "height": 0.45,
+   "tilt": 1.0,
+   "hold_side": "sr"
+  },
+  "bobo": {
+   "dir": "cartoon2d/cast/bobo",
+   "height": 0.64,
+   "tilt": 0.6,
+   "hop": 0.1,
+   "listen": 3.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "home": "playroom",
+  "orchard": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/urdu01_ayan_shahad.json",
+ "storycheck": false,
+ "journey": false,
+ "hook": false,
+ "end_text": "Allah Hafiz!"
+}

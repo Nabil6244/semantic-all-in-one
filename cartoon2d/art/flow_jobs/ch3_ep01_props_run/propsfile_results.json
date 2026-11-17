@@ -1,0 +1,28 @@
+[
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 0,
+  "prompt": "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a cute fluffy yellow baby duckling, standing, big friendly eyes",
+  "status": "done",
+  "mediaIds": [
+   "31c580f7-4848-4777-b420-0c290b9acc2d"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/ch3_ep01_props_run/account-7-3ff7a2/001.png",
+  "submitted": true
+ },
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "a6d0b7d3-89f6-4cc3-855d-cfd5983064f4",
+  "label": "Account 8",
+  "index": 1,
+  "prompt": "2D cartoon sticker for a preschool TV show, flat bright colors, clean bold dark-brown outlines, vector illustration, centered, plain pure white background, no text, no shadow: a happy white mother duck with an orange beak, standing, big friendly eyes",
+  "status": "done",
+  "mediaIds": [
+   "d5cfa0f4-666a-417c-93fa-c82b51a5d116"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/ch3_ep01_props_run/account-8-a6d0b7/002.png",
+  "submitted": true
+ }
+]

@@ -629,7 +629,9 @@ def fallback_stage(text: str, dur: float, scene: Optional[Dict[str, Any]] = None
     if bd:
         st.add("backdrop", 0.0, {"image": bd["path"], "credit": bd.get("credit", "")}, pos=(640, 360), enter="fade",
                float_=False, edge=False, z=-1000)
-    st.add("aircraft", 0.15, {"type": typ, "airline": al, "width": 620}, pos=(640, 330), enter="slide_right")
+    # with no picture behind it the stage is near black: the sticker arrives on the cut (not 0.15 s later), or the beat opens
+    # on an empty dark frame that reads as a black flash
+    st.add("aircraft", 0.15 if bd else 0.0, {"type": typ, "airline": al, "width": 620}, pos=(640, 330), enter="slide_right")
     cap = caption_of(text, words=18)
     if cap:
         st.add("caption", 0.45, {"text": cap}, pos=(640, 560), enter="rise", float_=False, edge=False)

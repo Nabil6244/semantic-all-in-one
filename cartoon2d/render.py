@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hook  # noqa: E402
 import games  # noqa: E402
+import rides  # noqa: E402
 import scenery  # noqa: E402
 import places  # noqa: E402
 import fx  # noqa: E402
@@ -448,6 +449,23 @@ def inner_side(who):
     return "sl" if outer_side(who) == "sr" else "sr"
 
 
+def raised_clear(who, side, upper, lower, low=105):
+    """The highest upper-arm angle (from upper down to low) whose hand stays beside the head, not over the face.
+    Short arms (Bobo) at 165 put both paws on the eyes; drawn behind the head they vanished (owner, 2026-11-17)."""
+    c = G["cast"][who]
+    rig = c["rig"]
+    hx, hy = rig["parts"]["head"]["offset"]
+    hw, hh = c["parts"]["head"].size
+    fw = rig["arms"][side]["fw"]
+    for u in range(int(upper), int(low) - 1, -5):
+        pz = dict(REST); pz.update(arm(side, u, lower))
+        S, _, _, W, _ = arm_points(rig, side, pz)
+        inside = hx - fw * 0.6 < W[0] < hx + hw + fw * 0.6 and W[1] > hy - fw
+        if not inside:
+            return u
+    return low
+
+
 def arm(side, upper, lower):
     """Angles in 'outward/up' terms; sl (screen-left) outward is clockwise, so its sign flips."""
     s = 1 if side == "sr" else -1
@@ -698,8 +716,9 @@ def act_pose(who, act, lt, dur, speaking, t=0.0):
     elif act == "spin":                              # turn all the way round
         p["spin"] = 360 * smooth(min(lt / 0.9, 1)) * (1 if WHO.index(who) % 2 else -1)
         p.update(arm("sl", 80, 10)); p.update(arm("sr", 80, 10))
-    elif act == "hands_up":
-        p.update(arm("sl", 165, 10)); p.update(arm("sr", 165, 10))
+    elif act == "hands_up":                          # a V: hands up beside the head, never over the face
+        u_up = min(raised_clear(who, sd, 165, 10) for sd in ("sl", "sr"))      # both arms alike
+        p.update(arm("sl", u_up, 10)); p.update(arm("sr", u_up, 10))
         p["head"] = 3 * math.sin(2 * math.pi * 0.8 * lt)
     elif act == "touch_head":
         p.update(arm("sl", 150, 105)); p.update(arm("sr", 150, 105))
@@ -832,6 +851,7 @@ def pose_at(who, t):
             for k, v in arm(G["cast"][who]["hold_side"], 38 if ball else 22, 40 if ball else 70).items():
                 out[k] = out[k] + (v - out[k]) * q
     gm = G.get("games") or {}
+    rides.pose(G, who, t, out, arm)
     for b in gm.get("ball", []):
         side = G["cast"][who]["hold_side"]
         if b["kind"] == "dribble" and b["who"] == who and b["t0"] - 0.2 <= t <= b["t1"] + 0.2:
@@ -1210,6 +1230,37 @@ def cam_rect(t, start=False):
     return cx - w / 2, cy - h_ / 2, w, name
 
 
+_EDGE_CUT = {}
+
+
+def edge_cut(who, t):
+    """True when `who` is not the subject of the close-up (face:/cu:) shot at t and would show only partly at the frame's edge
+    during it (owner, 2026-11-17: Bobo's yellow arm and belly cut by the right edge behind Ms Molly's face shot in Baby Talk ep 3).
+    Decided once per shot (its start, middle and end framing), so nobody pops in or out mid-shot."""
+    shots = G["shots"]
+    k = max(i for i, s_ in enumerate(shots) if s_[0] <= t)
+    key = (id(shots), k, who)
+    if key in _EDGE_CUT:
+        return _EDGE_CUT[key]
+    t0, name = shots[k]
+    cut = False
+    if name.startswith(("cu:", "face:")) and name.split(":", 1)[1] != who:
+        t1 = shots[k + 1][0] if k + 1 < len(shots) else G["tl"]["total"]
+        c = G["cast"][who]
+        hp = c["char_h"] * c["k"]
+        bx0, bx1, by0, by1 = c["x"] - hp * 0.34, c["x"] + hp * 0.34, c["floor"] - hp * 1.1, c["floor"]
+        for tt in (t0, (t0 + t1) / 2, max(t0, t1 - 0.05)):
+            x0, y0, w, _ = cam_rect(tt)
+            h_ = w * OUT_H / OUT_W
+            fx = max(0.0, min(bx1, x0 + w) - max(bx0, x0)) / (bx1 - bx0)
+            fy = max(0.0, min(by1, y0 + h_) - max(by0, y0)) / (by1 - by0)
+            if 0.0 < fx * fy and fx < 0.85:
+                cut = True
+                break
+    _EDGE_CUT[key] = cut
+    return cut
+
+
 def shot_hands(k, t0, t1, who):
     """Where the subject's hands go during shot k (world px): one box per hand over the whole shot, and the head box.
     Close-ups used to frame waist-up from fixed numbers, so hands raised over the head, a waving inner arm or a
@@ -1514,12 +1565,19 @@ def draw_arm_upper_only(frame, M, rig, side, pz):
     del saved
 
 
-def crosses_body(pz, side):
-    """Forearm folded inward (clap, giggle), or a hand reaching the face (signs): drawn in front of the body."""
+def crosses_body(pz, side, rig=None):
+    """Forearm folded inward (clap, giggle), a hand reaching the face (signs), or a hand raised above the shoulder
+    (hands up, cheering, paws by the cheeks): drawn in front of the body and head. Raised hands used to be drawn behind
+    the head, so they vanished behind hair and faces (owner, 2026-11-17, Ms Molly ep 6)."""
     if pz.get(f"fr_{side}", 0.0) > 0.5:
         return True
     s = 1 if side == "sr" else -1
-    return s * pz[f"l_{side}"] < -40
+    if s * pz[f"l_{side}"] < -40:
+        return True
+    if rig is not None:
+        S, _, _, W, _ = arm_points(rig, side, pz)
+        return W[1] < S[1]                              # wrist above the shoulder (source px, y down)
+    return False
 
 
 def motion(who, t, pz, dt=0.07):
@@ -1639,6 +1697,39 @@ def title_parts(text, kind):
             x += font.getlength(ch)
         y += 150
     return bg, letters
+
+
+def draw_goal(frame, t):
+    """Adventure goal counter, top left: the goal picture and "found / n"; it pops and sparkles when one is found.
+    Render json: "goal": {"pic": "duckling", "n": 5, "from": <seconds, default the goal line>}."""
+    gl = G["story"].get("goal")
+    if not gl:
+        return
+    times = G.setdefault("_goal_times", sorted(ln["start"] for ln in G["tl"]["lines"] if ln.get("found") == gl["pic"]))
+    t_on = gl.get("from", next((ln["start"] for ln in G["tl"]["lines"] if ln.get("goal")), 0.0))
+    ends = [ln["start"] for ln in G["tl"]["lines"] if ln.get("endcard")]
+    if t < t_on or (ends and t > ends[-1]):
+        return
+    n_found = sum(1 for x in times if x <= t)
+    last = max([x for x in times if x <= t], default=-9)
+    pop = 1 + 0.25 * math.sin(math.pi * min(1, (t - last) / 0.5)) if t - last < 0.5 else 1.0
+    fade = smooth((t - t_on) / 0.4)
+    H = int(118 * pop)
+    pic = G["pics"].get(gl["pic"])
+    box = Image.new("RGBA", (int(H * 2.9), H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(box)
+    d.rounded_rectangle([3, 3, box.width - 4, H - 4], radius=H // 2 - 4, fill=(255, 253, 240, 235), outline=LINE, width=5)
+    if pic is not None:
+        ph = int(H * 0.8)
+        pim = pic.resize((max(1, int(pic.width * ph / pic.height)), ph), Image.LANCZOS)
+        box.alpha_composite(pim, (int(H * 0.2), (H - ph) // 2))
+    txt = f"{n_found}/{gl['n']}"
+    font = ImageFont.truetype(FONT, int(H * 0.52))
+    d.text((int(H * 1.25), H // 2), txt, font=font, anchor="lm", fill=(230, 80, 40) if n_found < gl["n"] else (60, 170, 80),
+           stroke_width=3, stroke_fill=(255, 255, 255))
+    if fade < 1:
+        box.putalpha(box.getchannel("A").point(lambda v: int(v * fade)))
+    frame.alpha_composite(box, (40, 34))
 
 
 def draw_titles(frame, t):
@@ -1828,6 +1919,7 @@ def compose(t, place_name):
     G["cur_place_t"] = max([c0 for c0, nm in G["place_changes"] if nm == place_name and c0 <= t + 0.5] or [0.0])
     for w in WHO:
         G["cast"][w]["x"] = x_at(w, t)
+    rides.place(G, t, WORLD_W)                          # slide / swing / train / ball pit move their riders
     x0, y0, w, cam = cam_rect(t)
     z = OUT_W / w
     P_ = G.get("scene")
@@ -1853,6 +1945,8 @@ def compose(t, place_name):
             c["floor"] = c["floor"] - tw / z * 0.42 * 0.3 + dip
     ovals = []
     for who in WHO:
+        if edge_cut(who, t):
+            continue
         c = G["cast"][who]
         pz = poses[who]
         sw = c["char_h"] * c["k"] * 0.22 * z * (1 - 0.35 * min(pz["hop"] / 0.16, 1))
@@ -1863,12 +1957,16 @@ def compose(t, place_name):
             sx, sy = (f["x"] * WORLD_W - x0) * z, (f["y"] * WORLD_H - y0) * z
             story_fx.draw_find(frame, G["pics"][f["pic"]], t, f["found"], sx, sy, f["size"] * WORLD_H * z)
     draw_shadows(frame, ovals)
+    rides.draw_back(frame, G, t, z, x0, y0)
     scene_frame = frame
     if P_ is not None:                                  # characters + what they hold on their own layer, lit by the place
         frame = Image.new("RGBA", scene_frame.size, (0, 0, 0, 0))
     order = sorted(WHO, key=lambda w: (G["cast"][w]["floor"], -G["cast"][w]["char_h"] * G["cast"][w]["k"]))
     hands = {}
     for who in order:
+      if edge_cut(who, t):                            # half a character at the edge of someone else's close-up: left out
+          hands[(who, "sl")] = hands[(who, "sr")] = (-9999.0, -9999.0)
+          continue
       main_layer = frame
       try:
         c = G["cast"][who]
@@ -1908,7 +2006,7 @@ def compose(t, place_name):
             M = Ml
         Mh = M @ about(P["head"]["pivot"], R(pz["head"] * c["tilt"]))     # hair crossing the neck cut limits the tilt
         off = lambda n: T(*P[n]["offset"])
-        front = [sd_ for sd_ in ("sl", "sr") if crosses_body(pz, sd_)]
+        front = [sd_ for sd_ in ("sl", "sr") if crosses_body(pz, sd_, rig)]
         for side in ("sl", "sr"):
             if side not in front:
                 draw_arm(frame, M, rig, side, pz, "back")
@@ -1938,6 +2036,7 @@ def compose(t, place_name):
         place(frame, head_img, Mhd)
         for side in front:
             draw_arm(frame, M, rig, side, pz, "front")
+        rides.draw_front(frame, G, who, t, z, x0, y0)
         for hd in (G.get("games") or {}).get("hide", []):
             if hd["who"] == who and hd["t0"] <= t <= hd["t1"]:   # the toy box in front of whoever hides
                 ch = c["char_h"] * c["k"]
@@ -2004,6 +2103,7 @@ def compose(t, place_name):
             fx.screen_fx(frame, kind, t - s0, dur, seed)
     draw_cards(frame, t, cam)
     draw_titles(frame, t)
+    draw_goal(frame, t)
     for tu in gm.get("turn", []):
         if tu["t0"] <= t <= tu["t1"]:
             b = badge("Your turn!", (60, 150, 240))

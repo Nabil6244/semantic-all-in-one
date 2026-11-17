@@ -226,7 +226,108 @@ def find_institution(text: str) -> List[Match]:
 
 
 def find_place(text: str) -> List[Match]:
-    return _find("places", text)
+    hits = _find("places", text)
+    try:
+        world = _world_find(str(text or ""))
+        # a longer world name swallows a War-list name inside it ('South Georgia' is not the country Georgia)
+        hits = [h for h in hits if not any(w.start <= h.start and h.end <= w.end and (w.end - w.start) > (h.end - h.start) for w in world)]
+        hits = hits + [w for w in world if not any(h.start < w.end and w.start < h.end for h in hits)]
+        hits.sort(key=lambda m: m.start)
+    except Exception:  # noqa: BLE001 - the world list only adds places; it never stops a render
+        pass
+    return hits
+
+
+# ------------------------------------------------------------------------------------------------ the world beyond the War list
+# The War list above covers Ukraine / Russia / the Middle East. Any other war (owner, 2026-11-17: a Falklands film asked for 9 maps and 4
+# routes, and every one fell back to text because Port Stanley, Argentina and South Georgia were "no place or country named") finds its
+# countries and towns in the app's own Natural Earth data (public domain): map_scene/data/countries.json.gz (countries and territories,
+# placed at the middle of their largest outline) and pakmap-engine/data/places_index.json.gz (towns). Names match as written (capitalised),
+# a town only when one place owns the name (or one is 10x bigger than the next), and never a common English word.
+_ROOT = Path(__file__).resolve().parents[2]
+WORLD_ALIASES = {"Britain": "GBR", "Great Britain": "GBR", "the UK": "GBR", "Malvinas": "FLK", "Las Malvinas": "FLK", "Falklands": "FLK",
+                 "South Georgia": "SGS", "Holland": "NLD", "Burma": "MMR"}
+_COMMON = {"Most", "March", "May", "Victoria", "Victor", "Hope", "Mobile", "Reading", "Split", "Nice", "Darwin", "Of", "Union", "Liberty",
+           "Independence", "Commerce", "Paradise", "Friendship", "Concord", "Hermes", "Invincible", "Conqueror", "Sheffield", "Glasgow",
+           "Coventry", "Ardent", "Antelope", "Plymouth", "Belgrano", "General", "President", "Admiral", "Fort", "Port", "Mount", "Saint", "San",
+           "Santa", "Bay", "Sound", "Islands", "Island", "Green", "North", "South", "East", "West", "Central", "New", "Old", "Royal", "British",
+           "American", "French", "German", "Long", "Grand", "Great", "Little", "Lima", "Delta", "Echo", "Sierra", "Alpha", "Bravo", "Charlie"}
+
+
+@lru_cache(maxsize=1)
+def _world() -> Dict[str, dict]:
+    """name as written -> place entry (type 'country' for countries / territories, 'city' for towns)."""
+    import gzip
+    out: Dict[str, dict] = {}
+    by_iso: Dict[str, dict] = {}
+    try:
+        feats = json.load(gzip.open(_ROOT / "map_scene" / "data" / "countries.json.gz")).get("features") or []
+    except Exception:  # noqa: BLE001
+        feats = []
+    for f in feats:
+        g = f.get("g") or {}
+        polys = g.get("coordinates") or []
+        polys = polys if g.get("type") == "MultiPolygon" else [polys]
+        best = max((ring[0] for ring in polys if ring and ring[0]), key=len, default=None)
+        if not best:
+            continue
+        xs, ys = [pt[0] for pt in best], [pt[1] for pt in best]
+        name = str((f.get("alt") or [f.get("n")])[0] or f.get("n") or "").split(" / ")[0]
+        e = {"id": "world_" + str(f.get("iso") or name).lower(), "name": name, "lat": round((min(ys) + max(ys)) / 2, 3),
+             "lon": round((min(xs) + max(xs)) / 2, 3), "type": "country", "approximate": True, "world": True}
+        by_iso[str(f.get("iso") or "")] = e
+        for a in [f.get("n")] + list(f.get("alt") or []):
+            a = str(a or "").split(" / ")[0].strip()
+            if len(a) >= 4 and "." not in a and a[0].isupper():
+                out.setdefault(a, e)
+    for a, iso in WORLD_ALIASES.items():
+        if iso in by_iso:
+            out.setdefault(a, by_iso[iso])
+    try:
+        towns = json.load(gzip.open(_ROOT / "pakmap-engine" / "data" / "places_index.json.gz"))
+    except Exception:  # noqa: BLE001
+        towns = []
+    named: Dict[str, List[list]] = {}
+    for t in towns:
+        for a in {t[0], t[1]}:
+            if a and len(a) >= 4 and a[0].isupper() and a not in _COMMON:
+                named.setdefault(a, []).append(t)
+    for a, ts in named.items():
+        if a in out:
+            continue
+        ts = sorted(ts, key=lambda t: -(t[5] or 0))
+        if len(ts) > 1 and (ts[0][5] or 0) < 10 * (ts[1][5] or 1):
+            continue                                     # several towns of this name and none clearly the one meant
+        t = ts[0]
+        out[a] = {"id": "world_" + normalise(a).replace(" ", "_") + "_" + str(t[6]).lower(), "name": a, "lat": float(t[4]),
+                  "lon": float(t[3]), "type": "city", "approximate": False, "world": True}
+    return out
+
+
+_WORLD_RX = re.compile(r"\b(?:the\s+)?[A-Z][\w'\-]+(?:\s+(?:of\s+|and\s+the\s+|de\s+|del\s+)?[A-Z][\w'\-]+){0,4}")
+
+
+def _world_find(text: str) -> List[Match]:
+    """Capitalised names in the text that the world lists know (the longest name wins; 'Port Stanley' -> Stanley when only that is known)."""
+    w = _world()
+    out: List[Match] = []
+    for m in _WORLD_RX.finditer(text):
+        words = m.group(0).split()
+        i = 0
+        while i < len(words):
+            hit = None
+            for j in range(len(words), i, -1):
+                cand = " ".join(words[i:j])
+                if cand in w:
+                    hit = (i, j, cand)
+                    break
+            if not hit:
+                i += 1
+                continue
+            a = m.start() + len(" ".join(words[:hit[0]])) + (1 if hit[0] else 0)
+            out.append(Match(w[hit[2]], hit[2], "exact", a, a + len(hit[2])))
+            i = hit[1]
+    return out
 
 
 def get_equipment(entry_id: str) -> Optional[dict]:
@@ -240,6 +341,8 @@ def get_place(entry_id: str) -> Optional[dict]:
     for e in _entries("places.json"):
         if e.get("id") == entry_id:
             return e
+    if str(entry_id).startswith("world_"):
+        return next((e for e in _world().values() if e["id"] == entry_id), None)
     return None
 
 

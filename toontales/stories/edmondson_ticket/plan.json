@@ -1,0 +1,1139 @@
+{
+ "id": "edmondson_ticket",
+ "title": "Why Every Old Train Ticket Had a Number",
+ "topic": "Thomas Edmondson's numbered card railway tickets (Newcastle and Carlisle Railway, 1830s)",
+ "hook_title": "WHY NUMBER A TICKET?",
+ "keywords": [
+  "ticket",
+  "number",
+  "stationmaster",
+  "fare",
+  "cash",
+  "Edmondson",
+  "printed",
+  "date"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Thomas_Edmondson",
+  "https://en.wikipedia.org/wiki/Edmondson_railway_ticket"
+ ],
+ "places": {
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian railway platform at sunset with a green steam train"
+  },
+  "line": {
+   "world": "railway_line",
+   "prompt": "A steam train crossing open country at sunset, telegraph poles"
+  },
+  "office": {
+   "world": "clock_shop",
+   "prompt": "A Victorian railway booking office, a wooden desk, a wall clock, lantern light"
+  },
+  "square": {
+   "world": "victorian_square",
+   "prompt": "A Victorian stone street at sunset, a grand stone hall with a clock"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A stationmaster numbers every single ticket he sells.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "vic_pike",
+     "text": "No. 0001"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "One, two, three, four. Why would he bother?",
+   "set": "station",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "vic_pike",
+     "text": "No. 0002"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "WHY?"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "England, the 1830s. Railways are brand new.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.2
+      },
+      {
+       "do": "jump",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1830s"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Crowds pack the platforms, every single day.",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.6
+      },
+      {
+       "do": "shock",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "CROWDS"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "And every ticket is written out by hand.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "sigh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_pike",
+     "text": "TICKET"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "scratch",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Name, station, fare and date. One at a time.",
+   "set": "office",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_pike",
+     "text": "LONDON 5s"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "vic_ned",
+   "text": "One ticket, please! My train's leaving!",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.0
+      },
+      {
+       "do": "jump",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Queues grow. Trains wait. Passengers miss them.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.2
+      },
+      {
+       "do": "sad",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "MISSED!"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "to": [
+      40,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 1.2,
+     "ease": "in"
+    }
+   ],
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Worse, the directors can't check the cash.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_alder"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "vic_alder",
+   "text": "Where did all the fares go?",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.2
+      },
+      {
+       "do": "angry",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A clerk could pocket a fare. Who would ever know?",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_ned"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "MISSING"
+   },
+   "freeze": "WAIT...",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Thomas Edmondson, stationmaster at Milton, has an idea.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 1.6
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "EDMONDSON"
+   },
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Before the railway, he was a cabinet maker. Good with his hands.",
+   "set": "square",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "vic_pike"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "con",
+   "speaker": "vic_pike",
+   "text": "Print them first. Then number them.",
+   "set": "office",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "No. 0001"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Small card tickets, printed ahead of time.",
+   "set": "office",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "vic_pike",
+     "text": "LONDON No.0417"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Each one with its own number.",
+   "set": "office",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "vic_pike"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "0417 0418 0419"
+   },
+   "id": "s16"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A press stamps the date.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "jump",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "DATED"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Soon his own machines print and number them by the thousand.",
+   "set": "office",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      },
+      {
+       "do": "present",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "vic_pike"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "x 1000"
+   },
+   "id": "s18"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Fast. Cheap. Countable.",
+   "set": "station",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s19",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The trick? Count the numbers, then count the cash.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "vic_alder"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "27 TICKETS = 27 FARES"
+   },
+   "id": "s20"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "A missing fare now shows up as a missing number.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.2
+      },
+      {
+       "do": "tremble",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "CAUGHT"
+   },
+   "mood": "sad",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Railways around the world copied his tickets.",
+   "set": "line",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      },
+      {
+       "do": "wave",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "WORLDWIDE"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      7,
+      0
+     ],
+     "to": [
+      40,
+      7,
+      0
+     ],
+     "t0": 0,
+     "t1": 3.0,
+     "ease": "linear"
+    }
+   ],
+   "look": {
+    "at": [
+     0,
+     7,
+     1.6
+    ],
+    "dist": 15,
+    "yaw": 0,
+    "pitch": 4,
+    "lens": 28
+   },
+   "mood": "upbeat",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Other railways paid him a fee to use his system.",
+   "set": "square",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_pike",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "vic_pike"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s23"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "British Rail kept selling them until 1990.",
+   "set": "square",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "vic_ned",
+     "text": "1990"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "1990"
+   },
+   "id": "s24"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "All because one stationmaster numbered every ticket he sold.",
+   "set": "station",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "vic_pike",
+     "text": "No. 0001"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s25"
+  }
+ ],
+ "est_total": 54.86
+}

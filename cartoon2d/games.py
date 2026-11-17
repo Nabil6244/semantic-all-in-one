@@ -7,6 +7,7 @@ A script line may carry  "game": {...}  or a list of them (times are relative to
   {"type": "trampoline", "who": who}  ... {"type": "trampoline_off", "who": who}   a trampoline under them (act "bounce")
   {"type": "balloons", "colors": ["red", "blue"], "pop": true}             balloons float up, then pop with confetti
   {"type": "hide", "who": who}  ... {"type": "found", "who": who}          hides behind a toy box, peeks out now and then
+  {"type": "slide" | "swing" | "train" | "pit", "who": ...}                play rides (see rides.py)
 A line with "your_turn": true shows a "Your turn!" badge in the pause after it (the child joins in), with a chime.
 """
 
@@ -21,7 +22,7 @@ def _games(ln):
 def plan(tl):
     """Absolute-time events: throws/dribbles/kicks (ball paths), trampolines, balloons, hides, your-turn badges."""
     lines = tl["lines"]
-    ev = {"ball": [], "tramp": [], "balloons": [], "hide": [], "turn": []}
+    ev = {"ball": [], "tramp": [], "balloons": [], "hide": [], "turn": [], "ride": []}
     open_tr, open_hd = {}, {}
     for i, ln in enumerate(lines):
         t0 = ln["start"]
@@ -60,6 +61,9 @@ def plan(tl):
                 end = max(ln["end"], t0 + 1.5 * len(cols) + 1.0)
                 pops = [t0 + 1.4 + 1.0 * j for j in range(len(cols))] if g.get("pop", True) else []
                 ev["balloons"].append({"t0": t0, "t1": end + 0.8, "colors": cols, "pops": pops})
+            elif k in ("slide", "swing", "train", "pit"):       # play rides (rides.py)
+                import rides
+                rides.plan_line(ev, g, lines, i, tl["total"])
             elif k == "hide":
                 open_hd.setdefault(g["who"], t0)
             elif k == "found":
@@ -88,6 +92,8 @@ def sfx(tl, ev=None):
             out.append({"t": p, "name": "burst", "gain_db": -4})
     for tu in ev["turn"]:
         out.append({"t": tu["t0"], "name": "chime", "gain_db": -6})
+    import rides
+    out += rides.sfx(ev)
     # trampoline / bounce landings: the render's hop timing (lines with act bounce)
     for ln in tl["lines"]:
         acts = [ln.get("act")] + list((ln.get("also") or {}).values())

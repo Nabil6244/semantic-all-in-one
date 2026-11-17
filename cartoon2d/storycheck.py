@@ -116,6 +116,32 @@ def check(story, tl, script=None):
         for name, t0, t1 in stays[1:]:
             if not any(ln.get("find") and t0 <= ln["start"] <= t1 for ln in lines):
                 notes.append(f"'{name}' has no hidden object")
+    # adventure (Kids Channel 3 play adventures, docs/cartoon2d/CHANNEL3_PLAN.md): every play stop opens with its title
+    # card, has a ride or game, a learning moment the child joins (your turn) and one goal item found; 6-8 stops, none
+    # over 3 minutes, and the goal is counted on screen ("goal": {"pic", "n"} in the render json)
+    if story.get("adventure"):
+        stays = places.stays(story, tl)
+        stops = [s_ for s_ in stays[1:-1]]                  # not the opening place or the goodbye place
+        if not 6 <= len(stops) <= 8:
+            probs.append(f"{len(stops)} play stops, needs 6-8")
+        gl = story.get("goal") or {}
+        if not gl.get("pic") or not gl.get("n"):
+            probs.append("no goal counter: the render json needs \"goal\": {\"pic\": ..., \"n\": ...}")
+        found = [ln for ln in lines if ln.get("found") == gl.get("pic")]
+        if gl.get("n") and len(found) != gl["n"]:
+            probs.append(f"goal says {gl.get('n')} {gl.get('pic')}s but {len(found)} are found")
+        for name, t0, t1 in stops:
+            inside = [ln for ln in lines if t0 <= ln["start"] < t1]
+            if t1 - t0 > R.get("max_stop", 180):
+                probs.append(f"stop '{name}' {_mmss(t0)} runs {t1 - t0:.0f} s, max {R.get('max_stop', 180)} s")
+            if not any(ln.get("title") for ln in inside[:3]):
+                probs.append(f"stop '{name}' {_mmss(t0)} has no title card on arrival (title: on one of its first lines)")
+            if not any(ln.get("game") for ln in inside):
+                probs.append(f"stop '{name}' {_mmss(t0)} has no ride or game")
+            if not any(ln.get("your_turn") and (ln.get("card") or ln.get("pic")) for ln in inside):
+                probs.append(f"stop '{name}' {_mmss(t0)} has no learning moment (a card or picture with your_turn)")
+            if gl.get("pic") and not any(ln.get("found") == gl["pic"] for ln in inside):
+                notes.append(f"stop '{name}' finds no {gl['pic']}")
     # calm, teaser, end screen
     if not any(ln.get("calm") and ln["start"] >= total - CALM_IN_LAST for ln in lines):
         probs.append(f"no calm part (calm: true) in the last {CALM_IN_LAST / 60:.0f} minutes")

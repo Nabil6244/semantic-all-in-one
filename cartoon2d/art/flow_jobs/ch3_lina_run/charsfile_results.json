@@ -1,0 +1,16 @@
+[
+ {
+  "type": "PROMPT_RESULT",
+  "accountId": "3ff7a20e-2884-42f2-896f-105be8ea4568",
+  "label": "Account 7",
+  "index": 0,
+  "prompt": "2D cartoon character for a preschool TV show, modern children's animation style, flat bright colors, soft simple cel shading, clean bold dark-brown outlines, friendly big expressive eyes, vector illustration. a tall grown-up young woman in her late twenties, clearly an adult teacher, adult body proportions with long legs and a slim adult figure, the head about one seventh of her height, light olive skin, long straight black hair in a low side braid over one shoulder, wearing a lavender cardigan over a white t-shirt, mint-green jogger trousers rolled at the ankle, and orange sneakers. full body from head to feet, standing straight and facing the viewer, arms hanging down slightly away from the body with a clear gap between each arm and the torso, open relaxed hands, feet slightly apart, closed-mouth gentle smile, eyes open looking at the viewer, centered, plain pure white background, no shadow, no text, no other characters",
+  "status": "done",
+  "mediaIds": [
+   "3f8073f4-493f-4ea4-8f22-3a6a3c2feeb1",
+   "523b0f54-a228-4e66-9aef-ed083fde14ad"
+  ],
+  "path": "/Users/muhammadnabil/Downloads/video_generator-main/cartoon2d/art/flow_jobs/ch3_lina_run/account-7-3ff7a2/001-2.png",
+  "submitted": true
+ }
+]

@@ -1,0 +1,94 @@
+{
+ "timeline": "cartoon2d/build/baby02/audio/timeline.json",
+ "build": "cartoon2d/build/baby02",
+ "name": "baby02_animal_sounds_with_ms_molly",
+ "host": "molly",
+ "kids": [],
+ "start_place": "rose",
+ "places": {
+  "rose": {
+   "background": "cartoon2d/art/bg/baby_rose.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.42,
+    "bobo": 0.76
+   },
+   "outdoor": false
+  },
+  "aqua": {
+   "background": "cartoon2d/art/bg/baby_aqua.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.42,
+    "bobo": 0.76
+   },
+   "outdoor": false
+  },
+  "apricot": {
+   "background": "cartoon2d/art/bg/baby_apricot.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.42,
+    "bobo": 0.76
+   },
+   "outdoor": false
+  },
+  "lilac": {
+   "background": "cartoon2d/art/bg/baby_lilac.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.42,
+    "bobo": 0.76
+   },
+   "outdoor": false
+  },
+  "cream": {
+   "background": "cartoon2d/art/bg/baby_cream.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.42,
+    "bobo": 0.76
+   },
+   "outdoor": false
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "bobo": {
+   "dir": "cartoon2d/cast/bobo",
+   "height": 0.64,
+   "tilt": 0.6,
+   "hop": 0.1,
+   "listen": 3.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "rose": "calm",
+  "aqua": "calm",
+  "apricot": "calm",
+  "lilac": "calm",
+  "cream": "calm"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/baby02_animal_sounds.json",
+ "storycheck": true,
+ "rules": {
+  "max_stay": 260,
+  "unique_backgrounds": false,
+  "learn_min": 5,
+  "turn_gap": 2.5,
+  "max_no_turn": 60,
+  "max_talk": 20
+ },
+ "end_text": "Watch next!"
+}

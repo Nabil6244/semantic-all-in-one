@@ -1,0 +1,794 @@
+{
+ "id": "northfield_safe",
+ "title": "The Bank Safe That Was Never Locked",
+ "topic": "Northfield, Minnesota bank raid by the James-Younger gang (1876), Heywood's time-lock bluff",
+ "hook_title": "AN UNLOCKED SAFE?",
+ "keywords": [
+  "safe",
+  "time lock",
+  "Northfield",
+  "gang",
+  "Heywood",
+  "locked",
+  "bank",
+  "Younger"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume",
+  "sheriff"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://www.occ.gov/about/who-we-are/history/1866-1913/1866-1913-attack-on-northfield-national-bank.html",
+  "https://www.mnhs.org/mnopedia/search/index/event/northfield-bank-raid"
+ ],
+ "places": {
+  "bank": {
+   "world": "frontier_office",
+   "prompt": "An 1870s small-town bank with a big iron safe"
+  },
+  "street": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin"
+   ],
+   "prompt": "A Wild West main street at dusk"
+  },
+  "prairie": {
+   "world": "frontier_desert",
+   "prompt": "Open country outside town at dusk"
+  },
+  "jail": {
+   "world": "frontier_jail",
+   "prompt": "An 1870s jail with iron bars and a lantern"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Outlaws pull a gun on a bank clerk and demand the safe.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.2
+      },
+      {
+       "do": "angry",
+       "at": 1.6
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "hume",
+   "text": "Can't. It's on a time lock.",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.2
+      },
+      {
+       "do": "cross",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "The safe was never locked. So why did nobody open it?",
+   "set": "bank",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.2
+      },
+      {
+       "do": "think",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "UNLOCKED?"
+   },
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Northfield, Minnesota, 1876. The James-Younger gang rides in.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1876"
+   },
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -20,
+      2,
+      0
+     ],
+     "to": [
+      -4,
+      2,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Eight outlaws. One small-town bank.",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "8 OUTLAWS"
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Three go inside. The rest wait in the street.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "sneak_walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "3 INSIDE"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "bart",
+   "text": "Open that safe. Now.",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.2
+      },
+      {
+       "do": "point_you",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Acting cashier Joseph Lee Heywood refuses.",
+   "set": "bank",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cross",
+       "at": 0.2
+      },
+      {
+       "do": "shake_head",
+       "at": 1.3
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "HEYWOOD"
+   },
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A time lock, he says. It can't open until later.",
+   "set": "bank",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "shrug",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "TIME LOCK"
+   },
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "And the outlaws believe him.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.2
+      },
+      {
+       "do": "sigh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "BELIEVED"
+   },
+   "freeze": "WAIT...",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Outside, the town fights back.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "sheriff",
+     "mark": "D",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "held_by": "driver"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "mood": "sneaky",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Shopkeepers grab guns from the hardware store.",
+   "set": "street",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "driver"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Shots everywhere. The gang flees.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "They ride off with about twenty-six dollars.",
+   "set": "prairie",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "$26"
+   },
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -20,
+      2,
+      0
+     ],
+     "to": [
+      -4,
+      2,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "id": "s14",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "You see, the safe door was shut, but the lock was open.",
+   "set": "bank",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "OPEN"
+   },
+   "mood": "sad",
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "One pull of the handle would have opened it.",
+   "set": "bank",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "facepalm",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "ONE PULL"
+   },
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Heywood's bluff saved the money. It cost him his life.",
+   "set": "bank",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.2
+      },
+      {
+       "do": "sad",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "HEYWOOD"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Within two weeks, three Younger brothers were caught.",
+   "set": "jail",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "door",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "CAUGHT"
+   },
+   "mood": "upbeat",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Jesse and Frank James got away.",
+   "set": "prairie",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "All because one clerk said the safe was locked.",
+   "set": "bank",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.6
+      },
+      {
+       "do": "cross",
+       "at": 1.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "bart"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  }
+ ],
+ "est_total": 42.66
+}

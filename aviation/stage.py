@@ -190,6 +190,8 @@ def transform(e: Dict[str, Any], t: float) -> Optional[Tuple[float, float, float
         y += S.FLOAT_PX * math.sin(2 * math.pi * t / S.FLOAT_S + ph)
         rot = S.FLOAT_DEG * math.sin(2 * math.pi * t / (S.FLOAT_S * 1.3) + ph)
     k = (t - e["t0"]) / S.ENTER_S
+    if e.get("kind") == "backdrop" and e["t0"] <= 0.05:
+        k = 1.0             # the stage's opening picture is there on the cut: fading it up from the dark stage read as a black flash
     if k < 1:
         how = e.get("enter", "pop")
         if how == "pop":

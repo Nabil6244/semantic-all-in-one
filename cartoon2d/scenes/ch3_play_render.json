@@ -1,0 +1,99 @@
+{
+ "timeline": "cartoon2d/build/ch3_play/audio/timeline.json",
+ "build": "cartoon2d/build/ch3_play",
+ "name": "ch3_play",
+ "host": "lina",
+ "kids": [
+  "tobi",
+  "rosie"
+ ],
+ "start_place": "playroom",
+ "places": {
+  "playroom": {
+   "background": "cartoon2d/art/bg/garden.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1,
+    "tobi": 0.45,
+    "rosie": 0.78,
+    "nia": -0.4,
+    "poppy": 1.4,
+    "fizz": 1.55,
+    "pip": 1.7,
+    "dot": 1.85
+   }
+  },
+  "garden": {
+   "background": "cartoon2d/art/bg/playland.png",
+   "floor_y": 0.885,
+   "spots": {
+    "lina": 0.1,
+    "tobi": 0.3,
+    "rosie": 0.42,
+    "fizz": 0.54,
+    "pip": 0.6,
+    "dot": 0.86,
+    "nia": -0.4,
+    "poppy": 1.4
+   }
+  }
+ },
+ "cast": {
+  "lina": {
+   "dir": "cartoon2d/cast/lina",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hold_side": "sl",
+   "hop": 0.1,
+   "listen": 3.0
+  },
+  "nia": {
+   "dir": "cartoon2d/cast/nia",
+   "height": 0.55,
+   "tilt": 0.5,
+   "hold_side": "sl"
+  },
+  "poppy": {
+   "dir": "cartoon2d/cast/poppy",
+   "height": 0.55,
+   "tilt": 0.5,
+   "hold_side": "sr"
+  },
+  "tobi": {
+   "dir": "cartoon2d/cast/tobi",
+   "height": 0.4,
+   "tilt": 0.9,
+   "hold_side": "sr"
+  },
+  "rosie": {
+   "dir": "cartoon2d/cast/rosie",
+   "height": 0.38,
+   "tilt": 0.9,
+   "hold_side": "sl"
+  },
+  "fizz": {
+   "dir": "cartoon2d/cast/fizz",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sr",
+   "hop": 0.1
+  },
+  "pip": {
+   "dir": "cartoon2d/cast/pip",
+   "height": 0.42,
+   "tilt": 0.6,
+   "hold_side": "sr"
+  },
+  "dot": {
+   "dir": "cartoon2d/cast/dot",
+   "height": 0.52,
+   "tilt": 0.6,
+   "hold_side": "sl",
+   "hop": 0.1
+  }
+ },
+ "music": {
+  "playroom": "sunny",
+  "garden": "playroom"
+ }
+}

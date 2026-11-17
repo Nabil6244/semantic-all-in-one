@@ -1,0 +1,300 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "ur-PK-UzmaNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "lily": {
+   "voice": "ur-PK-UzmaNeural",
+   "rate": "+4%",
+   "pitch": "+38Hz"
+  },
+  "ollie": {
+   "voice": "ur-PK-AsadNeural",
+   "rate": "+8%",
+   "pitch": "+48Hz"
+  },
+  "bobo": {
+   "voice": "ur-PK-AsadNeural",
+   "rate": "-6%",
+   "pitch": "+10Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 6.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "واہ! شہد کا مرتبان! یہ سارا شہد میرا ہے!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "place": "home",
+   "pic": "honey",
+   "sfx": "pop",
+   "face": "happy",
+   "chapter": "Ayan aur shahad"
+  },
+  {
+   "who": "molly",
+   "text": "السلام علیکم بچو! میں ہوں آپ کی ہیرا امی۔ آج ہم ایک پیاری سی کہانی سنیں گے!",
+   "act": "wave",
+   "cam": "host",
+   "goal": true,
+   "title": "Ayan Bhalu\naur Shahad"
+  },
+  {
+   "who": "lily",
+   "text": "السلام علیکم! میں جنت ہوں!",
+   "act": "wave",
+   "cam": "kids",
+   "face": "happy"
+  },
+  {
+   "who": "ollie",
+   "text": "اور میں صائم ہوں!",
+   "act": "wave",
+   "cam": "kids",
+   "face": "happy"
+  },
+  {
+   "who": "bobo",
+   "text": "اور میں ایان بھالو! مجھے شہد بہت پسند ہے!",
+   "act": "cheer",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "boing"
+  },
+  {
+   "who": "molly",
+   "text": "آج ہم باغ سے میٹھے میٹھے سیب توڑیں گے۔ چلو، باغ میں چلتے ہیں!",
+   "act": "point",
+   "cam": "host",
+   "pic": "apple",
+   "card": "Seb"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "چلو باغ میں!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "orchard",
+   "sfx": "whoosh",
+   "chapter": "Baagh mein",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "دیکھو، چار سیب! آؤ مل کر گنیں!",
+   "your_turn": true,
+   "act": "count",
+   "cam": "host",
+   "pic": "apple",
+   "card": "4",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "ایک، دو، تین، چار! سیب ہیں مزیدار!",
+   "chant": true,
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "gap_after": 0.5
+  },
+  {
+   "who": "ollie",
+   "text": "یہ سارے سیب میرے ہیں! میں سب کھاؤں گا!",
+   "act": "hands_up",
+   "cam": "kids",
+   "pic": "apple"
+  },
+  {
+   "who": "bobo",
+   "text": "اور یہ سارا شہد میرا! کسی کو نہیں دوں گا!",
+   "act": "stomp",
+   "cam": "cu:bobo",
+   "pic": "honey",
+   "sfx": "boing"
+  },
+  {
+   "who": "lily",
+   "text": "لیکن مجھے بھی تو بھوک لگی ہے...",
+   "act": "talk",
+   "cam": "kids",
+   "face": "sad",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "رکو رکو بچو! اگر ایک ہی سب کچھ کھا لے، تو باقی دوست اداس ہو جائیں گے۔",
+   "act": "open",
+   "cam": "host",
+   "face": "think",
+   "chapter": "Mil baant kar"
+  },
+  {
+   "who": "molly",
+   "text": "بچو، آپ بتاؤ، کیا ہمیں مل بانٹ کر کھانا چاہیے؟",
+   "your_turn": true,
+   "act": "point",
+   "cam": "host",
+   "gap_after": 2.0
+  },
+  {
+   "who": "molly",
+   "text": "جی ہاں! شاباش!",
+   "act": "clap",
+   "cam": "host",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "چار سیب، اور ہم چار گھر والے۔ تو ہر ایک کو کتنے سیب ملیں گے؟",
+   "your_turn": true,
+   "act": "count",
+   "cam": "host",
+   "card": "4",
+   "gap_after": 2.0
+  },
+  {
+   "who": "lily",
+   "text": "ایک ایک سیب!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "1",
+   "face": "happy",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "بالکل ٹھیک! ایک سیب جنت کا، ایک صائم کا، ایک ایان کا، اور ایک امی کا!",
+   "act": "count",
+   "cam": "group",
+   "pic": "apple"
+  },
+  {
+   "who": "ollie",
+   "text": "اوہ... مل کر کھانے میں تو اور بھی مزہ ہے!",
+   "act": "talk",
+   "cam": "kids",
+   "face": "think"
+  },
+  {
+   "who": "bobo",
+   "text": "اور میں سب کو تھوڑا تھوڑا شہد دوں گا! سیب اور شہد، واہ!",
+   "act": "giggle",
+   "cam": "cu:bobo",
+   "pic": "honey",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "واہ! سیب اور شہد!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "hearts",
+   "sfx": "success"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "مل کر کھاؤ، مل کر کھاؤ، خوشیاں سب میں بانٹو!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "fx": "confetti",
+   "chapter": "Gaana",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "بچو، آج ہم نے سیکھا کہ جب ہم چیزیں بانٹتے ہیں، تو سب خوش ہوتے ہیں۔",
+   "act": "open",
+   "cam": "host",
+   "calm": true,
+   "card": "Share",
+   "chapter": "Sabaq"
+  },
+  {
+   "who": "molly",
+   "text": "آپ بھی آج اپنے بہن بھائیوں کے ساتھ کچھ بانٹنا، ٹھیک ہے؟",
+   "your_turn": true,
+   "act": "point",
+   "cam": "host",
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "ٹھیک ہے امی!",
+   "act": "thumbs_up",
+   "also": {
+    "bobo": "thumbs_up"
+   },
+   "cam": "kids",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "اللہ حافظ بچو! پھر ملیں گے!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "endcard": "Allah Hafiz!\nPhir milenge!",
+   "sfx": "success"
+  }
+ ]
+}
