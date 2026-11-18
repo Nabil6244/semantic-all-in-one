@@ -2160,6 +2160,7 @@ REF_MUST = ("sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "ki
 REF_EVERY_S = 360.0
 REF_SAME_GAP_S = 60.0
 REF_ANY_GAP_S = 15.0
+REF_OVER = {"kit_kinetic", "kit_keywords", "bc_bigword", "bc_caption", "kit_title"}
 REF_SECS = {"sat_map": 6.0, "sat_range": 6.0, "sat_quote": 6.0, "kit_chain": 5.5, "kit_counter": 5.0, "kit_forces": 5.5}
 
 
@@ -2244,8 +2245,8 @@ def _ensure_ref_cards(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
     cands = _ref_candidates(rows, cat, log_by_no)
     why_none: Dict[str, str] = {}
 
-    def protected(ly: Layer) -> bool:
-        return bool((ly.params or {}).get("csv_graphic")) or ly.kind in REF_MUST
+    def protected(ly: Layer) -> bool:     # a light text card (kinetic words, a big word) gives way, as LIGHT_ASKS do to rich panels
+        return (bool((ly.params or {}).get("csv_graphic")) and ly.kind not in REF_OVER) or ly.kind in REF_MUST
 
     for kind in sorted(REF_MUST, key=lambda k: len(cands[k])):     # the rarest first: a sentence that fits two cards goes to the rarer
         have = [ly for ly in plan.layers if ly.kind == kind]
@@ -2281,7 +2282,7 @@ def _ensure_ref_cards(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
                     s1 = fr(min(ly.start for ly in block) - FULL_GAP)
                     ok = True
                     break
-                s0 = fr(max(ly.end for ly in now_) + FULL_GAP)
+                s0 = fr(max(ly.end for ly in now_) + FULL_GAP + 0.1)       # past the gap, never on its rounded edge
             if not ok:
                 continue
             if any(ly.kind == kind and abs(ly.start - s0) < float(cfg.get("ref_same_gap_s", REF_SAME_GAP_S)) for ly in plan.layers):
@@ -2292,7 +2293,7 @@ def _ensure_ref_cards(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_b
                 continue                                  # the same figures twice in a row read as one repeated card
             keep = []
             for ly in plan.layers:                        # full-screen cards under it give way (trimmed, or dropped under 2 s)
-                if ly.kind in FULL_KINDS and ly.start < s1 and ly.end > s0 and not protected(ly):
+                if (ly.kind in FULL_KINDS or ly.kind in REF_OVER) and ly.start < s1 and ly.end > s0 and not protected(ly):
                     if s0 - ly.start >= 2.0:
                         ly.end = fr(s0)
                     elif ly.end - s1 >= 2.0:
