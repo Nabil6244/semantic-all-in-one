@@ -1,0 +1,1143 @@
+{
+ "id": "codd_marble",
+ "title": "Why This Bottle Has a Marble in Its Neck",
+ "topic": "Hiram Codd's 1872 marble-stoppered soda bottle, sealed by its own gas pressure, still used as Ramune and goli soda",
+ "hook_title": "WHY IS THERE A MARBLE?",
+ "keywords": [
+  "marble",
+  "bottle",
+  "fizz",
+  "Codd",
+  "seal",
+  "neck",
+  "Ramune",
+  "pressure"
+ ],
+ "cast": [],
+ "channel": "channel5",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Codd-neck_bottle",
+  "https://en.wikipedia.org/wiki/Ramune"
+ ],
+ "places": {
+  "row": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      -0.08,
+      0.06,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "green",
+     "fill": 0.7,
+     "liquid": "lemonade",
+     "id": "b1"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.05,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.7,
+     "liquid": "water",
+     "id": "hero"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.08,
+      0.06,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "green",
+     "fill": 0.5,
+     "liquid": "lemonade",
+     "id": "b3"
+    }
+   ],
+   "prompt": "Three old marble-stoppered soda bottles on a walnut bar"
+  },
+  "flat": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.04,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "green",
+     "fill": 0.0,
+     "liquid": "water",
+     "id": "flat"
+    },
+    {
+     "m": "@cork",
+     "at": [
+      0.08,
+      -0.02,
+      0.9
+     ],
+     "id": "old_cork"
+    },
+    {
+     "m": "@cork",
+     "at": [
+      0.11,
+      0.0,
+      0.9
+     ],
+     "id": "old_cork2"
+    }
+   ],
+   "prompt": "An empty bottle and dried-out corks"
+  },
+  "upside": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.05,
+      1.1400000000000001
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.7,
+     "liquid": "water",
+     "id": "inv",
+     "tilt": 180
+    },
+    {
+     "m": "@box",
+     "at": [
+      0.0,
+      0.05,
+      0.9
+     ],
+     "size": [
+      0.09,
+      0.09,
+      0.012
+     ],
+     "color": [
+      0.2,
+      0.2,
+      0.22
+     ]
+    }
+   ],
+   "prompt": "A marble bottle standing upside down"
+  },
+  "open": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      0.0,
+      0.05,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.7,
+     "liquid": "water",
+     "id": "pop"
+    },
+    {
+     "m": "@ball",
+     "at": [
+      0.07,
+      -0.02,
+      0.9
+     ],
+     "r": 0.0085,
+     "color": [
+      0.6,
+      0.9,
+      0.8
+     ],
+     "id": "loose"
+    }
+   ],
+   "prompt": "A marble bottle being opened"
+  },
+  "smash": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      -0.02,
+      0.06,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "green",
+     "fill": 0.7,
+     "liquid": "lemonade",
+     "id": "whole"
+    },
+    {
+     "m": "@ball",
+     "at": [
+      0.05,
+      -0.02,
+      0.9
+     ],
+     "r": 0.0085,
+     "color": [
+      0.6,
+      0.9,
+      0.8
+     ],
+     "id": "m1"
+    },
+    {
+     "m": "@ball",
+     "at": [
+      0.075,
+      0.0,
+      0.9
+     ],
+     "r": 0.0085,
+     "color": [
+      0.5,
+      0.7,
+      0.95
+     ],
+     "id": "m2"
+    },
+    {
+     "m": "@ball",
+     "at": [
+      0.1,
+      -0.025,
+      0.9
+     ],
+     "r": 0.0085,
+     "color": [
+      0.6,
+      0.9,
+      0.8
+     ],
+     "id": "m3"
+    }
+   ],
+   "prompt": "Glass marbles rolling beside a bottle"
+  },
+  "cap": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@bottle",
+     "at": [
+      -0.05,
+      0.05,
+      0.9
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.7,
+     "liquid": "water",
+     "id": "old"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.05,
+      0.05,
+      0.9
+     ],
+     "style": "crown",
+     "glass": "amber",
+     "fill": 0.8,
+     "liquid": "cola",
+     "id": "crown"
+    },
+    {
+     "m": "@cap",
+     "at": [
+      0.05,
+      0.05,
+      1.1360000000000001
+     ],
+     "mat": "red_paint",
+     "crimps": 21,
+     "id": "cap"
+    }
+   ],
+   "prompt": "A marble bottle beside a crown-capped bottle"
+  },
+  "today": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0,
+      0.02,
+      0.96
+     ],
+     "size": [
+      0.3,
+      0.12,
+      0.04
+     ],
+     "color": [
+      0.42,
+      0.78,
+      0.76
+     ],
+     "rough": 0.6
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      -0.04,
+      0.02,
+      1.0
+     ],
+     "style": "codd",
+     "glass": "clear",
+     "fill": 0.75,
+     "liquid": "water",
+     "id": "ramune"
+    },
+    {
+     "m": "@bottle",
+     "at": [
+      0.04,
+      0.02,
+      1.0
+     ],
+     "style": "codd",
+     "glass": "green",
+     "fill": 0.75,
+     "liquid": "lemonade",
+     "id": "goli"
+    }
+   ],
+   "prompt": "Two modern marble soda bottles on a mint plinth"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "There's a glass marble stuck inside this bottle's neck.",
+   "set": "row",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.06
+    ],
+    "dist": 0.12,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "hero",
+     "rot_to": 60,
+     "t0": 0,
+     "t1": 2.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "It can't fall out. It can't fall in. Why is it there?",
+   "set": "row",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.02
+    ],
+    "dist": 0.36,
+    "yaw": -8,
+    "pitch": 10,
+    "lens": 50
+   },
+   "callout": {
+    "text": "WHY?",
+    "x": 0.5,
+    "y": 0.36
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "In the 1800s, fizzy drinks had a big problem.",
+   "set": "flat",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.04,
+     0.03,
+     1.0
+    ],
+    "dist": 0.34,
+    "yaw": -8,
+    "pitch": 12,
+    "lens": 50
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Keeping the bubbles in.",
+   "set": "flat",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.04,
+     1.15
+    ],
+    "dist": 0.1,
+    "yaw": -10,
+    "pitch": 8,
+    "lens": 70
+   },
+   "callout": {
+    "text": "FIZZ",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Corks dried out and shrank.",
+   "set": "flat",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.095,
+     -0.01,
+     0.91
+    ],
+    "dist": 0.08,
+    "yaw": 8,
+    "pitch": 40,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "old_cork",
+     "rot_to": 90,
+     "t0": 0,
+     "t1": 1.8
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "And the gas slowly leaked away.",
+   "set": "flat",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.04,
+     1.04
+    ],
+    "dist": 0.3,
+    "yaw": 8,
+    "pitch": 10,
+    "lens": 50
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "FLAT"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Bottlers had to lay them on their sides to keep corks wet.",
+   "set": "flat",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.03,
+     0.02,
+     0.96
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 22,
+    "lens": 50
+   },
+   "moves": [
+    {
+     "id": "flat",
+     "tilt_to": 90,
+     "to": [
+      0.0,
+      0.04,
+      0.935
+     ],
+     "t0": 0.4,
+     "t1": 1.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.3
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Messy, slow and expensive.",
+   "set": "flat",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.04,
+     0.935
+    ],
+    "dist": 0.12,
+    "yaw": 10,
+    "pitch": 20,
+    "lens": 65
+   },
+   "moves": [
+    {
+     "id": "flat",
+     "tilt_from": 90,
+     "tilt_to": 90,
+     "to": [
+      0.0,
+      0.04,
+      0.935
+     ],
+     "t0": 0,
+     "t1": 0.1
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "In 1872, a London inventor named Hiram Codd tried a marble.",
+   "set": "row",
+   "camera": "medium",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.04
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 55
+   },
+   "callout": {
+    "text": "HIRAM CODD 1872",
+    "x": 0.5,
+    "y": 0.34
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "He pinched the neck so the marble couldn't escape.",
+   "set": "row",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.06
+    ],
+    "dist": 0.09,
+    "yaw": 12,
+    "pitch": 6,
+    "lens": 72
+   },
+   "callout": {
+    "text": "PINCH",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And put a rubber ring inside the lip.",
+   "set": "row",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.125
+    ],
+    "dist": 0.07,
+    "yaw": -10,
+    "pitch": 10,
+    "lens": 75
+   },
+   "callout": {
+    "text": "RUBBER RING",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "But how do you push a marble up and hold it there?",
+   "set": "row",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.06
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 60
+   },
+   "overlay": {
+    "type": "circle",
+    "text": "HOW?"
+   },
+   "freeze": "WAIT...",
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "You don't. The fizz does.",
+   "set": "upside",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.02
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 55
+   },
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.4
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The bottle is filled upside down.",
+   "set": "upside",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.02
+    ],
+    "dist": 0.42,
+    "yaw": 8,
+    "pitch": 8,
+    "lens": 45
+   },
+   "overlay": {
+    "type": "arrow",
+    "text": "UPSIDE DOWN"
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The marble drops onto the ring, and the gas pushes it tight.",
+   "set": "upside",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     0.925
+    ],
+    "dist": 0.1,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 72
+   },
+   "hud": {
+    "label": "PRESSURE",
+    "fmt": "SEALED",
+    "from": 0,
+    "to": 1,
+    "max": 1,
+    "color": "green"
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The more fizz inside, the harder it seals.",
+   "set": "row",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.1
+    ],
+    "dist": 0.08,
+    "yaw": -12,
+    "pitch": 6,
+    "lens": 72
+   },
+   "overlay": {
+    "type": "arrow",
+    "text": "TIGHTER"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "To open it, you shove the marble down.",
+   "set": "open",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.06
+    ],
+    "dist": 0.1,
+    "yaw": 10,
+    "pitch": 8,
+    "lens": 72
+   },
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.5
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Pop, and the fizz rushes out.",
+   "set": "open",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.04
+    ],
+    "dist": 0.24,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 55
+   },
+   "callout": {
+    "text": "POP!",
+    "x": 0.5,
+    "y": 0.36
+   },
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 0.3
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Little dents in the neck catch the marble while you drink.",
+   "set": "open",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.07
+    ],
+    "dist": 0.08,
+    "yaw": 14,
+    "pitch": 6,
+    "lens": 72
+   },
+   "moves": [
+    {
+     "id": "pop",
+     "tilt_to": 35,
+     "t0": 0.3,
+     "t1": 1.6
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "There was one flaw.",
+   "set": "smash",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.04,
+     0.02,
+     0.96
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 18,
+    "lens": 50
+   },
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Children smashed the bottles to steal the marbles.",
+   "set": "smash",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.075,
+     -0.01,
+     0.908
+    ],
+    "dist": 0.1,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "m1",
+     "to": [
+      0.02,
+      -0.04,
+      0.9
+     ],
+     "rot_to": 300,
+     "t0": 0.2,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "glass",
+     "at": 0.2
+    }
+   ],
+   "id": "s21",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Then the crown cap arrived, and most marble bottles vanished.",
+   "set": "cap",
+   "camera": "medium",
+   "move": "orbit_l",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.04
+    ],
+    "dist": 0.36,
+    "yaw": -8,
+    "pitch": 8,
+    "lens": 50
+   },
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "But not all of them.",
+   "set": "cap",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.05,
+     0.05,
+     1.06
+    ],
+    "dist": 0.1,
+    "yaw": 10,
+    "pitch": 8,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "old",
+     "rot_to": 90,
+     "t0": 0,
+     "t1": 1.8
+    }
+   ],
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "In Japan it's called Ramune. In India, goli soda.",
+   "set": "today",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.02,
+     1.13
+    ],
+    "dist": 0.36,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 50
+   },
+   "callout": {
+    "text": "RAMUNE / GOLI SODA",
+    "x": 0.5,
+    "y": 0.34
+   },
+   "id": "s24",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Still sealed the same way, with a marble pushed up by the fizz.",
+   "set": "today",
+   "camera": "insert",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.04,
+     0.02,
+     1.16
+    ],
+    "dist": 0.1,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "ramune",
+     "rot_to": 90,
+     "t0": 0,
+     "t1": 2.4
+    }
+   ],
+   "id": "s25",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Now you know why that marble is stuck in the neck.",
+   "set": "row",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.05,
+     1.02
+    ],
+    "dist": 0.4,
+    "yaw": -8,
+    "pitch": 10,
+    "lens": 50
+   },
+   "moves": [
+    {
+     "id": "hero",
+     "rot_to": 120,
+     "t0": 0,
+     "t1": 3.0
+    }
+   ],
+   "id": "s26",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 69.36
+}

@@ -424,7 +424,7 @@ def slide(name, x, y_top, colour, height=3.0, length=5.5, width=1.1):
     return ob
 
 
-def playground(colours=None, floor=(0.48, 0.17, 0.04), slides=True, size=(34, 20)):
+def playground(colours=None, floor=(0.62, 0.21, 0.02), slides=True, size=(34, 20)):
     """Toy playground: glossy brown platform, giant slides in each colour, bright green ground, soft sky,
     and a studio light rig (warm key, cool fill, rim)."""
     sc = bpy.context.scene
@@ -443,7 +443,7 @@ def playground(colours=None, floor=(0.48, 0.17, 0.04), slides=True, size=(34, 20
     nt.links.new(tc.outputs["Generated"], sep.inputs[0])
     nt.links.new(sep.outputs["Z"], ramp.inputs["Fac"])
     nt.links.new(ramp.outputs["Color"], bg.inputs["Color"])
-    bg.inputs["Strength"].default_value = 1.1                    # bright sky fill keeps shadows light and colourful
+    bg.inputs["Strength"].default_value = 0.8                    # sky fill: lower, its blue cooled the whole frame (measured)
 
     green = plastic("pg_grass", (0.18, 0.62, 0.04), rough=0.55)
     bpy.ops.mesh.primitive_plane_add(size=400, location=(0, 0, -0.26))
@@ -477,10 +477,10 @@ def lights():
     sun = bpy.context.object
     sun.data.energy = 2.8
     sun.data.angle = math.radians(18)                  # soft shadow edges
-    sun.data.color = (1.0, 0.95, 0.86)
-    for name, loc, energy, size, col in [("key", (-6, -8, 7), 900, 6, (1.0, 0.95, 0.88)),
-                                         ("fill", (8, -6, 3), 650, 9, (0.92, 0.95, 1.0)),
-                                         ("rim", (2, 9, 5), 600, 5, (1.0, 1.0, 1.0))]:
+    sun.data.color = (1.0, 0.84, 0.62)                 # golden sun: the reference is warm (R-B +0.28 vs ours +0.06)
+    for name, loc, energy, size, col in [("key", (-6, -8, 7), 900, 6, (1.0, 0.86, 0.68)),
+                                         ("fill", (8, -6, 3), 650, 9, (1.0, 0.94, 0.86)),
+                                         ("rim", (2, 9, 5), 600, 5, (1.0, 0.92, 0.80))]:
         bpy.ops.object.light_add(type="AREA", location=loc)
         L = bpy.context.object
         L.name = name

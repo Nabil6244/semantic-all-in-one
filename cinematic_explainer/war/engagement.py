@@ -126,7 +126,14 @@ def check(plan: Any, rows: Sequence[Dict[str, Any]]) -> Dict[str, Any]:
     issues.sort(key=lambda x: x["start"])
     weight = {"slow": 14, "same": 8, "still": 6, "turn": 10, "footage": 4}
     score = max(0, 100 - sum(weight.get(x["kind"], 5) for x in issues))
-    return {"blocks": blocks, "issues": issues, "score": score, "total": total,
+    # 2026-11-18: CSV graphics the narration could not support were only in the report json; say them before Render
+    refused = []
+    for d in getattr(plan, "log", None) or []:
+        for c in getattr(d, "candidates", None) or []:
+            why = str((c or {}).get("reason") or "")
+            if why.startswith("CSV asked for") and not c.get("accepted"):
+                refused.append(f"scene {getattr(d, 'scene_no', '?')}: {why.replace('; the automatic choice is kept', '')}")
+    return {"blocks": blocks, "issues": issues, "score": score, "total": total, "csv_refused": refused,
             "summary": f"engagement {score}/100: {len(issues)} spot(s) to look at" if issues else f"engagement {score}/100: no sagging stretch found"}
 
 
@@ -177,6 +184,14 @@ def text(report: Dict[str, Any]) -> str:
         lines += ["  " + x["text"] for x in report["issues"]]
     else:
         lines.append("No sagging stretch found.")
+    rc = report.get("ref_cards") or {}
+    if rc.get("have"):
+        lines += ["", "Reference cards: " + ", ".join(f"{k} x{n}" for k, n in rc["have"].items())]
+        for k in rc.get("missing") or []:
+            lines.append(f"  MISSING {k}: {(rc.get('why') or {}).get(k) or 'removed by a later pass'}")
+    if report.get("csv_refused"):
+        lines += ["", f"CSV graphics not drawn ({len(report['csv_refused'])}; the automatic choice shows instead):"]
+        lines += ["  " + x for x in report["csv_refused"]]
     if report.get("fixed"):
         lines += ["", f"Fixed automatically: {report['fixed']} long shot(s) re-cut in slow stretches (clips that fit their sentence)."]
     return "\n".join(lines) + "\n"

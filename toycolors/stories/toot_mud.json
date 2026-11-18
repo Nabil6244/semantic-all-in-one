@@ -1,0 +1,365 @@
+{
+ "title": "Toot and the Sticky Mud",
+ "set": "mud",
+ "voices": {
+  "hooky": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "splash": {
+   "voice": "en-US-AriaNeural",
+   "rate": "+2%",
+   "pitch": "+10Hz"
+  },
+  "toot": {
+   "voice": "en-GB-MaisieNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  }
+ },
+ "cast": {
+  "hooky": {
+   "kind": "crane",
+   "colour": "yellow"
+  },
+  "splash": {
+   "kind": "tanker",
+   "colour": "blue"
+  },
+  "toot": {
+   "kind": "bus",
+   "colour": "orange"
+  }
+ },
+ "shots": [
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "toot",
+    "to": -4.5
+   },
+   "cast": {
+    "toot": {
+     "x": -4.5
+    }
+   },
+   "camera": {
+    "aim": "toot",
+    "dist": 9.0,
+    "side": 50,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Here comes Toot, the orange bus!",
+     1.0
+    ],
+    [
+     "toot",
+     "Toot toot! Good morning!"
+    ]
+   ]
+  },
+  {
+   "action": "spot",
+   "args": {
+    "who": "toot"
+   },
+   "cast": {
+    "toot": {
+     "x": -4.5
+    }
+   },
+   "camera": {
+    "aim": [
+     -2.0,
+     0,
+     0.6
+    ],
+    "dist": 10.0,
+    "side": 40,
+    "push": 0.1,
+    "pan": 0.6
+   },
+   "lines": [
+    [
+     "toot",
+     "What is that? Brown, sticky mud!",
+     0.6
+    ],
+    [
+     "toot",
+     "I can drive through it!"
+    ]
+   ]
+  },
+  {
+   "action": "stuck",
+   "args": {
+    "who": "toot"
+   },
+   "cast": {
+    "toot": {
+     "x": -4.5
+    }
+   },
+   "camera": {
+    "aim": [
+     0.6,
+     0,
+     0.6
+    ],
+    "dist": 9.5,
+    "side": 40,
+    "push": 0.18
+   },
+   "lines": [
+    [
+     "narrator",
+     "Oh no! Toot is stuck!",
+     2.4
+    ],
+    [
+     "toot",
+     "My wheels won't go! Help!"
+    ]
+   ]
+  },
+  {
+   "action": "idle",
+   "cast": {
+    "toot": {
+     "x": 2.0,
+     "z": -0.22,
+     "muddy": true
+    }
+   },
+   "camera": {
+    "aim": "toot",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "narrator",
+     "Who can help Toot?",
+     0.4
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "hooky",
+    "to": 5.6,
+    "from": "right"
+   },
+   "cast": {
+    "toot": {
+     "x": 2.0,
+     "z": -0.22,
+     "muddy": true
+    },
+    "hooky": {
+     "x": 5.6
+    }
+   },
+   "camera": {
+    "dist": 11.0,
+    "side": 38,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "narrator",
+     "It's Hooky, the yellow crane truck!",
+     1.2
+    ],
+    [
+     "hooky",
+     "Hold on, Toot! I'm here!"
+    ]
+   ]
+  },
+  {
+   "action": "tow",
+   "args": {
+    "helper": "hooky",
+    "who": "toot"
+   },
+   "cast": {
+    "toot": {
+     "x": 2.0,
+     "z": -0.22,
+     "muddy": true
+    },
+    "hooky": {
+     "x": 5.6
+    }
+   },
+   "camera": {
+    "aim": [
+     4.2,
+     0,
+     0.7
+    ],
+    "dist": 11.5,
+    "side": 35,
+    "push": 0.1,
+    "pan": 2.0
+   },
+   "lines": [
+    [
+     "narrator",
+     "Pull, Hooky, pull! One, two, three!",
+     0.8
+    ],
+    [
+     "toot",
+     "Yay! I'm free!"
+    ]
+   ]
+  },
+  {
+   "action": "idle",
+   "cast": {
+    "toot": {
+     "x": 5.4,
+     "muddy": true
+    }
+   },
+   "camera": {
+    "aim": "toot",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "toot",
+     "Oh dear. I'm all brown!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Toot is not orange any more!"
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "splash",
+    "to": 9.0
+   },
+   "cast": {
+    "toot": {
+     "x": 5.4,
+     "muddy": true
+    },
+    "splash": {
+     "x": 9.0,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 10.5,
+    "side": 6,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "narrator",
+     "Here comes Splash, the blue water truck!",
+     1.0
+    ],
+    [
+     "splash",
+     "Bath time, Toot!"
+    ]
+   ]
+  },
+  {
+   "action": "wash",
+   "args": {
+    "helper": "splash",
+    "who": "toot"
+   },
+   "cast": {
+    "toot": {
+     "x": 5.4,
+     "muddy": true
+    },
+    "splash": {
+     "x": 9.0,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "aim": [
+     6.8,
+     0,
+     0.9
+    ],
+    "dist": 9.0,
+    "side": 5,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Splish, splash! Bubbles and water!",
+     0.6
+    ],
+    [
+     "narrator",
+     "Look! Toot is orange again!",
+     4.0
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "hooky": {
+     "x": 1.8
+    },
+    "toot": {
+     "x": 5.4
+    },
+    "splash": {
+     "x": 9.0,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 11.5,
+    "side": 10,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "toot",
+     "Thank you, friends!",
+     0.9
+    ],
+    [
+     "narrator",
+     "Friends always help each other."
+    ]
+   ]
+  }
+ ]
+}

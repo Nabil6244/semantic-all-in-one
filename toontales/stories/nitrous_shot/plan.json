@@ -1,0 +1,935 @@
+{
+ "id": "nitrous_shot",
+ "title": "How a Small Bottle Adds 100 Horsepower",
+ "topic": "How nitrous oxide injection adds power: extra oxygen, a colder intake charge, and why it needs extra fuel",
+ "hook_title": "100 HP IN A BOTTLE?",
+ "keywords": [
+  "nitrous",
+  "oxygen",
+  "fuel",
+  "piston",
+  "bottle",
+  "horsepower",
+  "cold",
+  "button"
+ ],
+ "cast": [],
+ "channel": "channel4",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Nitrous_oxide_engine",
+  "https://en.wikipedia.org/wiki/Nitrous_oxide"
+ ],
+ "places": {
+  "garage": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.6,
+      2.2,
+      1.0
+     ],
+     "rot": 18,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "none",
+     "cover": [
+      0.85,
+      0.1,
+      0.1
+     ],
+     "id": "eng",
+     "run": 0.8
+    },
+    {
+     "m": "@box",
+     "at": [
+      0.75,
+      2.3,
+      0.0
+     ],
+     "size": [
+      0.2,
+      0.2,
+      0.75
+     ],
+     "color": [
+      0.1,
+      0.3,
+      0.95
+     ],
+     "id": "bottle"
+    }
+   ]
+  },
+  "bench": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.6,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "none",
+     "cutaway": true,
+     "block": [
+      0.62,
+      0.64,
+      0.68
+     ],
+     "cover": [
+      0.85,
+      0.1,
+      0.1
+     ],
+     "id": "v8",
+     "run": 1.0
+    },
+    {
+     "m": "@box",
+     "at": [
+      0.75,
+      2.3,
+      0.0
+     ],
+     "size": [
+      0.2,
+      0.2,
+      0.75
+     ],
+     "color": [
+      0.1,
+      0.3,
+      0.95
+     ],
+     "id": "bottle"
+    }
+   ]
+  },
+  "dyno": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0.0,
+      2.3,
+      0.0
+     ],
+     "size": [
+      0.2,
+      0.2,
+      0.75
+     ],
+     "color": [
+      0.1,
+      0.3,
+      0.95
+     ],
+     "id": "bottle",
+     "s": 1.6
+    }
+   ]
+  },
+  "strip": {
+   "world": "drag_strip",
+   "add": [
+    {
+     "m": "hatchback-sports",
+     "at": [
+      -1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.9,
+      0.1,
+      0.1
+     ],
+     "tint_mode": "color",
+     "id": "red"
+    },
+    {
+     "m": "sedan-sports",
+     "at": [
+      1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.15,
+      0.35,
+      1.0
+     ],
+     "tint_mode": "color",
+     "id": "blue"
+    }
+   ]
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Same V8. One small blue bottle.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.1
+    ],
+    "dist": 5.6,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "moves": [
+    {
+     "id": "eng",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "callout": {
+    "text": "+100 HP?",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A hundred more horsepower.",
+   "set": "dyno",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     2.3,
+     0.8
+    ],
+    "dist": 2.4,
+    "yaw": 10,
+    "pitch": 6,
+    "lens": 30
+   },
+   "hud": {
+    "label": "HORSEPOWER",
+    "fmt": "{v} HP",
+    "from": 450,
+    "to": 550,
+    "max": 700,
+    "color": "green"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.3
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "No turbo, no blower. So how?",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.6,
+     2.3,
+     0.6
+    ],
+    "dist": 3.6,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "callout": {
+    "text": "NITROUS",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.3
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "An engine burns fuel with oxygen from the air.",
+   "set": "bench",
+   "camera": "wide",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.6
+    ],
+    "dist": 2.6,
+    "yaw": 16,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "AIR + FUEL",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 3,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Air is only about a fifth oxygen.",
+   "set": "bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.6
+    ],
+    "dist": 1.7,
+    "yaw": 26,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "OXYGEN IN AIR",
+    "fmt": "{v}%",
+    "from": 0,
+    "to": 21,
+    "max": 50,
+    "color": "red"
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Nitrous oxide carries more.",
+   "set": "dyno",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     2.3,
+     0.8
+    ],
+    "dist": 2.2,
+    "yaw": 20,
+    "pitch": 6,
+    "lens": 30
+   },
+   "hud": {
+    "label": "OXYGEN IN NITROUS",
+    "fmt": "{v}%",
+    "from": 0,
+    "to": 36,
+    "max": 50,
+    "color": "green"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Heat splits it apart inside the cylinder.",
+   "set": "bench",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.7
+    ],
+    "dist": 1.5,
+    "yaw": -20,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "SPLIT!",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 7,
+     "t0": 0,
+     "t1": 0.5
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.4
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Extra oxygen. Bigger bang.",
+   "set": "bench",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.6
+    ],
+    "dist": 2.0,
+    "yaw": 30,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "HORSEPOWER",
+    "fmt": "{v} HP",
+    "from": 450,
+    "to": 550,
+    "max": 700,
+    "color": "green"
+   },
+   "moves": [
+    {
+     "id": "v8",
+     "run_to": 8,
+     "t0": 0,
+     "t1": 0.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.2
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "And it sprays in ice cold,",
+   "set": "garage",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     2.3,
+     1.0
+    ],
+    "dist": 2.4,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "hud": {
+    "label": "INTAKE TEMP",
+    "fmt": "{v} F",
+    "from": 90,
+    "to": 30,
+    "max": 120,
+    "color": "green"
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "so the air gets denser too.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     2.3,
+     1.0
+    ],
+    "dist": 2.4,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "hud": {
+    "label": "INTAKE TEMP",
+    "fmt": "{v} F",
+    "from": 90,
+    "to": 30,
+    "max": 120,
+    "color": "green"
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "But there's a catch.",
+   "set": "bench",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.6
+    ],
+    "dist": 2.8,
+    "yaw": -12,
+    "pitch": 10,
+    "lens": 30
+   },
+   "freeze": "WAIT...",
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "More oxygen needs more fuel.",
+   "set": "bench",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.6
+    ],
+    "dist": 1.9,
+    "yaw": 8,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "MORE FUEL",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Too little, and the flame burns",
+   "set": "bench",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.5
+    ],
+    "dist": 1.4,
+    "yaw": -28,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "PISTON TEMP",
+    "fmt": "{v} F",
+    "from": 900,
+    "to": 1300,
+    "max": 1400,
+    "color": "red"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.5
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "so hot it can melt a piston.",
+   "set": "bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.6,
+     2.2,
+     1.5
+    ],
+    "dist": 1.4,
+    "yaw": -28,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "PISTON TEMP",
+    "fmt": "{v} F",
+    "from": 900,
+    "to": 1300,
+    "max": 1400,
+    "color": "red"
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.5
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So kits add extra fuel with the nitrous.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.1
+    ],
+    "dist": 3.0,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "callout": {
+    "text": "WET KIT",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "eng",
+     "run_to": 6,
+     "t0": 0.1,
+     "t1": 0.8
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "And the bottle empties in seconds.",
+   "set": "garage",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.3,
+     0.6
+    ],
+    "dist": 2.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "hud": {
+    "label": "BOTTLE",
+    "fmt": "{v}%",
+    "from": 100,
+    "to": 0,
+    "max": 100,
+    "color": "red"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "That's why you only press the button at full throttle.",
+   "set": "strip",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.7
+    ],
+    "dist": 16,
+    "yaw": 0,
+    "pitch": 10,
+    "lens": 26
+   },
+   "callout": {
+    "text": "SPRAY!",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The blue car sprays. The red car doesn't.",
+   "set": "strip",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     -1.7,
+     4,
+     0.6
+    ],
+    "to": [
+     -1.7,
+     40,
+     0.6
+    ],
+    "dist": 9,
+    "yaw": 8,
+    "pitch": 9,
+    "lens": 26
+   },
+   "moves": [
+    {
+     "id": "red",
+     "to": [
+      -1.7,
+      40,
+      0
+     ],
+     "t0": 0.2,
+     "t1": 2.6,
+     "ease": "in"
+    },
+    {
+     "id": "blue",
+     "to": [
+      1.7,
+      48,
+      0
+     ],
+     "t0": 0.1,
+     "t1": 2.6,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.1
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "One blue bottle, one hundred horsepower.",
+   "set": "dyno",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     2.3,
+     0.8
+    ],
+    "dist": 3.6,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 28
+   },
+   "hud": {
+    "label": "HORSEPOWER",
+    "fmt": "{v} HP",
+    "from": 450,
+    "to": 550,
+    "max": 700,
+    "color": "green"
+   },
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Would you push the button?",
+   "set": "garage",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.1
+    ],
+    "dist": 5.6,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "eng",
+     "bottle"
+    ]
+   },
+   "moves": [
+    {
+     "id": "eng",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 40.55
+}

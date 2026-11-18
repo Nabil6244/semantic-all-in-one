@@ -1,6 +1,6 @@
 """Render one story shot (toycolors/story_actions.py) as frames or quick stills, and write its sound events.
 
-blender -b -P toycolors/story_scene.py -- SHOT.json OUT_DIR [--still 1.0,3.0] [--fast]
+blender -b -P toycolors/story_scene.py -- SHOT.json OUT_DIR [--still 1.0,3.0] [--fast | --ultra]
 OUT_DIR gets f_0001.png ... (or still_<t>.png) and events.json.
 """
 import json
@@ -21,7 +21,7 @@ os.makedirs(out, exist_ok=True)
 still = [float(s) for s in argv[argv.index("--still") + 1].split(",")] if "--still" in argv else None
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-sc = kit.setup_render(fast="--fast" in argv)
+sc = kit.setup_render(fast="ultra" if "--ultra" in argv else "--fast" in argv)
 ev = A.build_shot(spec)
 toy.grade()
 json.dump(ev, open(os.path.join(out, "events.json"), "w"))

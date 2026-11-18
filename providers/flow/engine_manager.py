@@ -84,9 +84,15 @@ def _is_flow_engine_process(pid: int) -> bool:
         return False
 
 
+# Seconds an engine gets to close its Chrome windows before any kill.
+_BROWSER_CLOSE_GRACE = 30.0
+
+
 def _terminate_pid(pid: int, force: bool = False) -> None:
     try:
         if sys.platform == "win32":
+            # /T also ends the Chrome children; only reached after the clean
+            # close had its full grace period.
             hidden_subprocess.check_output(["taskkill", "/PID", str(pid), "/T", "/F"], text=True, timeout=10)
         else:
             import signal
@@ -374,14 +380,17 @@ class FlowEngineManager:
             client.close()
         except Exception:
             pass
-        if not self._wait_port_free(3.0):
+        # SHUTDOWN closes every Chrome window first, then exits. Give it time:
+        # killing the engine while Chrome is still closing loses its newest
+        # Google cookies and the accounts come back signed out after an update.
+        deadline = time.time() + _BROWSER_CLOSE_GRACE
+        while old_pids and time.time() < deadline and any(_pid_alive(p) for p in old_pids):
+            time.sleep(0.2)
+        if not self._wait_port_free(1.0):
             for pid in old_pids:
                 _terminate_pid(pid)
-        # A graceful stop frees the port but can hang while other clients
-        # (e.g. another app window) keep their WebSocket open — measured: the
-        # old engine lingered, still serving that client with outdated code.
-        # Give it a moment, then force it (verified flow-engine PIDs only).
-        deadline = time.time() + 4.0
+        # Older engines without SHUTDOWN: SIGTERM runs the same clean close.
+        deadline = time.time() + 6.0
         while old_pids and time.time() < deadline and any(_pid_alive(p) for p in old_pids):
             time.sleep(0.2)
         for pid in old_pids:
@@ -422,6 +431,16 @@ class FlowEngineManager:
         return self.health_check()
 
     def stop(self, timeout: float = 5.0) -> None:
+        # Ask the engine to close its Chrome windows and exit by itself before
+        # anything is killed — a hard kill loses Chrome's newest Google cookies
+        # and signs the Flow accounts out.
+        asked = False
+        if self._client is not None and self._proc is not None and self._proc.poll() is None:
+            try:
+                self._client.send({"type": "SHUTDOWN"})
+                asked = True
+            except Exception:
+                asked = False
         if self._client is not None:
             try:
                 self._client.close()
@@ -430,6 +449,11 @@ class FlowEngineManager:
             self._client = None
         if self._proc is None:
             return
+        if asked:
+            try:
+                self._proc.wait(timeout=_BROWSER_CLOSE_GRACE)
+            except Exception:
+                pass
         if self._proc.poll() is None:
             pid = self._proc.pid
             if sys.platform == "win32":

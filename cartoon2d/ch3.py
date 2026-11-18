@@ -14,6 +14,17 @@ The shape every episode follows (storycheck "adventure" rules check it): a hook 
 the hello song, 6-8 play stops (title card, a ride or game, a learning moment with your turn, one goal item found),
 the goal complete, a calm recap, a teaser, the goodbye song and the end screen.
 Characters are laid out per place from who is there and which rides they take (rides need room beside the rider).
+
+It has to be a story, not a list of stops (storycheck "story" rules):
+    ep = Episode(..., hero=TOBI, giver="mama_duck")
+    ep.want(TOBI, "I want to help! But not the big slide...")  # the hero's want + fear, early (beat "want")
+    ep.tries(TOBI, "I'll try the little slide first!")          # a small brave step in the middle (beat "try")
+    ep.payoff(TOBI, "I did it! I went down the big slide!")     # the fear beaten near the end (beat "payoff")
+    ep.stuck("swings", ROSIE, "The duckling is too shy...")     # the goal item shown on arrival WITH its problem; the
+                                                               # stop's play is how it gets solved, then ep.found(...)
+    ep.setback(FIZZ, "TOOT TOOT!", lost=True)                   # something goes wrong; lost=True takes one off the count
+    ep.waiting("Mama Duck is still waiting by the pond...")     # the goal-giver comes back between stops
+    ep.say(..., funny=True)                                     # a sidekick joke (counted so stops don't all match)
 """
 import json
 from pathlib import Path
@@ -36,8 +47,10 @@ ASK_GAP = 2.2
 
 
 class Episode:
-    def __init__(self, name, goal, music="sunny", host=LINA, kids=(TOBI, ROSIE), learn=(), teaser=None):
+    def __init__(self, name, goal, music="sunny", host=LINA, kids=(TOBI, ROSIE), learn=(), teaser=None, hero=None,
+                 giver=None):
         self.name, self.goal, self.music, self.host, self.kids = name, goal, music, host, list(kids)
+        self.hero, self.giver = hero, giver
         self.lines, self.places, self.learn = [], {}, list(learn)
 
     # ---------------------------------------------------------------- places
@@ -96,7 +109,66 @@ class Episode:
 
     def found(self, who, text, pic=None, **k):
         pic = pic or self.goal[0]
-        self.say(who, text, act="point", cam="group", found=pic, sfx="ding_3", **k)
+        k.setdefault("act", "point")
+        k.setdefault("cam", "group")
+        self.say(who, text, found=pic, sfx="ding_3", **k)
+
+    # ---------------------------------------------------------------- story beats
+    def _place_now(self):
+        return next((ln["place"] for ln in reversed(self.lines) if ln.get("place")), None)
+
+    BACK_Y, BACK_SIZE = 0.66, 0.07
+
+    def stuck(self, who, text, pic=None, spot=None, size=0.11, at=None, peek=None, mound=None, **k):
+        """The goal item of this stop, shown from the arrival, with WHY it can't just be picked up. The stop's play
+        is how the friends get it back (storycheck: the problem comes before the play, the find after it).
+        Put it where the words say, so the picture matches:
+          at=("slide", rider)  on the slide's platform (the rider's slide in this place)
+          at=("swing", rider)  by the leg of the rider's swing frame
+          at="back"            further back in the place (across the track, behind the water jets): higher, smaller
+          peek=0.5, mound=(r, g, b)  only its top half shows over a mound until found (buried in sand, sunk in balls)"""
+        place = self._place_now()
+        spot = spot or self.free_spot(place)
+        f = {"pic": pic or self.goal[0], "x": spot[0], "y": spot[1], "size": size}
+        if at == "back":
+            f.update(y=self.BACK_Y, size=min(size, self.BACK_SIZE))
+        elif isinstance(at, tuple):
+            kind, rider = at
+            if self.places[place]["rides"].get(rider) != kind:
+                raise SystemExit(f"stuck at {at}: {rider} has no {kind} in '{place}' (ep.place(..., rides=...))")
+            f.update(on=kind, who=rider)
+        if peek:
+            f.update(peek=peek, mound=list(mound or (232, 200, 130)))
+        k.setdefault("act", "point")
+        k.setdefault("cam", "group")
+        self.say(who, text, find=f, **k)
+
+    def want(self, who, text, **k):
+        k.setdefault("cam", "kids")
+        self.say(who, text, beat="want", **k)
+
+    def tries(self, who, text, **k):
+        k.setdefault("cam", "kids")
+        self.say(who, text, beat="try", **k)
+
+    def payoff(self, who, text, **k):
+        k.setdefault("cam", "kids")
+        k.setdefault("fx", "stars")
+        self.say(who, text, beat="payoff", **k)
+
+    def setback(self, who, text, lost=False, **k):
+        k.setdefault("cam", "group")
+        k.setdefault("sfx", "boing")
+        if lost:
+            k["lost"] = self.goal[0]
+            k.setdefault("pic", self.goal[0])
+        self.say(who, text, setback=True, **k)
+
+    def waiting(self, text, who=None, **k):
+        """The goal-giver comes back between stops (still waiting, how many to go)."""
+        k.setdefault("cam", "host")
+        k.setdefault("pic", self.giver)
+        self.say(who or self.host, text, waiting=True, **k)
 
     # ---------------------------------------------------------------- output
     def write(self, out_dir=None):
@@ -117,6 +189,7 @@ class Episode:
             "music": {n: p["music"] for n, p in self.places.items()},
             "props": ["cartoon2d/art/props"], "script": rel(sp), "storycheck": True, "adventure": True,
             "goal": {"pic": self.goal[0], "n": self.goal[1]},
+            "hero": self.hero, "giver": self.giver,
             "collection": False,                                    # the goal counter replaces the old top-right strip
             "rules": {"max_stay": 240},
         }

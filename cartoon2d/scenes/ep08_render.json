@@ -1,0 +1,163 @@
+{
+ "timeline": "cartoon2d/build/ep08/audio/timeline.json",
+ "build": "cartoon2d/build/ep08",
+ "name": "ep08_rainbow_colours_with_ms_molly",
+ "host": "molly",
+ "kids": [
+  "lily",
+  "ollie"
+ ],
+ "start_place": "livingroom",
+ "places": {
+  "livingroom": {
+   "background": "cartoon2d/art/bg/ep07_livingroom.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   },
+   "outdoor": false
+  },
+  "orchard": {
+   "background": "cartoon2d/art/bg/ep05_orchard.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "pumpkins": {
+   "background": "cartoon2d/art/bg/ep06_pumpkins.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "sunflowers": {
+   "background": "cartoon2d/art/bg/ep06_sunflowers.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "classroom": {
+   "background": "cartoon2d/art/bg/ep05_classroom.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   },
+   "outdoor": false
+  },
+  "meadow": {
+   "background": "cartoon2d/art/bg/ep06_meadow.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "beach": {
+   "background": "cartoon2d/art/bg/ep05_beach.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "night": {
+   "background": "cartoon2d/art/bg/ep07_night.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  },
+  "rainbow": {
+   "background": "cartoon2d/art/bg/ep06_rainbow.png",
+   "floor_y": 0.9,
+   "spots": {
+    "molly": 0.25,
+    "lily": 0.46,
+    "ollie": 0.6,
+    "bobo": 0.78
+   }
+  }
+ },
+ "cast": {
+  "molly": {
+   "dir": "cartoon2d/cast/molly",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hop": 0.1,
+   "listen": 3.5,
+   "hold_side": "sl"
+  },
+  "lily": {
+   "dir": "cartoon2d/cast/lily",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  },
+  "ollie": {
+   "dir": "cartoon2d/cast/ollie",
+   "height": 0.45,
+   "tilt": 1.0,
+   "hold_side": "sr"
+  },
+  "bobo": {
+   "dir": "cartoon2d/cast/bobo",
+   "height": 0.64,
+   "tilt": 0.6,
+   "hop": 0.1,
+   "listen": 3.0,
+   "hold_side": "sr"
+  }
+ },
+ "music": {
+  "livingroom": "playroom",
+  "orchard": "sunny",
+  "pumpkins": "sunny",
+  "sunflowers": "sunny",
+  "classroom": "playroom",
+  "meadow": "sunny",
+  "beach": "sunny",
+  "night": "sunny",
+  "rainbow": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/ep08_rainbow.json",
+ "storycheck": true,
+ "journey": true,
+ "map_stops": [
+  "Red",
+  "Orange",
+  "Yellow",
+  "Mix",
+  "Green",
+  "Blue",
+  "Purple",
+  "Rainbow"
+ ],
+ "map_title": "Bobo's rainbow map!"
+}

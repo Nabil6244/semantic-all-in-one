@@ -23,32 +23,18 @@
     "dot": -0.7
    }
   },
-  "slide": {
-   "background": "cartoon2d/art/bg/ch3e1_hill.png",
-   "floor_y": 0.9,
-   "spots": {
-    "lina": 0.1681,
-    "tobi": 0.566,
-    "rosie": 0.7074,
-    "fizz": 0.8656,
-    "nia": -0.4,
-    "poppy": 1.5499999999999998,
-    "pip": -0.7,
-    "dot": 1.8499999999999999
-   }
-  },
   "swings": {
    "background": "cartoon2d/art/bg/ch3e1_swings.png",
    "floor_y": 0.9,
    "spots": {
     "lina": 0.1681,
-    "rosie": 0.5473,
+    "rosie": 0.4794,
+    "tobi": 0.74,
     "pip": 0.8791,
     "nia": -0.4,
     "poppy": 1.5499999999999998,
-    "tobi": -0.7,
-    "fizz": 1.8499999999999999,
-    "dot": -1.0
+    "fizz": -0.7,
+    "dot": 1.8499999999999999
    }
   },
   "sandpit": {
@@ -84,13 +70,13 @@
    "floor_y": 0.9,
    "spots": {
     "lina": 0.1681,
-    "pip": 0.3926,
-    "dot": 0.6305,
-    "rosie": 0.8583,
+    "fizz": 0.404,
+    "tobi": 0.623,
+    "rosie": 0.8538,
     "nia": -0.4,
     "poppy": 1.5499999999999998,
-    "tobi": -0.7,
-    "fizz": 1.8499999999999999
+    "pip": -0.7,
+    "dot": 1.8499999999999999
    }
   },
   "splash": {
@@ -105,6 +91,20 @@
     "rosie": -0.4,
     "pip": 1.5499999999999998,
     "dot": -0.7
+   }
+  },
+  "slide": {
+   "background": "cartoon2d/art/bg/ch3e1_hill.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.566,
+    "rosie": 0.7074,
+    "fizz": 0.8656,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "pip": -0.7,
+    "dot": 1.8499999999999999
    }
   },
   "picnic": {
@@ -176,12 +176,12 @@
  },
  "music": {
   "gate": "sunny",
-  "slide": "sunny",
   "swings": "sunny",
   "sandpit": "sunny",
   "train": "sunny",
   "softplay": "sunny",
   "splash": "sunny",
+  "slide": "sunny",
   "picnic": "calm"
  },
  "props": [
@@ -194,6 +194,8 @@
   "pic": "duckling",
   "n": 5
  },
+ "hero": "tobi",
+ "giver": "mama_duck",
  "collection": false,
  "rules": {
   "max_stay": 240

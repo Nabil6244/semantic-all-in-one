@@ -1,7 +1,8 @@
 """Story director for Toy Vehicles stories: a story script (toycolors/stories/*.json) becomes a narrated, voiced video.
 
-python3 -m toycolors.story toycolors/stories/zip_mud.json [--out DIR] [--stills] [--render] [--quality 720|1080]
+python3 -m toycolors.story toycolors/stories/zip_mud.json [--out DIR] [--stills] [--render] [--quality 540|720|1080]
 
+--quality 540: ultra fast (960x540, 8 samples, upscaled to 720p). 540 and 720 render TOY_JOBS shots at once (default 2) -> story_540p.mp4
 --quality 720: fast preview (1280x720, 16 samples, about 3x faster) -> story_720p.mp4
 --quality 1080: final (1920x1080, 24 samples) -> story_1080p.mp4. Both keep their own shot cache.
 
@@ -127,11 +128,19 @@ def blender(args, log):
                        stdout=f, stderr=subprocess.STDOUT, check=True)
 
 
+def _tag(fast):
+    return "ultra" if fast == "ultra" else "fast" if fast else ""
+
+
+def _flag(fast):
+    return ["--ultra"] if fast == "ultra" else ["--fast"] if fast else []
+
+
 def shot_dir(spec, fast):
     # the key holds everything that changes the picture: the shot, the scene code, the quality and any TOY_* render knobs
     knobs = sorted((k, v) for k, v in os.environ.items() if k.startswith("TOY_"))
     knobs = json.dumps(knobs) if knobs else ""
-    key = hashlib.sha1((json.dumps(spec, sort_keys=True) + code_hash(spec["action"]) + ("fast" if fast else "") + knobs).encode()).hexdigest()[:14]
+    key = hashlib.sha1((json.dumps(spec, sort_keys=True) + code_hash(spec["action"]) + _tag(fast) + knobs).encode()).hexdigest()[:14]
     return os.path.join(CACHE, key)
 
 
@@ -145,7 +154,7 @@ def render_shot(spec, out, fast=False):
         os.makedirs(fr)
         jp = os.path.join(sd, "spec.json")
         json.dump(spec, open(jp, "w"), indent=1)
-        blender([jp, fr] + (["--fast"] if fast else []), os.path.join(out, "blender.log"))
+        blender([jp, fr] + _flag(fast), os.path.join(out, "blender.log"))
         shutil.move(os.path.join(fr, "events.json"), os.path.join(sd, "events.json"))
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-framerate", "24", "-i", os.path.join(fr, "f_%04d.png"),
                         "-c:v", "libx264", "-preset", "medium", "-crf", "12", "-pix_fmt", "yuv420p", mp4 + ".tmp.mp4"],
@@ -205,19 +214,27 @@ def audio(specs, voice, events, dur, out):
 
 
 def render(story, specs, voice, dur, out, fast=False):
-    clips, events = [], []
-    for i, s in enumerate(specs):
-        print(f"shot {i + 1}/{len(specs)} {s['spec']['action']} {s['spec']['dur']}s", flush=True)
-        mp4, ev = render_shot(s["spec"], out, fast)
-        clips.append(mp4)
-        events.append(ev)
+    # several Blender processes at once: one alone leaves the GPU idle while it loads and builds each shot
+    from concurrent.futures import ThreadPoolExecutor
+    jobs = int(os.environ.get("TOY_JOBS", 2 if fast else 1))          # 720p previews: two at a time
+    done = [0]
+
+    def one(i):
+        r = render_shot(specs[i]["spec"], out, fast)
+        done[0] += 1
+        print(f"shot {done[0]}/{len(specs)} {specs[i]['spec']['action']} {specs[i]['spec']['dur']}s", flush=True)
+        return r
+    with ThreadPoolExecutor(max(1, jobs)) as ex:
+        res = list(ex.map(one, range(len(specs))))
+    clips, events = [r[0] for r in res], [r[1] for r in res]
     mixp = audio(specs, voice, events, dur, out)
     lst = os.path.join(out, "clips.txt")
     with open(lst, "w") as f:
         f.writelines(f"file '{c.replace(os.sep, '/')}'\n" for c in clips)   # forward slashes: ffmpeg lists on Windows too
     from toycolors import overlay as O
     size = "1280:720" if fast else "1920:1080"
-    ins, fc, last = [], f"[0:v]{GRADE}[g0];", "g0"
+    up = "scale=1280:720:flags=lanczos," if fast == "ultra" else ""     # ultra shots are 540p
+    ins, fc, last = [], f"[0:v]{up}{GRADE}[g0];", "g0"
     for k, s in enumerate(x for x in specs if x.get("title")):     # a title card over each adventure's first shot
         tp = os.path.join(out, f"title_{k:02d}.png")
         O.title(s["title"], (255, 215, 40)).save(tp)
@@ -225,7 +242,7 @@ def render(story, specs, voice, dur, out, fast=False):
         a0, a1 = s["t0"] + 0.3, s["t0"] + min(3.6, s["spec"]["dur"] - 0.2)
         fc += f"[{k + 2}:v]scale={size}[t{k}];[{last}][t{k}]overlay=0:0:enable='between(t,{a0:.2f},{a1:.2f})'[g{k + 1}];"
         last = f"g{k + 1}"
-    mp4 = os.path.join(out, "story_720p.mp4" if fast else "story_1080p.mp4")
+    mp4 = os.path.join(out, {"ultra": "story_540p.mp4", True: "story_720p.mp4"}.get(fast, "story_1080p.mp4"))
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-i", mixp]
                    + ins + ["-filter_complex", fc.rstrip(";"),
                     "-map", f"[{last}]", "-map", "1:a", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
@@ -240,10 +257,10 @@ def main():
     ap.add_argument("--out")
     ap.add_argument("--stills", action="store_true")
     ap.add_argument("--render", action="store_true")
-    ap.add_argument("--quality", choices=["720", "1080"], default="1080")
+    ap.add_argument("--quality", choices=["540", "720", "1080"], default="1080")
     ap.add_argument("--fast", action="store_true", help="same as --quality 720")
     a = ap.parse_args()
-    a.fast = a.fast or a.quality == "720"
+    a.fast = "ultra" if a.quality == "540" else (a.fast or a.quality == "720")
     story = load(a.story)
     out = os.path.abspath(a.out or os.path.join(ROOT, "toycolors/out/stories", os.path.splitext(os.path.basename(a.story))[0]))
     os.makedirs(out, exist_ok=True)

@@ -128,8 +128,10 @@ def check(story, tl, script=None):
         if not gl.get("pic") or not gl.get("n"):
             probs.append("no goal counter: the render json needs \"goal\": {\"pic\": ..., \"n\": ...}")
         found = [ln for ln in lines if ln.get("found") == gl.get("pic")]
-        if gl.get("n") and len(found) != gl["n"]:
-            probs.append(f"goal says {gl.get('n')} {gl.get('pic')}s but {len(found)} are found")
+        n_lost = sum(1 for ln in lines if ln.get("lost") == gl.get("pic"))   # a setback loses one; it is found again
+        if gl.get("n") and len(found) - n_lost != gl["n"]:
+            probs.append(f"goal says {gl.get('n')} {gl.get('pic')}s but {len(found) - n_lost} are found"
+                         + (f" ({len(found)} finds, {n_lost} lost again)" if n_lost else ""))
         for name, t0, t1 in stops:
             inside = [ln for ln in lines if t0 <= ln["start"] < t1]
             if t1 - t0 > R.get("max_stop", 180):
@@ -142,6 +144,7 @@ def check(story, tl, script=None):
                 probs.append(f"stop '{name}' {_mmss(t0)} has no learning moment (a card or picture with your_turn)")
             if gl.get("pic") and not any(ln.get("found") == gl["pic"] for ln in inside):
                 notes.append(f"stop '{name}' finds no {gl['pic']}")
+        probs += story_problems(story, lines, stops, total)
     # calm, teaser, end screen
     if not any(ln.get("calm") and ln["start"] >= total - CALM_IN_LAST for ln in lines):
         probs.append(f"no calm part (calm: true) in the last {CALM_IN_LAST / 60:.0f} minutes")
@@ -162,6 +165,83 @@ def check(story, tl, script=None):
                              f"{R['turn_gap']:.1f} s (gap_after)")
     probs += places.problems(story, tl)
     return probs, notes
+
+
+def _sig(inside):
+    """A stop's beat order: H problem shown, G play, S song, F found, X setback, B hero beat, J joke (repeats collapsed)."""
+    out = []
+    for ln in inside:
+        for key, tag in (("find", "H"), ("game", "G"), ("chant", "S"), ("found", "F"), ("setback", "X"), ("beat", "B"),
+                         ("funny", "J")):
+            if ln.get(key) and (not out or out[-1] != tag):
+                out.append(tag)
+    return "".join(out)
+
+
+def story_problems(story, lines, stops, total):
+    """Adventure = a story, not a list of stops. 1) every goal item is stuck for a reason and the stop's play is how it
+    is got back: its problem (find) comes before the play (game), the found after it; 2) the hero wants something and
+    is scared of something early, takes a small brave step in the middle, beats the fear near the end; 3) at least one
+    setback; 4) the goal-giver comes back at least every two stops; 5) no two stops in a row share a beat order, and no
+    spoken line repeats across 3+ stops."""
+    probs = []
+    pic = (story.get("goal") or {}).get("pic")
+    for name, t0, t1 in stops:
+        inside = [ln for ln in lines if t0 <= ln["start"] < t1]
+        fi = next((i for i, ln in enumerate(inside) if ln.get("find")), None)
+        fo = next((i for i, ln in enumerate(inside) if pic and ln.get("found") == pic), None)
+        if fo is None:
+            continue
+        if fi is None:
+            probs.append(f"stop '{name}' {_mmss(t0)}: the {pic} is found but never shown stuck first (ep.stuck)")
+            continue
+        games = [i for i, ln in enumerate(inside) if ln.get("game")]
+        if not any(fi < g < fo for g in games):
+            probs.append(f"stop '{name}' {_mmss(t0)}: the play does not happen between the {pic}'s problem and its "
+                         f"rescue, so the play is not how it is got back")
+        if inside[fi]["start"] - t0 > 0.35 * (t1 - t0):
+            probs.append(f"stop '{name}' {_mmss(t0)}: the {pic}'s problem comes {inside[fi]['start'] - t0:.0f} s in; "
+                         f"show it in the first third of the stop")
+    hero = story.get("hero")
+    if not hero:
+        probs.append("no hero: Episode(hero=...) - whose want and fear the story follows")
+    else:
+        beats = [(ln.get("beat"), ln["start"]) for ln in lines if ln.get("beat") and hero in _who(ln)]
+        want = [t for b, t in beats if b == "want"]
+        tries = [t for b, t in beats if b == "try"]
+        pay = [t for b, t in beats if b == "payoff"]
+        if not want or want[0] > 180:
+            probs.append(f"the hero ({hero}) says what they want and fear (ep.want) in the first 3 minutes")
+        if not tries or not want or not any(want[0] < t < (pay[0] if pay else total) for t in tries):
+            probs.append(f"the hero ({hero}) needs a small brave step (ep.tries) between the want and the payoff")
+        if not pay or pay[-1] < (stops[-2][1] if len(stops) > 1 else 0):
+            probs.append(f"the hero ({hero}) beats the fear (ep.payoff) in the last two stops")
+    if not any(ln.get("setback") for ln in lines):
+        probs.append("no setback (ep.setback): something has to go wrong before the end")
+    if story.get("giver"):
+        wt = [ln["start"] for ln in lines if ln.get("waiting")]
+        for a, b in zip(stops, stops[2:]):
+            if not any(a[1] <= t < b[1] for t in wt):
+                probs.append(f"the goal-giver is gone from {_mmss(a[1])} to {_mmss(b[1])}: bring them back (ep.waiting)")
+                break
+    sigs = [(name, t0, _sig([ln for ln in lines if t0 <= ln["start"] < t1])) for name, t0, t1 in stops]
+    for (n1, _, s1), (n2, t2, s2) in zip(sigs, sigs[1:]):
+        if s1 == s2:
+            probs.append(f"stops '{n1}' and '{n2}' ({_mmss(t2)}) run the same beats in the same order ({s1})")
+    seen = {}
+    for name, t0, t1 in stops:
+        for ln in lines:
+            if t0 <= ln["start"] < t1 and not ln.get("chant"):
+                k = re.sub(r"[^a-z ]", "", ln["text"].lower()).strip()
+                if k:
+                    seen.setdefault(k, set()).add(name)
+    probs += [f"the line '{k}' is said at {len(v)} stops; write each stop its own words" for k, v in seen.items() if len(v) >= 3]
+    return probs
+
+
+def _who(ln):
+    w = ln.get("who")
+    return w if isinstance(w, list) else [w]
 
 
 def energy(tl, step=30.0):

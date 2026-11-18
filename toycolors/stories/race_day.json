@@ -1,0 +1,296 @@
+{
+ "title": "The Big Race Day",
+ "set": "park",
+ "voices": {
+  "bumpy": {
+   "voice": "en-US-ChristopherNeural",
+   "rate": "-6%",
+   "pitch": "+4Hz"
+  },
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "rolly": {
+   "voice": "en-US-EricNeural",
+   "rate": "-4%",
+   "pitch": "+4Hz"
+  },
+  "toot": {
+   "voice": "en-GB-MaisieNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "zip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+4Hz"
+  }
+ },
+ "cast": {
+  "bumpy": {
+   "kind": "dump",
+   "colour": "green"
+  },
+  "rolly": {
+   "kind": "fire",
+   "colour": "red"
+  },
+  "toot": {
+   "kind": "bus",
+   "colour": "orange"
+  },
+  "zip": {
+   "kind": "car",
+   "colour": "red"
+  }
+ },
+ "shots": [
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "rolly",
+    "to": 0.0
+   },
+   "cast": {
+    "rolly": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": "rolly",
+    "dist": 9.0,
+    "side": 40,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Today is the big race day!",
+     1.0
+    ],
+    [
+     "rolly",
+     "Who wants to race?"
+    ]
+   ]
+  },
+  {
+   "action": "race",
+   "args": {
+    "a": "zip",
+    "b": "bumpy",
+    "winner": "bumpy"
+   },
+   "cast": {
+    "zip": {},
+    "bumpy": {}
+   },
+   "lines": [
+    [
+     "narrator",
+     "Zip and Bumpy! Go!",
+     0.2
+    ],
+    [
+     "narrator",
+     "Faster, faster!"
+    ],
+    [
+     "bumpy",
+     "I win! Hooray!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "race",
+   "args": {
+    "a": "toot",
+    "b": "rolly",
+    "winner": "rolly"
+   },
+   "cast": {
+    "toot": {},
+    "rolly": {}
+   },
+   "lines": [
+    [
+     "narrator",
+     "Now Toot and Rolly! Go!",
+     0.2
+    ],
+    [
+     "narrator",
+     "Zoom, zoom, zoom!"
+    ],
+    [
+     "rolly",
+     "Nee-naw! I win!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "jump",
+   "args": {
+    "who": "bumpy"
+   },
+   "cast": {
+    "bumpy": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": [
+     4.0,
+     0,
+     1.4
+    ],
+    "dist": 15.0,
+    "side": 18,
+    "push": 0.08
+   },
+   "lines": [
+    [
+     "bumpy",
+     "Jump time!",
+     0.2
+    ],
+    [
+     "narrator",
+     "Up, up and away!",
+     1.8
+    ]
+   ]
+  },
+  {
+   "action": "jump",
+   "args": {
+    "who": "toot"
+   },
+   "cast": {
+    "toot": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": [
+     4.0,
+     0,
+     1.4
+    ],
+    "dist": 15.0,
+    "side": 18,
+    "push": 0.08
+   },
+   "lines": [
+    [
+     "toot",
+     "My turn! Wheee!",
+     0.2
+    ],
+    [
+     "narrator",
+     "Toot flies through the air!",
+     1.8
+    ]
+   ]
+  },
+  {
+   "action": "flat",
+   "args": {
+    "who": "toot",
+    "helper": "bumpy"
+   },
+   "cast": {
+    "toot": {
+     "x": 0.0
+    },
+    "bumpy": {
+     "x": 3.8,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 9.0,
+    "side": 30,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "Pop! Oh no, Toot has a flat tyre!",
+     1.2
+    ],
+    [
+     "bumpy",
+     "I can help! Pump, pump, pump!"
+    ],
+    [
+     "toot",
+     "Thank you, Bumpy!"
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "convoy",
+    "colour": "rainbow",
+    "kind": "car"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Look at all the racers!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Red, orange, yellow, green and blue!"
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "toot": {
+     "x": -3.6
+    },
+    "zip": {
+     "x": -1.2
+    },
+    "bumpy": {
+     "x": 1.2,
+     "yaw": 180
+    },
+    "rolly": {
+     "x": 3.6,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 12.0,
+    "side": 14,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "Everyone is a winner!",
+     0.8
+    ],
+    [
+     "zip",
+     "Hooray!"
+    ],
+    [
+     "narrator",
+     "See you next time!"
+    ]
+   ]
+  }
+ ]
+}

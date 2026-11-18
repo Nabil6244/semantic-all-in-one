@@ -48,7 +48,7 @@
  "lines": [
   {
    "who": "fizz",
-   "text": "Oh no! Look! Mama Duck is crying!",
+   "text": "Oh no! Look! Mama Duck is crying by the gate!",
    "act": "hands_up",
    "place": "gate",
    "cam": "group",
@@ -59,14 +59,14 @@
   },
   {
    "who": "rosie",
-   "text": "Her five little ducklings ran into the playground!",
+   "text": "The bubble man's bubbles floated into the playground, and her five ducklings chased them!",
    "act": "point",
    "also": {
     "tobi": "wobble"
    },
    "cam": "kids",
    "pic": "duckling",
-   "fx": "leaves"
+   "fx": "bubbles"
   },
   {
    "who": "lina",
@@ -74,6 +74,28 @@
    "act": "open",
    "cam": "host",
    "goal": true
+  },
+  {
+   "who": "tobi",
+   "text": "I want to find them! I'm a good finder!",
+   "beat": "want",
+   "act": "jump",
+   "cam": "kids"
+  },
+  {
+   "who": "tobi",
+   "text": "But... not on the big slide. The big slide is too big for me.",
+   "beat": "want",
+   "act": "wobble",
+   "face": "surprised",
+   "cam": "kids"
+  },
+  {
+   "who": "lina",
+   "text": "That's okay, Tobi. Being brave means trying, one little step at a time.",
+   "act": "open",
+   "cam": "host",
+   "card": "BRAVE"
   },
   {
    "who": [
@@ -152,20 +174,20 @@
   },
   {
    "who": "lina",
-   "text": "Hi friends! I'm Ms Lina! Welcome to the big park!",
+   "text": "Hi friends! I'm Ms Lina!",
    "act": "wave",
    "cam": "host",
    "gap_after": 0.4
   },
   {
    "who": "nia",
-   "text": "Hi! I'm Nia! I love to run and climb!",
+   "text": "I'm Nia! I'm fast!",
    "act": "wave",
    "cam": "group"
   },
   {
    "who": "tobi",
-   "text": "I'm Tobi! I love the slide!",
+   "text": "I'm Tobi! I'm a good finder!",
    "act": "jump",
    "cam": "kids"
   },
@@ -177,9 +199,17 @@
   },
   {
    "who": "fizz",
-   "text": "And I'm Fizz the fox! I love trains! Choo choo!",
+   "text": "And I'm Fizz the fox! I'm the LOUDEST! TOOT TOOT!",
    "act": "cheer",
-   "cam": "cu:fizz"
+   "cam": "cu:fizz",
+   "sfx": "whistle"
+  },
+  {
+   "who": "nia",
+   "text": "Fizz! Shh! You'll scare the ducklings!",
+   "act": "laugh",
+   "cam": "group",
+   "funny": true
   },
   {
    "who": "lina",
@@ -205,7 +235,7 @@
   },
   {
    "who": "lina",
-   "text": "Ducklings say quack quack. Can you say quack quack?",
+   "text": "Ducklings say peep peep. Can you say peep peep?",
    "act": "open",
    "cam": "host",
    "pic": "duckling",
@@ -213,325 +243,20 @@
    "gap_after": 1.6
   },
   {
-   "who": [
-    "tobi",
-    "rosie",
-    "fizz"
-   ],
-   "text": "Quack quack! Quack quack!",
-   "act": "bunny",
-   "also": {
-    "nia": "bunny"
-   },
-   "cam": "group"
-  },
-  {
-   "who": "lina",
-   "text": "Listen! I hear a little quack by the big slide!",
-   "act": "point",
-   "cam": "host",
-   "sfx": "pop"
-  },
-  {
-   "who": [
-    "lina",
-    "tobi",
-    "rosie",
-    "fizz"
-   ],
-   "text": "Here's the big slide on the grassy hill!",
-   "act": "run",
-   "also": {},
-   "place": "slide",
-   "title": "Slide\nTime!",
-   "cam": "group",
-   "chapter": "Slide Time!",
-   "sfx": "whoosh",
-   "gap_after": 0.5
-  },
-  {
-   "who": "tobi",
-   "text": "Can I go down the slide? Please, please?",
-   "act": "hands_up",
-   "cam": "kids"
-  },
-  {
-   "who": "lina",
-   "text": "Yes! First we climb up the steps. Let's count them!",
-   "act": "count",
-   "cam": "host"
-  },
-  {
-   "who": "lina",
-   "text": "One!",
-   "act": "march",
-   "also": {
-    "tobi": "march",
-    "rosie": "march"
-   },
-   "cam": "group",
-   "card": "1",
-   "gap_after": 0.25
-  },
-  {
-   "who": [
-    "tobi",
-    "rosie"
-   ],
-   "text": "Two!",
-   "act": "march",
-   "also": {
-    "tobi": "march",
-    "rosie": "march"
-   },
-   "cam": "group",
-   "card": "2",
-   "gap_after": 0.25
-  },
-  {
-   "who": "lina",
-   "text": "Three!",
-   "act": "march",
-   "also": {
-    "tobi": "march",
-    "rosie": "march"
-   },
-   "cam": "group",
-   "card": "3",
-   "gap_after": 0.25
-  },
-  {
-   "who": [
-    "tobi",
-    "rosie"
-   ],
-   "text": "Four!",
-   "act": "march",
-   "also": {
-    "tobi": "march",
-    "rosie": "march"
-   },
-   "cam": "group",
-   "card": "4",
-   "gap_after": 0.25
-  },
-  {
-   "who": "lina",
-   "text": "Five!",
-   "act": "march",
-   "also": {
-    "tobi": "march",
-    "rosie": "march"
-   },
-   "cam": "group",
-   "card": "5",
-   "gap_after": 0.25
-  },
-  {
-   "who": "lina",
-   "text": "Five steps! Can you count to five with us? One, two, three, four, five!",
-   "act": "count",
-   "cam": "host",
-   "card": "5",
-   "gap_after": 1.6,
-   "your_turn": true
-  },
-  {
-   "who": "tobi",
-   "text": "Up, up, up I go! And down, down, wheee!",
-   "act": "cheer",
-   "game": {
-    "type": "slide",
-    "who": "tobi"
-   },
-   "cam": "group",
-   "gap_after": 0.8
-  },
-  {
-   "who": "lina",
-   "text": "Tobi went up the steps, and down the slide! Up and down!",
-   "act": "open",
-   "cam": "host",
-   "card": "UP DOWN"
-  },
-  {
-   "who": "lina",
-   "text": "Point up! Point down! Up! Down!",
-   "act": "hands_up",
-   "also": {
-    "tobi": "hands_up",
-    "rosie": "hands_up",
-    "fizz": "hands_up"
-   },
-   "cam": "group",
-   "gap_after": 1.2,
-   "your_turn": true
-  },
-  {
-   "who": "fizz",
-   "text": "Up, down, up, down! I'm dizzy!",
-   "act": "wobble",
-   "cam": "cu:fizz",
-   "sfx": "boing"
-  },
-  {
-   "who": [
-    "tobi",
-    "rosie"
-   ],
-   "text": "Hee hee! Silly Fizz!",
-   "act": "giggle",
-   "cam": "kids"
-  },
-  {
-   "who": "lina",
-   "text": "Sing it with us!",
-   "act": "clap",
-   "also": {
-    "tobi": "clap",
-    "rosie": "clap",
-    "fizz": "clap"
-   },
-   "cam": "group",
-   "gap_after": 0.4,
-   "your_turn": true
-  },
-  {
-   "who": [
-    "lina",
-    "tobi",
-    "rosie",
-    "fizz"
-   ],
-   "text": "Up the steps and down the slide! Wheee, wheee, what a ride!",
-   "chant": true,
-   "act": "dance",
-   "also": {
-    "tobi": "dance",
-    "rosie": "dance",
-    "fizz": "dance"
-   },
-   "cam": "group"
-  },
-  {
-   "who": [
-    "lina",
-    "tobi",
-    "rosie",
-    "fizz"
-   ],
-   "text": "Up the steps and down the slide! Wheee, wheee, what a ride!",
-   "chant": true,
-   "act": "dance",
-   "also": {
-    "tobi": "dance",
-    "rosie": "dance",
-    "fizz": "dance"
-   },
-   "cam": "group"
-  },
-  {
-   "who": "fizz",
-   "text": "I'll go down the slide... upside down! Head first!",
-   "act": "wobble",
-   "cam": "group",
-   "sfx": "boing"
-  },
-  {
-   "who": "tobi",
-   "text": "No, silly! We sit down and go feet first!",
-   "act": "laugh",
-   "cam": "group"
-  },
-  {
-   "who": "fizz",
-   "text": "Oopsie! Hee hee!",
-   "act": "tumble",
-   "cam": "group",
-   "sfx": "pop"
-  },
-  {
-   "who": "lina",
-   "text": "How do we go down the slide? We sit down! Can you sit down?",
-   "act": "squat",
-   "also": {
-    "tobi": "squat",
-    "rosie": "squat",
-    "fizz": "squat"
-   },
-   "cam": "group",
-   "card": "SIT DOWN",
-   "gap_after": 1.6,
-   "your_turn": true
-  },
-  {
-   "who": "tobi",
-   "text": "Again! Again! Up, up, up, and wheee!",
-   "act": "cheer",
-   "game": {
-    "type": "slide",
-    "who": "tobi"
-   },
-   "cam": "group",
-   "gap_after": 0.8
-  },
-  {
-   "who": "lina",
-   "text": "Duckling number 1 is hiding near the bushes. Can you see it? Point to it!",
-   "act": "think",
-   "cam": "group",
-   "find": {
-    "pic": "duckling",
-    "x": 0.306,
-    "y": 0.84,
-    "size": 0.08
-   },
-   "gap_after": 2.8,
-   "your_turn": true
-  },
-  {
    "who": "rosie",
-   "text": "There! I found the duckling!",
+   "text": "Listen! Peep, peep! It's coming from the swings!",
    "act": "point",
-   "cam": "group",
-   "found": "duckling",
-   "sfx": "ding_3",
-   "fx": "stars"
-  },
-  {
-   "who": "lina",
-   "text": "Hooray! We found one! That's 1 duckling!",
-   "act": "cheer",
-   "also": {
-    "tobi": "cheer",
-    "rosie": "cheer",
-    "fizz": "cheer"
-   },
-   "cam": "group",
-   "card": "1",
-   "sfx": "success"
-  },
-  {
-   "who": "tobi",
-   "text": "Quack quack! Hello, little duckling!",
-   "act": "wave",
    "cam": "kids",
-   "pic": "duckling"
-  },
-  {
-   "who": "lina",
-   "text": "One duckling found! Four more to find. Let's go to the swings!",
-   "act": "point",
-   "cam": "host",
-   "card": "1"
+   "sfx": "pop"
   },
   {
    "who": [
     "lina",
     "rosie",
+    "tobi",
     "pip"
    ],
-   "text": "Swing time! Back and forth, back and forth!",
+   "text": "The swings! Let's go!",
    "act": "run",
    "also": {},
    "place": "swings",
@@ -543,68 +268,93 @@
   },
   {
    "who": "rosie",
-   "text": "Push me, push me! Higher, higher!",
-   "act": "giggle",
-   "game": {
-    "type": "swing",
-    "who": "rosie",
-    "lines": 10
+   "text": "There's a duckling hiding by the swing! But it's shaking. It's shy!",
+   "find": {
+    "pic": "duckling",
+    "x": 0.294,
+    "y": 0.84,
+    "size": 0.11,
+    "on": "swing",
+    "who": "rosie"
    },
-   "cam": "group"
-  },
-  {
-   "who": "lina",
-   "text": "Let's count the pushes. One, two, three, four, five!",
-   "act": "count",
-   "cam": "host",
-   "card": "1 2 3 4 5"
-  },
-  {
-   "who": "lina",
-   "text": "Swing your arms with us! Back and forth! Back and forth!",
-   "act": "dance",
-   "also": {
-    "pip": "dance"
-   },
-   "cam": "group",
-   "gap_after": 1.2,
-   "your_turn": true
-  },
-  {
-   "who": "rosie",
-   "text": "Wheee! I can see the whole park from up here!",
-   "act": "cheer",
+   "act": "point",
    "cam": "group"
   },
   {
    "who": "pip",
-   "text": "Ribbit! I'll push you, Rosie! Wheee!",
-   "act": "jump",
+   "text": "Ribbit! I'll catch it! JUMP!",
+   "act": "frog",
    "cam": "cu:pip",
-   "sfx": "boing"
+   "sfx": "boing",
+   "funny": true
   },
   {
    "who": "lina",
-   "text": "Rosie swings high, and swings low!",
+   "text": "Wait, Pip! Big jumps and loud noises scare little ducklings.",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "lina",
+   "text": "If we swing slowly and sing softly, it will feel safe and come out.",
+   "act": "think",
+   "cam": "host",
+   "card": "SLOW SOFT"
+  },
+  {
+   "who": "rosie",
+   "text": "I can swing slowly! Watch me!",
+   "act": "giggle",
+   "game": {
+    "type": "swing",
+    "who": "rosie",
+    "lines": 12
+   },
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Rosie swings forward, high! And back, low!",
    "act": "open",
    "cam": "host",
    "card": "HIGH LOW"
   },
   {
    "who": "lina",
-   "text": "When the swing goes up, say up! When it comes down, say down! Up! Down!",
+   "text": "When the swing goes high, reach high! When it comes back low, crouch low!",
    "act": "hands_up",
-   "cam": "host",
-   "card": "UP DOWN",
-   "gap_after": 1.6,
+   "also": {
+    "tobi": "hands_up",
+    "pip": "hands_up"
+   },
+   "cam": "group",
+   "card": "HIGH LOW",
+   "gap_after": 1.8,
    "your_turn": true
   },
   {
    "who": "lina",
-   "text": "Sing it with us!",
+   "text": "Let's count the swings very softly. One... two... three... four... five...",
+   "act": "count",
+   "cam": "host",
+   "card": "1 2 3 4 5",
+   "gap_after": 1.6,
+   "your_turn": true
+  },
+  {
+   "who": "tobi",
+   "text": "Look! It's peeking out!",
+   "act": "point",
+   "cam": "kids",
+   "sfx": "pop"
+  },
+  {
+   "who": "lina",
+   "text": "Let's sing it softly, like a whisper.",
    "act": "clap",
    "also": {
     "rosie": "clap",
+    "tobi": "clap",
     "pip": "clap"
    },
    "cam": "group",
@@ -615,14 +365,16 @@
    "who": [
     "lina",
     "rosie",
+    "tobi",
     "pip"
    ],
-   "text": "Swing, swing, swing so high! Swing up, swing up, to the sky!",
+   "text": "Swing, swing, slow and low. Little duckling, here we go.",
    "chant": true,
-   "act": "dance",
+   "act": "sway",
    "also": {
-    "rosie": "dance",
-    "pip": "dance"
+    "rosie": "sway",
+    "tobi": "sway",
+    "pip": "sway"
    },
    "cam": "group"
   },
@@ -630,118 +382,71 @@
    "who": [
     "lina",
     "rosie",
+    "tobi",
     "pip"
    ],
-   "text": "Swing, swing, swing so high! Swing up, swing up, to the sky!",
+   "text": "Swing, swing, slow and low. Little duckling, here we go.",
    "chant": true,
-   "act": "dance",
+   "act": "sway",
    "also": {
-    "rosie": "dance",
-    "pip": "dance"
+    "rosie": "sway",
+    "tobi": "sway",
+    "pip": "sway"
    },
    "cam": "group"
   },
   {
-   "who": "rosie",
-   "text": "I love the swing! It feels like flying!",
+   "who": "pip",
+   "text": "Ribbit... ribbit... I'm being quiet... RIBBIT! Oops.",
+   "act": "wobble",
+   "cam": "cu:pip",
+   "sfx": "boing",
+   "funny": true
+  },
+  {
+   "who": [
+    "tobi",
+    "rosie"
+   ],
+   "text": "Shhh, Pip!",
    "act": "giggle",
    "cam": "kids"
   },
   {
    "who": "lina",
-   "text": "Let's count Rosie's swings! One, two, three, four, five!",
-   "act": "count",
+   "text": "Can you hold out your hands, nice and gentle?",
+   "act": "open",
    "cam": "host",
-   "card": "5",
-   "pic": "duckling",
    "gap_after": 1.6,
    "your_turn": true
   },
   {
-   "who": "pip",
-   "text": "Ribbit! I'll swing with my eyes closed and my feet in the air!",
-   "act": "wobble",
-   "cam": "group",
-   "sfx": "boing"
-  },
-  {
    "who": "rosie",
-   "text": "No, silly! Hold on tight with both hands!",
-   "act": "laugh",
+   "text": "It hopped right into my hands! Hello, shy little duckling.",
+   "found": "duckling",
+   "sfx": "ding_3",
+   "fx": "stars",
+   "act": "point",
    "cam": "group"
   },
   {
-   "who": "pip",
-   "text": "Oopsie! Hee hee!",
-   "act": "tumble",
-   "cam": "group",
-   "sfx": "pop"
-  },
-  {
    "who": "lina",
-   "text": "Can you stretch up high? Now crouch down low!",
-   "act": "hands_up",
-   "also": {
-    "pip": "squat"
-   },
-   "cam": "group",
-   "gap_after": 1.4,
-   "your_turn": true
-  },
-  {
-   "who": "pip",
-   "text": "High and low! High and low! Ribbit ribbit!",
-   "act": "frog",
-   "cam": "cu:pip"
-  },
-  {
-   "who": "lina",
-   "text": "Duckling number 2 is hiding behind the big tree. Can you see it? Point to it!",
-   "act": "think",
-   "cam": "group",
-   "find": {
-    "pic": "duckling",
-    "x": 0.328,
-    "y": 0.84,
-    "size": 0.08
-   },
-   "gap_after": 2.8,
-   "your_turn": true
-  },
-  {
-   "who": "pip",
-   "text": "There! I found the duckling!",
-   "act": "point",
-   "cam": "group",
-   "found": "duckling",
-   "sfx": "ding_3",
-   "fx": "stars"
-  },
-  {
-   "who": "lina",
-   "text": "Hooray! Another one! That's 2 ducklings!",
+   "text": "We were slow and soft, and it felt safe. That's one duckling!",
    "act": "cheer",
    "also": {
     "rosie": "cheer",
+    "tobi": "cheer",
     "pip": "cheer"
    },
    "cam": "group",
-   "card": "2",
+   "card": "1",
    "sfx": "success"
   },
   {
-   "who": "rosie",
-   "text": "Quack quack! Hello, little duckling!",
-   "act": "wave",
-   "cam": "kids",
-   "pic": "duckling"
-  },
-  {
-   "who": "lina",
-   "text": "Two ducklings! Three more to find. Off to the sandpit!",
+   "who": "tobi",
+   "text": "Peep peep! I hear another one... in the sand!",
    "act": "point",
-   "cam": "host",
-   "card": "2"
+   "cam": "kids"
   },
   {
    "who": [
@@ -754,22 +459,54 @@
    "act": "run",
    "also": {},
    "place": "sandpit",
-   "title": "Sand\nShapes!",
+   "title": "Sand\nCastles!",
    "cam": "group",
-   "chapter": "Sand Shapes!",
+   "chapter": "Sand Castles!",
    "sfx": "whoosh",
    "gap_after": 0.5
   },
   {
    "who": "dot",
-   "text": "Rawr! I'm Dot the dino! Let's draw shapes in the sand!",
+   "text": "Rawr! I built three sandcastles! But one fell down... and now it's peeping!",
    "act": "stomp",
    "cam": "cu:dot",
    "sfx": "boing"
   },
   {
+   "who": "poppy",
+   "text": "A duckling is stuck in the sand! Only its little head is peeking out!",
+   "find": {
+    "pic": "duckling",
+    "x": 0.309,
+    "y": 0.84,
+    "size": 0.11,
+    "peek": 0.5,
+    "mound": [
+     232,
+     200,
+     130
+    ]
+   },
+   "act": "think",
+   "cam": "group"
+  },
+  {
+   "who": "poppy",
+   "text": "Dot says the castle with the triangle door fell on it. We have to know our shapes to dig the right way!",
+   "act": "point",
+   "cam": "group",
+   "pic": "shape_triangle"
+  },
+  {
    "who": "lina",
-   "text": "A circle! Round and round! Can you draw a circle in the air?",
+   "text": "Let's learn the doors, so we dig the right one. This door is a circle. Round and round!",
+   "act": "spin",
+   "cam": "host",
+   "pic": "shape_circle"
+  },
+  {
+   "who": "lina",
+   "text": "Can you draw a circle in the air with your finger?",
    "act": "spin",
    "cam": "host",
    "pic": "shape_circle",
@@ -777,32 +514,112 @@
    "gap_after": 1.6
   },
   {
-   "who": "poppy",
-   "text": "A triangle! One, two, three sides!",
-   "act": "count",
-   "cam": "group",
-   "pic": "shape_triangle",
-   "card": "3"
-  },
-  {
    "who": "tobi",
-   "text": "A square! Four sides! One, two, three, four!",
+   "text": "This door is a square! Four sides! One, two, three, four!",
    "act": "count",
    "cam": "kids",
    "pic": "shape_square",
    "card": "4"
   },
   {
+   "who": "poppy",
+   "text": "And this door has three sides. One, two, three! A triangle!",
+   "act": "count",
+   "cam": "group",
+   "pic": "shape_triangle",
+   "card": "3"
+  },
+  {
    "who": "dot",
-   "text": "And a star! Twinkle twinkle!",
-   "act": "hands_up",
+   "text": "I'll dig the round one! Stomp stomp!",
+   "act": "stomp",
    "cam": "cu:dot",
-   "pic": "shape_star",
-   "fx": "stars"
+   "sfx": "boing",
+   "funny": true
+  },
+  {
+   "who": "tobi",
+   "text": "No, Dot! That's the circle! We need the door with three sides!",
+   "act": "point",
+   "cam": "kids"
   },
   {
    "who": "lina",
-   "text": "Sing it with us!",
+   "text": "Which door has three sides? Is it the circle, the square, or the triangle?",
+   "act": "think",
+   "cam": "host",
+   "pic": "shape_triangle",
+   "gap_after": 2.2,
+   "your_turn": true
+  },
+  {
+   "who": [
+    "tobi",
+    "poppy"
+   ],
+   "text": "The triangle!",
+   "act": "yay",
+   "cam": "group",
+   "sfx": "ding_5"
+  },
+  {
+   "who": "poppy",
+   "text": "Dig, Dot, dig! I'll throw you the little spade!",
+   "act": "point",
+   "cam": "group",
+   "game": {
+    "type": "throw",
+    "from": "poppy",
+    "to": "dot",
+    "pic": "ball",
+    "bounces": 1
+   }
+  },
+  {
+   "who": "dot",
+   "text": "Got it! Dig, dig, dig!",
+   "act": "catch",
+   "cam": "group",
+   "sfx": "pop"
+  },
+  {
+   "who": "lina",
+   "text": "Dig with Dot! Dig, dig, dig!",
+   "act": "squat",
+   "also": {
+    "tobi": "squat",
+    "dot": "squat",
+    "poppy": "squat"
+   },
+   "cam": "group",
+   "gap_after": 1.4,
+   "your_turn": true
+  },
+  {
+   "who": "tobi",
+   "text": "There it is! A sandy little duckling! I found it!",
+   "found": "duckling",
+   "sfx": "ding_3",
+   "fx": "stars",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Tobi, you are a good finder! Two ducklings!",
+   "act": "cheer",
+   "also": {
+    "tobi": "cheer",
+    "dot": "cheer",
+    "poppy": "cheer"
+   },
+   "cam": "group",
+   "card": "2",
+   "sfx": "success"
+  },
+  {
+   "who": "poppy",
+   "text": "Shape song, everybody!",
    "act": "clap",
    "also": {
     "tobi": "clap",
@@ -820,7 +637,7 @@
     "dot",
     "poppy"
    ],
-   "text": "Circle, triangle, square and star! Shapes, shapes, here they are!",
+   "text": "Circle, square and triangle too! Three little doors, and a duckling for you!",
    "chant": true,
    "act": "dance",
    "also": {
@@ -837,7 +654,7 @@
     "dot",
     "poppy"
    ],
-   "text": "Circle, triangle, square and star! Shapes, shapes, here they are!",
+   "text": "Circle, square and triangle too! Three little doors, and a duckling for you!",
    "chant": true,
    "act": "dance",
    "also": {
@@ -849,139 +666,17 @@
   },
   {
    "who": "lina",
-   "text": "How many sides does a triangle have? Count them! One, two, three!",
-   "act": "count",
-   "cam": "host",
-   "pic": "shape_triangle",
-   "card": "3",
-   "gap_after": 1.6,
-   "your_turn": true
-  },
-  {
-   "who": "dot",
-   "text": "A square is round like a ball! Rawr!",
-   "act": "wobble",
-   "cam": "group",
-   "sfx": "boing"
-  },
-  {
-   "who": "poppy",
-   "text": "No, silly! A square has four sides, Dot! A circle is round!",
-   "act": "laugh",
-   "cam": "group"
-  },
-  {
-   "who": "dot",
-   "text": "Oopsie! Hee hee!",
-   "act": "tumble",
-   "cam": "group",
-   "sfx": "pop"
-  },
-  {
-   "who": "lina",
-   "text": "Which shape is round? Is it the circle, or the square?",
-   "act": "think",
-   "cam": "host",
-   "pic": "shape_circle",
-   "gap_after": 2.2,
-   "your_turn": true
-  },
-  {
-   "who": [
-    "tobi",
-    "poppy"
-   ],
-   "text": "The circle! The circle is round!",
-   "act": "yay",
-   "cam": "group",
-   "sfx": "ding_5"
-  },
-  {
-   "who": "poppy",
-   "text": "Catch the ball, Dot! It's round like a circle!",
-   "act": "point",
-   "cam": "group",
-   "game": {
-    "type": "throw",
-    "from": "poppy",
-    "to": "dot",
-    "pic": "ball",
-    "bounces": 1
-   }
-  },
-  {
-   "who": "dot",
-   "text": "Got it! Now you, Tobi!",
-   "act": "catch",
-   "cam": "group",
-   "game": {
-    "type": "throw",
-    "from": "dot",
-    "to": "tobi",
-    "pic": "ball"
-   }
-  },
-  {
-   "who": "tobi",
-   "text": "Bounce, bounce, bounce!",
-   "act": "cheer",
-   "cam": "kids",
-   "game": {
-    "type": "dribble",
-    "who": "tobi",
-    "n": 4,
-    "pic": "ball"
-   }
-  },
-  {
-   "who": "lina",
-   "text": "Duckling number 3 is hiding by the sand buckets. Can you see it? Point to it!",
-   "act": "think",
-   "cam": "group",
-   "find": {
-    "pic": "duckling",
-    "x": 0.309,
-    "y": 0.84,
-    "size": 0.08
-   },
-   "gap_after": 2.8,
-   "your_turn": true
-  },
-  {
-   "who": "dot",
-   "text": "There! I found the duckling!",
-   "act": "point",
-   "cam": "group",
-   "found": "duckling",
-   "sfx": "ding_3",
-   "fx": "stars"
-  },
-  {
-   "who": "lina",
-   "text": "Hooray! Three ducklings! That's 3 ducklings!",
-   "act": "cheer",
-   "also": {
-    "tobi": "cheer",
-    "dot": "cheer",
-    "poppy": "cheer"
-   },
-   "cam": "group",
-   "card": "3",
-   "sfx": "success"
-  },
-  {
-   "who": "rosie",
-   "text": "Quack quack! Hello, little duckling!",
+   "text": "Mama Duck is waiting by the pond. Two found, three to go, Mama Duck!",
+   "waiting": true,
    "act": "wave",
-   "cam": "kids",
-   "pic": "duckling"
+   "cam": "host",
+   "pic": "mama_duck"
   },
   {
-   "who": "lina",
-   "text": "Three ducklings! Two more. Listen! Choo choo! The little train!",
+   "who": "dot",
+   "text": "Choo choo! I hear the little train!",
    "act": "point",
-   "cam": "host",
-   "card": "3",
+   "cam": "cu:dot",
    "sfx": "whistle"
   },
   {
@@ -992,7 +687,7 @@
     "fizz",
     "pip"
    ],
-   "text": "All aboard the little train!",
+   "text": "All aboard! The little train station!",
    "act": "run",
    "also": {},
    "place": "train",
@@ -1003,11 +698,35 @@
    "gap_after": 0.5
   },
   {
+   "who": "rosie",
+   "text": "Look! A duckling on the other side of the track! But the train keeps going past!",
+   "find": {
+    "pic": "duckling",
+    "x": 0.292,
+    "y": 0.66,
+    "size": 0.07
+   },
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "fizz",
+   "text": "I know! We ride the train all the way round, and get off on the other side!",
+   "act": "cheer",
+   "cam": "cu:fizz"
+  },
+  {
    "who": "lina",
-   "text": "Here comes the train! Count the carriages with me!",
+   "text": "Great idea, Fizz! Everybody hop on. Which carriage will you pick?",
+   "act": "point",
+   "cam": "host"
+  },
+  {
+   "who": "lina",
+   "text": "The red carriage for Tobi! The blue one for Rosie! The yellow one for Fizz!",
    "act": "point",
    "cam": "host",
-   "card": "1 2 3"
+   "card": "RED BLUE YELLOW"
   },
   {
    "who": [
@@ -1015,7 +734,7 @@
     "rosie",
     "fizz"
    ],
-   "text": "Choo choo! Choo choo!",
+   "text": "Choo choo! Here we go!",
    "act": "wave",
    "cam": "group",
    "game": {
@@ -1025,29 +744,9 @@
      "rosie",
      "fizz"
     ],
-    "lines": 7
+    "lines": 8,
+    "off": true
    }
-  },
-  {
-   "who": "lina",
-   "text": "The red carriage! Tobi is in the red one!",
-   "act": "point",
-   "cam": "host",
-   "card": "RED"
-  },
-  {
-   "who": "lina",
-   "text": "The blue carriage! That's Rosie!",
-   "act": "point",
-   "cam": "host",
-   "card": "BLUE"
-  },
-  {
-   "who": "lina",
-   "text": "And the yellow carriage! That's Fizz!",
-   "act": "point",
-   "cam": "host",
-   "card": "YELLOW"
   },
   {
    "who": "lina",
@@ -1060,13 +759,22 @@
   },
   {
    "who": "pip",
-   "text": "Red, blue, yellow! Ribbit!",
+   "text": "Red, blue, yellow! Round and round the track!",
    "act": "frog",
    "cam": "cu:pip"
   },
   {
    "who": "lina",
-   "text": "Sing it with us!",
+   "text": "How many carriages? Count with me! One, two, three!",
+   "act": "count",
+   "cam": "host",
+   "card": "1 2 3",
+   "gap_after": 1.6,
+   "your_turn": true
+  },
+  {
+   "who": "pip",
+   "text": "Train song! March along with Pip!",
    "act": "clap",
    "also": {
     "tobi": "clap",
@@ -1083,7 +791,7 @@
     "lina",
     "pip"
    ],
-   "text": "Choo choo, choo choo, round the track! Red and blue and yellow, and back!",
+   "text": "Choo choo, round the track! Red and blue and yellow, and back!",
    "chant": true,
    "act": "march",
    "also": {
@@ -1099,7 +807,7 @@
     "lina",
     "pip"
    ],
-   "text": "Choo choo, choo choo, round the track! Red and blue and yellow, and back!",
+   "text": "Choo choo, round the track! Red and blue and yellow, and back!",
    "chant": true,
    "act": "march",
    "also": {
@@ -1112,53 +820,23 @@
   },
   {
    "who": "lina",
-   "text": "How many carriages? Count them with me! One, two, three!",
-   "act": "count",
+   "text": "The train is stopping on the other side. Off we hop!",
+   "act": "open",
    "cam": "host",
-   "card": "1 2 3",
-   "gap_after": 1.6,
-   "your_turn": true
-  },
-  {
-   "who": "pip",
-   "text": "Three carriages! And one big engine at the front!",
-   "act": "point",
-   "cam": "cu:pip",
-   "pic": "train"
-  },
-  {
-   "who": "fizz",
-   "text": "Toot toot! I love trains!",
-   "act": "cheer",
-   "cam": "group",
    "sfx": "whistle"
   },
   {
-   "who": "lina",
-   "text": "Duckling number 4 is hiding next to the little station. Can you see it? Point to it!",
-   "act": "think",
-   "cam": "group",
-   "find": {
-    "pic": "duckling",
-    "x": 0.292,
-    "y": 0.84,
-    "size": 0.08
-   },
-   "gap_after": 2.8,
-   "your_turn": true
-  },
-  {
-   "who": "pip",
-   "text": "There! I found the duckling!",
-   "act": "point",
-   "cam": "group",
+   "who": "rosie",
+   "text": "Got you, little duckling! You were waiting for the train too!",
    "found": "duckling",
    "sfx": "ding_3",
-   "fx": "stars"
+   "fx": "stars",
+   "act": "point",
+   "cam": "group"
   },
   {
    "who": "lina",
-   "text": "Hooray! Four ducklings! That's 4 ducklings!",
+   "text": "Three ducklings! Into the basket, all safe together.",
    "act": "cheer",
    "also": {
     "tobi": "cheer",
@@ -1167,42 +845,63 @@
     "pip": "cheer"
    },
    "cam": "group",
-   "card": "4",
+   "card": "3",
    "sfx": "success"
   },
   {
+   "who": "fizz",
+   "text": "Three ducklings! I'm SO happy! TOOT TOOT TOOOOT!",
+   "act": "cheer",
+   "cam": "cu:fizz",
+   "sfx": "whistle"
+  },
+  {
    "who": "rosie",
-   "text": "Quack quack! Hello, little duckling!",
-   "act": "wave",
-   "cam": "kids",
+   "text": "Oh no! The loud toot scared one! It jumped out of the basket!",
+   "setback": true,
+   "act": "hands_up",
+   "face": "surprised",
+   "cam": "group",
+   "sfx": "boing",
+   "lost": "duckling",
    "pic": "duckling"
   },
   {
-   "who": "lina",
-   "text": "Four ducklings! Just one more! Wave bye bye to the train!",
-   "act": "wave",
-   "also": {
-    "pip": "wave"
-   },
-   "cam": "host",
-   "card": "4",
-   "your_turn": true,
-   "gap_after": 1.0
+   "who": "tobi",
+   "text": "It's running into the soft play house!",
+   "setback": true,
+   "act": "point",
+   "cam": "group",
+   "sfx": "boing"
   },
   {
-   "who": "pip",
-   "text": "Bye bye, train! See you soon!",
-   "act": "wave",
-   "cam": "cu:pip"
+   "who": "fizz",
+   "text": "Oh no... that was my fault. I was too loud.",
+   "act": "wobble",
+   "cam": "cu:fizz"
+  },
+  {
+   "who": "lina",
+   "text": "It's okay, Fizz. Everybody makes mistakes. We can fix it together.",
+   "act": "open",
+   "cam": "host"
+  },
+  {
+   "who": "lina",
+   "text": "Can you help Fizz be quiet? Put a finger on your lips and say shhh.",
+   "act": "open",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
   },
   {
    "who": [
     "lina",
-    "pip",
-    "dot",
+    "fizz",
+    "tobi",
     "rosie"
    ],
-   "text": "Into the soft play house! Look at all the balls!",
+   "text": "The soft play house! Look at all the balls!",
    "act": "run",
    "also": {},
    "place": "softplay",
@@ -1213,82 +912,104 @@
    "gap_after": 0.5
   },
   {
-   "who": [
-    "pip",
-    "dot",
-    "rosie"
-   ],
-   "text": "Jump in! Splash!",
+   "who": "lina",
+   "text": "The duckling is hiding in the balls! Only its head is peeking out! Everything is red, green and purple!",
+   "find": {
+    "pic": "duckling",
+    "x": 0.3,
+    "y": 0.84,
+    "size": 0.11,
+    "peek": 0.45,
+    "mound": [
+     235,
+     70,
+     80
+    ]
+   },
+   "act": "think",
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Ducklings are yellow. Let's find the yellow one!",
+   "act": "point",
+   "cam": "host",
+   "card": "YELLOW",
+   "pic": "duckling"
+  },
+  {
+   "who": "tobi",
+   "text": "There's a little slide into the balls. I'll try the little one first!",
+   "beat": "try",
+   "act": "jump",
+   "cam": "kids"
+  },
+  {
+   "who": "tobi",
+   "text": "One, two... wheee! I did a little slide!",
    "act": "cheer",
-   "cam": "group",
    "game": {
     "type": "pit",
     "who": [
-     "pip",
-     "dot",
+     "tobi",
      "rosie"
     ],
-    "lines": 9
-   }
+    "lines": 10
+   },
+   "cam": "group"
   },
   {
    "who": "lina",
-   "text": "So many colours! Let's find a red ball!",
-   "act": "point",
+   "text": "That was brave, Tobi! A little step, and then a bigger one.",
+   "act": "cheer",
    "cam": "host",
-   "card": "RED"
+   "card": "BRAVE"
+  },
+  {
+   "who": "rosie",
+   "text": "Here's a red ball! Not yellow.",
+   "act": "hands_up",
+   "cam": "kids",
+   "card": "RED",
+   "sfx": "pop"
   },
   {
    "who": "lina",
-   "text": "Can you see a red ball? Point to the red one!",
+   "text": "Can you see a green ball? Point to the green one!",
    "act": "think",
    "cam": "host",
-   "card": "RED",
+   "card": "GREEN",
    "gap_after": 1.8,
    "your_turn": true
   },
   {
-   "who": "rosie",
-   "text": "Red! Here's a red ball!",
-   "act": "hands_up",
+   "who": "tobi",
+   "text": "Green, like Pip the frog! Still not yellow.",
+   "act": "point",
    "cam": "kids",
    "sfx": "pop"
   },
   {
+   "who": "fizz",
+   "text": "I want to call it. But a quiet voice. Like this... peep, peep.",
+   "act": "open",
+   "cam": "cu:fizz"
+  },
+  {
    "who": "lina",
-   "text": "Now a green ball! Green like Pip!",
-   "act": "point",
+   "text": "Use your quiet voice with Fizz. Peep... peep...",
+   "act": "open",
    "cam": "host",
-   "card": "GREEN"
+   "your_turn": true,
+   "gap_after": 1.8
   },
   {
-   "who": "pip",
-   "text": "Green like me! Ribbit ribbit!",
-   "act": "cheer",
-   "cam": "cu:pip",
-   "sfx": "pop"
-  },
-  {
-   "who": "lina",
-   "text": "And a purple ball! Purple like Dot!",
-   "act": "point",
-   "cam": "host",
-   "card": "PURPLE"
-  },
-  {
-   "who": "dot",
-   "text": "Purple like me! Rawr!",
-   "act": "cheer",
-   "cam": "cu:dot",
-   "sfx": "pop"
-  },
-  {
-   "who": "lina",
-   "text": "Sing it with us!",
+   "who": "fizz",
+   "text": "Whisper with us!",
    "act": "clap",
    "also": {
-    "pip": "clap",
-    "dot": "clap",
+    "fizz": "clap",
+    "tobi": "clap",
     "rosie": "clap"
    },
    "cam": "group",
@@ -1298,94 +1019,88 @@
   {
    "who": [
     "lina",
-    "pip",
-    "dot",
+    "fizz",
+    "tobi",
     "rosie"
    ],
-   "text": "Jump in the balls, red and green! The bounciest balls you've ever seen!",
+   "text": "Yellow, yellow, where are you? Little duckling, peep peep too.",
    "chant": true,
-   "act": "jump",
+   "act": "sway",
    "also": {
-    "pip": "jump",
-    "dot": "jump",
-    "rosie": "jump"
+    "fizz": "sway",
+    "tobi": "sway",
+    "rosie": "sway"
    },
    "cam": "group"
   },
   {
    "who": [
     "lina",
-    "pip",
-    "dot",
+    "fizz",
+    "tobi",
     "rosie"
    ],
-   "text": "Jump in the balls, red and green! The bounciest balls you've ever seen!",
+   "text": "Yellow, yellow, where are you? Little duckling, peep peep too.",
    "chant": true,
-   "act": "jump",
+   "act": "sway",
    "also": {
-    "pip": "jump",
-    "dot": "jump",
-    "rosie": "jump"
+    "fizz": "sway",
+    "tobi": "sway",
+    "rosie": "sway"
    },
    "cam": "group"
   },
   {
    "who": "lina",
-   "text": "Can you find a yellow ball? Yellow like the sun!",
+   "text": "Can you see something yellow? Where is it?",
    "act": "think",
    "cam": "host",
    "card": "YELLOW",
-   "pic": "sun",
-   "gap_after": 1.8,
+   "gap_after": 2.0,
    "your_turn": true
   },
   {
-   "who": "pip",
-   "text": "Yellow! Here! Bounce, bounce!",
-   "act": "frog",
-   "cam": "cu:pip",
-   "sfx": "pop"
-  },
-  {
-   "who": "dot",
-   "text": "Is this ball blue? It's purple, like me!",
-   "act": "wobble",
-   "cam": "group",
-   "sfx": "boing"
-  },
-  {
-   "who": "rosie",
-   "text": "No, silly! That one is blue, Dot! Blue like the sky!",
-   "act": "laugh",
+   "who": "fizz",
+   "text": "It peeped back! There you are! I'm sorry I was loud.",
+   "found": "duckling",
+   "sfx": "ding_3",
+   "fx": "hearts",
+   "act": "point",
    "cam": "group"
   },
   {
-   "who": "dot",
-   "text": "Oopsie! Hee hee!",
-   "act": "tumble",
+   "who": "lina",
+   "text": "Fizz used his quiet voice and fixed it! Three ducklings again!",
+   "act": "cheer",
+   "also": {
+    "fizz": "cheer",
+    "tobi": "cheer",
+    "rosie": "cheer"
+   },
    "cam": "group",
-   "sfx": "pop"
+   "card": "3",
+   "sfx": "success"
+  },
+  {
+   "who": "fizz",
+   "text": "Quiet voice for ducklings. Loud voice... for the train!",
+   "act": "giggle",
+   "cam": "cu:fizz",
+   "funny": true
   },
   {
    "who": "lina",
-   "text": "Red, green, purple! Can you say them with us?",
-   "act": "count",
+   "text": "Mama Duck, we have three! Two more ducklings, then we're coming home.",
+   "waiting": true,
+   "act": "wave",
    "cam": "host",
-   "card": "RED GREEN PURPLE",
-   "gap_after": 1.8,
-   "your_turn": true
+   "pic": "mama_duck"
   },
   {
    "who": "rosie",
-   "text": "No duckling in the ball pit. Where is the last one?",
-   "act": "think",
-   "cam": "kids"
-  },
-  {
-   "who": "lina",
-   "text": "I hear splashing! Let's try the splash pad!",
+   "text": "I hear splashing! And a little peep!",
    "act": "point",
-   "cam": "host",
+   "cam": "kids",
    "sfx": "pop"
   },
   {
@@ -1408,84 +1123,26 @@
    "fx": "bubbles"
   },
   {
-   "who": "poppy",
-   "text": "Let's play splash games! Jump in the puddles!",
-   "act": "jump",
-   "also": {
-    "nia": "jump"
-   },
-   "cam": "group",
-   "fx": "bubbles",
-   "sfx": "burst"
-  },
-  {
-   "who": "lina",
-   "text": "Jump! Jump! Jump! Can you jump with us?",
-   "act": "jump",
-   "also": {
-    "tobi": "jump",
-    "nia": "jump",
-    "poppy": "jump",
-    "fizz": "jump"
-   },
-   "cam": "group",
-   "card": "JUMP",
-   "gap_after": 1.4,
-   "your_turn": true
-  },
-  {
-   "who": "lina",
-   "text": "Now spin around! Spin, spin, spin!",
-   "act": "spin",
-   "also": {
-    "tobi": "spin",
-    "nia": "spin",
-    "poppy": "spin",
-    "fizz": "spin"
-   },
-   "cam": "group",
-   "card": "SPIN",
-   "gap_after": 1.4,
-   "your_turn": true
-  },
-  {
-   "who": "lina",
-   "text": "Now stomp in the water! Stomp, stomp, splash!",
-   "act": "stomp",
-   "also": {
-    "tobi": "stomp",
-    "nia": "stomp",
-    "poppy": "stomp",
-    "fizz": "stomp"
-   },
-   "cam": "group",
-   "card": "STOMP",
-   "fx": "bubbles",
-   "gap_after": 1.4,
-   "your_turn": true
-  },
-  {
-   "who": "fizz",
-   "text": "Catch the beach ball, Nia!",
-   "act": "point",
-   "cam": "group",
-   "game": {
-    "type": "throw",
-    "from": "fizz",
-    "to": "nia",
-    "pic": "ball"
-   }
-  },
-  {
    "who": "nia",
-   "text": "Splash! Got it!",
-   "act": "catch",
-   "cam": "group",
-   "sfx": "burst"
+   "text": "A duckling is behind the water jets! The water is too strong to walk through!",
+   "find": {
+    "pic": "duckling",
+    "x": 0.281,
+    "y": 0.66,
+    "size": 0.07
+   },
+   "act": "point",
+   "cam": "group"
   },
   {
-   "who": "lina",
-   "text": "Sing it with us!",
+   "who": "poppy",
+   "text": "The jets stop for a moment, then go again. When they stop, we jump through!",
+   "act": "think",
+   "cam": "group"
+  },
+  {
+   "who": "poppy",
+   "text": "Water song first! Jump with Poppy!",
    "act": "clap",
    "also": {
     "tobi": "clap",
@@ -1505,7 +1162,7 @@
     "poppy",
     "fizz"
    ],
-   "text": "Splish, splash, splosh! Jump in the water, splash!",
+   "text": "Splish, splash, splosh! Wait for the water, splash!",
    "chant": true,
    "act": "jump",
    "also": {
@@ -1524,7 +1181,7 @@
     "poppy",
     "fizz"
    ],
-   "text": "Splish, splash, splosh! Jump in the water, splash!",
+   "text": "Splish, splash, splosh! Wait for the water, splash!",
    "chant": true,
    "act": "jump",
    "also": {
@@ -1537,98 +1194,348 @@
   },
   {
    "who": "lina",
-   "text": "Now wiggle like a fish! Wiggle, wiggle, wiggle!",
-   "act": "dance",
+   "text": "Ready? The jets stopped. Jump!",
+   "act": "jump",
+   "cam": "host",
+   "fx": "bubbles",
+   "sfx": "burst"
+  },
+  {
+   "who": "lina",
+   "text": "Jump! Jump! Jump! Can you jump with us?",
+   "act": "jump",
    "also": {
-    "tobi": "dance",
-    "nia": "dance",
-    "poppy": "dance",
-    "fizz": "dance"
+    "tobi": "jump",
+    "nia": "jump",
+    "poppy": "jump",
+    "fizz": "jump"
    },
    "cam": "group",
-   "card": "WIGGLE",
-   "pic": "fish",
+   "card": "JUMP",
    "gap_after": 1.4,
    "your_turn": true
   },
   {
    "who": "fizz",
-   "text": "Foxes don't like water! Eek! Oh wait, it's fun! Splash!",
-   "act": "wobble",
+   "text": "Catch the beach ball, Nia! It's bouncing over the jets!",
+   "act": "point",
    "cam": "group",
-   "sfx": "boing"
+   "game": {
+    "type": "throw",
+    "from": "fizz",
+    "to": "nia",
+    "pic": "ball"
+   }
   },
   {
    "who": "nia",
-   "text": "No, silly! Everybody splash!",
-   "act": "laugh",
-   "cam": "group"
-  },
-  {
-   "who": "fizz",
-   "text": "Oopsie! Hee hee!",
-   "act": "tumble",
+   "text": "Got it! Now spin past the little fountain!",
+   "act": "catch",
    "cam": "group",
-   "sfx": "pop"
+   "sfx": "burst"
   },
   {
    "who": "lina",
-   "text": "Duckling number 5 is hiding by the big whale. Can you see it? Point to it!",
-   "act": "think",
+   "text": "Spin around! Spin, spin, spin!",
+   "act": "spin",
+   "also": {
+    "tobi": "spin",
+    "nia": "spin",
+    "poppy": "spin",
+    "fizz": "spin"
+   },
    "cam": "group",
+   "card": "SPIN",
+   "gap_after": 1.4,
+   "your_turn": true
+  },
+  {
+   "who": "fizz",
+   "text": "Foxes don't like water! Eek! Oh wait... it's fun! Splash!",
+   "act": "wobble",
+   "cam": "cu:fizz",
+   "sfx": "boing",
+   "funny": true
+  },
+  {
+   "who": "lina",
+   "text": "Last one! Stomp, stomp, through the puddle!",
+   "act": "stomp",
+   "also": {
+    "tobi": "stomp",
+    "nia": "stomp",
+    "poppy": "stomp",
+    "fizz": "stomp"
+   },
+   "cam": "group",
+   "card": "STOMP",
+   "fx": "bubbles",
+   "gap_after": 1.4,
+   "your_turn": true
+  },
+  {
+   "who": "nia",
+   "text": "Made it! A wet little duckling, all splashy!",
+   "found": "duckling",
+   "sfx": "ding_3",
+   "fx": "stars",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Four ducklings! Just one more!",
+   "act": "cheer",
+   "also": {
+    "tobi": "cheer",
+    "nia": "cheer",
+    "poppy": "cheer",
+    "fizz": "cheer"
+   },
+   "cam": "group",
+   "card": "4",
+   "sfx": "success"
+  },
+  {
+   "who": "tobi",
+   "text": "Peep... peep... It's coming from up the hill.",
+   "act": "think",
+   "cam": "kids"
+  },
+  {
+   "who": "tobi",
+   "text": "From the top of... the big slide.",
+   "act": "wobble",
+   "cam": "kids",
+   "face": "surprised"
+  },
+  {
+   "who": [
+    "lina",
+    "tobi",
+    "rosie",
+    "fizz"
+   ],
+   "text": "The big slide on the grassy hill.",
+   "act": "walk",
+   "also": {},
+   "place": "slide",
+   "title": "The Big\nSlide!",
+   "cam": "group",
+   "chapter": "The Big Slide!",
+   "sfx": "whoosh",
+   "gap_after": 0.5
+  },
+  {
+   "who": "rosie",
+   "text": "There it is! The last duckling is stuck at the top of the slide! It can't get down by itself!",
    "find": {
     "pic": "duckling",
-    "x": 0.281,
+    "x": 0.306,
     "y": 0.84,
-    "size": 0.08
+    "size": 0.11,
+    "on": "slide",
+    "who": "tobi"
    },
-   "gap_after": 2.8,
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "rosie",
+   "text": "Mama Duck is waiting. This is the very last one!",
+   "waiting": true,
+   "cam": "kids",
+   "pic": "mama_duck"
+  },
+  {
+   "who": "tobi",
+   "text": "It's scared. Like me. The slide is so big.",
+   "act": "wobble",
+   "cam": "kids"
+  },
+  {
+   "who": "lina",
+   "text": "Remember the little slide, Tobi? One little step at a time. We'll count every step with you.",
+   "act": "open",
+   "cam": "host",
+   "card": "BRAVE"
+  },
+  {
+   "who": "tobi",
+   "text": "Okay. I'll try. Will you count with me?",
+   "act": "hands_up",
+   "cam": "kids"
+  },
+  {
+   "who": "lina",
+   "text": "One!",
+   "act": "march",
+   "also": {
+    "tobi": "march"
+   },
+   "cam": "group",
+   "card": "1",
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "rosie",
+    "fizz"
+   ],
+   "text": "Two!",
+   "act": "march",
+   "also": {
+    "tobi": "march"
+   },
+   "cam": "group",
+   "card": "2",
+   "gap_after": 0.3
+  },
+  {
+   "who": "lina",
+   "text": "Three!",
+   "act": "march",
+   "also": {
+    "tobi": "march"
+   },
+   "cam": "group",
+   "card": "3",
+   "gap_after": 0.3
+  },
+  {
+   "who": [
+    "rosie",
+    "fizz"
+   ],
+   "text": "Four!",
+   "act": "march",
+   "also": {
+    "tobi": "march"
+   },
+   "cam": "group",
+   "card": "4",
+   "gap_after": 0.3
+  },
+  {
+   "who": "lina",
+   "text": "Five!",
+   "act": "march",
+   "also": {
+    "tobi": "march"
+   },
+   "cam": "group",
+   "card": "5",
+   "gap_after": 0.3
+  },
+  {
+   "who": "lina",
+   "text": "Count the steps with Tobi! One, two, three, four, five!",
+   "act": "count",
+   "cam": "host",
+   "card": "5",
+   "gap_after": 1.6,
    "your_turn": true
   },
   {
    "who": "tobi",
-   "text": "There! I found the duckling!",
-   "act": "point",
+   "text": "I'm at the top! I've got you, little duckling. Hold on to me! Down we go!",
+   "act": "cheer",
+   "game": {
+    "type": "slide",
+    "who": "tobi"
+   },
    "cam": "group",
+   "gap_after": 0.8
+  },
+  {
+   "who": "tobi",
+   "text": "We're at the bottom! The last duckling is safe!",
    "found": "duckling",
    "sfx": "ding_3",
+   "fx": "stars",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "tobi",
+   "text": "Wheee! I did it! I went down the big slide!",
+   "beat": "payoff",
+   "act": "yay",
+   "also": {
+    "tobi": "yay",
+    "rosie": "yay",
+    "fizz": "yay"
+   },
+   "sfx": "success",
+   "cam": "kids",
    "fx": "stars"
   },
   {
    "who": "lina",
-   "text": "Hooray! The last one! That's 5 ducklings!",
+   "text": "Tobi! You were scared, and you did it anyway. That's brave!",
    "act": "cheer",
-   "also": {
-    "tobi": "cheer",
-    "nia": "cheer",
-    "poppy": "cheer",
-    "fizz": "cheer"
-   },
-   "cam": "group",
-   "card": "5",
-   "sfx": "success"
-  },
-  {
-   "who": "rosie",
-   "text": "Quack quack! Hello, little duckling!",
-   "act": "wave",
-   "cam": "kids",
-   "pic": "duckling"
+   "cam": "host",
+   "card": "BRAVE"
   },
   {
    "who": "lina",
-   "text": "Five ducklings! We found them all! Let's take them home to Mama Duck!",
+   "text": "Brave song! Clap for Tobi!",
+   "act": "clap",
+   "also": {
+    "tobi": "clap",
+    "rosie": "clap",
+    "fizz": "clap"
+   },
+   "cam": "group",
+   "gap_after": 0.4,
+   "your_turn": true
+  },
+  {
+   "who": [
+    "lina",
+    "tobi",
+    "rosie",
+    "fizz"
+   ],
+   "text": "Up the steps and down the slide! Tobi was brave, wheee, what a ride!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "tobi": "dance",
+    "rosie": "dance",
+    "fizz": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "lina",
+    "tobi",
+    "rosie",
+    "fizz"
+   ],
+   "text": "Up the steps and down the slide! Tobi was brave, wheee, what a ride!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "tobi": "dance",
+    "rosie": "dance",
+    "fizz": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Five ducklings! We found them all! Let's take them home!",
    "act": "cheer",
    "also": {
     "tobi": "cheer",
-    "nia": "cheer",
-    "poppy": "cheer",
+    "rosie": "cheer",
     "fizz": "cheer"
    },
    "cam": "group",
    "card": "5",
-   "fx": "confetti",
-   "sfx": "success"
+   "fx": "confetti"
   },
   {
    "who": [
@@ -1650,24 +1557,33 @@
   },
   {
    "who": "lina",
-   "text": "One, two, three, four, five little ducklings, home with Mama Duck!",
+   "text": "Count them home with Mama Duck! One, two, three, four, five little ducklings!",
    "act": "count",
    "cam": "host",
    "card": "1 2 3 4 5",
    "pic": "mama_duck",
    "fx": "hearts",
-   "sfx": "sparkle"
+   "sfx": "sparkle",
+   "gap_after": 1.6,
+   "your_turn": true
   },
   {
    "who": "rosie",
-   "text": "Mama Duck says quack quack! Thank you!",
+   "text": "Mama Duck says quack quack! Thank you, friends!",
    "act": "giggle",
    "cam": "kids",
    "pic": "mama_duck"
   },
   {
+   "who": "dot",
+   "text": "Rawr! I missed everything! What happened?",
+   "act": "stomp",
+   "cam": "cu:dot",
+   "funny": true
+  },
+  {
    "who": "lina",
-   "text": "Now let's sit and rest. Take a big breath in... and out.",
+   "text": "Let's sit and rest, and tell Dot. Take a big breath in... and out.",
    "act": "open",
    "cam": "host",
    "calm": true,
@@ -1675,31 +1591,57 @@
    "gap_after": 1.6
   },
   {
-   "who": "lina",
-   "text": "Today we went down the slide, up and down. We counted on the swings, high and low.",
-   "act": "count",
-   "cam": "host",
+   "who": "rosie",
+   "text": "The shy duckling came out when we swung slowly and sang softly.",
+   "act": "sway",
+   "cam": "kids",
    "calm": true,
-   "card": "UP DOWN"
+   "card": "SLOW SOFT"
   },
   {
-   "who": "lina",
-   "text": "We drew shapes in the sand, rode the little train, and found colours in the ball pit.",
+   "who": "tobi",
+   "text": "We dug the sandy one out of the castle with the triangle door.",
    "act": "count",
-   "cam": "host",
+   "cam": "kids",
+   "calm": true,
+   "pic": "shape_triangle"
+  },
+  {
+   "who": "fizz",
+   "text": "We rode the red, blue and yellow train round the track. And I learned my quiet voice.",
+   "act": "open",
+   "cam": "cu:fizz",
    "calm": true,
    "card": "RED BLUE YELLOW"
   },
   {
    "who": "lina",
-   "text": "And we jumped and splashed at the splash pad! Splash, splash!",
+   "text": "We jumped through the splash pad. And Tobi went down the big slide.",
    "act": "open",
    "cam": "host",
    "calm": true
   },
   {
+   "who": "tobi",
+   "text": "I was scared. But I tried one little step at a time. I'm brave!",
+   "act": "hands_up",
+   "cam": "kids",
+   "calm": true,
+   "card": "BRAVE"
+  },
+  {
+   "who": "lina",
+   "text": "Say it with Tobi, nice and proud. I am brave!",
+   "act": "open",
+   "cam": "host",
+   "calm": true,
+   "card": "BRAVE",
+   "gap_after": 1.8,
+   "your_turn": true
+  },
+  {
    "who": "fizz",
-   "text": "Next time, let's go to the farm! Moo! Baa! Oink!",
+   "text": "Next time, let's go to the farm! The piglets are lost! Oink oink!",
    "act": "cheer",
    "cam": "cu:fizz",
    "teaser": true,
@@ -1765,6 +1707,7 @@
   "slide",
   "swing",
   "train",
-  "splash"
+  "splash",
+  "brave"
  ]
 }

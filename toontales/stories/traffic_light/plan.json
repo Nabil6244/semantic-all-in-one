@@ -1,0 +1,934 @@
+{
+ "id": "traffic_light",
+ "title": "The First Traffic Light Exploded",
+ "topic": "John Peake Knight's gas-lit semaphore traffic signal outside Parliament, London 1868-1869",
+ "hook_title": "THE TRAFFIC LIGHT BLEW UP?",
+ "keywords": [
+  "traffic",
+  "light",
+  "signal",
+  "gas",
+  "Parliament",
+  "policeman",
+  "railway",
+  "exploded"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/John_Peake_Knight",
+  "https://en.wikipedia.org/wiki/Traffic_light#History"
+ ],
+ "places": {
+  "square": {
+   "world": "victorian_square",
+   "remove": [
+    "cart"
+   ],
+   "prompt": "Parliament Square in Victorian London with a tall clock tower"
+  },
+  "street": {
+   "world": "victorian_square",
+   "prompt": "A busy Victorian London street full of carts and cabs"
+  },
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian railway platform with a steam train"
+  },
+  "line": {
+   "world": "railway_line",
+   "prompt": "A railway line with signal posts across the country"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1868, London switched on its first traffic light.",
+   "set": "square",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1868"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A month later, it blew up. Why?",
+   "set": "square",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BOOM"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Westminster streets were chaos: carts, cabs and horses everywhere.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "cart",
+     "from": [
+      -14,
+      2,
+      0
+     ],
+     "to": [
+      10,
+      2,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.6
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Crossing the road was genuinely dangerous.",
+   "set": "street",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "DANGER"
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Members of Parliament could barely reach their own front door.",
+   "set": "square",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "PARLIAMENT"
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Then a railway engineer had an idea.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.2
+      },
+      {
+       "do": "point",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "IDEA"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "His name was John Peake Knight.",
+   "set": "station",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "JOHN PEAKE KNIGHT"
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Railways already stopped trains with signal arms.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [],
+   "overlay": {
+    "type": "arrow",
+    "text": "SIGNAL ARM"
+   },
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -30,
+      0,
+      0
+     ],
+     "to": [
+      -2,
+      0,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.4,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Arm out means stop. Arm down means go carefully.",
+   "set": "line",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "STOP / CAUTION"
+    }
+   ],
+   "id": "s09",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "vic_pike",
+   "text": "Why not do the same for carts?",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.1
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "In December 1868, a signal post rose outside Parliament.",
+   "set": "square",
+   "camera": "low",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "DEC 1868"
+   },
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.4,
+     "t0": 0,
+     "t1": 0.8
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "About twenty feet tall, with arms by day.",
+   "set": "square",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "20 FEET"
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "At night, gas lamps. Red and green.",
+   "set": "square",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "RED = STOP"
+    }
+   ],
+   "mood": "sneaky",
+   "id": "s13",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A policeman turned a handle to work it.",
+   "set": "square",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "vic_ned"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "scratch",
+     "at": 0.3
+    }
+   ],
+   "id": "s14",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Carts stopped. People crossed. Total success.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Even the grumpy members of Parliament were impressed.",
+   "set": "square",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "SUCCESS"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "vic_alder",
+   "text": "A fancy lamp post won't last a winter!",
+   "set": "square",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.2
+      },
+      {
+       "do": "point",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But gas pipes leak, and in January 1869 one did.",
+   "set": "square",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.2
+      },
+      {
+       "do": "scratch_head",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "JAN 1869"
+   },
+   "mood": "sad",
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The lamp exploded, right beside the policeman.",
+   "set": "square",
+   "camera": "wide",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "fall",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "BOOM"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.2
+    },
+    {
+     "name": "glass",
+     "at": 0.3
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He was badly burned. The signal was taken away.",
+   "set": "street",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "vic_alder",
+     "text": "SIGNAL BLOWS UP"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.3
+    }
+   ],
+   "id": "s20",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "London waited almost sixty years to try again.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "60 YEARS"
+   },
+   "mood": "upbeat",
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "In 1926, a policeman's handle worked the new signal again.",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "vic_ned"
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1926"
+   },
+   "id": "s22",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "This time with electric lights. No gas.",
+   "set": "square",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "ELECTRIC"
+   },
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And the colours? Still railway red and green.",
+   "set": "line",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "RED / GREEN"
+    }
+   ],
+   "id": "s24",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The handle became a timer, and the timer became a computer.",
+   "set": "station",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "HANDLE > TIMER > COMPUTER"
+    }
+   ],
+   "id": "s25",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Every traffic light today began with one gas lamp outside Parliament.",
+   "set": "square",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3
+      },
+      {
+       "do": "nod",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "clock",
+     "run_to": 0.6,
+     "t0": 0,
+     "t1": 1.0
+    }
+   ],
+   "id": "s26",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 58.42
+}

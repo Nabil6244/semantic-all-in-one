@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -72,6 +73,11 @@ def prompt_for(scene: Dict[str, Any], row: Optional[Dict[str, Any]] = None) -> s
     return f"{plane}{livery} {phase}{where}{weather}, {camera}. {LOOK}"
 
 
+def _auto_kind() -> str:
+    """The Flow asset the style adds by itself: a video, or a still when SYT_FLOW_IMAGES_ONLY=1 (no Flow video credits)."""
+    return "flow_image" if os.environ.get("SYT_FLOW_IMAGES_ONLY", "").strip() in ("1", "true", "yes") else "flow_video"
+
+
 def _named_event_or_person(c: Any) -> bool:
     if c.mode == "news" and (c.values.get("dates") or re.search(r"\b(strike|launch\w*|crash\w*|merger|bankrupt\w*|announce\w*)\b", c.text, re.I)):
         return True
@@ -96,7 +102,7 @@ def assign(scenes: List[Dict[str, Any]], plan: Any, rows: Optional[Sequence[dict
         c = R.classify(text)
         crew = _CREW.search(text) and not FT._person(c)
         if in_map and not first_of_stretch and _ACTION.search(text) and i - last >= 2 or (crew and mode in ("people", "flight") and i - last >= 2):
-            sc["asset_type"] = "flow_video"
+            sc["asset_type"] = _auto_kind()
             sc["prompt"] = prompt_for({"text": text}, row)
             last = i
             n += 1
@@ -115,7 +121,7 @@ def fallback(scenes: List[Dict[str, Any]], nos: Sequence[str], plan: Any, rows: 
         if _named_event_or_person(c) or mode not in ("fleet", "flight", "weather", "people"):
             continue
         row = (rows[i] if rows and i < len(rows) else None) or {}
-        sc["asset_type"] = "flow_video"
+        sc["asset_type"] = _auto_kind()
         sc["prompt"] = prompt_for({"text": sc.get("text", "")}, row)
         n += 1
     return n

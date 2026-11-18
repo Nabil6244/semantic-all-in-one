@@ -1,0 +1,43 @@
+{
+ "title": "Zip and Fizz the Fire Truck",
+ "set": "park",
+ "voices": {
+  "narrator": {"voice": "en-US-JennyNeural", "rate": "-6%", "pitch": "+0Hz"},
+  "zip": {"voice": "en-US-AnaNeural", "rate": "+0%", "pitch": "+4Hz"},
+  "fizz": {"voice": "en-US-GuyNeural", "rate": "-4%", "pitch": "+6Hz"},
+  "toot": {"voice": "en-GB-MaisieNeural", "rate": "+0%", "pitch": "+0Hz"}
+ },
+ "cast": {
+  "zip": {"kind": "car", "colour": "red"},
+  "fizz": {"kind": "fire", "colour": "red"},
+  "toot": {"kind": "bus", "colour": "orange"}
+ },
+ "shots": [
+  {"action": "drive_in", "args": {"who": "fizz", "to": 1.8, "from": "right"}, "cast": {"zip": {"x": -1.8}, "fizz": {"x": 1.8, "yaw": 180}},
+   "camera": {"dist": 9.5, "side": 28, "push": 0.14},
+   "lines": [["narrator", "Nee-naw, nee-naw! It's Fizz, the fire truck!", 1.0], ["fizz", "Hello Zip! We are both red!"], ["zip", "Red and red! Hooray!"]]},
+  {"action": "race", "args": {"a": "zip", "b": "fizz", "winner": "zip"}, "cast": {"zip": {}, "fizz": {}},
+   "lines": [["fizz", "Let's race to the big tree!", 0.2], ["narrator", "Ready, steady, go!"], ["zip", "I win! Beep beep!", 4.6]]},
+  {"action": "idle", "cast": {"fizz": {"x": 0.0}}, "camera": {"aim": "fizz", "dist": 5.6, "side": 50, "height": 1.3, "push": 0.12, "lens": 50},
+   "lines": [["fizz", "Well done, Zip! You are very fast!", 0.4], ["narrator", "Fizz is a kind friend."]]},
+  {"action": "drive_in", "args": {"who": "toot", "to": -4.0}, "cast": {"zip": {"x": -1.0}, "fizz": {"x": 2.4, "yaw": 180}, "toot": {"x": -4.0}},
+   "camera": {"dist": 10.5, "side": 30, "push": 0.12},
+   "lines": [["toot", "Help! Help! My flowers are thirsty!", 1.0], ["narrator", "Oh no! Toot's flowers need water!"]]},
+  {"action": "wash", "args": {"helper": "fizz", "who": "toot"}, "cast": {"toot": {"x": -1.6}, "fizz": {"x": 1.8, "yaw": 180}},
+   "camera": {"aim": [0.0, 0, 0.9], "dist": 8.5, "side": 8, "push": 0.15},
+   "lines": [["fizz", "I can help! Whoosh goes my hose!", 0.6], ["narrator", "Splish, splash! Water for the flowers!", 3.2]]},
+  {"action": "idle", "cast": {"toot": {"x": -1.6}, "fizz": {"x": 1.8, "yaw": 180}}, "camera": {"aim": "toot", "dist": 5.4, "side": 50, "height": 1.3, "push": 0.12, "lens": 50},
+   "lines": [["toot", "Thank you, Fizz!", 0.4], ["fizz", "You're welcome, Toot!"]]},
+  {"action": "jump", "args": {"who": "zip"}, "cast": {"zip": {"x": 0.0}},
+   "camera": {"aim": [4.0, 0, 1.4], "dist": 15.0, "side": 18, "push": 0.08},
+   "lines": [["zip", "Watch me jump over the puddle!", 0.2], ["narrator", "Wheee! Up, up and over!", 1.8]]},
+  {"action": "hide", "args": {"who": "zip", "seeker": "fizz"}, "cast": {"zip": {"x": 1.0, "y": 3.4}, "fizz": {"x": -2.6}},
+   "camera": {"aim": [-0.5, 1.0, 0.8], "dist": 10.0, "side": 30, "push": 0.12},
+   "lines": [["fizz", "Hide and seek! Where is Zip?", 0.4], ["fizz", "Is Zip behind the tree?"], ["zip", "Peekaboo! Here I am!"]]},
+  {"action": "template", "args": {"name": "egg", "colour": "red", "kind": "fire"},
+   "lines": [["narrator", "One more surprise egg!", 0.4], ["narrator", "What is inside?"], ["narrator", "It's a red fire truck! Red!", 4.4]]},
+  {"action": "dance", "cast": {"toot": {"x": -3.4}, "zip": {"x": 0.0}, "fizz": {"x": 3.4, "yaw": 180}},
+   "camera": {"dist": 11.5, "side": 14, "push": 0.14},
+   "lines": [["zip", "What a big day!", 0.8], ["narrator", "Racing, colours, and helping friends!"], ["narrator", "Bye bye! See you next time!"]]}
+ ]
+}

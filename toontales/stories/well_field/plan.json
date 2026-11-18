@@ -1,0 +1,1180 @@
+{
+ "id": "well_field",
+ "title": "How a Hole in a Dry Field Fills Itself With Water",
+ "topic": "how a hand-dug well works: digging below the water table, stone lining, groundwater seeping in, a cover",
+ "hook_title": "WATER IN A DRY FIELD?",
+ "keywords": [
+  "water",
+  "well",
+  "groundwater",
+  "gravel",
+  "stone",
+  "table",
+  "dig",
+  "dry",
+  "bucket",
+  "summer"
+ ],
+ "cast": [
+  "builder"
+ ],
+ "channel": "channel3",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Well",
+  "https://en.wikipedia.org/wiki/Water_table"
+ ],
+ "places": {
+  "field": {
+   "world": "dio_field_well",
+   "remove": [
+    "well",
+    "well_water",
+    "bucket"
+   ],
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0.0,
+      0.0,
+      -7.2
+     ],
+     "size": [
+      2.1,
+      2.1,
+      7.08
+     ],
+     "mat": "soil",
+     "id": "plug"
+    }
+   ],
+   "prompt": "A dry open field before the well"
+  },
+  "dig": {
+   "world": "dio_field_well",
+   "remove": [
+    "well",
+    "well_water",
+    "bucket"
+   ],
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0.0,
+      0.0,
+      -7.2
+     ],
+     "size": [
+      2.1,
+      2.1,
+      7.08
+     ],
+     "mat": "soil",
+     "id": "plug"
+    }
+   ],
+   "prompt": "The hole being dug down through soil"
+  },
+  "shaft": {
+   "world": "dio_field_well",
+   "remove": [
+    "bucket"
+   ],
+   "prompt": "The stone-lined shaft with water at the bottom"
+  },
+  "done": {
+   "world": "dio_field_well",
+   "prompt": "The finished well: stone shaft, frame, roof and bucket"
+  },
+  "covered": {
+   "world": "dio_field_well",
+   "add": [
+    {
+     "m": "@box",
+     "at": [
+      0.0,
+      0.0,
+      0.7
+     ],
+     "size": [
+      1.9,
+      1.9,
+      0.1
+     ],
+     "mat": "planks",
+     "id": "lid"
+    }
+   ],
+   "prompt": "The finished well with a wooden cover"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "text": "This field hasn't seen rain in weeks. But this hole is full of water.",
+   "set": "done",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -2.6
+    ],
+    "dist": 13.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "FULL"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "text": "So how does a hole in a dry field fill itself?",
+   "set": "done",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2,
+       "params": {
+        "dir": [
+         -0.6,
+         -0.3,
+         -0.7
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     0.6,
+     -2.0
+    ],
+    "dist": 8.0,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "text": "Sam's farm sits far from any river or pipe.",
+   "set": "field",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -2.6
+    ],
+    "dist": 13.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 1.0,
+     "to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "text": "And every summer the pond dries up.",
+   "set": "field",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wipe",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.4,
+     1.0,
+     0.9
+    ],
+    "dist": 6.5,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 1.0,
+     "to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "DRY POND"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "setup",
+   "text": "But under his boots, there's a secret.",
+   "set": "field",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look_down",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -4.0
+    ],
+    "dist": 13.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 1.0,
+     "to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "text": "Rain that soaked in long ago is still down there.",
+   "set": "field",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.6,
+     -3.0
+    ],
+    "dist": 7.0,
+    "yaw": -4,
+    "pitch": 3,
+    "lens": 32
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 1.0,
+     "to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "GROUNDWATER"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "text": "Filling the tiny gaps between gravel and rock.",
+   "set": "field",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     1.6,
+     0.4,
+     -2.0
+    ],
+    "dist": 3.0,
+    "yaw": -4,
+    "pitch": 3,
+    "lens": 40
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 1.0,
+     "to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "GRAVEL"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "text": "So Sam starts to dig.",
+   "set": "dig",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.1,
+       "params": {
+        "face": 180
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.4,
+     1.0,
+     0.9
+    ],
+    "dist": 6.5,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 1.0,
+     "to": 0.85,
+     "t0": 0.3,
+     "t1": 2.0
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.4
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "setup",
+   "text": "First through the dark topsoil.",
+   "set": "dig",
+   "camera": "close",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.0,
+       "params": {
+        "face": 180
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     0.6,
+     -0.6
+    ],
+    "dist": 4.6,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 0.85,
+     "to": 0.7,
+     "t0": 0.0,
+     "t1": 1.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.3
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "text": "Into the gravel. Then the walls start to crumble.",
+   "set": "dig",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     0.5,
+     -1.4
+    ],
+    "dist": 4.0,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 0.55,
+     "to": 0.55,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "COLLAPSE"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "obstacle",
+   "text": "Loose ground caves in on a deep hole.",
+   "set": "dig",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -2.0
+    ],
+    "dist": 10.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "plug",
+     "grow": "up",
+     "from": 0.55,
+     "to": 0.6,
+     "t0": 0.2,
+     "t1": 1.6
+    }
+   ],
+   "freeze": "WAIT...",
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "text": "So he lines the shaft with stone, ring by ring.",
+   "set": "shaft",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "carry",
+       "at": 0.0,
+       "params": {
+        "face": 180
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     0.6,
+     -3.4
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "well",
+     "show": 0.8
+    },
+    {
+     "id": "well_water",
+     "level_from": 0.0,
+     "level_to": 0.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "STONE LINING"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "text": "The stones hold the walls back. Water still slips between them.",
+   "set": "shaft",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.7,
+     0.2,
+     -5.6
+    ],
+    "dist": 3.2,
+    "yaw": -4,
+    "pitch": 3,
+    "lens": 40
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 0.0,
+     "level_to": 0.4,
+     "t0": 0.3,
+     "t1": 2.8
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "SEEPS IN"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "text": "Deep enough, and the shaft drops below the water table.",
+   "set": "shaft",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -4.6
+    ],
+    "dist": 11.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 0.4,
+     "level_to": 0.9,
+     "t0": 0.2,
+     "t1": 2.6
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "WATER TABLE"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "text": "Now the ground pushes water in by itself.",
+   "set": "shaft",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.4,
+     -6.2
+    ],
+    "dist": 5.2,
+    "yaw": -4,
+    "pitch": 3,
+    "lens": 32
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 0.9,
+     "level_to": 1.2,
+     "t0": 0.0,
+     "t1": 2.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 0.6
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "text": "It rises until it matches the water around it.",
+   "set": "shaft",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.4,
+     -6.2
+    ],
+    "dist": 4.0,
+    "yaw": -4,
+    "pitch": 3,
+    "lens": 32
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "LEVEL"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "payoff",
+   "text": "A frame and a roof go on top.",
+   "set": "done",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hammer",
+       "at": 0.1,
+       "params": {
+        "face": 180
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.4,
+     1.0,
+     0.9
+    ],
+    "dist": 6.5,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.4
+    },
+    {
+     "name": "bonk",
+     "at": 1.0
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "text": "And a bucket on a rope.",
+   "set": "done",
+   "camera": "close",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2,
+       "params": {
+        "dir": [
+         -0.8,
+         -0.2,
+         0.1
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     0.4,
+     1.8
+    ],
+    "dist": 3.8,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    },
+    {
+     "id": "bucket",
+     "from": [
+      0,
+      0.35,
+      1.9
+     ],
+     "to": [
+      0,
+      0.35,
+      -0.5
+     ],
+     "t0": 0.6,
+     "t1": 2.2
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "text": "Then the hottest summer in years arrives.",
+   "set": "covered",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wipe",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -2.6
+    ],
+    "dist": 13.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.0,
+     "t0": 0.2,
+     "t1": 2.4
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "HEATWAVE"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "text": "The pond is dust. The field is brown.",
+   "set": "covered",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "look",
+       "at": 0.1,
+       "params": {
+        "yaw": -60,
+        "pitch": 10
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.4,
+     1.0,
+     0.9
+    ],
+    "dist": 6.5,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.0,
+     "level_to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "POND"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "text": "But deep down, the water is still waiting.",
+   "set": "covered",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.4,
+     -6.2
+    ],
+    "dist": 5.2,
+    "yaw": -4,
+    "pitch": 3,
+    "lens": 32
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.0,
+     "level_to": 1.0,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "STILL THERE"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "text": "The cover keeps out dirt, leaves and animals.",
+   "set": "covered",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     0.4,
+     0.8
+    ],
+    "dist": 4.0,
+    "yaw": -8,
+    "pitch": 7,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "COVER"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "text": "That's how a hole in a dry field fills itself with water.",
+   "set": "done",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     0.0,
+     1.0,
+     -2.6
+    ],
+    "dist": 13.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "moves": [
+    {
+     "id": "well_water",
+     "level_from": 1.2,
+     "level_to": 1.2,
+     "t0": 0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s23"
+  }
+ ],
+ "est_total": 62.62
+}

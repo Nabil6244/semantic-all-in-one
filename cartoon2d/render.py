@@ -1701,7 +1701,8 @@ def title_parts(text, kind):
 
 def draw_goal(frame, t):
     """Adventure goal counter, top left: the goal picture and "found / n"; it pops and sparkles when one is found.
-    Render json: "goal": {"pic": "duckling", "n": 5, "from": <seconds, default the goal line>}."""
+    Render json: "goal": {"pic": "duckling", "n": 5, "from": <seconds, default the goal line>}. A line with
+    "lost": <pic> (a story setback) takes one back off the count until it is found again."""
     gl = G["story"].get("goal")
     if not gl:
         return
@@ -1710,8 +1711,9 @@ def draw_goal(frame, t):
     ends = [ln["start"] for ln in G["tl"]["lines"] if ln.get("endcard")]
     if t < t_on or (ends and t > ends[-1]):
         return
-    n_found = sum(1 for x in times if x <= t)
-    last = max([x for x in times if x <= t], default=-9)
+    lost = G.setdefault("_goal_lost", sorted(ln["start"] for ln in G["tl"]["lines"] if ln.get("lost") == gl["pic"]))
+    n_found = max(0, sum(1 for x in times if x <= t) - sum(1 for x in lost if x <= t))   # a setback can lose one again
+    last = max([x for x in times + lost if x <= t], default=-9)
     pop = 1 + 0.25 * math.sin(math.pi * min(1, (t - last) / 0.5)) if t - last < 0.5 else 1.0
     fade = smooth((t - t_on) / 0.4)
     H = int(118 * pop)
@@ -1954,8 +1956,12 @@ def compose(t, place_name):
         ovals.append([px - sw, py - sw * 0.16, px + sw, py + sw * 0.16])
     for f in G.get("finds", []):                        # can you find it? (in the place, behind the characters)
         if f["place"] == place_name and t >= f["t0"] - 0.5:
-            sx, sy = (f["x"] * WORLD_W - x0) * z, (f["y"] * WORLD_H - y0) * z
-            story_fx.draw_find(frame, G["pics"][f["pic"]], t, f["found"], sx, sy, f["size"] * WORLD_H * z)
+            wx, wy = f["x"] * WORLD_W, f["y"] * WORLD_H
+            if f.get("on"):                             # sits on a ride frame (top of the slide, by the swing)
+                wx, wy = rides.anchor(G, f["on"], f["who"], t)
+            sx, sy = (wx - x0) * z, (wy - y0) * z
+            story_fx.draw_find(frame, G["pics"][f["pic"]], t, f["found"], sx, sy, f["size"] * WORLD_H * z,
+                               peek=f.get("peek"), mound=f.get("mound"))
     draw_shadows(frame, ovals)
     rides.draw_back(frame, G, t, z, x0, y0)
     scene_frame = frame

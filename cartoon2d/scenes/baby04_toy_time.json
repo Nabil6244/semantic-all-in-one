@@ -1,0 +1,1019 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-16%",
+   "pitch": "+6Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-8%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 92,
+ "lead_in": 0.6,
+ "gap": 0.6,
+ "tail": 22.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Peekaboo! I found the toy box!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "place": "seafoam",
+   "sfx": "pop",
+   "fx": "bubbles",
+   "face": "happy",
+   "chapter": "Peekaboo!",
+   "pic": "present"
+  },
+  {
+   "who": "molly",
+   "text": "Hi, baby! Hello! Today we will play with toys and say toy words!",
+   "act": "wave",
+   "cam": "face:molly",
+   "chapter": "Hello song",
+   "goal": true,
+   "sign": "bye"
+  },
+  {
+   "who": "molly",
+   "text": "Can you wave hello? Hi!",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "wave",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "wave",
+   "cam": "face:molly"
+  },
+  {
+   "who": "molly",
+   "text": "Hello, hello, hello to you! Hello, hello, how do you do!",
+   "chant": true,
+   "act": "clap",
+   "cam": "face:molly",
+   "gap_after": 0.6
+  },
+  {
+   "who": "bobo",
+   "text": "Hi, baby! I'm Bobo! Let's play!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Baby talk, baby talk, la la la! Learning words with Ms Molly!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "title": "Toy Time\nwith Ms Molly!",
+   "fx": "bubbles"
+  },
+  {
+   "who": "molly",
+   "text": "Let's make some fun play sounds. Watch my mouth.",
+   "act": "point",
+   "cam": "face:molly",
+   "chapter": "Go, up, bang"
+  },
+  {
+   "who": "molly",
+   "text": "Go... go... go.",
+   "act": "open",
+   "cam": "face:molly",
+   "card": "go",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Your turn. Go, go.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "go",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Ready, set, go!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Up... up... up.",
+   "act": "open",
+   "cam": "face:molly",
+   "card": "up",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Your turn. Up, up.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "up",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Up, up, up we go!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "Bang... bang... bang.",
+   "act": "open",
+   "cam": "face:molly",
+   "card": "bang",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Your turn. Bang, bang.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "bang",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Bang, bang on the drum!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "molly",
+   "text": "What's in the toy box? Let's see!",
+   "act": "open",
+   "cam": "group",
+   "place": "honeydew",
+   "sfx": "sparkle",
+   "chapter": "Ball games",
+   "pic": "present"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A ball!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_ball",
+   "card": "ball",
+   "sfx": "pop",
+   "chapter": "Ball"
+  },
+  {
+   "who": "molly",
+   "text": "Ball... ball... ball.",
+   "act": "sign_ball",
+   "cam": "face:molly",
+   "pic": "photo_ball",
+   "card": "ball",
+   "sign": "ball",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say ball?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_ball",
+   "card": "ball",
+   "sign": "ball",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Ball! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Ball.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_ball",
+   "card": "ball",
+   "sign": "ball",
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "Roll the ball to me! Roll, roll, roll!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "pic": "ball"
+  },
+  {
+   "who": "molly",
+   "text": "Here comes the ball, Bobo! Go!",
+   "act": "give",
+   "cam": "group",
+   "give": {
+    "from": "molly",
+    "to": "bobo",
+    "pic": "ball"
+   },
+   "gap_after": 0.8
+  },
+  {
+   "who": "bobo",
+   "text": "Again! More ball, please!",
+   "act": "sign_more",
+   "cam": "cu:bobo",
+   "sign": "more",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "More. More. Bobo wants more!",
+   "act": "sign_more",
+   "cam": "face:molly",
+   "card": "more",
+   "sign": "more",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say more?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_more",
+   "sign": "more",
+   "card": "more",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Throw the ball up! Up, up, up!",
+   "act": "hands_up",
+   "cam": "face:molly",
+   "card": "up",
+   "pic": "ball",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say up?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "hands_up",
+   "card": "up",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A balloon!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "balloon_red",
+   "card": "balloon",
+   "sfx": "pop",
+   "chapter": "Balloon"
+  },
+  {
+   "who": "molly",
+   "text": "Balloon... balloon... balloon.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "balloon_red",
+   "card": "balloon",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say balloon?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "balloon",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Balloon! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Balloon.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "balloon",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "The balloon floats up, up, up! Bye-bye, balloon!",
+   "act": "hands_up",
+   "cam": "face:molly",
+   "pic": "balloon_red"
+  },
+  {
+   "who": "molly",
+   "text": "Now let's play with things that go! Vroom!",
+   "act": "cheer",
+   "cam": "group",
+   "place": "sand",
+   "chapter": "Things that go"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A car!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_car",
+   "card": "car",
+   "sfx": "pop",
+   "chapter": "Car"
+  },
+  {
+   "who": "molly",
+   "text": "Car... car... car.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "photo_car",
+   "card": "car",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say car?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "car",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Car! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "The car says beep beep! beep beep!",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "photo_car",
+   "card": "beep beep"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say beep beep?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Car.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "car",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Ready, set... go! The car goes fast!",
+   "act": "point",
+   "cam": "face:molly",
+   "card": "go",
+   "pic": "photo_car",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say go?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "go",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A train!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "train",
+   "card": "train",
+   "sfx": "pop",
+   "chapter": "Train"
+  },
+  {
+   "who": "molly",
+   "text": "Train... train... train.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "train",
+   "card": "train",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say train?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "train",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Train! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "The train says choo choo! choo choo!",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "train",
+   "card": "choo choo"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say choo choo?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Train.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "train",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "Choo choo! All aboard! Here I go!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "pic": "train"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A boat!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "boat",
+   "card": "boat",
+   "sfx": "pop",
+   "chapter": "Boat"
+  },
+  {
+   "who": "molly",
+   "text": "Boat... boat... boat.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "boat",
+   "card": "boat",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say boat?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "boat",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Boat! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Boat.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "boat",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "The boat goes on the water. Splash, splash!",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Some toys love bath time! And some make music!",
+   "act": "open",
+   "cam": "group",
+   "place": "bluebell",
+   "chapter": "Duck and drum"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A duck!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_duck",
+   "card": "duck",
+   "sfx": "pop",
+   "chapter": "Duck"
+  },
+  {
+   "who": "molly",
+   "text": "Duck... duck... duck.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "photo_duck",
+   "card": "duck",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say duck?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "duck",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Duck! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "The duck says quack quack! quack quack!",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "photo_duck",
+   "card": "quack quack"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say quack quack?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Duck.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "duck",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Look! A drum!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "drum",
+   "card": "drum",
+   "sfx": "pop",
+   "chapter": "Drum"
+  },
+  {
+   "who": "molly",
+   "text": "Drum... drum... drum.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "drum",
+   "card": "drum",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say drum?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "drum",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Drum! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Drum.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "drum",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "Bang, bang, bang! I'm a drummer!",
+   "act": "clap",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "pic": "drum"
+  },
+  {
+   "who": "molly",
+   "text": "Let's play the drum together. Bang, bang, bang!",
+   "act": "clap",
+   "also": {
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "card": "bang",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you clap and say bang?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "clap",
+   "card": "bang",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Do you want more music? More!",
+   "act": "sign_more",
+   "cam": "face:molly",
+   "card": "more",
+   "sign": "more",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say more?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_more",
+   "sign": "more",
+   "card": "more",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Let's build a tower with blocks!",
+   "act": "cheer",
+   "cam": "group",
+   "place": "melon",
+   "chapter": "Blocks and a song",
+   "pic": "block_a"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A block!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "block_b",
+   "card": "block",
+   "sfx": "pop",
+   "chapter": "Block"
+  },
+  {
+   "who": "molly",
+   "text": "Block... block... block.",
+   "act": "open",
+   "cam": "face:molly",
+   "pic": "block_b",
+   "card": "block",
+   "sign": null,
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say block?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "point",
+   "card": "block",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Block! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Block.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "open",
+   "card": "block",
+   "sign": null,
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "One block, two blocks, up, up, up! Oh no! Fall down, boom!",
+   "act": "giggle",
+   "cam": "face:molly",
+   "pic": "block_c"
+  },
+  {
+   "who": "bobo",
+   "text": "Again! Up, up, up!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "card": "up"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say up?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "hands_up",
+   "card": "up",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Row, row, row your boat, gently down the stream!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Merrily, merrily, merrily, merrily, life is but a dream!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Row, row, row your boat, gently down the stream!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Merrily, merrily, merrily, merrily, life is but a dream!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "boat"
+  },
+  {
+   "who": "molly",
+   "text": "Can you row the boat? Row, row!",
+   "your_turn": true,
+   "cam": "group",
+   "act": "dance",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Toys away, and one quiet book before we go.",
+   "act": "sign_book",
+   "cam": "group",
+   "place": "seafoam",
+   "chapter": "Book and bye-bye",
+   "sign": "book",
+   "pic": "photo_book"
+  },
+  {
+   "who": "molly",
+   "text": "Look! A book!",
+   "act": "point",
+   "cam": "face:molly",
+   "pic": "photo_book",
+   "card": "book",
+   "sfx": "pop",
+   "chapter": "Book"
+  },
+  {
+   "who": "molly",
+   "text": "Book... book... book.",
+   "act": "sign_book",
+   "cam": "face:molly",
+   "pic": "photo_book",
+   "card": "book",
+   "sign": "book",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say book?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_book",
+   "card": "book",
+   "sign": "book",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Book! Good job!",
+   "act": "clap",
+   "cam": "face:molly",
+   "sfx": "sparkle",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "One more time. Book.",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_book",
+   "card": "book",
+   "sign": "book",
+   "gap_after": 3.2
+  },
+  {
+   "who": "molly",
+   "text": "Now we put the toys away. All done. All done.",
+   "act": "sign_all_done",
+   "cam": "face:molly",
+   "card": "all done",
+   "sign": "all_done",
+   "gap_after": 0.8
+  },
+  {
+   "who": "molly",
+   "text": "Can you say all done?",
+   "your_turn": true,
+   "cam": "face:molly",
+   "act": "sign_all_done",
+   "sign": "all_done",
+   "card": "all done",
+   "gap_after": 3.2
+  },
+  {
+   "who": "bobo",
+   "text": "All done! All done! Bye-bye, toys!",
+   "act": "sign_all_done",
+   "cam": "cu:bobo",
+   "sign": "all_done",
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Now let's be calm. Take a big breath in... and out.",
+   "act": "open",
+   "cam": "face:molly",
+   "calm": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Today we said ball, car, train, boat, duck, drum, block and book. And go, up and more!",
+   "act": "count",
+   "cam": "face:molly",
+   "calm": true,
+   "card": "ball  car  boat"
+  },
+  {
+   "who": "molly",
+   "text": "You are doing so well, baby. I'm so proud of you.",
+   "act": "sign_please",
+   "cam": "face:molly",
+   "calm": true,
+   "face": "happy"
+  },
+  {
+   "who": "molly",
+   "text": "Next time, it's bath time! Splash, bubbles and duck!",
+   "act": "open",
+   "cam": "face:molly",
+   "teaser": true,
+   "pic": "photo_bubbles"
+  },
+  {
+   "who": "molly",
+   "text": "Let's wave bye-bye. Bye-bye.",
+   "act": "sign_bye",
+   "cam": "face:molly",
+   "sign": "bye",
+   "your_turn": true,
+   "gap_after": 2.8
+  },
+  {
+   "who": "molly",
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "also": {
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Bye-bye, baby! See you next time!",
+   "act": "wave",
+   "also": {
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "endcard": "Bye-bye!\nSee you soon!",
+   "sfx": "success"
+  }
+ ],
+ "learn": [
+  "ball",
+  "car",
+  "train",
+  "boat",
+  "duck",
+  "drum",
+  "block",
+  "book",
+  "go",
+  "up",
+  "more",
+  "all done"
+ ]
+}

@@ -4,7 +4,9 @@ A script line carries them as games (see games.py), timed from that line:
   {"type": "slide", "who": who}              hop up to the top of a slide beside them, sit, "wheee" down to their spot
   {"type": "swing", "who": who | [..]}        each sits on a swing at their spot and swings for the whole line
   {"type": "train", "who": [riders]}          a toy train chugs in from the left with the riders in its carriages,
-                                              stops in the middle, then chugs off to the right (whole line)
+                                              stops in the middle, then chugs off to the right (whole line);
+                                              the riders leave with it, or with "off": true they hop back down to
+                                              their spots before it leaves empty (the story goes on with them here)
   {"type": "pit",   "who": who | [..]}        each sinks into a ball pit at their spot, balls bounce up (whole line)
 The rides are drawn in code in the show's flat style (bright fills, dark-brown outline), like the trampoline and toy box,
 so their shape is exact: the rider follows the chute / the swing seat / the carriage.
@@ -19,6 +21,7 @@ from PIL import Image, ImageDraw
 LINE = (70, 45, 30)
 SLIDE_T = 3.4            # hop up 0.6, sit 0.5, slide 1.3, stand up 1.0
 TRAIN_IN, TRAIN_OUT = 2.2, 2.0
+HOP_OFF = 0.7            # riders hop down from their carriages before an "off" train leaves
 TRAIN_BACK = 0.09        # the track runs a little behind the standing characters (they no longer look in its way)
 
 
@@ -44,8 +47,9 @@ def plan_line(ev, g, lines, i, total):
         # riders are already aboard when a new place opens on this line; after the train leaves they are gone with it
         # until the next place (they used to pop back onto their spots)
         gone = next((l2["start"] - 0.45 for l2 in lines[i + 1:] if l2.get("place")), total + 1)
+        off = bool(g.get("off"))
         ev["ride"].append({"kind": "train", "who": who, "t0": t0 - (0.5 if ln.get("place") else 0.2), "t1": t1,
-                           "gone_until": gone})
+                           "gone_until": 0 if off else gone, "off": off})
     else:                                               # swing / pit: the whole line, into the pause after it
         t1 = max(nxt - 0.1, t0 + 2.5)
         for w in who:
@@ -167,10 +171,19 @@ def place(G, t, world_w):
             continue
         if r["kind"] == "train":
             fx, chm, car = train_x(G, r, t, world_w)
+            left = r["t1"] - TRAIN_OUT - t                  # time until it pulls away
+            if r.get("off") and left < 0:
+                continue                                    # hopped off: standing on their own spots again
             for i, w in enumerate(r["who"]):
                 c = G["cast"][w]
-                c["x"] = fx - 1.1 * chm - (i + 0.5) * car
-                c["floor"] = c["floor"] - (0.12 + TRAIN_BACK) * chm             # standing on the carriage floor
+                X, F = c["x"], c["floor"]
+                cx, cy = fx - 1.1 * chm - (i + 0.5) * car, F - (0.12 + TRAIN_BACK) * chm   # on the carriage floor
+                if r.get("off") and left < HOP_OFF:     # a cartoon hop down to their spot
+                    q = smooth(1 - left / HOP_OFF)
+                    c["x"] = cx + (X - cx) * q
+                    c["floor"] = cy + (F - cy) * q - math.sin(math.pi * q) * 0.3 * chm
+                else:
+                    c["x"], c["floor"] = cx, cy
             continue
         w = r["who"]
         c = G["cast"][w]
@@ -231,6 +244,8 @@ def pose(G, who, t, out, arm):
         for k, v in {**arm("sl", 28, 112), **arm("sr", 28, 112)}.items():
             out[k] = out[k] + (v - out[k]) * q
     elif r["kind"] == "train":
+        if r.get("off") and r["t1"] - t < TRAIN_OUT + HOP_OFF:
+            return                                      # hopping off / off: their own act
         out["hop"] = 0.0
         out["squat"] = 0.0
         if r["t1"] - t < TRAIN_OUT or t - r["t0"] < TRAIN_IN:                       # waving while it moves
@@ -246,15 +261,71 @@ def _pad(d, box, r, fill, lw):
     d.rounded_rectangle(box, radius=r, fill=fill, outline=LINE, width=lw)
 
 
-def draw_back(frame, G, t, z, x0, y0):
-    """Slide and swing frames (behind the characters)."""
+def stay(G, t):
+    """(arrive, leave) of the place stay that holds t (from render's place_changes)."""
+    ch = sorted(G.get("place_changes") or [(0.0, None)])
+    a = max([tc for tc, _ in ch if tc <= t] or [0.0])
+    b = min([tc for tc, _ in ch if tc > t] or [1e9])
+    return a, b
+
+
+def _frames_now(G, t):
+    """The slide / swing rides whose frame stands in the current place at t: one per (rider, kind), the one that is
+    riding now if any, else the stay's first (a swing then hangs still)."""
+    a, b = stay(G, t)
+    pick = {}
     for r in (G.get("games") or {}).get("ride", []):
-        if not (r["t0"] - 0.4 <= t <= r["t1"] + 0.4) or r["kind"] not in ("slide", "swing"):
+        if r["kind"] not in ("slide", "swing") or not (a <= r["t0"] < b):
             continue
+        key = (r["who"], r["kind"])
+        if key not in pick or (r["t0"] <= t <= r["t1"] + 0.4):
+            pick[key] = r
+    return list(pick.values())
+
+
+def anchor(G, kind, who, t):
+    """World point (bottom centre) for a goal item that sits ON a ride frame: the slide's platform (the rider who goes
+    up takes it along: on their lap down the chute, then beside them at the bottom), or under the swing frame."""
+    c = G["cast"][who]
+    ch, X, F = _ch(G, who), G["places_spots"][who], c["_floor0"]
+    if kind == "slide":
+        a, b = stay(G, t)
+        rs = [r for r in (G.get("games") or {}).get("ride", []) if r["kind"] == "slide" and r["who"] == who
+              and a <= r["t0"] <= t]
+        if rs:
+            r = rs[-1]
+            if t <= r["t1"] and t - r["t0"] > 0.6:              # picked up at the top, held on the lap
+                return c["x"] + 0.12 * ch, c["floor"] - 0.28 * ch
+            if t > r["t1"]:                                     # down safe, beside the rider
+                return X + 0.3 * ch, F
+        top, _ = slide_geo(X, F, ch)
+        return top[0] - 0.16 * ch, top[1] - 0.02 * ch
+    return X + 0.55 * ch, F                                     # under the swing frame, past the seat's reach
+
+
+def _left_train(r, t):
+    """An "off" train after its riders hopped down: its empty carriages go behind everybody."""
+    return r["kind"] == "train" and r.get("off") and r["t1"] - t < TRAIN_OUT + 0.5 * HOP_OFF
+
+
+def draw_back(frame, G, t, z, x0, y0):
+    """Slide and swing frames (behind the characters). They are the place's play things, so they stand there for the
+    whole stay in that place (a slide is there before anyone slides down it); one frame per rider and ride.
+    Also the empty carriages of an "off" train pulling away."""
+    for r in (G.get("games") or {}).get("ride", []):
+        if r["kind"] == "train" and r["t0"] <= t <= r["t1"] and _left_train(r, t):
+            S = lambda p: ((p[0] - x0) * z, (p[1] - y0) * z)    # noqa: E731
+            layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
+            d = ImageDraw.Draw(layer)
+            for w in r["who"]:
+                ch = _ch(G, w)
+                _front(d, G, r, w, G["cast"][w], ch, S, max(3, int(ch * z * 0.012)), t, z)
+            frame.alpha_composite(layer)
+    for r in _frames_now(G, t):
         w = r["who"]
         c = G["cast"][w]
         ch, X, F = _ch(G, w), G["places_spots"][w], c["_floor0"]
-        fade = smooth((t - r["t0"] + 0.4) / 0.4) * (1 - smooth((t - r["t1"]) / 0.4))
+        fade = 1.0
         S = lambda p: ((p[0] - x0) * z, (p[1] - y0) * z)            # noqa: E731
         lw = max(3, int(ch * z * 0.012))
         layer = Image.new("RGBA", frame.size, (0, 0, 0, 0))
@@ -305,7 +376,7 @@ def _chute(d, S, top, bot, ch, lw, front):
 def draw_front(frame, G, who, t, z, x0, y0):
     """In front of the rider: swing chains + seat, the ball pit's front wall, the train carriage (and the engine)."""
     r = active(G, who, t)
-    if not r:
+    if not r or _left_train(r, t):
         return
     c = G["cast"][who]
     ch = _ch(G, who)

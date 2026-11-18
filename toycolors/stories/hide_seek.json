@@ -1,0 +1,317 @@
+{
+ "title": "Hide and Seek",
+ "set": "park",
+ "voices": {
+  "bumpy": {
+   "voice": "en-US-ChristopherNeural",
+   "rate": "-6%",
+   "pitch": "+4Hz"
+  },
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "splash": {
+   "voice": "en-US-AriaNeural",
+   "rate": "+2%",
+   "pitch": "+10Hz"
+  },
+  "toot": {
+   "voice": "en-GB-MaisieNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "zip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+4Hz"
+  }
+ },
+ "cast": {
+  "bumpy": {
+   "kind": "dump",
+   "colour": "green"
+  },
+  "splash": {
+   "kind": "tanker",
+   "colour": "blue"
+  },
+  "toot": {
+   "kind": "bus",
+   "colour": "orange"
+  },
+  "zip": {
+   "kind": "car",
+   "colour": "red"
+  }
+ },
+ "shots": [
+  {
+   "action": "idle",
+   "cast": {
+    "toot": {
+     "x": -3.4
+    },
+    "zip": {
+     "x": 0.0
+    },
+    "bumpy": {
+     "x": 3.4,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 11.0,
+    "side": 20,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "zip",
+     "Let's play hide and seek!",
+     0.6
+    ],
+    [
+     "toot",
+     "I will count! One, two, three!"
+    ]
+   ]
+  },
+  {
+   "action": "hide",
+   "args": {
+    "who": "zip",
+    "seeker": "toot"
+   },
+   "cast": {
+    "zip": {
+     "x": 1.0,
+     "y": 3.4
+    },
+    "toot": {
+     "x": -2.6
+    }
+   },
+   "camera": {
+    "aim": [
+     -0.5,
+     1.0,
+     0.8
+    ],
+    "dist": 10.0,
+    "side": 30,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "toot",
+     "Where is Zip?",
+     0.4
+    ],
+    [
+     "toot",
+     "Is Zip here?"
+    ],
+    [
+     "zip",
+     "Peekaboo! You found me!"
+    ]
+   ]
+  },
+  {
+   "action": "hide",
+   "args": {
+    "who": "bumpy",
+    "seeker": "toot"
+   },
+   "cast": {
+    "bumpy": {
+     "x": 1.0,
+     "y": 3.4
+    },
+    "toot": {
+     "x": -2.6
+    }
+   },
+   "camera": {
+    "aim": [
+     -0.5,
+     1.0,
+     0.8
+    ],
+    "dist": 10.0,
+    "side": 30,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "toot",
+     "Now, where is Bumpy?",
+     0.4
+    ],
+    [
+     "toot",
+     "Is Bumpy behind the bush?"
+    ],
+    [
+     "bumpy",
+     "Here I am!"
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "splash",
+    "to": 2.2,
+    "from": "right"
+   },
+   "cast": {
+    "toot": {
+     "x": -2.2
+    },
+    "splash": {
+     "x": 2.2,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 10.0,
+    "side": 28,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "splash",
+     "Can I play too?",
+     1.0
+    ],
+    [
+     "toot",
+     "Yes, Splash! Come and play!"
+    ]
+   ]
+  },
+  {
+   "action": "hide",
+   "args": {
+    "who": "splash",
+    "seeker": "zip"
+   },
+   "cast": {
+    "splash": {
+     "x": 1.0,
+     "y": 3.4
+    },
+    "zip": {
+     "x": -2.6
+    }
+   },
+   "camera": {
+    "aim": [
+     -0.5,
+     1.0,
+     0.8
+    ],
+    "dist": 10.0,
+    "side": 30,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "zip",
+     "Ready or not, here I come!",
+     0.4
+    ],
+    [
+     "zip",
+     "Where is Splash?"
+    ],
+    [
+     "splash",
+     "Peekaboo!"
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "garage",
+    "colour": "green",
+    "kind": "dump"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Who is hiding in the garage?",
+     0.4
+    ],
+    [
+     "narrator",
+     "Open the door!"
+    ],
+    [
+     "narrator",
+     "It's Bumpy! Green!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "garage",
+    "colour": "orange",
+    "kind": "bus"
+   },
+   "lines": [
+    [
+     "narrator",
+     "And who is in this garage?",
+     0.4
+    ],
+    [
+     "narrator",
+     "Open up!"
+    ],
+    [
+     "narrator",
+     "It's Toot! Orange!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "toot": {
+     "x": -3.4
+    },
+    "zip": {
+     "x": 0.0
+    },
+    "splash": {
+     "x": 3.4,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 11.5,
+    "side": 14,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "Hide and seek is so much fun!",
+     0.8
+    ],
+    [
+     "narrator",
+     "Let's play again soon!"
+    ]
+   ]
+  }
+ ]
+}

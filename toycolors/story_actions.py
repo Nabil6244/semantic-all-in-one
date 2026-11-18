@@ -14,7 +14,7 @@ import random
 
 import bpy
 
-from toycolors import kit, toy
+from toycolors import kit, templates, toy
 from toycolors import timeline as T
 from toycolors.templates import F, blinks, confetti, hop, k_loc, k_rot, k_scale, look
 
@@ -310,7 +310,7 @@ def a_race(cast, dur, args):
         look(v, t_go, -2, 0)
         look(v, t_end, -6, -18)
     hop(cast[win].root, t_end + 0.1, 0.35)
-    cam, tgt = kit.camera((x0 + 4, -7.5, 1.8), (x0, 0, 0.8), lens=40)
+    cam, tgt = kit.camera((x0 + 4, -7.5, 1.8), (x0, 0, 0.8), lens=40 * templates.FILL)
     for t in (0, t_go, (t_go + t_end) / 2, t_end, dur):
         f = min(1, max(0, (t - t_go) / (t_end - t_go)))
         cx = x0 + (x1 - x0) * f
@@ -428,11 +428,16 @@ def camera(cast, spec):
         aim = ((min(xs) + max(xs)) / 2, 0, 0.9)
     dist, h, side = c.get("dist", 9.0), c.get("height", 2.3), math.radians(c.get("side", 45))   # 45: faces, not profiles
     push, pan, dur = c.get("push", 0.12), c.get("pan", 0.0), spec["dur"]
+    lens = c.get("lens", 45) * templates.FILL
+    xs = [home(v)[0] for v in cast.values()]
+    if len(xs) > 1:                                # bigger toys, but the whole cast stays in frame, even after the push
+        need = (max(xs) - min(xs) + 3.6) / max(0.5, math.cos(side))
+        dist = max(dist, need * lens / 36 / (1 - push))
 
     def at(d, dx):
         return ((aim[0] + dx + math.sin(side) * d, aim[1] - math.cos(side) * d, aim[2] + h * d / dist),
                 (aim[0] + dx, aim[1], aim[2]))
-    cam, tgt = kit.camera(at(dist, 0)[0], aim, lens=c.get("lens", 45))
+    cam, tgt = kit.camera(at(dist, 0)[0], aim, lens=lens)
     for t, d, dx in ((0, dist, 0), (dur, dist * (1 - push), pan)):
         cl, al = at(d, dx)
         k_loc(cam, t, cl)
@@ -447,7 +452,7 @@ def template_shot(spec):
     a = spec["args"]
     info = templates.TEMPLATES[a["name"]](colour=a["colour"], kind=a["kind"], from_colour=a.get("from"))
     sc = bpy.context.scene
-    sc.camera.data.lens *= info.get("zoom", 1.0)
+    sc.camera.data.lens *= info.get("zoom", 1.0) * templates.FILL
     toy.playground(slides=info.get("slides", True), size=info.get("platform", (34, 20)))
     hero = bpy.data.objects.get("hero") or bpy.data.objects.get("convoy0")
     if hero is not None:

@@ -18,13 +18,16 @@
   "ep04_farm_animals_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep05_classroom.png": [
-  "ep05_abc_with_ms_molly"
+  "ep05_abc_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep05_orchard.png": [
-  "ep05_abc_with_ms_molly"
+  "ep05_abc_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep05_beach.png": [
-  "ep05_abc_with_ms_molly"
+  "ep05_abc_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep05_castle.png": [
   "ep05_abc_with_ms_molly"
@@ -99,7 +102,8 @@
   "ep06_abc_k_to_t_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_meadow.png": [
-  "ep06_abc_k_to_t_with_ms_molly"
+  "ep06_abc_k_to_t_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_lemons.png": [
   "ep06_abc_k_to_t_with_ms_molly"
@@ -114,22 +118,26 @@
   "ep06_abc_k_to_t_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_pumpkins.png": [
-  "ep06_abc_k_to_t_with_ms_molly"
+  "ep06_abc_k_to_t_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_palace.png": [
   "ep06_abc_k_to_t_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_rainbow.png": [
-  "ep06_abc_k_to_t_with_ms_molly"
+  "ep06_abc_k_to_t_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_sunflowers.png": [
-  "ep06_abc_k_to_t_with_ms_molly"
+  "ep06_abc_k_to_t_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep06_station.png": [
   "ep06_abc_k_to_t_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep07_livingroom.png": [
-  "ep07_opposites_with_ms_molly"
+  "ep07_opposites_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep07_giantveg.png": [
   "ep07_opposites_with_ms_molly"
@@ -150,7 +158,8 @@
   "ep07_opposites_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep07_night.png": [
-  "ep07_opposites_with_ms_molly"
+  "ep07_opposites_with_ms_molly",
+  "ep08_rainbow_colours_with_ms_molly"
  ],
  "cartoon2d/art/bg/ep07_bakery.png": [
   "ep07_opposites_with_ms_molly"
@@ -160,5 +169,44 @@
  ],
  "cartoon2d/art/bg/ep07_doghouse.png": [
   "ep07_opposites_with_ms_molly"
+ ],
+ "cartoon2d/art/bg/ch3e1_gate.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_swings.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_sandpit.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_railway.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_softplay.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_splash.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_hill.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/ch3e1_picnic.png": [
+  "ch3_ep01_playground"
+ ],
+ "cartoon2d/art/bg/baby_seafoam.png": [
+  "baby04_toy_time_with_ms_molly"
+ ],
+ "cartoon2d/art/bg/baby_honeydew.png": [
+  "baby04_toy_time_with_ms_molly"
+ ],
+ "cartoon2d/art/bg/baby_sand.png": [
+  "baby04_toy_time_with_ms_molly"
+ ],
+ "cartoon2d/art/bg/baby_bluebell.png": [
+  "baby04_toy_time_with_ms_molly"
+ ],
+ "cartoon2d/art/bg/baby_melon.png": [
+  "baby04_toy_time_with_ms_molly"
  ]
 }

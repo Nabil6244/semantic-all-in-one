@@ -1,0 +1,1576 @@
+{
+ "voices": {
+  "molly": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "lily": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "ollie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-14Hz"
+  },
+  "bobo": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+14Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 22.0,
+ "lines": [
+  {
+   "who": "bobo",
+   "text": "Look at my rainbow painting! It's so colourful!",
+   "act": "hands_up",
+   "cam": "cu:bobo",
+   "place": "livingroom",
+   "chapter": "Bobo's rainbow",
+   "sfx": "pop",
+   "pic": "rainbow"
+  },
+  {
+   "who": "lily",
+   "text": "Oh no! The colours are floating away! The rainbow is all white!",
+   "act": "hands_up",
+   "also": {
+    "bobo": "tumble",
+    "ollie": "wobble"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "face": "surprised",
+   "sfx": "whoosh"
+  },
+  {
+   "who": "molly",
+   "text": "Let's follow the map and find every colour of the rainbow! One, two, three, go!",
+   "act": "open",
+   "cam": "host",
+   "goal": true
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Rainbow adventure!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "title": "Rainbow Colours with\nMs Molly & Bobo!",
+   "fx": "confetti",
+   "sfx": "success",
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Clap along with our song!",
+   "act": "clap",
+   "also": {
+    "lily": "clap",
+    "ollie": "clap",
+    "bobo": "clap"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "chapter": "Hello song",
+   "gap_after": 0.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ms Molly and Bobo! Here we go! Learning and playing, high and low!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ms Molly and Bobo! Here we go! Learning and playing, high and low!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Hi friends! I'm Miss Molly! Today we will find all the colours of the rainbow!",
+   "act": "wave",
+   "cam": "host",
+   "card": "rainbow"
+  },
+  {
+   "who": "lily",
+   "text": "Hi! I'm Lily!",
+   "act": "wave",
+   "cam": "kids"
+  },
+  {
+   "who": "ollie",
+   "text": "And I'm Ollie!",
+   "act": "cheer",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "And I'm Bobo! Please help me bring back my colours!",
+   "act": "wave",
+   "cam": "cu:bobo",
+   "face": "sad"
+  },
+  {
+   "who": "molly",
+   "text": "Will you help Bobo? Shout yes!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yes!",
+   "act": "jump",
+   "also": {
+    "bobo": "jump"
+   },
+   "cam": "group",
+   "sfx": "sparkle"
+  },
+  {
+   "who": "ollie",
+   "text": "Let's go! Ready, steady...",
+   "act": "squat",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Which colour is next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 0,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Go! An orchard full of apple trees!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "orchard",
+   "chapter": "Red",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Look! Everything here is red! Red!",
+   "act": "open",
+   "cam": "host",
+   "card": "red",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say red?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "red",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Red!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "red"
+  },
+  {
+   "who": "molly",
+   "text": "A apple is red!",
+   "act": "point",
+   "cam": "host",
+   "card": "red",
+   "pic": "apple"
+  },
+  {
+   "who": "lily",
+   "text": "And a strawberry is red too!",
+   "act": "point",
+   "cam": "kids",
+   "card": "red",
+   "pic": "strawberry"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Red, red, red like an apple! Stomp, stomp, stomp your feet!",
+   "chant": true,
+   "act": "stomp",
+   "also": {
+    "lily": "stomp",
+    "ollie": "stomp",
+    "bobo": "stomp"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Find something red where you are! Point to it!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "Red is a banana! Peel, peel!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! It's red!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Red! Red for my rainbow!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "We found red! It flies back into Bobo's rainbow!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "sfx": "chime",
+   "card": "red"
+  },
+  {
+   "who": "bobo",
+   "text": "Crunch, crunch! Red apples are yummy!",
+   "act": "bounce",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "pic": "apple"
+  },
+  {
+   "who": "molly",
+   "text": "Which colour is next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 1,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Wow! A pumpkin patch!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "pumpkins",
+   "chapter": "Orange",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Look! Everything here is orange! Orange!",
+   "act": "open",
+   "cam": "host",
+   "card": "orange",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say orange?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "orange",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Orange!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "orange"
+  },
+  {
+   "who": "molly",
+   "text": "A pumpkin is orange!",
+   "act": "point",
+   "cam": "host",
+   "card": "orange"
+  },
+  {
+   "who": "ollie",
+   "text": "And a carrot is orange too!",
+   "act": "point",
+   "cam": "kids",
+   "card": "orange"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Orange, orange, round and round! Spin like a pumpkin on the ground!",
+   "chant": true,
+   "act": "spin",
+   "also": {
+    "lily": "spin",
+    "ollie": "spin",
+    "bobo": "spin"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Find something orange where you are! Point to it!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "Orange is the sky! Oops!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! It's orange!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Orange! Orange for my rainbow!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "We found orange! It flies back into Bobo's rainbow!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "sfx": "chime",
+   "card": "orange"
+  },
+  {
+   "who": "molly",
+   "text": "Which colour is next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 2,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Sunny! A field of sunflowers!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "sunflowers",
+   "chapter": "Yellow",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Look! Everything here is yellow! Yellow!",
+   "act": "open",
+   "cam": "host",
+   "card": "yellow",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say yellow?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "yellow",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Yellow!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "yellow"
+  },
+  {
+   "who": "molly",
+   "text": "A sun is yellow!",
+   "act": "point",
+   "cam": "host",
+   "card": "yellow",
+   "pic": "sun"
+  },
+  {
+   "who": "lily",
+   "text": "And a duck is yellow too!",
+   "act": "point",
+   "cam": "kids",
+   "card": "yellow",
+   "pic": "duck"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Yellow, yellow, bright like the sun! Reach up high and have some fun!",
+   "chant": true,
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Find something yellow where you are! Point to it!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "Yellow is a frog! Ribbit!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! It's yellow!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Yellow! Yellow for my rainbow!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "We found yellow! It flies back into Bobo's rainbow!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "sfx": "chime",
+   "card": "yellow"
+  },
+  {
+   "who": "ollie",
+   "text": "Quack, quack! I'm a yellow duck!",
+   "act": "wobble",
+   "cam": "cu:ollie",
+   "pic": "duck"
+  },
+  {
+   "who": "molly",
+   "text": "Let's stop at the art room and mix some paint! Look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 3,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Art time! Paint pots!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "classroom",
+   "chapter": "Mixing colours",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Red paint, and yellow paint. Let's mix them. Stir, stir, stir!",
+   "act": "open",
+   "cam": "host",
+   "pic": "paint",
+   "card": "red + yellow"
+  },
+  {
+   "who": "molly",
+   "text": "What colour did we make?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Orange!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "orange",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Red and yellow make orange! Now blue and yellow. Stir, stir, stir!",
+   "act": "open",
+   "cam": "host",
+   "pic": "paint",
+   "card": "blue + yellow"
+  },
+  {
+   "who": "molly",
+   "text": "What colour is it now?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Green!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "green",
+   "sfx": "pop"
+  },
+  {
+   "who": "bobo",
+   "text": "I'll mix ALL the colours! Stir, stir... oh. It's brown! Like mud!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Hee hee! Silly Bobo!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Which colour is next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 4,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Whoosh! A big green meadow!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "meadow",
+   "chapter": "Green",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Look! Everything here is green! Green!",
+   "act": "open",
+   "cam": "host",
+   "card": "green",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say green?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "green",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Green!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "green"
+  },
+  {
+   "who": "molly",
+   "text": "A frog is green!",
+   "act": "point",
+   "cam": "host",
+   "card": "green",
+   "pic": "frog"
+  },
+  {
+   "who": "ollie",
+   "text": "And a turtle is green too!",
+   "act": "point",
+   "cam": "kids",
+   "card": "green",
+   "pic": "turtle"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Green, green, hop like a frog! Jump, jump, over the log!",
+   "chant": true,
+   "act": "jump",
+   "also": {
+    "lily": "jump",
+    "ollie": "jump",
+    "bobo": "jump"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Find something green where you are! Point to it!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "Green is my pink nose!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! It's green!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Green! Green for my rainbow!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "We found green! It flies back into Bobo's rainbow!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "sfx": "chime",
+   "card": "green"
+  },
+  {
+   "who": "molly",
+   "text": "Which colour is next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 5,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Splash! The seaside!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "beach",
+   "chapter": "Blue",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Look! Everything here is blue! Blue!",
+   "act": "open",
+   "cam": "host",
+   "card": "blue",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say blue?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "blue",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Blue!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "blue"
+  },
+  {
+   "who": "molly",
+   "text": "A fish is blue!",
+   "act": "point",
+   "cam": "host",
+   "card": "blue",
+   "pic": "fish"
+  },
+  {
+   "who": "lily",
+   "text": "And a balloon is blue too!",
+   "act": "point",
+   "cam": "kids",
+   "card": "blue",
+   "pic": "balloon_blue"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Blue, blue, like the sea! Wave your arms and swim with me!",
+   "chant": true,
+   "act": "wobble",
+   "also": {
+    "lily": "wobble",
+    "ollie": "wobble",
+    "bobo": "wobble"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Find something blue where you are! Point to it!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "The sea is red! The fish is purple!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! It's blue!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Blue! Blue for my rainbow!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "We found blue! It flies back into Bobo's rainbow!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "sfx": "chime",
+   "card": "blue"
+  },
+  {
+   "who": "molly",
+   "text": "Time for the colour freeze dance! Dance, and freeze when I say a colour!",
+   "act": "dance",
+   "cam": "host",
+   "chapter": "Colour freeze dance",
+   "fx": "stars"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Red!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "wobble"
+   },
+   "cam": "group",
+   "card": "red",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Red! Red!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "bobo",
+   "text": "Whoa! Wobble, wobble! I'm a wobbly red bear!",
+   "act": "wobble",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Yellow!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "freeze",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "yellow",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Yellow! Yellow!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Dance, dance, dance! Wiggle, wiggle, wiggle!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "gap_after": 0.3
+  },
+  {
+   "who": "molly",
+   "text": "Freeze! Blue!",
+   "act": "freeze",
+   "also": {
+    "lily": "freeze",
+    "ollie": "wobble",
+    "bobo": "freeze"
+   },
+   "cam": "group",
+   "card": "blue",
+   "sfx": "pop",
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Blue! Blue!",
+   "act": "freeze",
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 1.0
+  },
+  {
+   "who": "ollie",
+   "text": "Whoops! Blue feet, wobbly feet!",
+   "act": "wobble",
+   "cam": "cu:ollie"
+  },
+  {
+   "who": "molly",
+   "text": "Great dancing! Take a big breath. In... and out.",
+   "act": "open",
+   "cam": "host",
+   "gap_after": 1.0
+  },
+  {
+   "who": "molly",
+   "text": "Which colour is next? Let's look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 6,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Ooh! A purple night sky!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "night",
+   "chapter": "Purple",
+   "sfx": "sparkle",
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Look! Everything here is purple! Purple!",
+   "act": "open",
+   "cam": "host",
+   "card": "purple",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "Can you say purple?",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "card": "purple",
+   "gap_after": 1.6
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Purple!",
+   "act": "cheer",
+   "cam": "kids",
+   "card": "purple"
+  },
+  {
+   "who": "molly",
+   "text": "A purple sun is purple!",
+   "act": "point",
+   "cam": "host",
+   "card": "purple",
+   "pic": "sun_purple"
+  },
+  {
+   "who": "ollie",
+   "text": "And a plum is purple too!",
+   "act": "point",
+   "cam": "kids",
+   "card": "purple"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Purple, purple, night is here! Sparkle, twinkle, far and near!",
+   "chant": true,
+   "act": "squat",
+   "also": {
+    "lily": "squat",
+    "ollie": "squat",
+    "bobo": "squat"
+   },
+   "cam": "group"
+  },
+  {
+   "who": "molly",
+   "text": "Find something purple where you are! Point to it!",
+   "act": "point",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 1.8
+  },
+  {
+   "who": "bobo",
+   "text": "Purple is a carrot! Crunch!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy"
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Nooo, Bobo! It's purple!",
+   "act": "laugh",
+   "cam": "kids"
+  },
+  {
+   "who": "bobo",
+   "text": "Oopsie-Bobo! Purple! Purple for my rainbow!",
+   "act": "tumble",
+   "cam": "cu:bobo",
+   "sfx": "pop"
+  },
+  {
+   "who": "molly",
+   "text": "We found purple! It flies back into Bobo's rainbow!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "fx": "stars",
+   "sfx": "chime",
+   "card": "purple"
+  },
+  {
+   "who": "molly",
+   "text": "Twinkle, twinkle, little star! Let's twinkle our fingers!",
+   "act": "hands_up",
+   "also": {
+    "lily": "hands_up",
+    "ollie": "hands_up",
+    "bobo": "hands_up"
+   },
+   "cam": "group",
+   "calm": true,
+   "fx": "stars",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "We found every colour! Let's go to the rainbow! Look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 7,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Wow! A real rainbow!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "rainbow",
+   "chapter": "Rainbow song",
+   "sfx": "sparkle",
+   "gap_after": 0.4
+  },
+  {
+   "who": "lily",
+   "text": "Look! All the colours are flying back!",
+   "act": "point",
+   "cam": "kids",
+   "pic": "rainbow",
+   "fx": "confetti",
+   "sfx": "chime"
+  },
+  {
+   "who": "bobo",
+   "text": "My rainbow! Thank you, friends! Thank you!",
+   "act": "yay",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "fx": "hearts"
+  },
+  {
+   "who": "molly",
+   "text": "Let's sing the rainbow song! Sing with us!",
+   "act": "cheer",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Red and orange, yellow too!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "rainbow"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Green and blue, and purple for you!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "rainbow"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Red and orange, yellow too!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "rainbow"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "I can sing a rainbow, so can you!",
+   "chant": true,
+   "act": "dance",
+   "also": {
+    "lily": "dance",
+    "ollie": "dance",
+    "bobo": "dance"
+   },
+   "cam": "group",
+   "pic": "rainbow"
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Hooray!",
+   "act": "yay",
+   "also": {
+    "lily": "yay",
+    "ollie": "yay",
+    "bobo": "yay"
+   },
+   "cam": "group",
+   "sfx": "success",
+   "gap_after": 0.6
+  },
+  {
+   "who": "molly",
+   "text": "Let's take the rainbow home! Look at the map!",
+   "act": "point",
+   "cam": "host",
+   "map": 8,
+   "gap_after": 1.4
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Home again! Back to the living room!",
+   "act": "run",
+   "also": {
+    "lily": "run",
+    "ollie": "run",
+    "bobo": "run"
+   },
+   "cam": "group",
+   "place": "livingroom",
+   "chapter": "Home again",
+   "sfx": "sparkle",
+   "gap_after": 0.4
+  },
+  {
+   "who": "molly",
+   "text": "How many colours did we find? Let's count!",
+   "act": "count",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.5
+  },
+  {
+   "who": "molly",
+   "text": "Red, orange, yellow, green, blue and purple! Six colours! Hooray!",
+   "act": "cheer",
+   "also": {
+    "lily": "cheer",
+    "ollie": "cheer",
+    "bobo": "cheer"
+   },
+   "cam": "group",
+   "fx": "confetti",
+   "sfx": "success",
+   "card": "six colours"
+  },
+  {
+   "who": "bobo",
+   "text": "Oops! I got paint on my paws! Look, paw prints!",
+   "act": "silly",
+   "cam": "cu:bobo",
+   "face": "happy",
+   "sfx": "pop"
+  },
+  {
+   "who": "ollie",
+   "text": "Paws, hands, feet... Next time, let's learn our body parts!",
+   "act": "point",
+   "cam": "kids",
+   "sfx": "chime"
+  },
+  {
+   "who": "molly",
+   "text": "Yes! Next time we'll learn head, shoulders, knees and toes!",
+   "act": "open",
+   "cam": "host",
+   "teaser": true
+  },
+  {
+   "who": "molly",
+   "text": "Can you touch your toes?",
+   "act": "touch_toes",
+   "cam": "host",
+   "your_turn": true,
+   "gap_after": 0.8
+  },
+  {
+   "who": [
+    "lily",
+    "ollie"
+   ],
+   "text": "Toes! Yay!",
+   "act": "yay",
+   "cam": "kids"
+  },
+  {
+   "who": "molly",
+   "text": "Now, let's sit and rest. Take a big breath in... and out.",
+   "act": "open",
+   "cam": "host",
+   "calm": true,
+   "chapter": "Quiet time and goodbye",
+   "gap_after": 1.6
+  },
+  {
+   "who": "molly",
+   "text": "Today we found red apples, orange pumpkins, yellow sunflowers, and green frogs.",
+   "act": "count",
+   "cam": "host",
+   "calm": true,
+   "card": "red  orange  yellow"
+  },
+  {
+   "who": "molly",
+   "text": "Blue sea, purple night, and we mixed paint to make orange and green.",
+   "act": "count",
+   "cam": "host",
+   "calm": true,
+   "card": "green  blue  purple"
+  },
+  {
+   "who": "molly",
+   "text": "Wave goodbye with us! Let's sing our goodbye song!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "your_turn": true,
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!",
+   "chant": true,
+   "act": "wave",
+   "cam": "group",
+   "gap_after": 0.6
+  },
+  {
+   "who": [
+    "molly",
+    "lily",
+    "ollie",
+    "bobo"
+   ],
+   "text": "Bye bye, friends! See you next time!",
+   "act": "wave",
+   "also": {
+    "lily": "wave",
+    "ollie": "wave",
+    "bobo": "wave"
+   },
+   "cam": "group",
+   "endcard": "Bye bye!\nSee you next time!",
+   "sfx": "success"
+  }
+ ],
+ "learn": [
+  "red",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple"
+ ]
+}

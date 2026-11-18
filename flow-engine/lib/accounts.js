@@ -131,8 +131,11 @@ export function openBrowserCount() {
 }
 
 export async function closeAllBrowsers() {
+  // All at once: one by one, 8 accounts took long enough that an app update
+  // force-killed the engine mid-close, Chrome never wrote its newest Google
+  // cookies, and those accounts came back signed out.
   const ids = [...contexts.keys()];
-  for (const id of ids) await closeAccountBrowser(id);
+  await Promise.all(ids.map((id) => closeAccountBrowser(id)));
 }
 
 export function isBrowserOpen(accountId) {

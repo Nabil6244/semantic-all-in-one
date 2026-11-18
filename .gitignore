@@ -82,6 +82,7 @@ assets/toon_world/kenney/*/Previews/
 # Game Launch: downloaded stock footage and render work files stay local
 gta6_launch/footage/
 gta6_launch/work_engine/
+gta6_launch/work_cartheft/
 
 # temporary render files
 *.rendering.mp4

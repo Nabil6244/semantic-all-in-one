@@ -1,0 +1,976 @@
+{
+ "id": "great_stink",
+ "title": "The Summer London Smelled So Bad It Built Sewers",
+ "topic": "The Great Stink of 1858 and Joseph Bazalgette's London sewer system",
+ "hook_title": "WHY SOAK THE CURTAINS?",
+ "keywords": [
+  "Thames",
+  "stink",
+  "sewer",
+  "Parliament",
+  "cholera",
+  "Bazalgette",
+  "pipe",
+  "toilets"
+ ],
+ "cast": [
+  "vic_pike",
+  "vic_alder",
+  "vic_ned"
+ ],
+ "channel": "channel1",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Great_Stink",
+  "https://en.wikipedia.org/wiki/Joseph_Bazalgette"
+ ],
+ "places": {
+  "square": {
+   "world": "victorian_square",
+   "remove": [
+    "cart"
+   ],
+   "prompt": "Victorian Westminster square before Parliament with a clock tower"
+  },
+  "street": {
+   "world": "victorian_square",
+   "prompt": "A crowded Victorian London street with carts"
+  },
+  "river": {
+   "world": "victorian_square",
+   "remove": [
+    "cart"
+   ],
+   "prompt": "A Victorian London embankment beside the brown River Thames"
+  },
+  "shop": {
+   "world": "clock_shop",
+   "prompt": "A cramped Victorian London shop interior"
+  },
+  "station": {
+   "world": "station",
+   "prompt": "A Victorian brick station hall where engineers plan"
+  },
+  "line": {
+   "world": "railway_line",
+   "prompt": "Open land east of Victorian London"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1858, Parliament soaked its curtains in chemicals.",
+   "set": "square",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "vic_alder",
+     "text": "LIME"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 0.3
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "To hide a smell. What smell?",
+   "set": "square",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "?"
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "London's toilets emptied straight into the River Thames.",
+   "set": "river",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.3
+      },
+      {
+       "do": "shock",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "THE THAMES"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "And Londoners drank from that same river.",
+   "set": "river",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "vic_ned",
+     "text": "WATER?"
+    }
+   ],
+   "id": "s04",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Rich or poor, everyone shared the same brown water.",
+   "set": "street",
+   "camera": "two_shot",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "vic_alder",
+     "text": "TEA"
+    }
+   ],
+   "id": "s05",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "New flush toilets made it worse. Far more water, far more waste.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.2
+      },
+      {
+       "do": "shrug",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "FLUSH!"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Then came the hot summer of 1858.",
+   "set": "street",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "SUMMER 1858"
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "narrator",
+   "text": "The river baked. The smell hit Parliament's windows.",
+   "set": "square",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cower",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "THE GREAT STINK"
+   },
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.2
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "vic_alder",
+   "text": "Close the windows! Soak the curtains!",
+   "set": "square",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.1
+      },
+      {
+       "do": "point",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Experts argued it was only a bad smell.",
+   "set": "shop",
+   "camera": "two_shot",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_alder",
+     "text": "JUST A SMELL"
+    }
+   ],
+   "id": "s10",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Meanwhile cholera had killed thousands of Londoners.",
+   "set": "street",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "CHOLERA"
+   },
+   "mood": "sad",
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Now the lawmakers could smell it themselves.",
+   "set": "square",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "They passed a sewer law in about eighteen days.",
+   "set": "square",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "vic_alder",
+     "text": "SEWER ACT"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "18 DAYS"
+   },
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "id": "s13",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The engineer? Joseph Bazalgette.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "JOSEPH BAZALGETTE"
+   },
+   "mood": "upbeat",
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "His plan: giant tunnels along the river.",
+   "set": "river",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "held_by": "vic_pike",
+     "text": "SEWERS"
+    }
+   ],
+   "id": "s15",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Catch the waste. Carry it east.",
+   "set": "line",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -30,
+      0,
+      0
+     ],
+     "to": [
+      30,
+      0,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Far past the city.",
+   "set": "line",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "EAST"
+   },
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then he did something strange. He doubled the pipe size.",
+   "set": "station",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.1
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "PIPE x2"
+    }
+   ],
+   "id": "s18",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Bricks? Over three hundred million.",
+   "set": "line",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "vic_ned"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "318,000,000"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.8
+    }
+   ],
+   "id": "s19",
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "vic_pike",
+   "text": "We only get to dig this once!",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.1
+      }
+     ]
+    },
+    {
+     "id": "vic_ned",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "About eleven hundred miles of street sewers were dug.",
+   "set": "street",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "vic_ned"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "1,100 MILES"
+   },
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.6
+    }
+   ],
+   "id": "s21",
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Cholera faded from London.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "CHOLERA"
+   },
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And London grew far bigger than anyone planned.",
+   "set": "street",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "MILLIONS MORE"
+   },
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "On top of the tunnels, he built the Thames Embankment.",
+   "set": "river",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "EMBANKMENT"
+   },
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.0
+    }
+   ],
+   "id": "s24",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Today, trains run inside it.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "vic_ned",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "loco",
+     "from": [
+      -40,
+      6,
+      0
+     ],
+     "to": [
+      -4,
+      6,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "train",
+     "at": 0.0
+    }
+   ],
+   "id": "s25",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Those doubled pipes still carry it today.",
+   "set": "river",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "vic_pike",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "vic_pike",
+     "text": "STILL WORKING"
+    }
+   ],
+   "id": "s26",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "All because Parliament once had to smell its own river.",
+   "set": "square",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "vic_alder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "vic_alder",
+     "text": "LIME"
+    }
+   ],
+   "id": "s27",
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 54.3
+}

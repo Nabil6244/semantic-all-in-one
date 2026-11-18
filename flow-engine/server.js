@@ -132,8 +132,14 @@ export async function startServer(port = DEFAULT_PORT) {
           send(ws, getState());
         } else if (t === "SHUTDOWN") {
           // The app retiring an engine that runs outdated code (see
-          // ENGINE_CODE_VERSION); same exit path as SIGTERM.
-          setTimeout(() => process.kill(process.pid, "SIGTERM"), 50);
+          // ENGINE_CODE_VERSION), or the app quitting. Closes every Chrome
+          // window cleanly first so cookies are saved. Calls the exit path
+          // directly: on Windows a SIGTERM sent to itself ends Node at once
+          // and skips the clean close.
+          setTimeout(() => {
+            if (typeof requestExit === "function") requestExit();
+            else process.kill(process.pid, "SIGTERM");
+          }, 50);
         } else if (t === "ADD_ACCOUNT") {
           await addAccount(msg.label);
         } else if (t === "LOGIN") {
@@ -211,7 +217,12 @@ export async function startServer(port = DEFAULT_PORT) {
     close: async () => {
       unsub();
       await shutdown();
-      await new Promise((r) => server.close(() => r()));
+      // Browsers are closed; don't hang on WebSocket clients still connected
+      // (another app window) — that stall is what got the engine force-killed.
+      await Promise.race([
+        new Promise((r) => server.close(() => r())),
+        new Promise((r) => setTimeout(r, 2000)),
+      ]);
       try {
         wss.close();
       } catch {}
@@ -247,12 +258,24 @@ const isDirectRun = (() => {
   }
 })();
 
+/** Set when run as `node server.js`: closes browsers cleanly, then exits. */
+let requestExit = null;
+
 if (isDirectRun) {
   const handle = await startServer();
-  const exit = async () => {
-    await handle.close();
-    process.exit(0);
+  let exiting = null;
+  const exit = () => {
+    if (!exiting) {
+      exiting = (async () => {
+        try {
+          await handle.close();
+        } catch {}
+        process.exit(0);
+      })();
+    }
+    return exiting;
   };
+  requestExit = exit;
   process.on("SIGINT", exit);
   process.on("SIGTERM", exit);
 } else {

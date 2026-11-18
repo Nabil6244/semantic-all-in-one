@@ -878,7 +878,10 @@ def sat_quote(t: float, dur: float, p: dict) -> Optional[Image.Image]:
         except Exception:  # noqa: BLE001
             pass
     km_ = _ease(_ramp(t, 0.2, 0.4))
-    d.text((70, 92), "\u201c", font=_f("heavy", 120), fill=ORANGE[:3] + (int(255 * km_),))
+    if p.get("reported"):          # reported speech: the speaker's statement, never shown inside quotation marks
+        d.text((80, 140), (str(p.get("speaker") or "") + " SAID").upper().strip(), font=_f("heavy", 26), fill=ORANGE[:3] + (int(255 * km_),))
+    else:
+        d.text((70, 92), "\u201c", font=_f("heavy", 120), fill=ORANGE[:3] + (int(255 * km_),))
     fq = _f("heavy", 40)
     lines = _wrap(d, q, fq, 560, max_lines=6)
     while len(lines) >= 6 and fq.size > 26:
@@ -919,7 +922,7 @@ FULL = set(REF_CARDS)
 _NUMW = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
          "twelve": 12, "fifteen": 15, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "hundred": 100, "dozens of": 0, "hundreds of": 0}
 _NUM = r"(?:\d[\d,]*(?:\.\d+)?|" + "|".join(sorted(map(re.escape, _NUMW), key=len, reverse=True)) + r"|an?)"
-_COUNT = re.compile(r"(?P<pre>\b(?:more than|over|at least|nearly|almost|about|around|some)\s+)?\b(?P<n>" + _NUM + r")\s+(?P<what>[^,;.:()]+?)"
+_COUNT = re.compile(r"(?P<pre>\b(?:more than|(?<!handed )(?<!handing )(?<!hands )(?<!turned )(?<!took )(?<!passed )(?<!gave )(?<!signed )over|at least|nearly|almost|about|around|some)\s+)?\b(?<![\w-]-)(?P<n>" + _NUM + r")\s+(?P<what>[^,;.:()]+?)"
                     r"(?=\s*(?:,|;|\.|:|$|\band\s+(?:then\s+)?(?:" + _NUM + r"|more than|over|at least)\b))", re.IGNORECASE)
 _PERIOD = re.compile(r"\b(?:in|within|over|during)\s+(?:just\s+|only\s+)?(?:the\s+)?(?:past\s+|last\s+|first\s+)?(?:\d+|one|two|three|four|five|six|seven|"
                      r"ten|twelve|twenty-four|forty-eight|a|a single)\s+(?:hours?|days?|nights?|weeks?|months?)\b|\bovernight\b|\bin one day\b", re.IGNORECASE)
@@ -927,7 +930,9 @@ _PERIOD = re.compile(r"\b(?:in|within|over|during)\s+(?:just\s+|only\s+)?(?:the\
 
 _CUT = {"that", "which", "who", "to", "toward", "towards", "into", "near", "around", "in", "on", "at", "off", "across", "against", "while", "as"}
 _CHAIN_FIRST = [(r"\b(aircraft )?carriers?\b", "ship"), (r"\b(warships?|destroyers?|frigates?|submarines?|coast guard)\b", "ship"),
-                (r"\b(drones?|uavs?)\b", "drone"), (r"\b(fighter jets?|fighters?|jets?|bombers?|warplanes?|aircraft)\b", "jet")]
+                (r"\b(drones?|uavs?)\b", "drone"), (r"\b(fighter jets?|fighters?|jets?|bombers?|warplanes?|aircraft)\b", "jet"),
+                # 2026-11-18 Spiderweb: "eight Tu-160s and three Tu-95s" are aircraft by type name
+                (r"\b(tu|su|mig|il|an|a|f|b|j|yak|be)-\d{1,3}\w*\b", "jet")]
 
 
 def _value(n: str) -> Optional[float]:
@@ -1118,22 +1123,82 @@ def forces_of(text: str, stickers: Sequence[Tuple[str, str, str]]) -> Optional[D
 
 _RANGE_CUE = re.compile(r"\b(range|reach(?:es|ed)?|strike|hit|fly|flies|within|away|radius|cover(?:s|ed)?)\b", re.IGNORECASE)
 _DIST = re.compile(r"\b(\d[\d,]*)\s*(km|kilomet(?:er|re)s?|miles?)\b", re.IGNORECASE)
+# 2026-11-18 Spiderweb render: "more than four thousand kilometres from Ukraine" drew nothing - the voice script spells numbers out,
+# and "N km from <place>" is itself a stated reach. Vague amounts ("hundreds of kilometres") stay unread: no number to draw.
+_SPOKEN_UNIT = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+                "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19,
+                "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+_SPOKEN = re.compile(r"\b(?P<n>(?:(?:a|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|"
+                     r"eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[- ](?:one|two|three|four|five|six|seven|eight|nine))?"
+                     r"|\d[\d,]*(?:\.\d+)?)(?:\s+(?:and\s+a\s+half\s+)?(?:hundred|thousand)(?:\s+(?:and\s+)?(?:[a-z]+(?:-[a-z]+)?))?)*)"
+                     r"(?=\s*(?:km|kilomet(?:er|re)s?|miles?)\b)", re.IGNORECASE)
+
+
+def _spoken_number(words: str) -> Optional[float]:
+    """'four thousand' -> 4000, 'two hundred and fifty' -> 250, 'one and a half thousand' -> 1500; None when a word is not a number."""
+    total, cur, half = 0.0, 0.0, False
+    for w in re.split(r"[\s-]+", words.lower().replace(",", "")):
+        if not w or w == "and":
+            continue
+        if w == "a" and cur == 0:
+            cur = 1.0
+        elif w == "half":
+            half = True
+        elif re.fullmatch(r"\d+(?:\.\d+)?", w):
+            cur += float(w)
+        elif w in _SPOKEN_UNIT:
+            cur += _SPOKEN_UNIT[w]
+        elif w == "hundred":
+            cur = (cur or 1) * 100
+        elif w == "thousand":
+            total += ((cur or 1) + (0.5 if half else 0)) * 1000
+            cur, half = 0.0, False
+        else:
+            return None
+    v = total + cur
+    return v or None
+
+
+def _digits(text: str) -> str:
+    """The text with spelled-out distances written as digits ('four thousand kilometres' -> '4,000 kilometres'); everything else unchanged."""
+    def rep(m: "re.Match") -> str:
+        v = _spoken_number(m.group("n"))
+        return f"{int(v):,}" if v and float(v).is_integer() else m.group(0)
+    return _SPOKEN.sub(rep, text or "")
+
+
+_FROM_PLACE = re.compile(r"\b\d[\d,]*\s*(?:km|kilomet(?:er|re)s?|miles?)\s+(?:away\s+)?from\s+(?:the\s+)?(?P<name>[A-Z][\w'-]*(?:\s+[A-Z][\w'-]*)*)")
 
 
 def range_of(text: str, places: Sequence[dict] = (), countries: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
-    """A reach the script states ("a range of 300 km", "can hit targets 1,000 miles away") from a place it names: the range-ring map."""
-    if not _RANGE_CUE.search(text or ""):
+    """A reach the script states ("a range of 300 km", "can hit targets 1,000 miles away", "more than four thousand kilometres from
+    Ukraine") from a place it names: the range-ring map. A distance "from X" rings X (a named place, or a country's middle)."""
+    text = _digits(text)
+    frm = _FROM_PLACE.search(text or "")
+    if not _RANGE_CUE.search(text or "") and not frm:
         return None
     m = _DIST.search(text or "")
     pts = [q for q in places if isinstance(q, dict) and q.get("lat") is not None and q.get("lon") is not None]
-    if not m or not pts:
+    if not m:
         return None
+    centre = None
+    if frm:
+        nm = frm.group("name").strip()
+        centre = next((q for q in pts if str(q.get("name") or q.get("label") or "").lower() == nm.lower()), None)
+        if centre is None:
+            f = G.find_country(nm)
+            if f is not None:
+                centre = {"name": nm, "lat": (f.bbox[1] + f.bbox[3]) / 2, "lon": (f.bbox[0] + f.bbox[2]) / 2}
+    if centre is None:
+        if not pts or not _RANGE_CUE.search(text or ""):
+            return None
+        centre = pts[0]
     n = float(m.group(1).replace(",", ""))
     mi = m.group(2).lower().startswith("mile")
     km = n * 1.609 if mi else n
     if not 20 <= km <= 6000:
         return None
-    c = pts[0]
+    c = centre
     fill = ""
     for nm in countries:
         f = G.find_country(str(nm))
@@ -1165,6 +1230,7 @@ def sat_quote_of(quote: Dict[str, Any], places: Sequence[dict] = (), countries: 
 
 def sat_map_of(text: str, places: Sequence[dict] = (), countries: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
     """A satellite crossing map when the narration names a known strait / gap, or two places it can locate with a distance stated."""
+    text = _digits(text)
     for rx, key in _STRAIT_RX:
         if rx.search(text or ""):
             s = STRAITS[key]
@@ -1176,7 +1242,7 @@ def sat_map_of(text: str, places: Sequence[dict] = (), countries: Sequence[str] 
     pts = [q for q in places if isinstance(q, dict) and q.get("lat") is not None and q.get("lon") is not None][:2]
     if len(pts) == 2 and re.search(r"\b(\d[\d,]*)\s*(?:km|kilomet(?:er|re)s?|miles?)\b|\b(between|across|from)\b", text or "", re.IGNORECASE):
         a, b = ({"label": str(q.get("name") or ""), "lat": float(q["lat"]), "lon": float(q["lon"])} for q in pts)
-        if 3.0 <= _km(a, b) <= 2500.0:
+        if 3.0 <= _km(a, b) <= 6000.0:        # 2026-11-18: deep strikes (Ukraine to Siberia, 4,000+ km) are a crossing too
             fill = ""
             for c in countries:
                 f = G.find_country(str(c))
@@ -1184,3 +1250,141 @@ def sat_map_of(text: str, places: Sequence[dict] = (), countries: Sequence[str] 
                     fill = f.iso
             return {"a": a, "b": b, "fill": fill, "title": f"{a['label']} to {b['label']}"}
     return None
+
+
+# ================================================================================================ looser readers (owner 2026-11-18)
+# "I told you a thousand times I want these graphics": every War video carries all six reference cards. The strict readers above stay
+# first; these read the ordinary ways a voice script says the same facts, still only from the script's own words and numbers.
+_SAY = r"(?:said|says|claimed|claims|told reporters|told|reported|reports|estimated|estimates|announced|insisted|admitted)"
+_WHO = r"(?P<who>(?:[Tt]he\s)?[A-Z][\w'’.-]*(?:\s(?:[A-Z][\w'’.-]*|officials|ministry|military|media|forces|army|navy|government|intelligence)){0,3})"
+_NOT_WHO = {"it", "he", "she", "they", "we", "i", "this", "that", "reports", "some reports", "reports later", "some", "others", "and", "but", "then"}
+_REPORTED = [re.compile(r"^\s*According to " + _WHO.replace("(?P<who>", "(?P<who>(?:[A-Z][a-z]+\\s)?") + r",\s+(?P<what>.{12,})$"),
+             re.compile(r"^(?P<pre>.{12,}?),\s+" + _WHO + r"\s+" + _SAY + r",\s+(?P<what>.{8,})$"),
+             re.compile(r"(?:^|,\s+(?:and|but)\s+|\band\s+|\bbut\s+)" + _WHO + r"\s+(?:later\s+|also\s+|first\s+|then\s+)?" + _SAY + r"(?:\s+that)?,?\s+(?P<what>.{12,})$")]
+
+
+def reported_of(text: str) -> Optional[Dict[str, Any]]:
+    """Reported speech ("According to President Zelensky, it took ...", "Zelensky said he oversaw it personally"): the speaker and what
+    they said, marked reported so the card shows it as their statement, never inside quotation marks."""
+    t = (text or "").strip()
+    for rx in _REPORTED:
+        m = rx.search(t)
+        if not m:
+            continue
+        who = re.sub(r"^[Tt]he\s", "", m.group("who")).strip(" ,.")
+        if who.lower() in _NOT_WHO or len(who) < 3:
+            continue
+        body = re.split(r",?\s+but\s+|;\s+|,\s+while\s+|\s+-\s+", m.group("what"), maxsplit=1)[0]   # what they said ends at 'but ...'
+        what = ((m.groupdict().get("pre") or "") + (", " if m.groupdict().get("pre") else "") + body).strip().rstrip(".!?")
+        if len(what.split()) < 4:
+            continue
+        return {"quote": what[:1].upper() + what[1:], "speaker": who, "reported": True}
+    return None
+
+
+def claimant_of(text: str) -> str:
+    """Who makes the claim in this sentence ('The SBU claimed that ...', 'American officials later told reporters ...'), or ''."""
+    r = reported_of(text)
+    return str(r["speaker"]) if r else ""
+
+
+def _what_label(what: str) -> str:
+    m = re.search(r"\b(?:were|was|are|is|got|had been|have been|has been)\s+(?:all\s+)?([a-z]+(?:\s(?:down|out|off|up))?)", what or "")
+    if m:
+        return m.group(1).upper()
+    words = [w for w in (what or "").split() if w.lower() not in _UNIT_STOP and w.lower() not in ("of", "them")]
+    return " ".join(words[:2]).upper()
+
+
+def _digit_shown(n: str, v: Optional[float]) -> str:
+    return n if re.match(r"\d", n or "") or not v else (f"{int(v):,}" if float(v).is_integer() else str(v))
+
+
+def pair_counter_of(text: str, stickers: Sequence[Tuple[str, str, str]]) -> Optional[Dict[str, Any]]:
+    """Two counts of the same thing in one sentence ("about twenty aircraft were hit, and around ten of them were destroyed",
+    "eight Tu-160s and three Tu-95s"): the counter rolls from the first figure to the second, each labelled with the script's words."""
+    ms = [m for m in _COUNT.finditer(text or "") if _value(m.group("n"))]
+    rules = list(_CHAIN_FIRST) + [(rx, name) for rx, name, _lab in stickers]
+
+    def name_of(what: str) -> str:
+        return next((nm for rx, nm in rules if re.search(rx, what, re.IGNORECASE)), "")
+
+    for m1, m2 in zip(ms, ms[1:]):
+        w1, w2 = m1.group("what").strip(), m2.group("what").strip()
+        if re.match(r"(hours?|days?|weeks?|months?|years?|km|kilomet|miles?|percent|dollars?)\b", w1 + " " + w2, re.I):
+            continue
+        n1 = name_of(w1)
+        if not n1:
+            continue
+        if not (re.match(r"of them\b", w2, re.I) or name_of(w2) == n1):
+            continue
+        va, vb = _value(m1.group("n")), _value(m2.group("n"))
+        if not va or not vb or va == vb:
+            continue
+        la, lb = _what_label(w1), _what_label(w2)
+        if la == lb or not la or not lb:
+            la, lb = w1.split()[0].upper(), w2.split()[0].upper()
+        noun = next((w for w in w1.split() for rx, nm in rules if nm == n1 and re.search(rx, w, re.IGNORECASE)), "")
+        return {"a": {"value": va, "shown": _digit_shown(m1.group("n"), va), "label": la}, "b": {"value": vb, "shown": _digit_shown(m2.group("n"), vb), "label": lb},
+                "unit": noun.lower(), "title": noun.upper(), "icon": n1}
+    return None
+
+
+def claims_forces_of(first: Tuple[str, str], second: Tuple[str, str], stickers: Sequence[Tuple[str, str, str]]) -> Optional[Dict[str, Any]]:
+    """Two claimants' counts of the same thing in two sentences (the SBU: 41 aircraft hit; American officials: about twenty): the
+    side-by-side card with each claimant as a side. first / second = (claimant, sentence text)."""
+    (wa, ta), (wb, tb) = first, second
+    if not wa or not wb or wa.lower() == wb.lower():
+        return None
+    ia = [i for i in _counted(ta, stickers) if i["real"] and i["value"]]
+    ib = [i for i in _counted(tb, stickers) if i["real"] and i["value"]]
+    for a_ in ia:
+        b_ = next((x for x in ib if x["name"] == a_["name"]), None)
+        if b_ is None or a_["value"] == b_["value"]:
+            continue
+        label = re.sub(r"\b(were|was|are|is)\b.*$", "", a_["what"]).strip() or a_["what"]
+        return {"left": {"name": wa}, "right": {"name": wb}, "title": "WHO SAYS HOW MANY",
+                "rows": [{"name": a_["name"], "label": label, "a": a_["value"], "b": b_["value"], "a_shown": _digit_shown(a_["shown"].rstrip("+"), a_["value"]),
+                          "b_shown": _digit_shown(b_["shown"].rstrip("+"), b_["value"])}]}
+    return None
+
+
+def loose_chain_of(text: str, stickers: Sequence[Tuple[str, str, str]]) -> Optional[Dict[str, Any]]:
+    """Two counted things (the strict chain wants three, or two inside a stated period)."""
+    c = chain_of(text, stickers)
+    if c:
+        return c
+    items = [i for i in _counted(text, stickers) if i["real"]]
+    if len(items) < 2:
+        return None
+    period = _PERIOD.search(text or "")
+    return {"items": [{"name": i["name"], "label": i["label"]} for i in items[:5]], "title": period.group(0).upper() if period else ""}
+
+
+def loose_range_of(text: str, places: Sequence[dict] = (), countries: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
+    """Any stated distance with a place or country the scene names (no reach word needed); the ring sits on the first one."""
+    r = range_of(text, places, countries)
+    if r:
+        return r
+    t = _digits(text)
+    m = _DIST.search(t or "")
+    if not m:
+        return None
+    pts = [q for q in places if isinstance(q, dict) and q.get("lat") is not None]
+    if not pts:
+        for nm in countries:
+            f = G.find_country(str(nm))
+            if f is not None:
+                pts = [{"name": str(nm), "lat": (f.bbox[1] + f.bbox[3]) / 2, "lon": (f.bbox[0] + f.bbox[2]) / 2}]
+                break
+    if not pts:
+        return None
+    return range_of(f"{m.group(0)} from {pts[0].get('name')} range", pts, countries) or None
+
+
+def loose_sat_map_of(text: str, places: Sequence[dict] = (), countries: Sequence[str] = ()) -> Optional[Dict[str, Any]]:
+    """Two places the scene can locate (no distance or crossing word needed), 3-6,000 km apart."""
+    s = sat_map_of(text, places, countries)
+    if s:
+        return s
+    return sat_map_of((text or "") + " between", places, countries)

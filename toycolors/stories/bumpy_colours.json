@@ -1,0 +1,247 @@
+{
+ "title": "Bumpy's Colour Day",
+ "set": "park",
+ "voices": {
+  "bumpy": {
+   "voice": "en-US-ChristopherNeural",
+   "rate": "-6%",
+   "pitch": "+4Hz"
+  },
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "zip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+4Hz"
+  }
+ },
+ "cast": {
+  "bumpy": {
+   "kind": "dump",
+   "colour": "green"
+  },
+  "zip": {
+   "kind": "car",
+   "colour": "red"
+  }
+ },
+ "shots": [
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "bumpy",
+    "to": 0.0
+   },
+   "cast": {
+    "bumpy": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": "bumpy",
+    "dist": 9.0,
+    "side": 40,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Here comes Bumpy, the green dump truck!",
+     1.0
+    ],
+    [
+     "bumpy",
+     "Hello! Let's learn colours today!"
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "pour",
+    "colour": "yellow",
+    "kind": "dump"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Look! A bucket of paint!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Splash! What colour is it?"
+    ],
+    [
+     "narrator",
+     "Yellow! Bumpy is yellow!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "idle",
+   "cast": {
+    "bumpy": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": "bumpy",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "bumpy",
+     "Wow! I'm yellow now!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Yellow, like the sun!"
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "portal",
+    "colour": "blue",
+    "kind": "dump",
+    "from": "yellow"
+   },
+   "lines": [
+    [
+     "narrator",
+     "A magic swirl!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Drive through, Bumpy!"
+    ],
+    [
+     "narrator",
+     "Blue! Now Bumpy is blue!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "egg",
+    "colour": "orange",
+    "kind": "monster"
+   },
+   "lines": [
+    [
+     "narrator",
+     "A big surprise egg!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Crack, crack, crack!"
+    ],
+    [
+     "narrator",
+     "An orange monster truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "wheels",
+    "colour": "green",
+    "kind": "monster"
+   },
+   "lines": [
+    [
+     "narrator",
+     "New wheels, please!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Big wheels on! One, two!"
+    ],
+    [
+     "narrator",
+     "Green! A green monster truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "zip",
+    "to": 1.8,
+    "from": "right"
+   },
+   "cast": {
+    "bumpy": {
+     "x": -1.8
+    },
+    "zip": {
+     "x": 1.8,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 9.5,
+    "side": 28,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "zip",
+     "Bumpy! What colours did you see?",
+     1.0
+    ],
+    [
+     "bumpy",
+     "Yellow, blue, orange and green!"
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "bumpy": {
+     "x": -1.8
+    },
+    "zip": {
+     "x": 1.8,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 10.0,
+    "side": 14,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "So many colours!",
+     0.8
+    ],
+    [
+     "narrator",
+     "Can you say them too?"
+    ]
+   ]
+  }
+ ]
+}

@@ -1,0 +1,788 @@
+{
+ "id": "flat_plane",
+ "title": "Why a Ferrari V8 Screams and a Mustang V8 Rumbles",
+ "topic": "flat-plane vs cross-plane V8 crankshafts: firing order, exhaust pulses, crank weight, revs and vibration",
+ "hook_title": "SCREAM OR RUMBLE?",
+ "keywords": [
+  "crank",
+  "flat-plane",
+  "cross-plane",
+  "V8",
+  "rumble",
+  "scream",
+  "revs",
+  "Ferrari"
+ ],
+ "cast": [],
+ "channel": "channel4",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Crossplane",
+  "https://en.wikipedia.org/wiki/Flat-plane_crankshaft"
+ ],
+ "places": {
+  "garage": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 22,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "none",
+     "cover": [
+      0.85,
+      0.1,
+      0.1
+     ],
+     "id": "flat",
+     "run": 0.8
+    },
+    {
+     "m": "@engine",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "rot": -22,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "none",
+     "block": [
+      0.32,
+      0.33,
+      0.37
+     ],
+     "cover": [
+      0.15,
+      0.35,
+      0.9
+     ],
+     "id": "cross",
+     "run": 0.8
+    }
+   ]
+  },
+  "flat_bench": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "none",
+     "cutaway": true,
+     "block": [
+      0.62,
+      0.64,
+      0.68
+     ],
+     "cover": [
+      0.85,
+      0.1,
+      0.1
+     ],
+     "id": "flat_cut",
+     "run": 1.0
+    }
+   ]
+  },
+  "cross_bench": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 8,
+     "layout": "V",
+     "induction": "none",
+     "cutaway": true,
+     "block": [
+      0.32,
+      0.33,
+      0.37
+     ],
+     "cover": [
+      0.15,
+      0.35,
+      0.9
+     ],
+     "id": "cross_cut",
+     "run": 1.0
+    }
+   ]
+  },
+  "strip": {
+   "world": "drag_strip",
+   "add": [
+    {
+     "m": "hatchback-sports",
+     "at": [
+      -1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.9,
+      0.1,
+      0.1
+     ],
+     "tint_mode": "color",
+     "id": "red"
+    },
+    {
+     "m": "sedan-sports",
+     "at": [
+      1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.15,
+      0.35,
+      1.0
+     ],
+     "tint_mode": "color",
+     "id": "blue"
+    }
+   ]
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Two V8s. Eight cylinders each.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "flat",
+     "cross"
+    ]
+   },
+   "moves": [
+    {
+     "id": "flat",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.2
+    },
+    {
+     "id": "cross",
+     "run_to": 4,
+     "t0": 0.4,
+     "t1": 1.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.2
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "One screams, one rumbles. Why?",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 4.4,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "flat",
+     "cross"
+    ]
+   },
+   "callout": {
+    "text": "SCREAM vs RUMBLE",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.3
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The secret is the crankshaft inside.",
+   "set": "cross_bench",
+   "camera": "wide",
+   "move": "orbit_l",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 2.6,
+    "yaw": -16,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "CRANKSHAFT",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "cross_cut",
+     "run_to": 3,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Most American V8s use a cross-plane crank.",
+   "set": "cross_bench",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 1.9,
+    "yaw": -26,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "CROSS-PLANE",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Each bank fires unevenly. Bang, bang... bang.",
+   "set": "cross_bench",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.75
+    ],
+    "dist": 1.5,
+    "yaw": 20,
+    "pitch": 10,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "cross_cut",
+     "run_to": 6,
+     "t0": 0,
+     "t1": 0.5
+    }
+   ],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.2
+    },
+    {
+     "name": "boom",
+     "at": 0.6
+    },
+    {
+     "name": "boom",
+     "at": 1.3
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "That uneven beat is the rumble.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.4
+    ],
+    "dist": 2.6,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "flat",
+     "cross"
+    ]
+   },
+   "callout": {
+    "text": "BURBLE",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "But that crank is heavy.",
+   "set": "cross_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.3
+    ],
+    "dist": 1.6,
+    "yaw": 30,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "HEAVY",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Big counterweights keep it smooth, but slow to rev.",
+   "set": "cross_bench",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 2.8,
+    "yaw": -10,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "REDLINE",
+    "fmt": "{v} RPM",
+    "from": 0,
+    "to": 7500,
+    "max": 10000,
+    "color": "red"
+   },
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Ferrari's flat-plane crank is flat, like a ruler.",
+   "set": "flat_bench",
+   "camera": "wide",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 2.6,
+    "yaw": 16,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "FLAT-PLANE",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "flat_cut",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Banks take turns. Left, right, left, right.",
+   "set": "flat_bench",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.75
+    ],
+    "dist": 1.5,
+    "yaw": -22,
+    "pitch": 10,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "flat_cut",
+     "run_to": 9,
+     "t0": 0,
+     "t1": 0.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Lighter crank, higher revs.",
+   "set": "flat_bench",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 2.0,
+    "yaw": 28,
+    "pitch": 10,
+    "lens": 30
+   },
+   "hud": {
+    "label": "REDLINE",
+    "fmt": "{v} RPM",
+    "from": 0,
+    "to": 9000,
+    "max": 10000,
+    "color": "green"
+   },
+   "freeze": "WAIT...",
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Even exhaust pulses. That's the scream.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.4
+    ],
+    "dist": 2.6,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "flat",
+     "cross"
+    ]
+   },
+   "callout": {
+    "text": "SCREAM",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "flat",
+     "run_to": 9,
+     "t0": 0.1,
+     "t1": 0.6
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "The catch? More shaking.",
+   "set": "flat_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 1.6,
+    "yaw": 10,
+    "pitch": 10,
+    "lens": 30
+   },
+   "callout": {
+    "text": "SHAKE",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "moves": [
+    {
+     "id": "flat_cut",
+     "run_to": 9,
+     "t0": 0,
+     "t1": 0.3
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Then Ford built a flat-plane Mustang, the GT350.",
+   "set": "strip",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.7
+    ],
+    "dist": 16,
+    "yaw": 0,
+    "pitch": 10,
+    "lens": 26
+   },
+   "callout": {
+    "text": "GT350 VOODOO",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "It revved to 8,250.",
+   "set": "strip",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     1.7,
+     4,
+     0.6
+    ],
+    "to": [
+     1.7,
+     40,
+     0.6
+    ],
+    "dist": 9,
+    "yaw": -8,
+    "pitch": 9,
+    "lens": 26
+   },
+   "hud": {
+    "label": "REDLINE",
+    "fmt": "{v} RPM",
+    "from": 0,
+    "to": 8250,
+    "max": 10000,
+    "color": "green"
+   },
+   "moves": [
+    {
+     "id": "blue",
+     "to": [
+      1.7,
+      46,
+      0
+     ],
+     "t0": 0.1,
+     "t1": 2.4,
+     "ease": "out"
+    },
+    {
+     "id": "red",
+     "to": [
+      -1.7,
+      44,
+      0
+     ],
+     "t0": 0.2,
+     "t1": 2.4,
+     "ease": "out"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.1
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Same eight cylinders. Scream or rumble, which one's yours?",
+   "set": "garage",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "flat",
+     "cross"
+    ]
+   },
+   "moves": [
+    {
+     "id": "flat",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    },
+    {
+     "id": "cross",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 34.46
+}

@@ -1,0 +1,44 @@
+{
+ "title": "Zip and the Colour Garage",
+ "set": "park",
+ "voices": {
+  "narrator": {"voice": "en-US-JennyNeural", "rate": "-6%", "pitch": "+0Hz"},
+  "zip": {"voice": "en-US-AnaNeural", "rate": "+0%", "pitch": "+4Hz"},
+  "toot": {"voice": "en-GB-MaisieNeural", "rate": "+0%", "pitch": "+0Hz"},
+  "bumpy": {"voice": "en-US-ChristopherNeural", "rate": "-6%", "pitch": "+4Hz"}
+ },
+ "cast": {
+  "zip": {"kind": "car", "colour": "red"},
+  "toot": {"kind": "bus", "colour": "orange"},
+  "bumpy": {"kind": "dump", "colour": "green"}
+ },
+ "shots": [
+  {"action": "drive_in", "args": {"who": "zip", "to": -1.8}, "cast": {"zip": {"x": -1.8}}, "camera": {"aim": "zip", "dist": 8.5, "side": 40, "push": 0.15},
+   "lines": [["narrator", "Zip is back in the park!", 1.0], ["zip", "Beep beep! Let's play a colour game!"]]},
+  {"action": "spot", "args": {"who": "zip"}, "cast": {"zip": {"x": -1.8}}, "camera": {"aim": [0.5, 0, 0.6], "dist": 9.5, "side": 36, "push": 0.1, "pan": 0.6},
+   "lines": [["zip", "Ooh! What's that over there?", 0.6], ["narrator", "It's the magic colour garage!"]]},
+  {"action": "template", "args": {"name": "garage", "colour": "red", "kind": "car"},
+   "lines": [["narrator", "Into the garage goes a little car.", 0.4], ["narrator", "What colour will it be?"], ["narrator", "Red! It's a red car! Red!", 4.4]]},
+  {"action": "template", "args": {"name": "pour", "colour": "yellow", "kind": "bus"},
+   "lines": [["narrator", "Now pour the paint! Glug, glug, glug!", 0.4], ["narrator", "Yellow! A yellow bus! Yellow!", 4.4]]},
+  {"action": "idle", "cast": {"zip": {"x": 0.0}}, "camera": {"aim": "zip", "dist": 5.4, "side": 50, "height": 1.3, "push": 0.12, "lens": 50},
+   "lines": [["zip", "Can you say yellow?", 0.4], ["narrator", "Yellow!", 0.6]]},
+  {"action": "template", "args": {"name": "portal", "colour": "blue", "kind": "car", "from": "red"},
+   "lines": [["narrator", "Zoom through the magic ring!", 0.4], ["narrator", "The red car turns blue! Blue!", 4.4]]},
+  {"action": "template", "args": {"name": "egg", "colour": "orange", "kind": "bus"},
+   "lines": [["narrator", "Look! A big surprise egg!", 0.4], ["narrator", "Crack, crack, crack!"], ["narrator", "It's an orange bus! Orange!", 4.4]]},
+  {"action": "drive_in", "args": {"who": "toot", "to": 1.8, "from": "right"}, "cast": {"zip": {"x": -1.8}, "toot": {"x": 1.8, "yaw": 180}},
+   "camera": {"dist": 9.5, "side": 28, "push": 0.14},
+   "lines": [["toot", "Hi Zip! I'm orange too!", 1.0], ["zip", "Orange like the bus in the egg!"]]},
+  {"action": "template", "args": {"name": "wheels", "colour": "green", "kind": "monster"},
+   "lines": [["narrator", "Big wheels! Bouncy, bouncy wheels!", 0.4], ["narrator", "Green wheels! Green!", 4.4]]},
+  {"action": "drive_in", "args": {"who": "bumpy", "to": 1.8, "from": "right"}, "cast": {"zip": {"x": -1.8}, "bumpy": {"x": 1.8, "yaw": 180}},
+   "camera": {"dist": 9.5, "side": 24, "push": 0.14},
+   "lines": [["bumpy", "Green? That's my colour!", 1.0], ["narrator", "Bumpy is a green dump truck!"]]},
+  {"action": "template", "args": {"name": "convoy", "colour": "rainbow", "kind": "car"},
+   "lines": [["narrator", "Here come all the colours!", 0.4], ["narrator", "Red, orange, yellow, green and blue!"], ["narrator", "A rainbow of cars!", 4.6]]},
+  {"action": "dance", "cast": {"toot": {"x": -3.4}, "zip": {"x": 0.0}, "bumpy": {"x": 3.4, "yaw": 180}},
+   "camera": {"dist": 11.5, "side": 14, "push": 0.14},
+   "lines": [["zip", "I love colours!", 0.8], ["narrator", "Which colour do you like best?"], ["narrator", "Now, who is that coming down the road?"]]}
+ ]
+}

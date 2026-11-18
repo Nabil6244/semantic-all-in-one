@@ -1,0 +1,324 @@
+{
+ "title": "Rolly to the Rescue",
+ "set": "park",
+ "voices": {
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "rolly": {
+   "voice": "en-US-EricNeural",
+   "rate": "-4%",
+   "pitch": "+4Hz"
+  },
+  "toot": {
+   "voice": "en-GB-MaisieNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "zip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+4Hz"
+  }
+ },
+ "cast": {
+  "rolly": {
+   "kind": "fire",
+   "colour": "red"
+  },
+  "toot": {
+   "kind": "bus",
+   "colour": "orange"
+  },
+  "zip": {
+   "kind": "car",
+   "colour": "red"
+  }
+ },
+ "shots": [
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "rolly",
+    "to": 0.0
+   },
+   "cast": {
+    "rolly": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": "rolly",
+    "dist": 9.0,
+    "side": 40,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Nee-naw! Here comes Rolly, the red fire truck!",
+     1.0
+    ],
+    [
+     "rolly",
+     "Hello, everyone! I'm Rolly!"
+    ]
+   ]
+  },
+  {
+   "action": "idle",
+   "cast": {
+    "rolly": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": "rolly",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "rolly",
+     "I help my friends every day.",
+     0.4
+    ],
+    [
+     "narrator",
+     "What will Rolly do today?"
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "toot",
+    "to": 3.4,
+    "from": "right"
+   },
+   "cast": {
+    "rolly": {
+     "x": -1.6
+    },
+    "toot": {
+     "x": 3.4,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 10.0,
+    "side": 30,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "narrator",
+     "Here comes Toot, the orange bus!",
+     1.0
+    ],
+    [
+     "toot",
+     "Rolly! Rolly! Zip has a flat tyre!"
+    ]
+   ]
+  },
+  {
+   "action": "flat",
+   "args": {
+    "who": "zip",
+    "helper": "rolly"
+   },
+   "cast": {
+    "zip": {
+     "x": 0.0
+    },
+    "rolly": {
+     "x": 3.4,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 8.5,
+    "side": 30,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "Pop! Poor Zip!",
+     1.2
+    ],
+    [
+     "rolly",
+     "Don't worry, Zip. Pump, pump, pump!"
+    ],
+    [
+     "zip",
+     "Thank you, Rolly!"
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "garage",
+    "colour": "red",
+    "kind": "fire"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Rolly goes to the garage.",
+     0.4
+    ],
+    [
+     "narrator",
+     "Which door will open?"
+    ],
+    [
+     "narrator",
+     "Red! The red fire truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "jump",
+   "args": {
+    "who": "rolly"
+   },
+   "cast": {
+    "rolly": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": [
+     4.0,
+     0,
+     1.4
+    ],
+    "dist": 15.0,
+    "side": 18,
+    "push": 0.08
+   },
+   "lines": [
+    [
+     "rolly",
+     "Watch this! A big jump!",
+     0.2
+    ],
+    [
+     "narrator",
+     "Wheee! Rolly flies high!",
+     1.8
+    ]
+   ]
+  },
+  {
+   "action": "race",
+   "args": {
+    "a": "rolly",
+    "b": "zip",
+    "winner": "zip"
+   },
+   "cast": {
+    "rolly": {},
+    "zip": {}
+   },
+   "lines": [
+    [
+     "narrator",
+     "Ready, steady, go!",
+     0.2
+    ],
+    [
+     "narrator",
+     "Who is faster?"
+    ],
+    [
+     "zip",
+     "I win! Beep beep!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "hide",
+   "args": {
+    "who": "zip",
+    "seeker": "rolly"
+   },
+   "cast": {
+    "zip": {
+     "x": 1.0,
+     "y": 3.4
+    },
+    "rolly": {
+     "x": -2.6
+    }
+   },
+   "camera": {
+    "aim": [
+     -0.5,
+     1.0,
+     0.8
+    ],
+    "dist": 10.0,
+    "side": 30,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "rolly",
+     "Where is Zip?",
+     0.4
+    ],
+    [
+     "rolly",
+     "Is Zip behind the bush?"
+    ],
+    [
+     "zip",
+     "Peekaboo! Here I am!"
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "toot": {
+     "x": -3.4
+    },
+    "rolly": {
+     "x": 0.0
+    },
+    "zip": {
+     "x": 3.4,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 11.5,
+    "side": 14,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "Hooray for Rolly!",
+     0.8
+    ],
+    [
+     "narrator",
+     "Helping friends is fun!"
+    ]
+   ]
+  }
+ ]
+}

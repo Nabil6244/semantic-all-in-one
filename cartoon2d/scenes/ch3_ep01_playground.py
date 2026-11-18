@@ -1,12 +1,18 @@
-"""Kids Channel 3, episode 1 - "Playground Adventure with Ms Lina: find the 5 lost ducklings" (about 18 min).
+"""Kids Channel 3, episode 1 - "Playground Adventure with Ms Lina: find the 5 lost ducklings" (about 16 min).
 
 Writes ch3_ep01_playground.json (script) + ch3_ep01_playground_render.json next to this file (cartoon2d/ch3.py).
 
-Cold open at the park gate: Mama Duck's five ducklings ran off into the playground. Ms Lina, Tobi, Rosie and friends
-look for them at six play stops - one duckling at five of them - and play and learn at each:
-  slide (up and down, counting steps), swings (counting pushes, high and low), sandpit (shapes in the sand),
-  little train (colours of the carriages), ball pit (colours of the balls), splash pad (action words).
-Then all five are back with Mama Duck at the picnic pond: calm recap, a teaser for next time, the goodbye song.
+The story: the bubble man's bubbles floated into the playground and Mama Duck's five ducklings chased them. Tobi wants
+to help most of all, but he is scared of the big slide on the hill. Every duckling is stuck somewhere for a reason,
+and the play at that stop is how the friends get it back:
+  swings   - a shy duckling hides from the noise; Rosie swings slowly and they sing softly until it comes out
+  sandpit  - Dot's sandcastle fell on a duckling; dig it out by finding the castle with the triangle door
+  train    - a duckling is across the railway and the train keeps passing; ride the train round to it
+  setback  - Fizz toots so loudly that one duckling jumps out of the basket and runs into the soft play house
+  softplay - it hides among the coloured balls; Fizz learns a quiet voice to call it; Tobi tries the little slide
+  splash   - a duckling is behind the water jets; jump, spin and stomp through when the jets stop
+  hill     - the last duckling is at the top of the big slide; Tobi climbs and slides down with it
+Then home to Mama Duck at the pond: every duckling's rescue remembered, a calm recap, a teaser, the goodbye song.
 """
 import sys
 from pathlib import Path
@@ -15,56 +21,41 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ch3 import Episode, LINA, NIA, POPPY, TOBI, ROSIE, FIZZ, PIP, DOT  # noqa: E402
 
 BG = "cartoon2d/art/bg/ch3e1_{}.png"
-ep = Episode("ch3_ep01_playground", goal=("duckling", 5), music="sunny",
-             learn=["duckling", "slide", "swing", "train", "splash"])
+ep = Episode("ch3_ep01_playground", goal=("duckling", 5), music="sunny", hero=TOBI, giver="mama_duck",
+             learn=["duckling", "slide", "swing", "train", "splash", "brave"])
 ep.place("gate", BG.format("gate"), [LINA, NIA, TOBI, ROSIE, FIZZ])
-ep.place("slide", BG.format("hill"), [LINA, TOBI, ROSIE, FIZZ], rides={TOBI: "slide"})
-ep.place("swings", BG.format("swings"), [LINA, ROSIE, PIP], rides={ROSIE: "swing"})
+ep.place("swings", BG.format("swings"), [LINA, ROSIE, TOBI, PIP], rides={ROSIE: "swing"})
 ep.place("sandpit", BG.format("sandpit"), [LINA, TOBI, DOT, POPPY])
 ep.place("train", BG.format("railway"), [LINA, TOBI, ROSIE, FIZZ, PIP])
-ep.place("softplay", BG.format("softplay"), [LINA, PIP, DOT, ROSIE], rides={PIP: "pit", DOT: "pit", ROSIE: "pit"})
+ep.place("softplay", BG.format("softplay"), [LINA, FIZZ, TOBI, ROSIE], rides={TOBI: "pit", ROSIE: "pit"})
 ep.place("splash", BG.format("splash"), [LINA, TOBI, NIA, POPPY, FIZZ])
+ep.place("slide", BG.format("hill"), [LINA, TOBI, ROSIE, FIZZ], rides={TOBI: "slide"})
 ep.place("picnic", BG.format("picnic"), [LINA, TOBI, ROSIE, FIZZ, DOT], music="calm")
 say, ask, found = ep.say, ep.ask, ep.found
 KIDS = [TOBI, ROSIE]
 
 
 def everyone(place, act):
-    here = ep.places[place]["who"]
-    return {w: act for w in here[1:]}
+    return {w: act for w in ep.places[place]["who"][1:]}
 
 
-def song(place, words, act="dance", who=None):
+def chant(place, intro, words, act="dance", who=None, intro_by=LINA):
     who = who or ep.places[place]["who"]
-    ask(LINA, "Sing it with us!", act="clap", also=everyone(place, "clap"), cam="group", gap_after=0.4)
+    ask(intro_by, intro, act="clap", also=everyone(place, "clap"), cam="group", gap_after=0.4)
     for _ in range(2):
         say(who, words, chant=True, act=act, also=everyone(place, act), cam="group")
 
 
-def mistake(silly, wrong, fixer, right, place):
-    """The sidekick gets one thing funny-wrong, the kids put it right (laughs keep little ones watching)."""
-    say(silly, wrong, act="wobble", cam="group", sfx="boing")
-    say(fixer, f"No, silly! {right}", act="laugh", cam="group")
-    say(silly, "Oopsie! Hee hee!", act="tumble", cam="group", sfx="pop")
-
-
-def duckling_hunt(place, k, where, spot, finder, cheer_line):
-    """One lost duckling hidden in the place: look, the child helps, found, counted on screen."""
-    spot = ep.free_spot(place)                          # in the open, never behind a character
-    ask(LINA, f"Duckling number {k} is hiding {where}. Can you see it? Point to it!", act="think", cam="group",
-        find={"pic": "duckling", "x": spot[0], "y": spot[1], "size": 0.08}, gap_after=2.8)
-    found(finder, f"There! I found the duckling!", fx="stars")
-    say(LINA, f"Hooray! {cheer_line} That's {k} duckling{'s' if k > 1 else ''}!", act="cheer",
-        also=everyone(place, "cheer"), cam="group", card=str(k), sfx="success")
-    say(ROSIE if finder != ROSIE else TOBI, "Quack quack! Hello, little duckling!", act="wave", cam="kids", pic="duckling")
-
-
-# 1 ---------------------------------------------------------------- cold open: hook + goal (park gate)
-say(FIZZ, "Oh no! Look! Mama Duck is crying!", act="hands_up", place="gate", cam="group", pic="mama_duck",
+# 1 ---------------------------------------------------------------- cold open: the problem, the hero, the goal (gate)
+say(FIZZ, "Oh no! Look! Mama Duck is crying by the gate!", act="hands_up", place="gate", cam="group", pic="mama_duck",
     sfx="whoosh", face="surprised", chapter="Mama Duck needs help")
-say(ROSIE, "Her five little ducklings ran into the playground!", act="point", also={TOBI: "wobble"}, cam="kids",
-    pic="duckling", fx="leaves")
+say(ROSIE, "The bubble man's bubbles floated into the playground, and her five ducklings chased them!", act="point",
+    also={TOBI: "wobble"}, cam="kids", pic="duckling", fx="bubbles")
 say(LINA, "Let's find all five ducklings and bring them home to Mama Duck!", act="open", cam="host", goal=True)
+ep.want(TOBI, "I want to find them! I'm a good finder!", act="jump")
+ep.want(TOBI, "But... not on the big slide. The big slide is too big for me.", act="wobble", face="surprised")
+say(LINA, "That's okay, Tobi. Being brave means trying, one little step at a time.", act="open", cam="host",
+    card="BRAVE")
 say([LINA, NIA, TOBI, ROSIE, FIZZ], "Playground adventure! Let's go!", act="yay", also=everyone("gate", "yay"),
     cam="group", title="Playground\nAdventure!", fx="confetti", sfx="success", gap_after=1.4)
 
@@ -74,161 +65,201 @@ say(LINA, "Clap along with our hello song!", act="clap", also=everyone("gate", "
 for _ in range(2):
     say([LINA, NIA, TOBI, ROSIE, FIZZ], "Hello, hello, come and play! It's a playground adventure day!", chant=True,
         act="dance", also=everyone("gate", "dance"), cam="group")
-say(LINA, "Hi friends! I'm Ms Lina! Welcome to the big park!", act="wave", cam="host", gap_after=0.4)
-say(NIA, "Hi! I'm Nia! I love to run and climb!", act="wave", cam="group")
-say(TOBI, "I'm Tobi! I love the slide!", act="jump", cam="kids")
+say(LINA, "Hi friends! I'm Ms Lina!", act="wave", cam="host", gap_after=0.4)
+say(NIA, "I'm Nia! I'm fast!", act="wave", cam="group")
+say(TOBI, "I'm Tobi! I'm a good finder!", act="jump", cam="kids")
 say(ROSIE, "I'm Rosie! I love the swings!", act="giggle", cam="kids")
-say(FIZZ, "And I'm Fizz the fox! I love trains! Choo choo!", act="cheer", cam="cu:fizz")
+say(FIZZ, "And I'm Fizz the fox! I'm the LOUDEST! TOOT TOOT!", act="cheer", cam="cu:fizz", sfx="whistle")
+say(NIA, "Fizz! Shh! You'll scare the ducklings!", act="laugh", cam="group", funny=True)
 ask(LINA, "Will you help us find the ducklings? Shout yes!", act="point", cam="host", gap_after=0.6)
 say(KIDS, "Yes!", act="jump", also={FIZZ: "jump", NIA: "jump"}, cam="group", sfx="sparkle")
-say(LINA, "Ducklings say quack quack. Can you say quack quack?", act="open", cam="host", pic="duckling", your_turn=True,
+say(LINA, "Ducklings say peep peep. Can you say peep peep?", act="open", cam="host", pic="duckling", your_turn=True,
     gap_after=1.6)
-say([TOBI, ROSIE, FIZZ], "Quack quack! Quack quack!", act="bunny", also={NIA: "bunny"}, cam="group")
-say(LINA, "Listen! I hear a little quack by the big slide!", act="point", cam="host", sfx="pop")
+say(ROSIE, "Listen! Peep, peep! It's coming from the swings!", act="point", cam="kids", sfx="pop")
 
-# 3 ---------------------------------------------------------------- stop 1: the slide (up and down, count the steps)
-ep.arrive("slide", "Here's the big slide on the grassy hill!", "Slide\nTime!")
-say(TOBI, "Can I go down the slide? Please, please?", act="hands_up", cam="kids")
-say(LINA, "Yes! First we climb up the steps. Let's count them!", act="count", cam="host")
-for n, w in enumerate(["One", "Two", "Three", "Four", "Five"], 1):
-    say(LINA if n % 2 else [TOBI, ROSIE], f"{w}!", act="march", also={TOBI: "march", ROSIE: "march"}, cam="group",
-        card=str(n), gap_after=0.25)
-ask(LINA, "Five steps! Can you count to five with us? One, two, three, four, five!", act="count", cam="host",
-    card="5", gap_after=1.6)
-say(TOBI, "Up, up, up I go! And down, down, wheee!", act="cheer", game={"type": "slide", "who": TOBI}, cam="group",
-    gap_after=0.8)
-say(LINA, "Tobi went up the steps, and down the slide! Up and down!", act="open", cam="host", card="UP DOWN")
-ask(LINA, "Point up! Point down! Up! Down!", act="hands_up", also=everyone("slide", "hands_up"), cam="group", gap_after=1.2)
-say(FIZZ, "Up, down, up, down! I'm dizzy!", act="wobble", cam="cu:fizz", sfx="boing")
-say(KIDS, "Hee hee! Silly Fizz!", act="giggle", cam="kids")
-song("slide", "Up the steps and down the slide! Wheee, wheee, what a ride!")
-mistake(FIZZ, "I'll go down the slide... upside down! Head first!", TOBI, "We sit down and go feet first!", "slide")
-ask(LINA, "How do we go down the slide? We sit down! Can you sit down?", act="squat", also=everyone("slide", "squat"),
-    cam="group", card="SIT DOWN", gap_after=1.6)
-say(TOBI, "Again! Again! Up, up, up, and wheee!", act="cheer", game={"type": "slide", "who": TOBI}, cam="group",
-    gap_after=0.8)
-duckling_hunt("slide", 1, "near the bushes", (0.92, 0.84), ROSIE, "We found one!")
-say(LINA, "One duckling found! Four more to find. Let's go to the swings!", act="point", cam="host", card="1")
-
-# 4 ---------------------------------------------------------------- stop 2: the swings (push and count, high and low)
-ep.arrive("swings", "Swing time! Back and forth, back and forth!", "Swing\nTime!")
-say(ROSIE, "Push me, push me! Higher, higher!", act="giggle", game={"type": "swing", "who": ROSIE, "lines": 10},
+# 3 ---------------------------------------------------------------- stop 1: swings (a shy duckling, slow and soft)
+ep.arrive("swings", "The swings! Let's go!", "Swing\nTime!")
+ep.stuck(ROSIE, "There's a duckling hiding by the swing! But it's shaking. It's shy!", act="point",
+         at=("swing", ROSIE))
+say(PIP, "Ribbit! I'll catch it! JUMP!", act="frog", cam="cu:pip", sfx="boing", funny=True)
+say(LINA, "Wait, Pip! Big jumps and loud noises scare little ducklings.", act="open", cam="host")
+say(LINA, "If we swing slowly and sing softly, it will feel safe and come out.", act="think", cam="host",
+    card="SLOW SOFT")
+say(ROSIE, "I can swing slowly! Watch me!", act="giggle", game={"type": "swing", "who": ROSIE, "lines": 12},
     cam="group")
-say(LINA, "Let's count the pushes. One, two, three, four, five!", act="count", cam="host", card="1 2 3 4 5")
-ask(LINA, "Swing your arms with us! Back and forth! Back and forth!", act="dance", also={PIP: "dance"}, cam="group",
-    gap_after=1.2)
-say(ROSIE, "Wheee! I can see the whole park from up here!", act="cheer", cam="group")
-say(PIP, "Ribbit! I'll push you, Rosie! Wheee!", act="jump", cam="cu:pip", sfx="boing")
-say(LINA, "Rosie swings high, and swings low!", act="open", cam="host", card="HIGH LOW")
-ask(LINA, "When the swing goes up, say up! When it comes down, say down! Up! Down!", act="hands_up", cam="host",
-    card="UP DOWN", gap_after=1.6)
-song("swings", "Swing, swing, swing so high! Swing up, swing up, to the sky!", act="dance", who=[LINA, ROSIE, PIP])
-say(ROSIE, "I love the swing! It feels like flying!", act="giggle", cam="kids")
-ask(LINA, "Let's count Rosie's swings! One, two, three, four, five!", act="count", cam="host", card="5",
-    pic="duckling", gap_after=1.6)
-mistake(PIP, "Ribbit! I'll swing with my eyes closed and my feet in the air!", ROSIE, "Hold on tight with both hands!", "swings")
-ask(LINA, "Can you stretch up high? Now crouch down low!", act="hands_up", also={PIP: "squat"}, cam="group",
-    gap_after=1.4)
-say(PIP, "High and low! High and low! Ribbit ribbit!", act="frog", cam="cu:pip")
-duckling_hunt("swings", 2, "behind the big tree", (0.08, 0.84), PIP, "Another one!")
-say(LINA, "Two ducklings! Three more to find. Off to the sandpit!", act="point", cam="host", card="2")
+say(LINA, "Rosie swings forward, high! And back, low!", act="open", cam="host", card="HIGH LOW")
+ask(LINA, "When the swing goes high, reach high! When it comes back low, crouch low!", act="hands_up",
+    also={TOBI: "hands_up", PIP: "hands_up"}, cam="group", card="HIGH LOW", gap_after=1.8)
+ask(LINA, "Let's count the swings very softly. One... two... three... four... five...", act="count", cam="host",
+    card="1 2 3 4 5", gap_after=1.6)
+say(TOBI, "Look! It's peeking out!", act="point", cam="kids", sfx="pop")
+chant("swings", "Let's sing it softly, like a whisper.", "Swing, swing, slow and low. Little duckling, here we go.",
+      act="sway", who=[LINA, ROSIE, TOBI, PIP])
+say(PIP, "Ribbit... ribbit... I'm being quiet... RIBBIT! Oops.", act="wobble", cam="cu:pip", sfx="boing", funny=True)
+say(KIDS, "Shhh, Pip!", act="giggle", cam="kids")
+ask(LINA, "Can you hold out your hands, nice and gentle?", act="open", cam="host", gap_after=1.6)
+found(ROSIE, "It hopped right into my hands! Hello, shy little duckling.", fx="stars")
+say(LINA, "We were slow and soft, and it felt safe. That's one duckling!", act="cheer", also=everyone("swings", "cheer"),
+    cam="group", card="1", sfx="success")
+say(TOBI, "Peep peep! I hear another one... in the sand!", act="point", cam="kids")
 
-# 5 ---------------------------------------------------------------- stop 3: the sandpit (shapes in the sand)
-ep.arrive("sandpit", "The sandpit! Soft, warm sand!", "Sand\nShapes!")
-say(DOT, "Rawr! I'm Dot the dino! Let's draw shapes in the sand!", act="stomp", cam="cu:dot", sfx="boing")
-say(LINA, "A circle! Round and round! Can you draw a circle in the air?", act="spin", cam="host", pic="shape_circle",
+# 4 ---------------------------------------------------------------- stop 2: sandpit (a castle fell on a duckling)
+ep.arrive("sandpit", "The sandpit! Soft, warm sand!", "Sand\nCastles!")
+say(DOT, "Rawr! I built three sandcastles! But one fell down... and now it's peeping!", act="stomp", cam="cu:dot",
+    sfx="boing")
+ep.stuck(POPPY, "A duckling is stuck in the sand! Only its little head is peeking out!", act="think", peek=0.5)
+say(POPPY, "Dot says the castle with the triangle door fell on it. We have to know our shapes to dig the right way!",
+    act="point", cam="group", pic="shape_triangle")
+say(LINA, "Let's learn the doors, so we dig the right one. This door is a circle. Round and round!", act="spin",
+    cam="host", pic="shape_circle")
+ask(LINA, "Can you draw a circle in the air with your finger?", act="spin", cam="host", pic="shape_circle",
     your_turn=True, gap_after=1.6)
-say(POPPY, "A triangle! One, two, three sides!", act="count", cam="group", pic="shape_triangle", card="3")
-say(TOBI, "A square! Four sides! One, two, three, four!", act="count", cam="kids", pic="shape_square", card="4")
-say(DOT, "And a star! Twinkle twinkle!", act="hands_up", cam="cu:dot", pic="shape_star", fx="stars")
-song("sandpit", "Circle, triangle, square and star! Shapes, shapes, here they are!")
-ask(LINA, "How many sides does a triangle have? Count them! One, two, three!", act="count", cam="host",
-    pic="shape_triangle", card="3", gap_after=1.6)
-mistake(DOT, "A square is round like a ball! Rawr!", POPPY, "A square has four sides, Dot! A circle is round!", "sandpit")
-ask(LINA, "Which shape is round? Is it the circle, or the square?", act="think", cam="host", pic="shape_circle",
-    gap_after=2.2)
-say(KIDS[:1] + [POPPY], "The circle! The circle is round!", act="yay", cam="group", sfx="ding_5")
-say(POPPY, "Catch the ball, Dot! It's round like a circle!", act="point", cam="group",
+say(TOBI, "This door is a square! Four sides! One, two, three, four!", act="count", cam="kids", pic="shape_square",
+    card="4")
+say(POPPY, "And this door has three sides. One, two, three! A triangle!", act="count", cam="group",
+    pic="shape_triangle", card="3")
+say(DOT, "I'll dig the round one! Stomp stomp!", act="stomp", cam="cu:dot", sfx="boing", funny=True)
+say(TOBI, "No, Dot! That's the circle! We need the door with three sides!", act="point", cam="kids")
+ask(LINA, "Which door has three sides? Is it the circle, the square, or the triangle?", act="think", cam="host",
+    pic="shape_triangle", gap_after=2.2)
+say(KIDS[:1] + [POPPY], "The triangle!", act="yay", cam="group", sfx="ding_5")
+say(POPPY, "Dig, Dot, dig! I'll throw you the little spade!", act="point", cam="group",
     game={"type": "throw", "from": POPPY, "to": DOT, "pic": "ball", "bounces": 1})
-say(DOT, "Got it! Now you, Tobi!", act="catch", cam="group", game={"type": "throw", "from": DOT, "to": TOBI, "pic": "ball"})
-say(TOBI, "Bounce, bounce, bounce!", act="cheer", cam="kids", game={"type": "dribble", "who": TOBI, "n": 4, "pic": "ball"})
-duckling_hunt("sandpit", 3, "by the sand buckets", (0.92, 0.85), DOT, "Three ducklings!")
-say(LINA, "Three ducklings! Two more. Listen! Choo choo! The little train!", act="point", cam="host", card="3",
-    sfx="whistle")
+say(DOT, "Got it! Dig, dig, dig!", act="catch", cam="group", sfx="pop")
+ask(LINA, "Dig with Dot! Dig, dig, dig!", act="squat", also=everyone("sandpit", "squat"), cam="group", gap_after=1.4)
+found(TOBI, "There it is! A sandy little duckling! I found it!", fx="stars")
+say(LINA, "Tobi, you are a good finder! Two ducklings!", act="cheer", also=everyone("sandpit", "cheer"), cam="group",
+    card="2", sfx="success")
+chant("sandpit", "Shape song, everybody!", "Circle, square and triangle too! Three little doors, and a duckling for you!",
+      intro_by=POPPY)
+ep.waiting("Mama Duck is waiting by the pond. Two found, three to go, Mama Duck!", act="wave")
+say(DOT, "Choo choo! I hear the little train!", act="point", cam="cu:dot", sfx="whistle")
 
-# 6 ---------------------------------------------------------------- stop 4: the little train (colours of the carriages)
-ep.arrive("train", "All aboard the little train!", "Train\nRide!")
-say(LINA, "Here comes the train! Count the carriages with me!", act="point", cam="host", card="1 2 3")
-say([TOBI, ROSIE, FIZZ], "Choo choo! Choo choo!", act="wave", cam="group",
-    game={"type": "train", "who": [TOBI, ROSIE, FIZZ], "lines": 7})
-say(LINA, "The red carriage! Tobi is in the red one!", act="point", cam="host", card="RED")
-say(LINA, "The blue carriage! That's Rosie!", act="point", cam="host", card="BLUE")
-say(LINA, "And the yellow carriage! That's Fizz!", act="point", cam="host", card="YELLOW")
+# 5 ---------------------------------------------------------------- stop 3: train (a duckling across the track)
+ep.arrive("train", "All aboard! The little train station!", "Train\nRide!")
+ep.stuck(ROSIE, "Look! A duckling on the other side of the track! But the train keeps going past!", act="point",
+         at="back")
+say(FIZZ, "I know! We ride the train all the way round, and get off on the other side!", act="cheer",
+    cam="cu:fizz")
+say(LINA, "Great idea, Fizz! Everybody hop on. Which carriage will you pick?", act="point", cam="host")
+say(LINA, "The red carriage for Tobi! The blue one for Rosie! The yellow one for Fizz!", act="point", cam="host",
+    card="RED BLUE YELLOW")
+say([TOBI, ROSIE, FIZZ], "Choo choo! Here we go!", act="wave", cam="group",
+    game={"type": "train", "who": [TOBI, ROSIE, FIZZ], "lines": 8, "off": True})
 ask(LINA, "Can you say red, blue, yellow?", act="count", cam="host", card="RED BLUE YELLOW", gap_after=1.8)
-say(PIP, "Red, blue, yellow! Ribbit!", act="frog", cam="cu:pip")
-song("train", "Choo choo, choo choo, round the track! Red and blue and yellow, and back!", act="march",
-     who=[LINA, PIP])
-ask(LINA, "How many carriages? Count them with me! One, two, three!", act="count", cam="host", card="1 2 3", gap_after=1.6)
-say(PIP, "Three carriages! And one big engine at the front!", act="point", cam="cu:pip", pic="train")
-say(FIZZ, "Toot toot! I love trains!", act="cheer", cam="group", sfx="whistle")
-duckling_hunt("train", 4, "next to the little station", (0.08, 0.84), PIP, "Four ducklings!")
-say(LINA, "Four ducklings! Just one more! Wave bye bye to the train!", act="wave", also={PIP: "wave"}, cam="host",
-    card="4", your_turn=True, gap_after=1.0)
-say(PIP, "Bye bye, train! See you soon!", act="wave", cam="cu:pip")
+say(PIP, "Red, blue, yellow! Round and round the track!", act="frog", cam="cu:pip")
+ask(LINA, "How many carriages? Count with me! One, two, three!", act="count", cam="host", card="1 2 3", gap_after=1.6)
+chant("train", "Train song! March along with Pip!", "Choo choo, round the track! Red and blue and yellow, and back!",
+      act="march", who=[LINA, PIP], intro_by=PIP)
+say(LINA, "The train is stopping on the other side. Off we hop!", act="open", cam="host", sfx="whistle")
+found(ROSIE, "Got you, little duckling! You were waiting for the train too!", fx="stars")
+say(LINA, "Three ducklings! Into the basket, all safe together.", act="cheer", also=everyone("train", "cheer"),
+    cam="group", card="3", sfx="success")
+say(FIZZ, "Three ducklings! I'm SO happy! TOOT TOOT TOOOOT!", act="cheer", cam="cu:fizz", sfx="whistle")
+ep.setback(ROSIE, "Oh no! The loud toot scared one! It jumped out of the basket!", lost=True, act="hands_up",
+           face="surprised")
+ep.setback(TOBI, "It's running into the soft play house!", act="point")
+say(FIZZ, "Oh no... that was my fault. I was too loud.", act="wobble", cam="cu:fizz")
+say(LINA, "It's okay, Fizz. Everybody makes mistakes. We can fix it together.", act="open", cam="host")
+ask(LINA, "Can you help Fizz be quiet? Put a finger on your lips and say shhh.", act="open", cam="host",
+    your_turn=True, gap_after=1.8)
 
-# 7 ---------------------------------------------------------------- stop 5: soft play ball pit (colours of the balls)
-ep.arrive("softplay", "Into the soft play house! Look at all the balls!", "Ball Pit\nFun!")
-say([PIP, DOT, ROSIE], "Jump in! Splash!", act="cheer", cam="group",
-    game={"type": "pit", "who": [PIP, DOT, ROSIE], "lines": 9})
-say(LINA, "So many colours! Let's find a red ball!", act="point", cam="host", card="RED")
-ask(LINA, "Can you see a red ball? Point to the red one!", act="think", cam="host", card="RED", gap_after=1.8)
-say(ROSIE, "Red! Here's a red ball!", act="hands_up", cam="kids", sfx="pop")
-say(LINA, "Now a green ball! Green like Pip!", act="point", cam="host", card="GREEN")
-say(PIP, "Green like me! Ribbit ribbit!", act="cheer", cam="cu:pip", sfx="pop")
-say(LINA, "And a purple ball! Purple like Dot!", act="point", cam="host", card="PURPLE")
-say(DOT, "Purple like me! Rawr!", act="cheer", cam="cu:dot", sfx="pop")
-song("softplay", "Jump in the balls, red and green! The bounciest balls you've ever seen!", act="jump")
-ask(LINA, "Can you find a yellow ball? Yellow like the sun!", act="think", cam="host", card="YELLOW", pic="sun",
-    gap_after=1.8)
-say(PIP, "Yellow! Here! Bounce, bounce!", act="frog", cam="cu:pip", sfx="pop")
-mistake(DOT, "Is this ball blue? It's purple, like me!", ROSIE, "That one is blue, Dot! Blue like the sky!", "softplay")
-ask(LINA, "Red, green, purple! Can you say them with us?", act="count", cam="host", card="RED GREEN PURPLE", gap_after=1.8)
-say(ROSIE, "No duckling in the ball pit. Where is the last one?", act="think", cam="kids")
-say(LINA, "I hear splashing! Let's try the splash pad!", act="point", cam="host", sfx="pop")
+# 6 ---------------------------------------------------------------- stop 4: soft play (the runaway, a quiet voice)
+ep.arrive("softplay", "The soft play house! Look at all the balls!", "Ball Pit\nFun!")
+ep.stuck(LINA, "The duckling is hiding in the balls! Only its head is peeking out! Everything is red, green and purple!",
+         act="think", peek=0.45, mound=(235, 70, 80))
+say(LINA, "Ducklings are yellow. Let's find the yellow one!", act="point", cam="host", card="YELLOW", pic="duckling")
+ep.tries(TOBI, "There's a little slide into the balls. I'll try the little one first!", act="jump")
+say(TOBI, "One, two... wheee! I did a little slide!", act="cheer", game={"type": "pit", "who": [TOBI, ROSIE], "lines": 10},
+    cam="group")
+say(LINA, "That was brave, Tobi! A little step, and then a bigger one.", act="cheer", cam="host", card="BRAVE")
+say(ROSIE, "Here's a red ball! Not yellow.", act="hands_up", cam="kids", card="RED", sfx="pop")
+ask(LINA, "Can you see a green ball? Point to the green one!", act="think", cam="host", card="GREEN", gap_after=1.8)
+say(TOBI, "Green, like Pip the frog! Still not yellow.", act="point", cam="kids", sfx="pop")
+say(FIZZ, "I want to call it. But a quiet voice. Like this... peep, peep.", act="open", cam="cu:fizz")
+ask(LINA, "Use your quiet voice with Fizz. Peep... peep...", act="open", cam="host", your_turn=True, gap_after=1.8)
+chant("softplay", "Whisper with us!", "Yellow, yellow, where are you? Little duckling, peep peep too.",
+      act="sway", intro_by=FIZZ)
+ask(LINA, "Can you see something yellow? Where is it?", act="think", cam="host", card="YELLOW", gap_after=2.0)
+found(FIZZ, "It peeped back! There you are! I'm sorry I was loud.", fx="hearts")
+say(LINA, "Fizz used his quiet voice and fixed it! Three ducklings again!", act="cheer",
+    also=everyone("softplay", "cheer"), cam="group", card="3", sfx="success")
+say(FIZZ, "Quiet voice for ducklings. Loud voice... for the train!", act="giggle", cam="cu:fizz", funny=True)
+ep.waiting("Mama Duck, we have three! Two more ducklings, then we're coming home.", act="wave")
+say(ROSIE, "I hear splashing! And a little peep!", act="point", cam="kids", sfx="pop")
 
-# 8 ---------------------------------------------------------------- stop 6: the splash pad (action words)
+# 7 ---------------------------------------------------------------- stop 5: splash pad (behind the water jets)
 ep.arrive("splash", "The splash pad! Splish, splash, splosh!", "Splash\nTime!", fx="bubbles")
-say(POPPY, "Let's play splash games! Jump in the puddles!", act="jump", also={NIA: "jump"}, cam="group", fx="bubbles",
-    sfx="burst")
+ep.stuck(NIA, "A duckling is behind the water jets! The water is too strong to walk through!", act="point",
+         at="back")
+say(POPPY, "The jets stop for a moment, then go again. When they stop, we jump through!", act="think",
+    cam="group")
+chant("splash", "Water song first! Jump with Poppy!", "Splish, splash, splosh! Wait for the water, splash!",
+      act="jump", intro_by=POPPY)
+say(LINA, "Ready? The jets stopped. Jump!", act="jump", cam="host", fx="bubbles", sfx="burst")
 ask(LINA, "Jump! Jump! Jump! Can you jump with us?", act="jump", also=everyone("splash", "jump"), cam="group",
     card="JUMP", gap_after=1.4)
-ask(LINA, "Now spin around! Spin, spin, spin!", act="spin", also=everyone("splash", "spin"), cam="group", card="SPIN",
+say(FIZZ, "Catch the beach ball, Nia! It's bouncing over the jets!", act="point", cam="group",
+    game={"type": "throw", "from": FIZZ, "to": NIA, "pic": "ball"})
+say(NIA, "Got it! Now spin past the little fountain!", act="catch", cam="group", sfx="burst")
+ask(LINA, "Spin around! Spin, spin, spin!", act="spin", also=everyone("splash", "spin"), cam="group", card="SPIN",
     gap_after=1.4)
-ask(LINA, "Now stomp in the water! Stomp, stomp, splash!", act="stomp", also=everyone("splash", "stomp"), cam="group",
+say(FIZZ, "Foxes don't like water! Eek! Oh wait... it's fun! Splash!", act="wobble", cam="cu:fizz", sfx="boing",
+    funny=True)
+ask(LINA, "Last one! Stomp, stomp, through the puddle!", act="stomp", also=everyone("splash", "stomp"), cam="group",
     card="STOMP", fx="bubbles", gap_after=1.4)
-say(FIZZ, "Catch the beach ball, Nia!", act="point", cam="group", game={"type": "throw", "from": FIZZ, "to": NIA, "pic": "ball"})
-say(NIA, "Splash! Got it!", act="catch", cam="group", sfx="burst")
-song("splash", "Splish, splash, splosh! Jump in the water, splash!", act="jump")
-ask(LINA, "Now wiggle like a fish! Wiggle, wiggle, wiggle!", act="dance", also=everyone("splash", "dance"), cam="group",
-    card="WIGGLE", pic="fish", gap_after=1.4)
-mistake(FIZZ, "Foxes don't like water! Eek! Oh wait, it's fun! Splash!", NIA, "Everybody splash!", "splash")
-duckling_hunt("splash", 5, "by the big whale", (0.92, 0.84), TOBI, "The last one!")
-say(LINA, "Five ducklings! We found them all! Let's take them home to Mama Duck!", act="cheer",
-    also=everyone("splash", "cheer"), cam="group", card="5", fx="confetti", sfx="success")
+found(NIA, "Made it! A wet little duckling, all splashy!", fx="stars")
+say(LINA, "Four ducklings! Just one more!", act="cheer", also=everyone("splash", "cheer"), cam="group", card="4",
+    sfx="success")
+say(TOBI, "Peep... peep... It's coming from up the hill.", act="think", cam="kids")
+say(TOBI, "From the top of... the big slide.", act="wobble", cam="kids", face="surprised")
 
-# 9 ---------------------------------------------------------------- home to Mama Duck: count, calm recap, teaser, goodbye
+# 8 ---------------------------------------------------------------- stop 6: the big slide (Tobi's fear)
+ep.arrive("slide", "The big slide on the grassy hill.", "The Big\nSlide!", act="walk")
+ep.stuck(ROSIE, "There it is! The last duckling is stuck at the top of the slide! It can't get down by itself!",
+         act="point", at=("slide", TOBI))
+ep.waiting("Mama Duck is waiting. This is the very last one!", who=ROSIE, cam="kids")
+say(TOBI, "It's scared. Like me. The slide is so big.", act="wobble", cam="kids")
+say(LINA, "Remember the little slide, Tobi? One little step at a time. We'll count every step with you.",
+    act="open", cam="host", card="BRAVE")
+say(TOBI, "Okay. I'll try. Will you count with me?", act="hands_up", cam="kids")
+for n, w in enumerate(["One", "Two", "Three", "Four", "Five"], 1):
+    say(LINA if n % 2 else [ROSIE, FIZZ], f"{w}!", act="march", also={TOBI: "march"}, cam="group", card=str(n),
+        gap_after=0.3)
+ask(LINA, "Count the steps with Tobi! One, two, three, four, five!", act="count", cam="host", card="5",
+    gap_after=1.6)
+say(TOBI, "I'm at the top! I've got you, little duckling. Hold on to me! Down we go!", act="cheer",
+    game={"type": "slide", "who": TOBI}, cam="group", gap_after=0.8)
+found(TOBI, "We're at the bottom! The last duckling is safe!", fx="stars")
+ep.payoff(TOBI, "Wheee! I did it! I went down the big slide!", act="yay", also=everyone("slide", "yay"),
+          sfx="success")
+say(LINA, "Tobi! You were scared, and you did it anyway. That's brave!", act="cheer", cam="host", card="BRAVE")
+chant("slide", "Brave song! Clap for Tobi!", "Up the steps and down the slide! Tobi was brave, wheee, what a ride!",
+      act="dance")
+say(LINA, "Five ducklings! We found them all! Let's take them home!", act="cheer", also=everyone("slide", "cheer"),
+    cam="group", card="5", fx="confetti")
+
+# 9 ---------------------------------------------------------------- home: the reunion, every rescue remembered, goodbye
 ep.arrive("picnic", "Here's the duck pond. Mama Duck, look!", "Home Again!", act="walk")
-say(LINA, "One, two, three, four, five little ducklings, home with Mama Duck!", act="count", cam="host",
-    card="1 2 3 4 5", pic="mama_duck", fx="hearts", sfx="sparkle")
-say(ROSIE, "Mama Duck says quack quack! Thank you!", act="giggle", cam="kids", pic="mama_duck")
-say(LINA, "Now let's sit and rest. Take a big breath in... and out.", act="open", cam="host", calm=True,
+ask(LINA, "Count them home with Mama Duck! One, two, three, four, five little ducklings!", act="count", cam="host",
+    card="1 2 3 4 5", pic="mama_duck", fx="hearts", sfx="sparkle", gap_after=1.6)
+say(ROSIE, "Mama Duck says quack quack! Thank you, friends!", act="giggle", cam="kids", pic="mama_duck")
+say(DOT, "Rawr! I missed everything! What happened?", act="stomp", cam="cu:dot", funny=True)
+say(LINA, "Let's sit and rest, and tell Dot. Take a big breath in... and out.", act="open", cam="host", calm=True,
     chapter="Quiet time and goodbye", gap_after=1.6)
-say(LINA, "Today we went down the slide, up and down. We counted on the swings, high and low.", act="count", cam="host",
-    calm=True, card="UP DOWN")
-say(LINA, "We drew shapes in the sand, rode the little train, and found colours in the ball pit.", act="count",
-    cam="host", calm=True, card="RED BLUE YELLOW")
-say(LINA, "And we jumped and splashed at the splash pad! Splash, splash!", act="open", cam="host", calm=True)
-say(FIZZ, "Next time, let's go to the farm! Moo! Baa! Oink!", act="cheer", cam="cu:fizz", teaser=True, pic="cow")
+say(ROSIE, "The shy duckling came out when we swung slowly and sang softly.", act="sway", cam="kids", calm=True,
+    card="SLOW SOFT")
+say(TOBI, "We dug the sandy one out of the castle with the triangle door.", act="count", cam="kids", calm=True,
+    pic="shape_triangle")
+say(FIZZ, "We rode the red, blue and yellow train round the track. And I learned my quiet voice.", act="open",
+    cam="cu:fizz", calm=True, card="RED BLUE YELLOW")
+say(LINA, "We jumped through the splash pad. And Tobi went down the big slide.", act="open", cam="host", calm=True)
+say(TOBI, "I was scared. But I tried one little step at a time. I'm brave!", act="hands_up", cam="kids", calm=True,
+    card="BRAVE")
+ask(LINA, "Say it with Tobi, nice and proud. I am brave!", act="open", cam="host", calm=True, card="BRAVE",
+    gap_after=1.8)
+say(FIZZ, "Next time, let's go to the farm! The piglets are lost! Oink oink!", act="cheer", cam="cu:fizz", teaser=True,
+    pic="cow")
 ask(LINA, "Wave goodbye with us! Let's sing our goodbye song!", act="wave", also=everyone("picnic", "wave"), cam="group",
     gap_after=0.6)
 say([LINA, TOBI, ROSIE, FIZZ, DOT], "Bye bye, bye bye, see you soon! Bye bye, bye bye, toodle-oo!", chant=True,

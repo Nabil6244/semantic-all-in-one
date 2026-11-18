@@ -8339,46 +8339,19 @@ class VideoGeneratorApp(ctk.CTk):
 
     @staticmethod
     def _kill_orphan_flow_browsers() -> int:
-        """SIGTERM Chrome/Chromium processes using Flow profile user-data-dirs.
+        """Stop leftover Chrome/Chromium using Flow profile user-data-dirs.
 
         Only targets processes whose command line references
         ~/.semantic-automator-desktop/profiles — never the user's normal Chrome.
+        Only the main browser process is asked to quit (helpers carry
+        ``--type=``): it then shuts down normally and saves its cookies. Killing
+        every process at once ended the cookie-holding helper before it wrote
+        Google's newest sign-in cookie, and the accounts came back signed out.
+        Force is used only on a main process still running after the wait.
         """
-        marker = "semantic-automator-desktop"
-        killed = 0
-        try:
-            if sys.platform == "win32":
-                from providers import hidden_subprocess
+        from providers.flow.chrome_close import close_flow_chrome
 
-                ps = (
-                    "Get-CimInstance Win32_Process -Filter \"name='chrome.exe' OR name='chromium.exe'\" "
-                    f"| Where-Object {{ $_.CommandLine -and ($_.CommandLine -like '*{marker}*profiles*') }} "
-                    "| ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; 1 }"
-                )
-                out = hidden_subprocess.run(
-                    ["powershell", "-NoProfile", "-Command", ps],
-                    capture_output=True, text=True, timeout=15,
-                )
-                return sum(1 for line in (out.stdout or "").splitlines() if line.strip() == "1")
-            out = subprocess.check_output(["ps", "-ax", "-o", "pid=,command="], text=True, timeout=10)
-        except Exception:
-            return 0
-        for line in out.splitlines():
-            low = line.lower()
-            if marker not in low or "profiles" not in low:
-                continue
-            if not any(x in low for x in ("chrome", "chromium", "google chrome")):
-                continue
-            try:
-                pid = int(line.strip().split(None, 1)[0])
-            except (ValueError, IndexError):
-                continue
-            try:
-                os.kill(pid, 15)  # SIGTERM
-                killed += 1
-            except OSError:
-                continue
-        return killed
+        return close_flow_chrome()
 
     def _sync_primary_cta(self, snap=None) -> None:
         self._sync_style_picker()  # every style change ends here: keep the one picker in step with the active style

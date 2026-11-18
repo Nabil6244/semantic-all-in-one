@@ -1,0 +1,911 @@
+{
+ "id": "pony_express",
+ "title": "The Pony Express Lasted 18 Months",
+ "topic": "The Pony Express mail relay (April 1860 - October 1861) and the transcontinental telegraph that ended it",
+ "hook_title": "WHY THE RUSH?",
+ "keywords": [
+  "Pony",
+  "Express",
+  "horse",
+  "mail",
+  "telegraph",
+  "relay",
+  "Lincoln",
+  "rider"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume",
+  "sheriff"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Pony_Express",
+  "https://en.wikipedia.org/wiki/First_transcontinental_telegraph"
+ ],
+ "places": {
+  "station": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin"
+   ],
+   "prompt": "A dusty Pony Express relay station with a corral"
+  },
+  "town": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin",
+    "wagon"
+   ],
+   "prompt": "A frontier town main street in 1860"
+  },
+  "office": {
+   "world": "frontier_office",
+   "prompt": "An 1860 express company office with a safe"
+  },
+  "trail": {
+   "world": "frontier_desert",
+   "prompt": "A long western trail with a wagon"
+  },
+  "desert": {
+   "world": "frontier_desert",
+   "remove": [
+    "wagon"
+   ],
+   "prompt": "Open desert with red rocks and scrub"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A rider jumps off one horse and onto the next in two minutes.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      },
+      {
+       "do": "jump",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "2 MINUTES"
+   },
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "He carries letters across half a continent. Why the rush?",
+   "set": "desert",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "hume"
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "?"
+   },
+   "id": "s02",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "This is the Pony Express.",
+   "set": "town",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "bart",
+     "text": "PONY EXPRESS"
+    }
+   ],
+   "id": "s03",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Missouri to California. About nineteen hundred miles.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "held_by": "hume",
+     "text": "1,900 MILES"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "id": "s04",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "A letter by stagecoach took weeks.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "driver",
+     "text": "WEEKS"
+    }
+   ],
+   "id": "s05",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The owners promised ten days.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "10 DAYS"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "driver",
+   "text": "Ten days? Horses get tired, mister!",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.1
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "bart",
+   "text": "You see, it's like a relay race.",
+   "set": "station",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "bart",
+     "text": "RELAY"
+    }
+   ],
+   "id": "s08",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Stations every ten to fifteen miles, with a fresh horse waiting.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.3
+      },
+      {
+       "do": "nod",
+       "at": 1.5
+      }
+     ]
+    }
+   ],
+   "moves": [
+    {
+     "id": "wagon",
+     "from": [
+      -14,
+      3,
+      0
+     ],
+     "to": [
+      -4,
+      3,
+      0
+     ],
+     "t0": 0,
+     "t1": 2.0,
+     "ease": "out"
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "FRESH HORSE"
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Swap the horse. Keep the mail bag. Go.",
+   "set": "station",
+   "camera": "two_shot",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.1
+      }
+     ]
+    },
+    {
+     "id": "sheriff",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "sheriff"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Day and night, rain or shine.",
+   "set": "desert",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "id": "s11",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Through snow, desert and mountains.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "SNOW"
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT..."
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Only one mail bag was ever lost.",
+   "set": "trail",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "sheriff"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "ONE"
+   },
+   "id": "s13",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "In April 1860, the first mail rode west.",
+   "set": "town",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "hume",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "APRIL 1860"
+   },
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Sending a letter cost five dollars for half an ounce.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "coins",
+     "held_by": "driver"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "$5"
+   },
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.3
+    }
+   ],
+   "id": "s15",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Lincoln's first speech as president crossed in under eight days.",
+   "set": "desert",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "hume",
+     "text": "LINCOLN"
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s16",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But beside the trail, men were planting poles.",
+   "set": "trail",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.2
+      },
+      {
+       "do": "look_around",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "sheriff"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.5
+    }
+   ],
+   "mood": "sad",
+   "id": "s17",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Poles for a telegraph wire.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.1
+      },
+      {
+       "do": "laugh",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "TELEGRAPH"
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In October 1861 the wire reached California.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "OCT 1861"
+   },
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.2
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "A message now crossed in minutes, not days.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "bart",
+     "text": "MINUTES"
+    }
+   ],
+   "id": "s20",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Two days later, the Pony Express shut down.",
+   "set": "station",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "bart",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "CLOSED"
+   },
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "It ran about eighteen months and lost its owners a fortune.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "driver"
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "BROKE"
+   },
+   "id": "s22",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Yet it's still the most famous mail in American history.",
+   "set": "town",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "held_by": "sheriff",
+     "text": "PONY EXPRESS"
+    }
+   ],
+   "mood": "upbeat",
+   "id": "s23",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "All for riders who swapped horses in two minutes.",
+   "set": "station",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0
+      },
+      {
+       "do": "jump",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.0
+    }
+   ],
+   "id": "s24",
+   "props": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 51.56
+}

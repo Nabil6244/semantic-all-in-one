@@ -46,8 +46,10 @@ def countdown(frame, t, t0, t1, cx, cy, r=58):
 
 
 # ------------------------------------------------------------------ can you find it?
-def draw_find(frame, pic, t, t_found, sx, sy, h):
-    """pic = RGBA sticker; (sx, sy) = screen position of its bottom centre; h = its height on screen."""
+def draw_find(frame, pic, t, t_found, sx, sy, h, peek=None, mound=None):
+    """pic = RGBA sticker; (sx, sy) = screen position of its bottom centre; h = its height on screen.
+    peek = 0..1: until found only that top share shows (buried in sand, sunk in balls) over a little mound of the
+    colour mound (RGB); once found it pops up whole."""
     big = 1.0
     if t_found is not None and t >= t_found:
         a = t - t_found
@@ -63,6 +65,15 @@ def draw_find(frame, pic, t, t_found, sx, sy, h):
     hh = max(4, int(h * big))
     ww = max(4, int(pic.width * hh / pic.height))
     im = pic.resize((ww, hh), Image.BICUBIC)
+    hidden = t_found is None or t < t_found
+    if peek and hidden:
+        show = max(1, int(hh * peek))
+        frame.alpha_composite(im.crop((0, 0, ww, show)), (int(sx - ww / 2), int(sy - show)))
+        if mound:
+            mw, mh = ww * 0.55, hh * 0.09                 # a low mound just over the cut, the head stays clear
+            ImageDraw.Draw(frame).ellipse([sx - mw, sy - mh * 0.6, sx + mw, sy + mh * 1.4], fill=tuple(mound) + (255,),
+                                          outline=(70, 45, 30, 255), width=max(2, int(h * 0.03)))
+        return
     frame.alpha_composite(im, (int(sx - ww / 2), int(sy - hh)))
 
 

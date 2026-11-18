@@ -1,0 +1,817 @@
+{
+ "id": "rivet_jeans",
+ "title": "Why Your Jeans Have Tiny Rivets",
+ "topic": "Jacob Davis's riveted work pants and the 1873 patent he shared with Levi Strauss",
+ "hook_title": "WHY NAIL YOUR PANTS?",
+ "keywords": [
+  "rivets",
+  "jeans",
+  "pockets",
+  "patent",
+  "Levi",
+  "Davis",
+  "tailor",
+  "copper"
+ ],
+ "cast": [
+  "bart",
+  "driver",
+  "hume",
+  "sheriff"
+ ],
+ "channel": "channel2",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Jacob_W._Davis",
+  "https://en.wikipedia.org/wiki/Levi_Strauss_%26_Co."
+ ],
+ "places": {
+  "tailor": {
+   "world": "frontier_laundry",
+   "prompt": "A small 1870s frontier tailor's shop with bolts of cloth"
+  },
+  "town": {
+   "world": "frontier_town",
+   "remove": [
+    "coffin"
+   ],
+   "prompt": "A busy Nevada frontier main street"
+  },
+  "office": {
+   "world": "frontier_office",
+   "prompt": "An 1870s San Francisco dry-goods merchant's office"
+  },
+  "desert": {
+   "world": "frontier_desert",
+   "remove": [
+    "wagon"
+   ],
+   "prompt": "Open desert scrub where a woodcutter works"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "A tailor hammers horse-blanket rivets into a pair of trousers.",
+   "set": "tailor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "sheriff"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.4
+    },
+    {
+     "name": "bonk",
+     "at": 1.1
+    }
+   ],
+   "id": "s01",
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Why would anyone nail their pants?",
+   "set": "tailor",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "circle",
+    "text": "?"
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Reno, Nevada. The tailor is Jacob Davis.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "JACOB DAVIS"
+   },
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "A woman brings a problem: her husband rips every pocket.",
+   "set": "tailor",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "plead",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "sheriff",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "hume",
+     "text": "RIPPED AGAIN"
+    }
+   ],
+   "id": "s04",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He's a woodcutter. Heavy tools, heavy work.",
+   "set": "desert",
+   "camera": "wide",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "hume"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.8
+    }
+   ],
+   "id": "s05",
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Pockets tear at the corners. Every time.",
+   "set": "desert",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "arrow",
+    "text": "CORNERS"
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Davis spots copper rivets meant for horse blankets.",
+   "set": "tailor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "sheriff"
+    }
+   ],
+   "id": "s07",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "driver",
+   "text": "Rivets? On trousers? You're mad!",
+   "set": "tailor",
+   "camera": "two_shot",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.1
+      },
+      {
+       "do": "point",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "sheriff",
+   "text": "You see, it's like nailing a board where it splits.",
+   "set": "tailor",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "explain",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "sheriff",
+     "text": "NAIL THE CORNER"
+    }
+   ],
+   "id": "s09",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Rivet the corners. Done.",
+   "set": "tailor",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "sheriff"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "bonk",
+     "at": 0.3
+    }
+   ],
+   "id": "s10",
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The woodcutter tugged and tugged. The pockets held.",
+   "set": "desert",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "HELD"
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Soon every worker wanted a pair.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "driver"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "id": "s12",
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Davis wants a patent. It costs sixty-eight dollars.",
+   "set": "tailor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sad",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "sheriff",
+     "text": "PATENT $68"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "$68"
+   },
+   "id": "s13",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He can't afford it.",
+   "set": "tailor",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "NO MONEY"
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "So he writes to the man who sells him his cloth.",
+   "set": "office",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "bart",
+     "text": "DEAR LEVI"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.2
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s15",
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "A San Francisco merchant named Levi Strauss.",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "LEVI STRAUSS"
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In 1873, they share the patent.",
+   "set": "office",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.2
+      }
+     ]
+    },
+    {
+     "id": "sheriff",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1873"
+   },
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.3
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Blue denim work pants became the uniform of miners and cowboys.",
+   "set": "desert",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "sfx": [
+    {
+     "name": "horse",
+     "at": 0.2
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "But rivets weren't all good news.",
+   "set": "town",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "driver",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "mood": "sneaky",
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Back pocket rivets scratched saddles and chairs.",
+   "set": "desert",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "hume",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "cross",
+    "text": "SCRATCH"
+   },
+   "sfx": [
+    {
+     "name": "scratch",
+     "at": 0.3
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "So in 1937 they were hidden under the cloth.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "bart",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "1937"
+   },
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Look at your jeans today. The front pockets still have them.",
+   "set": "town",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point_you",
+       "at": 0.2
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "sheriff",
+     "text": "LOOK DOWN"
+    }
+   ],
+   "mood": "upbeat",
+   "id": "s22",
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "All from a tailor with a box of horse-blanket rivets.",
+   "set": "tailor",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "sheriff",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "sheriff"
+    }
+   ],
+   "id": "s23",
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 48.74
+}

@@ -1,0 +1,446 @@
+{
+ "title": "Bumpy's Busy Day",
+ "set": "mud",
+ "voices": {
+  "bumpy": {
+   "voice": "en-US-ChristopherNeural",
+   "rate": "-6%",
+   "pitch": "+4Hz"
+  },
+  "hooky": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-4%",
+   "pitch": "+6Hz"
+  },
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "splash": {
+   "voice": "en-US-AriaNeural",
+   "rate": "+2%",
+   "pitch": "+10Hz"
+  }
+ },
+ "cast": {
+  "bumpy": {
+   "kind": "dump",
+   "colour": "green"
+  },
+  "hooky": {
+   "kind": "crane",
+   "colour": "yellow"
+  },
+  "splash": {
+   "kind": "tanker",
+   "colour": "blue"
+  }
+ },
+ "shots": [
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "bumpy",
+    "to": -4.5
+   },
+   "cast": {
+    "bumpy": {
+     "x": -4.5
+    }
+   },
+   "camera": {
+    "aim": "bumpy",
+    "dist": 9.0,
+    "side": 50,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Bumpy is carrying sand today.",
+     1.0
+    ],
+    [
+     "bumpy",
+     "Rumble, rumble! I'm a busy truck!"
+    ]
+   ]
+  },
+  {
+   "action": "spot",
+   "args": {
+    "who": "bumpy"
+   },
+   "cast": {
+    "bumpy": {
+     "x": -4.5
+    }
+   },
+   "camera": {
+    "aim": [
+     -2.0,
+     0,
+     0.6
+    ],
+    "dist": 10.0,
+    "side": 40,
+    "push": 0.1,
+    "pan": 0.6
+   },
+   "lines": [
+    [
+     "bumpy",
+     "Uh oh. A big mud puddle!",
+     0.6
+    ],
+    [
+     "bumpy",
+     "I'll go very slowly."
+    ]
+   ]
+  },
+  {
+   "action": "stuck",
+   "args": {
+    "who": "bumpy"
+   },
+   "cast": {
+    "bumpy": {
+     "x": -4.5
+    }
+   },
+   "camera": {
+    "aim": [
+     0.6,
+     0,
+     0.6
+    ],
+    "dist": 9.5,
+    "side": 40,
+    "push": 0.18
+   },
+   "lines": [
+    [
+     "narrator",
+     "Squelch! Bumpy is stuck!",
+     2.4
+    ],
+    [
+     "bumpy",
+     "Oh no! I'm too heavy!"
+    ]
+   ]
+  },
+  {
+   "action": "idle",
+   "cast": {
+    "bumpy": {
+     "x": 2.0,
+     "z": -0.22,
+     "muddy": true
+    }
+   },
+   "camera": {
+    "aim": "bumpy",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "bumpy",
+     "Can anyone help me?",
+     0.4
+    ],
+    [
+     "narrator",
+     "Listen! Who is coming?"
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "hooky",
+    "to": 5.6,
+    "from": "right"
+   },
+   "cast": {
+    "bumpy": {
+     "x": 2.0,
+     "z": -0.22,
+     "muddy": true
+    },
+    "hooky": {
+     "x": 5.6
+    }
+   },
+   "camera": {
+    "dist": 11.0,
+    "side": 38,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "narrator",
+     "Beep, beep! It's Hooky!",
+     1.2
+    ],
+    [
+     "hooky",
+     "I'm strong. I can pull you, Bumpy!"
+    ]
+   ]
+  },
+  {
+   "action": "tow",
+   "args": {
+    "helper": "hooky",
+    "who": "bumpy"
+   },
+   "cast": {
+    "bumpy": {
+     "x": 2.0,
+     "z": -0.22,
+     "muddy": true
+    },
+    "hooky": {
+     "x": 5.6
+    }
+   },
+   "camera": {
+    "aim": [
+     4.2,
+     0,
+     0.7
+    ],
+    "dist": 11.5,
+    "side": 35,
+    "push": 0.1,
+    "pan": 2.0
+   },
+   "lines": [
+    [
+     "narrator",
+     "Heave, ho! Heave, ho!",
+     0.8
+    ],
+    [
+     "bumpy",
+     "I'm out! Thank you, Hooky!"
+    ]
+   ]
+  },
+  {
+   "action": "idle",
+   "cast": {
+    "bumpy": {
+     "x": 5.4,
+     "muddy": true
+    }
+   },
+   "camera": {
+    "aim": "bumpy",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "bumpy",
+     "But now I'm so muddy!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Bumpy is brown, not green!"
+    ]
+   ]
+  },
+  {
+   "action": "drive_in",
+   "args": {
+    "who": "splash",
+    "to": 9.0
+   },
+   "cast": {
+    "bumpy": {
+     "x": 5.4,
+     "muddy": true
+    },
+    "splash": {
+     "x": 9.0,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 10.5,
+    "side": 6,
+    "push": 0.12
+   },
+   "lines": [
+    [
+     "splash",
+     "Splash to the rescue!",
+     1.0
+    ],
+    [
+     "splash",
+     "Let's wash you, Bumpy!"
+    ]
+   ]
+  },
+  {
+   "action": "wash",
+   "args": {
+    "helper": "splash",
+    "who": "bumpy"
+   },
+   "cast": {
+    "bumpy": {
+     "x": 5.4,
+     "muddy": true
+    },
+    "splash": {
+     "x": 9.0,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "aim": [
+     6.8,
+     0,
+     0.9
+    ],
+    "dist": 9.0,
+    "side": 5,
+    "push": 0.15
+   },
+   "lines": [
+    [
+     "narrator",
+     "Wash, wash, wash the mud away!",
+     0.6
+    ],
+    [
+     "narrator",
+     "Hooray! Bumpy is green again!",
+     4.0
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "pour",
+    "colour": "blue",
+    "kind": "dump"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Bumpy wants a new colour!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Pour the paint!"
+    ],
+    [
+     "narrator",
+     "Blue! A blue dump truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "egg",
+    "colour": "yellow",
+    "kind": "bus"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Ooh, a surprise egg!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Tap, tap, crack!"
+    ],
+    [
+     "narrator",
+     "Yellow! A yellow bus!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "portal",
+    "colour": "red",
+    "kind": "dump",
+    "from": "blue"
+   },
+   "lines": [
+    [
+     "narrator",
+     "One more magic swirl!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Through you go!"
+    ],
+    [
+     "narrator",
+     "Red! Now Bumpy is red!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "hooky": {
+     "x": 1.8
+    },
+    "bumpy": {
+     "x": 5.4
+    },
+    "splash": {
+     "x": 9.0,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 11.5,
+    "side": 10,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "bumpy",
+     "What a busy day!",
+     0.9
+    ],
+    [
+     "narrator",
+     "Green, blue, yellow and red!"
+    ],
+    [
+     "narrator",
+     "Bye bye, friends!"
+    ]
+   ]
+  }
+ ]
+}

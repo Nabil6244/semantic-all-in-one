@@ -1,0 +1,254 @@
+{
+ "title": "Zip's Colour Hunt",
+ "set": "park",
+ "voices": {
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-6%",
+   "pitch": "+0Hz"
+  },
+  "zip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+4Hz"
+  }
+ },
+ "cast": {
+  "bumpy": {
+   "kind": "dump",
+   "colour": "green"
+  },
+  "toot": {
+   "kind": "bus",
+   "colour": "orange"
+  },
+  "zip": {
+   "kind": "car",
+   "colour": "red"
+  }
+ },
+ "shots": [
+  {
+   "action": "idle",
+   "cast": {
+    "zip": {
+     "x": 0.0
+    }
+   },
+   "camera": {
+    "aim": "zip",
+    "dist": 5.5,
+    "side": 50,
+    "height": 1.4,
+    "push": 0.12,
+    "lens": 50
+   },
+   "lines": [
+    [
+     "zip",
+     "Hi, friends! Let's find colours!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Are you ready? Let's go!"
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "egg",
+    "colour": "red",
+    "kind": "fire"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Look! A big egg!",
+     0.4
+    ],
+    [
+     "narrator",
+     "What is inside?"
+    ],
+    [
+     "narrator",
+     "Red! A red fire truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "pour",
+    "colour": "yellow",
+    "kind": "crane"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Paint time!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Pour, pour, pour!"
+    ],
+    [
+     "narrator",
+     "Yellow! A yellow crane!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "garage",
+    "colour": "blue",
+    "kind": "tanker"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Knock, knock! Who is in the garage?",
+     0.4
+    ],
+    [
+     "narrator",
+     "Open the door!"
+    ],
+    [
+     "narrator",
+     "Blue! A blue water truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "portal",
+    "colour": "green",
+    "kind": "car",
+    "from": "red"
+   },
+   "lines": [
+    [
+     "narrator",
+     "A magic swirl!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Zip drives through!"
+    ],
+    [
+     "narrator",
+     "Green! Zip is green!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "wheels",
+    "colour": "orange",
+    "kind": "monster"
+   },
+   "lines": [
+    [
+     "narrator",
+     "New wheels!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Big, big wheels!"
+    ],
+    [
+     "narrator",
+     "Orange! An orange monster truck!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "garage",
+    "colour": "red",
+    "kind": "car"
+   },
+   "lines": [
+    [
+     "narrator",
+     "One more garage!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Who is inside?"
+    ],
+    [
+     "narrator",
+     "Red! A red car! It's Zip!",
+     4.6
+    ]
+   ]
+  },
+  {
+   "action": "template",
+   "args": {
+    "name": "convoy",
+    "colour": "rainbow",
+    "kind": "car"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Here they all come!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Red, orange, yellow, green and blue!"
+    ]
+   ]
+  },
+  {
+   "action": "dance",
+   "cast": {
+    "toot": {
+     "x": -3.4
+    },
+    "zip": {
+     "x": 0.0
+    },
+    "bumpy": {
+     "x": 3.4,
+     "yaw": 180
+    }
+   },
+   "camera": {
+    "dist": 11.5,
+    "side": 14,
+    "push": 0.14
+   },
+   "lines": [
+    [
+     "narrator",
+     "You know all the colours!",
+     0.8
+    ],
+    [
+     "narrator",
+     "Well done! Bye bye!"
+    ]
+   ]
+  }
+ ]
+}

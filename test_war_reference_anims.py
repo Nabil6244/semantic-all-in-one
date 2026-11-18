@@ -146,3 +146,51 @@ class ScriptPhrasings(unittest.TestCase):
         self.assertEqual([(r["a_shown"], r["b_shown"]) for r in f["rows"]], [("310", "272")])
         self.assertIsNone(GR.forces_of("Russia lost 300 tanks, while Ukraine lost 90 jets.", D._STICKERS))
         self.assertIsNone(GR.forces_of("In September, ISW says Russia seized 175 square kilometers but lost 256.", D._STICKERS))
+
+
+class SpiderwebPhrasings(unittest.TestCase):
+    """2026-11-18 Operation Spiderweb render: the voice script spells numbers out and names aircraft by type."""
+
+    def test_spoken_distance_from_a_country_is_a_range(self):
+        r = R.range_of("Others went all the way to Belaya, in Siberia, more than four thousand kilometres from Ukraine.",
+                       [{"name": "Belaya", "lat": 52.9, "lon": 103.6}], ["Ukraine"])
+        self.assertEqual((r["shown"], r["centre"]["label"], r["km"]), ("4,000 km", "Ukraine", 4000.0))
+        self.assertEqual(R._digits("two hundred and fifty km"), "250 km")
+        self.assertIsNone(R.range_of("The bombers were parked hundreds, sometimes thousands, of kilometres away.", [], []))
+        self.assertIsNone(R.range_of("The village is 12 km from the border.", [], []))
+
+    def test_aircraft_type_names_count_in_a_chain(self):
+        c = R.chain_of("Ukraine handed over eight Tu-160s and three Tu-95s, along with hundreds of cruise missiles.", D._STICKERS)
+        self.assertEqual([i["label"] for i in c["items"]], ["eight Tu-160s", "three Tu-95s", "hundreds of cruise missiles"])
+
+    def test_refused_csv_graphics_are_listed_before_render(self):
+        from cinematic_explainer.war import engagement as E
+
+        rep = {"summary": "x", "blocks": [], "issues": [], "csv_refused": ["scene 33: CSV asked for range: no stated reach"]}
+        self.assertIn("CSV graphics not drawn (1", E.text(rep))
+
+
+class LooseReaders(unittest.TestCase):
+    """2026-11-18: all six reference cards in every War video - the ordinary ways a script says their facts."""
+
+    def test_reported_speech(self):
+        r = R.reported_of("According to President Zelensky, it took one year, six months and nine days from the start of planning.")
+        self.assertEqual((r["speaker"], r["reported"]), ("President Zelensky", True))
+        r = R.reported_of("Russia said it shot them down, but images showed damage, and the message was clear.")
+        self.assertEqual(r["quote"], "It shot them down")
+        self.assertIsNone(R.reported_of("Reports later said the drones ran on ArduPilot, free open-source software."))
+        self.assertIsNone(R.reported_of("It said that was about a third of all the planes."))
+
+    def test_two_counts_and_two_claimants(self):
+        t2 = "American officials later told reporters that about twenty aircraft were hit, and that around ten of them were destroyed."
+        c = R.pair_counter_of(t2, D._STICKERS)
+        self.assertEqual((c["a"]["shown"], c["a"]["label"], c["b"]["shown"], c["b"]["label"]), ("20", "HIT", "10", "DESTROYED"))
+        t1 = "The SBU claimed that 41 Russian aircraft were hit, including Tu-95 and Tu-22M3 bombers and A-50 radar planes."
+        f = R.claims_forces_of((R.claimant_of(t1), t1), (R.claimant_of(t2), t2), D._STICKERS)
+        self.assertEqual((f["left"]["name"], f["right"]["name"]), ("SBU", "American officials"))
+        self.assertEqual([(x["a_shown"], x["b_shown"]) for x in f["rows"]], [("41", "20")])
+        self.assertIsNone(R.chain_of(t1, D._STICKERS))            # 'Tu-95' and 'A-50' are names, not counts of 95 and 50
+
+    def test_ref_figures_spot_repeats(self):
+        self.assertTrue({8.0, 3.0} <= D._ref_figures({"items": [{"label": "eight Tu-160s"}, {"label": "three Tu-95s"}]}))
+        self.assertNotIn(95.0, D._ref_figures({"label": "three Tu-95s"}))

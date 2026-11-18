@@ -24,7 +24,9 @@ def setup_render(fast=False, fps=24):
             break
         except TypeError:
             pass
-    sc.render.resolution_x, sc.render.resolution_y = (1280, 720) if fast else (1920, 1080)
+    # fast="ultra": 960x540, 8 samples, upscaled to 720p at the join (long stories in a fraction of the time)
+    ultra = fast == "ultra"
+    sc.render.resolution_x, sc.render.resolution_y = (960, 540) if ultra else (1280, 720) if fast else (1920, 1080)
     sc.render.fps = fps
     sc.view_settings.view_transform = "Standard"
     sc.view_settings.look = "None"
@@ -32,7 +34,7 @@ def setup_render(fast=False, fps=24):
     ev = sc.eevee
     sc.render.filter_size = 1.3                                 # a touch smoother edges, like the reference
     import os
-    samples = int(os.environ.get("TOY_SAMPLES", 16 if fast else 24))     # speed pass: 24 looks like 96 after grade
+    samples = int(os.environ.get("TOY_SAMPLES", 8 if ultra else 16 if fast else 24))     # speed pass: 24 looks like 96 after grade
     rt = os.environ.get("TOY_RT", "0") == "1"                          # raytracing off: 3x faster, same look
     for attr, val in [("taa_render_samples", samples), ("use_shadows", True),
                       ("use_raytracing", rt), ("shadow_ray_count", int(os.environ.get("TOY_SHRAYS", 1))), ("shadow_step_count", int(os.environ.get("TOY_SHSTEPS", 4))),

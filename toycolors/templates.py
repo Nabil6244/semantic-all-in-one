@@ -23,6 +23,7 @@ from toycolors import timeline as T
 from toycolors.template_events import EGG_CRACK, EVENTS, WHEELS_OFF, WHEELS_ON
 
 DUR = 16 * T.BEAT                       # 8.57 s
+FILL = 1.45                             # all cameras: toys fill more of the frame (mentor: "cheezein large")
 COLOURS = dict(T.COLOURS)
 WHITE = (0.92, 0.92, 0.94)
 
@@ -206,7 +207,7 @@ def egg(colour="red", kind="car", **_):
     cam, aim = kit.camera((0, -9.0, 2.6), (0, 0, 1.5), lens=34)
     shots(cam, aim, [(0, (0.3, -9.5, 2.6), (0, 0, 1.6)), (tc, (0.2, -8.0, 2.3), (0, 0, 1.4)),
                      (DUR, (-0.6, -6.2, 1.7), (0, 0, 0.9))])
-    return {"dur": DUR, "zoom": 1.55, "keep_out": [],
+    return {"dur": DUR, "zoom": 1.3, "keep_out": [],          # x FILL: whole toy in frame through the end push-in
             "events": EVENTS["egg"]}
 
 
@@ -406,7 +407,7 @@ def wheels(colour="red", kind="monster", **_):
     cam, aim = kit.camera((4.5, -8.5, 2.4), (0, 0, 1.2), lens=32)
     shots(cam, aim, [(0, (4.5, -9.0, 2.6), (0, 0, 1.4)), (t_off, (3.0, -8.4, 2.0), (0, 0, 1.0)),
                      (t_on + 1.5, (2.2, -6.6, 1.7), (0, 0, 1.1)), (DUR, (0.6, -6.2, 1.6), (0, 0, 1.1))])
-    return {"dur": DUR, "zoom": 1.55, "keep_out": [],
+    return {"dur": DUR, "zoom": 1.3, "keep_out": [],          # x FILL: wheels stay in frame
             "events": EVENTS["wheels"]}
 
 
@@ -438,7 +439,7 @@ def convoy(colour="red", kind="monster", kinds=None, **_):
         cx = lead0 + speed * t
         keys.append((t, (cx + ahead, -6.8, 2.1), (cx - 5.0, 0, 1.2)))
     shots(cam, aim, keys)
-    return {"dur": DUR, "zoom": 1.8, "keep_out": [(-40, 40, -1.7, 1.7)], "platform": (90, 26),
+    return {"dur": DUR, "zoom": 1.5, "keep_out": [(-40, 40, -1.7, 1.7)], "platform": (90, 26),
             "events": EVENTS["convoy"]}
 
 

@@ -1340,6 +1340,11 @@ def _csv_layer(kind: str, r: Dict[str, Any], cfg: Dict[str, Any], cat: Any) -> T
             c = GR.counter_of(sent.text)
             if c:
                 return full("kit_counter", c), ""
+        if kind == "compare":           # 2026-11-18: the looser readings too ('about twenty were hit, around ten of them destroyed')
+            for sent in sents:
+                c = GR.pair_counter_of(sent.text, _STICKERS)
+                if c:
+                    return full("kit_counter", c), ""
     if kind in LIGHT_ASKS:
         # The owner (2026-11-10): the rich panels must show up every time the narration supports one. A light text ask (kinetic words, a
         # big word, a caption ...) on a sentence that carries a stat, a comparison, a weapon type, a person, dates or a cited source gets
@@ -2146,6 +2151,175 @@ def _graphic_floor(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_n
             cursor += gap                              # nothing fits here (no free slot): move on, never invent
 
 
+# ------------------------------------------------------------------------------------------------ the six reference cards, always -----
+# Owner 2026-11-18 ("I told you a thousand times I want these graphics"): the Spiderweb film showed one of the six because each card
+# waited for a sentence in exactly its phrasing. Now every War video carries each of them (about one per REF_EVERY_S of film, at least
+# one): strict readers first, then the looser ones (spelled-out distances, reported speech, two counts of one thing, two claimants'
+# counts); always the script's own words and numbers. They are kept like CSV graphics (picture floor and clean-up passes leave them).
+REF_MUST = ("sat_map", "kit_chain", "sat_range", "sat_quote", "kit_counter", "kit_forces")
+REF_EVERY_S = 360.0
+REF_SAME_GAP_S = 60.0
+REF_ANY_GAP_S = 15.0
+REF_SECS = {"sat_map": 6.0, "sat_range": 6.0, "sat_quote": 6.0, "kit_chain": 5.5, "kit_counter": 5.0, "kit_forces": 5.5}
+
+
+def _ref_figures(p: Any) -> set:
+    """Every figure a card's params show (numbers and number words), to spot two neighbouring cards saying the same thing."""
+    from . import graphics_ref as GR
+
+    out: set = set()
+    if isinstance(p, dict):
+        for k, v in p.items():
+            if k not in ("lat", "lon", "km", "seed"):
+                out |= _ref_figures(v)
+    elif isinstance(p, (list, tuple)):
+        for v in p:
+            out |= _ref_figures(v)
+    elif isinstance(p, (int, float)) and not isinstance(p, bool):
+        out.add(float(p))
+    elif isinstance(p, str):
+        for w in re.findall(r"[A-Za-z]+|\d[\d,]*(?:\.\d+)?", p):
+            if re.match(r"\d", w) and not re.search(r"[A-Za-z]-" + re.escape(w), p):
+                out.add(float(w.replace(",", "")))
+            elif w.lower() in GR._NUMW and GR._NUMW[w.lower()]:
+                out.add(float(GR._NUMW[w.lower()]))
+    return out
+
+
+def _ref_candidates(rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any]) -> Dict[str, List[Tuple[int, float, float, Dict[str, Any], Any, Dict[str, Any]]]]:
+    """kind -> [(strictness 0 strict / 1 loose, start, end, params, row, sentence-dict)] over the whole script."""
+    from . import graphics_ref as GR
+
+    out: Dict[str, List[Any]] = {k: [] for k in REF_MUST}
+    claims: List[Tuple[float, float, str, str, Dict[str, Any]]] = []
+    spoken = [r for r in rows if str(r.get("text") or "").strip() and log_by_no.get(str(r["_no"])) is not None]
+    for i, r in enumerate(spoken):
+        A = S.analyze_scene(str(r.get("text") or ""), cat, r.get("words"), r["_start"], r["_end"])
+        near = [A]
+        for j in (i - 1, i + 1):
+            if 0 <= j < len(spoken):
+                near.append(S.analyze_scene(str(spoken[j].get("text") or ""), cat, spoken[j].get("words"), spoken[j]["_start"], spoken[j]["_end"]))
+        near_sents = [x for a_ in near for x in a_.sentences]
+        sp, sc = _located(A.sentences)
+        np_, nc = _located(near_sents)
+        for sent in A.sentences:
+            a, b = _sent_window(A, sent, r["_start"], r["_end"])
+            t = str(sent.text)
+            pts, cos = _located([sent])
+
+            def put(kind: str, strict: int, prm: Optional[Dict[str, Any]]) -> None:
+                if prm:
+                    out[kind].append((strict, a, b, prm, r, {"text": t}))
+
+            put("kit_chain", 0, GR.chain_of(t, _STICKERS))
+            put("sat_map", 0, _sat_of(sent))
+            for k_, prm in _ref_options(sent, A.sentences):
+                put(k_, 0, prm)
+            put("kit_chain", 1, GR.loose_chain_of(t, _STICKERS))
+            put("sat_map", 1, GR.loose_sat_map_of(t, pts or sp, cos or sc))
+            put("sat_range", 1, GR.loose_range_of(t, pts or sp, cos or sc))
+            put("kit_counter", 1, GR.pair_counter_of(t, _STICKERS))
+            rep = GR.reported_of(t)
+            if rep:
+                put("sat_quote", 1, GR.sat_quote_of(rep, sp or np_, sc or nc) and dict(GR.sat_quote_of(rep, sp or np_, sc or nc), reported=True))
+                if [i_ for i_ in GR._counted(t, _STICKERS) if i_["real"] and i_["value"]]:
+                    claims.append((a, b, rep["speaker"], t, r))
+    for x, (a1, _b1, w1, t1, _r1) in enumerate(claims):        # two claimants' counts of the same thing, within two minutes
+        for a2, b2, w2, t2, r2 in claims[x + 1:]:
+            if a2 - a1 > 120.0:
+                break
+            f = GR.claims_forces_of((w1, t1), (w2, t2), _STICKERS)
+            if f:
+                out["kit_forces"].append((1, a2, b2, f, r2, {"text": t2}))
+    return out
+
+
+def _ensure_ref_cards(plan: Any, rows: Sequence[Dict[str, Any]], cat: Any, log_by_no: Dict[str, Any], counts: Dict[str, int],
+                      cfg: Dict[str, Any]) -> None:
+    total = max((r["_end"] for r in rows), default=0.0)
+    if total <= 0:
+        return
+    want = max(1, int(round(total / float(cfg.get("ref_every_s", REF_EVERY_S)))))
+    open_s = float(cfg.get("clean_opening_s", OPEN_CLEAN_S)) if cfg.get("clean_opening", True) else 0.0
+    cands = _ref_candidates(rows, cat, log_by_no)
+    why_none: Dict[str, str] = {}
+
+    def protected(ly: Layer) -> bool:
+        return bool((ly.params or {}).get("csv_graphic")) or ly.kind in REF_MUST
+
+    for kind in sorted(REF_MUST, key=lambda k: len(cands[k])):     # the rarest first: a sentence that fits two cards goes to the rarer
+        have = [ly for ly in plan.layers if ly.kind == kind]
+        need = want - len(have)
+        if need <= 0:
+            continue
+        def _rank(c: Any) -> Tuple[Any, ...]:            # strict readings first; a quote with more said in it before a short one
+            q = len(str((c[3] or {}).get("quote") or "").split())
+            return (c[0], -min(q, 22), c[1])
+
+        pool = sorted(cands[kind], key=_rank)
+        if not pool:
+            why_none[kind] = "the script has nothing this card can show truthfully"
+            continue
+        placed = 0
+        for strict, a, b, prm, r, _sd in pool:
+            if placed >= need:
+                break
+            secs = REF_SECS[kind]
+            s0 = fr(max(a, open_s))
+            ok = False
+            for _try in range(4):                         # a protected graphic on the sentence: the card follows right after it
+                s1 = fr(min(s0 + secs, total))
+                if s1 - s0 < 3.0 or s0 > b + 8.0:
+                    break
+                block = [ly for ly in plan.layers if protected(ly) and ly.kind not in CORNER_KINDS and ly.kind not in _NOT_A_GRAPHIC
+                         and ly.start < s1 + FULL_GAP and ly.end > s0 - FULL_GAP]
+                if not block:
+                    ok = True
+                    break
+                now_ = [ly for ly in block if ly.start < s0 + 4.0 + FULL_GAP]
+                if not now_:                              # the next protected graphic starts later: a shorter card (>= 4 s) fits before it
+                    s1 = fr(min(ly.start for ly in block) - FULL_GAP)
+                    ok = True
+                    break
+                s0 = fr(max(ly.end for ly in now_) + FULL_GAP)
+            if not ok:
+                continue
+            if any(ly.kind == kind and abs(ly.start - s0) < float(cfg.get("ref_same_gap_s", REF_SAME_GAP_S)) for ly in plan.layers):
+                continue
+            mine = _ref_figures(prm)
+            if any(ly.kind in REF_MUST and ly.start < s0 + secs + REF_ANY_GAP_S and ly.end > s0 - REF_ANY_GAP_S
+                   and (ly.kind == kind or (mine and mine <= _ref_figures(ly.params))) for ly in plan.layers):
+                continue                                  # the same figures twice in a row read as one repeated card
+            keep = []
+            for ly in plan.layers:                        # full-screen cards under it give way (trimmed, or dropped under 2 s)
+                if ly.kind in FULL_KINDS and ly.start < s1 and ly.end > s0 and not protected(ly):
+                    if s0 - ly.start >= 2.0:
+                        ly.end = fr(s0)
+                    elif ly.end - s1 >= 2.0:
+                        ly.start = fr(s1)
+                    else:
+                        counts["ref_cards_replaced"] = counts.get("ref_cards_replaced", 0) + 1
+                        continue
+                keep.append(ly)
+            plan.layers[:] = keep
+            ly = Layer(kind, s0, s1, dict(prm, csv_graphic=True, ref_must=True), dim=False)
+            plan.layers.append(ly)
+            _give_way(plan, ly)
+            dec = log_by_no.get(str(r["_no"]))
+            if dec is not None:
+                dec.flags.append(f"dir:ref_{kind}")
+                dec.candidates.append({"kind": kind, "score": 0.0, "accepted": True, "start": s0, "end": s1,
+                                       "reason": f"direction: reference card in every video ({'strict' if not strict else 'loose'} reading)"})
+            counts["ref_cards_added"] = counts.get("ref_cards_added", 0) + 1
+            placed += 1
+        if placed == 0 and not have:
+            why_none[kind] = "every sentence that fits sits on another protected graphic or the opening"
+    try:
+        plan._ref_missing_why = why_none
+    except Exception:  # noqa: BLE001 - a plan without attributes: the report just says 'removed by a later pass'
+        pass
+
+
 # ------------------------------------------------------------------------------------------------ layout choice -----------------------
 # What the narration means picks the composition. Existing planner layers are upgraded in place (params only restated, nothing invented):
 # quotation -> figure hero, named system -> equipment hero, number -> stat split, dated events -> timeline, claim -> claim layout.
@@ -2802,6 +2976,8 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     if cfg.get("graphic_floor", True):
         _graphic_floor(plan, rows, cat, log_by_no, counts, float(cfg.get("graphic_gap", GRAPHIC_GAP)), float(cfg.get("first_at", 4.0)),
                        layouts=bool(cfg.get("layouts", True)))
+    if cfg.get("ref_cards_always", True):         # owner 2026-11-18: all six reference cards in every War video
+        _ensure_ref_cards(plan, rows, cat, log_by_no, counts, cfg)
 
     ev_stats: Dict[str, Any] = {}
     if cfg.get("map_events", True):               # what the script says changed hands, and strategic sites it names, on the tactical maps
@@ -2913,6 +3089,10 @@ def apply(plan: Any, rows: Sequence[Dict[str, Any]], cfg: Dict[str, Any], cat: A
     if cfg.get("no_flash", True):                 # last word: nothing seen for a split second (a cut inside a clip, a glimpse between cards)
         no_flash(plan, counts)
     counts["empty_stretches"] = len(gap_notes)
+    if eng:
+        have = {k: sum(1 for ly in plan.layers if ly.kind == k) for k in REF_MUST}
+        eng["ref_cards"] = {"have": have, "missing": [k for k, n in have.items() if not n],
+                            "why": {k: v for k, v in (getattr(plan, "_ref_missing_why", None) or {}).items() if not have.get(k)}}
     return {"counts": counts, "notes": gap_notes, "frontline": fl_stats, "map_events": ev_stats, "story": st_stats, "engagement": eng}
 
 

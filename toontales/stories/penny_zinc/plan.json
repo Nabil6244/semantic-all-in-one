@@ -1,0 +1,1258 @@
+{
+ "id": "penny_zinc",
+ "title": "Why Your Penny Is Secretly Zinc",
+ "topic": "The 1982 switch of the US cent from 95% copper to copper-plated zinc, the 1943 steel cent, and the end of penny production in 2025",
+ "hook_title": "WHY IS ONE LIGHTER?",
+ "keywords": [
+  "penny",
+  "copper",
+  "zinc",
+  "steel",
+  "Mint",
+  "1982",
+  "scale",
+  "magnet"
+ ],
+ "cast": [],
+ "channel": "channel5",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Penny_(United_States_coin)",
+  "https://en.wikipedia.org/wiki/1943_steel_cent"
+ ],
+ "places": {
+  "scale": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@scale_stand",
+     "at": [
+      0.13,
+      0.16,
+      0.9
+     ]
+    },
+    {
+     "m": "@scale_beam",
+     "at": [
+      0.13,
+      0.16,
+      1.06
+     ],
+     "id": "beam"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03,
+      0.16,
+      0.9645
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "ride": "beam",
+     "id": "pan_old"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.23,
+      0.16,
+      0.9645
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "ride": "beam",
+     "id": "pan_new"
+    }
+   ],
+   "prompt": "A brass balance with a penny on each pan"
+  },
+  "pile": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.05,
+      -0.01,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 0,
+     "id": "p0"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      -0.028000000000000004,
+      -0.01,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 37,
+     "id": "p1"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      -0.006000000000000005,
+      -0.01,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 74,
+     "id": "p2"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.016,
+      -0.01,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 111,
+     "id": "p3"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03799999999999999,
+      -0.01,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 148,
+     "id": "p4"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      -0.05,
+      0.011999999999999999,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 185,
+     "id": "p5"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      -0.028000000000000004,
+      0.011999999999999999,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 222,
+     "id": "p6"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      -0.006000000000000005,
+      0.011999999999999999,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 259,
+     "id": "p7"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.016,
+      0.011999999999999999,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 296,
+     "id": "p8"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03799999999999999,
+      0.011999999999999999,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "rot": 333,
+     "id": "p9"
+    }
+   ],
+   "prompt": "A pile of shiny copper pennies on a walnut bar"
+  },
+  "cut": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.03,
+      0.0,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "id": "whole"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03,
+      0.0,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "clip": [
+      180,
+      0.45
+     ],
+     "id": "cut"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03,
+      0.0,
+      0.9001
+     ],
+     "r": 0.008835,
+     "h": 0.0013,
+     "mat": "silver",
+     "id": "core"
+    },
+    {
+     "m": "@shears",
+     "at": [
+      0.1,
+      -0.01,
+      0.9
+     ],
+     "rot": 180,
+     "open": 20,
+     "id": "shears"
+    },
+    {
+     "m": "@magnifier",
+     "at": [
+      0.0,
+      -0.04,
+      0.935
+     ],
+     "rot": -30,
+     "id": "glass"
+    }
+   ],
+   "prompt": "A penny cut open showing its silver zinc core"
+  },
+  "war": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.03,
+      0.0,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "steel",
+     "id": "steel43"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03,
+      0.0,
+      0.9
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "id": "copper82"
+    },
+    {
+     "m": "@magnet",
+     "at": [
+      -0.03,
+      0.02,
+      0.9450000000000001
+     ],
+     "w": 0.05,
+     "id": "mag"
+    }
+   ],
+   "prompt": "A grey 1943 steel cent and a copper cent under a magnet"
+  },
+  "hero": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      0.0,
+      0.0,
+      1.0096
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "tilt": 90,
+     "id": "hero"
+    },
+    {
+     "m": "@box",
+     "at": [
+      0,
+      0.02,
+      0.96
+     ],
+     "size": [
+      0.3,
+      0.12,
+      0.04
+     ],
+     "color": [
+      0.42,
+      0.78,
+      0.76
+     ],
+     "rough": 0.6
+    }
+   ],
+   "prompt": "One penny standing on edge in a mint studio"
+  },
+  "last": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.03,
+      0.0,
+      1.0096
+     ],
+     "r": 0.0095,
+     "h": 0.0015,
+     "mat": "copper",
+     "tilt": 90,
+     "id": "last"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03,
+      0.0,
+      1.0106
+     ],
+     "r": 0.0106,
+     "h": 0.00195,
+     "mat": "silver",
+     "tilt": 90,
+     "id": "nickel"
+    },
+    {
+     "m": "@box",
+     "at": [
+      0,
+      0.02,
+      0.96
+     ],
+     "size": [
+      0.3,
+      0.12,
+      0.04
+     ],
+     "color": [
+      0.42,
+      0.78,
+      0.76
+     ],
+     "rough": 0.6
+    }
+   ],
+   "prompt": "A penny beside a nickel on a mint plinth"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Two pennies on a scale. Same coin. One is heavier.",
+   "set": "scale",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.13,
+     0.16,
+     1.0
+    ],
+    "dist": 0.42,
+    "yaw": -6,
+    "pitch": 12,
+    "lens": 45
+   },
+   "moves": [
+    {
+     "id": "beam",
+     "to": [
+      0.13,
+      0.16,
+      1.06
+     ],
+     "tilt_from": 0,
+     "tilt_to": -7,
+     "t0": 0.4,
+     "t1": 1.8,
+     "ease": "out"
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "So what's hiding inside the light one?",
+   "set": "scale",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.23,
+     0.16,
+     0.97
+    ],
+    "dist": 0.12,
+    "yaw": -8,
+    "pitch": 20,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "beam",
+     "to": [
+      0.13,
+      0.16,
+      1.06
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0,
+     "t1": 0.1,
+     "ease": "out"
+    }
+   ],
+   "callout": {
+    "text": "?",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "For years, the American penny was almost pure copper.",
+   "set": "pile",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.01,
+     0.904
+    ],
+    "dist": 0.22,
+    "yaw": -8,
+    "pitch": 40,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "p0",
+     "rot_to": 120,
+     "t0": 0,
+     "t1": 2.0
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Heavy, shiny, solid copper almost all the way through.",
+   "set": "hero",
+   "camera": "insert",
+   "move": "orbit_l",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     1.0096
+    ],
+    "dist": 0.1,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 70
+   },
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "About ninety five percent.",
+   "set": "pile",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.006,
+     0.01,
+     0.903
+    ],
+    "dist": 0.09,
+    "yaw": -6,
+    "pitch": 55,
+    "lens": 70
+   },
+   "hud": {
+    "label": "COPPER",
+    "fmt": "{v}% COPPER",
+    "from": 0,
+    "to": 95,
+    "max": 100,
+    "color": "orange",
+    "t0": 0.05,
+    "t1": 0.7
+   },
+   "id": "s05",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "A cent was worth a cent, and it cost less than that to make.",
+   "set": "hero",
+   "camera": "medium",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     1.012
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 60
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Then, in the late 1970s, copper prices shot up.",
+   "set": "pile",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.01,
+     0.91
+    ],
+    "dist": 0.4,
+    "yaw": -8,
+    "pitch": 22,
+    "lens": 45
+   },
+   "callout": {
+    "text": "COPPER UP",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The metal in a penny was almost worth more than the penny.",
+   "set": "pile",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.03,
+     0.0,
+     0.903
+    ],
+    "dist": 0.08,
+    "yaw": 10,
+    "pitch": 55,
+    "lens": 70
+   },
+   "callout": {
+    "text": "1¢ ?",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "People could melt coins for profit.",
+   "set": "cut",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.91
+    ],
+    "dist": 0.22,
+    "yaw": -8,
+    "pitch": 35,
+    "lens": 55
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "And the Mint was losing money on every one.",
+   "set": "pile",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.01,
+     0.904
+    ],
+    "dist": 0.26,
+    "yaw": 8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "p3",
+     "rot_to": 90,
+     "t0": 0,
+     "t1": 2.4
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "LOSS"
+   },
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "They'd tried other metals before.",
+   "set": "war",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.92
+    ],
+    "dist": 0.24,
+    "yaw": -8,
+    "pitch": 25,
+    "lens": 55
+   },
+   "id": "s11",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "In 1943, copper went to war for bullet casings.",
+   "set": "war",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.03,
+     0.0,
+     0.903
+    ],
+    "dist": 0.08,
+    "yaw": -8,
+    "pitch": 55,
+    "lens": 70
+   },
+   "callout": {
+    "text": "1943",
+    "x": 0.5,
+    "y": 0.36
+   },
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So pennies were made of steel, coated in zinc.",
+   "set": "war",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.03,
+     0.0,
+     0.903
+    ],
+    "dist": 0.06,
+    "yaw": 8,
+    "pitch": 60,
+    "lens": 75
+   },
+   "moves": [
+    {
+     "id": "steel43",
+     "rot_to": 90,
+     "t0": 0,
+     "t1": 1.6
+    }
+   ],
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "They stuck to magnets.",
+   "set": "war",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.03,
+     0.01,
+     0.93
+    ],
+    "dist": 0.14,
+    "yaw": -10,
+    "pitch": 15,
+    "lens": 60
+   },
+   "moves": [
+    {
+     "id": "steel43",
+     "to": [
+      -0.03,
+      0.02,
+      0.9420000000000001
+     ],
+     "t0": 0.4,
+     "t1": 0.9,
+     "ease": "in"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.9
+    }
+   ],
+   "id": "s14",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "People mistook them for dimes. They lasted one year.",
+   "set": "war",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.91
+    ],
+    "dist": 0.2,
+    "yaw": 8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "cross",
+    "text": "ONE YEAR"
+   },
+   "moves": [
+    {
+     "id": "copper82",
+     "rot_to": 120,
+     "t0": 0,
+     "t1": 2.6
+    }
+   ],
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "So in 1982, the Mint tried something sneaky.",
+   "set": "cut",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.906
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "callout": {
+    "text": "1982",
+    "x": 0.5,
+    "y": 0.36
+   },
+   "freeze": "WAIT...",
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A cheap zinc coin.",
+   "set": "cut",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.03,
+     0.0,
+     0.902
+    ],
+    "dist": 0.07,
+    "yaw": 6,
+    "pitch": 60,
+    "lens": 75
+   },
+   "moves": [
+    {
+     "id": "shears",
+     "to": [
+      0.06,
+      -0.01,
+      0.9
+     ],
+     "t0": 0.0,
+     "t1": 0.6
+    }
+   ],
+   "sfx": [
+    {
+     "name": "scratch",
+     "at": 0.5
+    }
+   ],
+   "id": "s17",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Wearing a paper-thin coat of copper.",
+   "set": "cut",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.03,
+     0.0,
+     0.902
+    ],
+    "dist": 0.06,
+    "yaw": -14,
+    "pitch": 62,
+    "lens": 75
+   },
+   "hud": {
+    "label": "ZINC INSIDE",
+    "fmt": "{v}% ZINC",
+    "from": 0,
+    "to": 97.5,
+    "max": 100,
+    "color": "green",
+    "t0": 0.1,
+    "t1": 0.8
+   },
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "It looks the same, but it weighs less. 2.5 grams, not 3.1.",
+   "set": "scale",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.13,
+     0.16,
+     1.0
+    ],
+    "dist": 0.36,
+    "yaw": 8,
+    "pitch": 12,
+    "lens": 50
+   },
+   "moves": [
+    {
+     "id": "beam",
+     "to": [
+      0.13,
+      0.16,
+      1.06
+     ],
+     "tilt_from": 0,
+     "tilt_to": -7,
+     "t0": 0.3,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "That's your scale mystery solved.",
+   "set": "scale",
+   "camera": "insert",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.03,
+     0.16,
+     0.97
+    ],
+    "dist": 0.12,
+    "yaw": -8,
+    "pitch": 20,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "beam",
+     "to": [
+      0.13,
+      0.16,
+      1.06
+     ],
+     "tilt_from": -7,
+     "tilt_to": -7,
+     "t0": 0,
+     "t1": 0.1,
+     "ease": "out"
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "But zinc got expensive too.",
+   "set": "pile",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.01,
+     0.904
+    ],
+    "dist": 0.24,
+    "yaw": -8,
+    "pitch": 35,
+    "lens": 55
+   },
+   "id": "s21",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "By 2024, one penny cost almost four cents to make.",
+   "set": "hero",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     1.0096
+    ],
+    "dist": 0.09,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 70
+   },
+   "hud": {
+    "label": "COST",
+    "fmt": "{v}¢ EACH",
+    "from": 1,
+    "to": 3.69,
+    "max": 5,
+    "color": "red"
+   },
+   "id": "s22",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "So in 2025, America struck its last penny for circulation.",
+   "set": "last",
+   "camera": "medium",
+   "move": "orbit_l",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     1.012
+    ],
+    "dist": 0.22,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 55
+   },
+   "callout": {
+    "text": "LAST PENNY",
+    "x": 0.5,
+    "y": 0.36
+   },
+   "id": "s23",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "It was struck in Philadelphia, that November.",
+   "set": "last",
+   "camera": "insert",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.03,
+     0.0,
+     1.0096
+    ],
+    "dist": 0.08,
+    "yaw": -10,
+    "pitch": 6,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "last",
+     "rot_to": 60,
+     "t0": 0,
+     "t1": 2.0
+    }
+   ],
+   "id": "s24",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The pennies in your pocket still spend.",
+   "set": "hero",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     1.012
+    ],
+    "dist": 0.24,
+    "yaw": 8,
+    "pitch": 6,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "hero",
+     "rot_to": 90,
+     "t0": 0,
+     "t1": 2.0
+    }
+   ],
+   "id": "s25",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Weigh one, and you'll know which kind you've got.",
+   "set": "scale",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0.13,
+     0.16,
+     1.0
+    ],
+    "dist": 0.5,
+    "yaw": -6,
+    "pitch": 12,
+    "lens": 45
+   },
+   "moves": [
+    {
+     "id": "beam",
+     "to": [
+      0.13,
+      0.16,
+      1.06
+     ],
+     "tilt_from": 0,
+     "tilt_to": -7,
+     "t0": 0.3,
+     "t1": 1.6,
+     "ease": "out"
+    }
+   ],
+   "id": "s26",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 67.26
+}

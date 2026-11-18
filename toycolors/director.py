@@ -188,6 +188,16 @@ def song_audio(p, out):
     return os.path.join(out, "mix.wav"), rep
 
 
+def look_hash(fast):
+    """Verse frames depend on the scene code and quality; a change to either renders the verse again
+    (before this, a look change silently reused the old frames)."""
+    import hashlib
+    h = hashlib.sha1(b"fast" if fast else b"full")
+    for f in ("toy.py", "kit.py", "templates.py", "scene_template.py"):
+        h.update(open(os.path.join(ROOT, "toycolors", f), "rb").read())
+    return h.hexdigest()[:8]
+
+
 def blender(args, log):
     with open(log, "a") as f:
         subprocess.run([BLENDER, "-b", "-P", os.path.join(ROOT, "toycolors/scene_template.py"), "--"] + args,
@@ -254,13 +264,13 @@ def render(p, out, mix_wav, fast=False, limit=None):
     """limit: seconds; render only the start of the song (short tests). Finished verses are reused."""
     out = os.path.abspath(out)                       # the frame list is read relative to its own folder
     mix_wav = os.path.abspath(mix_wav)
-    parts = []
+    parts, lk = [], look_hash(fast)
     for v in p["verses"]:
         if limit is not None and v["t0"] >= limit:
             break
         vdur = v.get("dur", VERSE)
         stretch = abs(vdur - VERSE) > 0.01
-        vd = os.path.join(out, "verses", f"v{v['i']:02d}_{v['template']}_{v['colour']}_{v['kind']}" + (f"_{vdur:.2f}s" if stretch else ""))
+        vd = os.path.join(out, "verses", f"v{v['i']:02d}_{v['template']}_{v['colour']}_{v['kind']}" + (f"_{vdur:.2f}s" if stretch else "") + f"_{lk}")
         need = int(round(vdur * T.FPS))
         extra = ["--dur", f"{vdur:.3f}"] if stretch else []
         if limit is not None and v["t0"] + vdur > limit:
@@ -283,7 +293,9 @@ def render(p, out, mix_wav, fast=False, limit=None):
             break
         ins += ["-loop", "1", "-t", str(p["duration"]), "-i", path]
         a0, a1 = v["t0"] + 0.4, v["t0"] + v.get("dur", VERSE) - 0.4     # title shows for the verse, off at the cut
-        fc += f"[{last}][{k + 2}:v]overlay=0:0:enable='between(t,{a0:.3f},{a1:.3f})'[g{k + 1}];"
+        # titles are drawn at 1920x1080; a 720p preview scales them to the frame first (they ran off the right edge)
+        fc += (f"[{k + 2}:v]scale={'1280:720' if fast else '1920:1080'}[t{k}];"
+               f"[{last}][t{k}]overlay=0:0:enable='between(t,{a0:.3f},{a1:.3f})'[g{k + 1}];")
         last = f"g{k + 1}"
     fc = fc.rstrip(";")
     subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "concat", "-safe", "0", "-i", lst, "-i", mix_wav]

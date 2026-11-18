@@ -22,7 +22,7 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 sc = kit.setup_render(fast="--fast" in argv)
 info = templates.TEMPLATES[name](colour=colour, kind=kind, from_colour=frm)
 toy.grade()
-sc.camera.data.lens *= info.get("zoom", 1.0)          # chibi toys are small: frame them tighter
+sc.camera.data.lens *= info.get("zoom", 1.0) * templates.FILL          # chibi toys are small: frame them tighter
 toy.playground(slides=info.get("slides", True), size=info.get("platform", (34, 20)))
 sc.frame_start, sc.frame_end = 1, templates.F(info["dur"]) - 1
 if "--dur" in argv:                                     # time-stretch: Blender remaps every keyframe, camera included
