@@ -1,0 +1,125 @@
+At exactly eleven A.M. Greenwich Mean Time on November eighteenth, two thousand twenty-six, history happened.
+The global review embargo for Grand Theft Auto Six lifted simultaneously with New Zealand’s midnight launch.
+Within minutes, one hundred and nine critic reviews pushed the game to a ninety-nine on Metacritic.
+That score tied Ocarina of Time as the highest-rated video game in human history.
+It beat Red Dead Redemption Two, Breath of the Wild, and Super Mario Odyssey at ninety-seven.
+Over nine million players had already pre-ordered the game, generating one point five billion dollars.
+PlayStation Five console sales had even jumped twenty-two percent in a single month just for tonight.
+Millions of players spent the week preloading two hundred and twelve gigabytes onto their console drives.
+Thousands more tried changing their console locations to Wellington just to play fifteen hours early.
+New Zealand’s official tourism board even posted memes celebrating their status as global time travelers.
+Meanwhile, Xbox warned reporters against region switching and Twitch threatened bans for faking New Zealand residency.
+Even PlayStation players faced account ban warnings for registering fake secondary accounts in Auckland.
+Yet while the internet celebrated that historic ninety-nine rating, early players uncovered a massive shock.
+Senior Editor Simon Cardy at IGN published an urgent warning less than an hour into launch.
+Players finishing the opening Prologue noticed something bizarre inside the Grand Theft Auto Six pause menu.
+A staple feature that existed in every Rockstar game for seventeen straight years had vanished.
+Worse yet, players who paid one hundred dollars for the Ultimate Edition discovered a brutal catch.
+Advancing through the main campaign can permanently strip your paid bonus items away from your character.
+And if you overwrite a single autosave file across the fifty-hour story, there is no undo button.
+You can permanently lock yourself out of entire chapters, safehouses, and endings before the credits roll.
+To understand why your save files are suddenly in danger, look back to two thousand nine.
+When Rockstar released The Ballad of Gay Tony, they introduced a beloved feature called Mission Replay.
+Red Dead Redemption, Grand Theft Auto Five, and Red Dead Redemption Two all expanded that exact system.
+In those games, finishing a heist or shootout unlocked a checklist of bronze, silver, and gold medals.
+You could open your pause menu anytime, select any past mission, and jump right back in.
+If you wanted to replay a bank robbery with a different approach, it took two clicks.
+When players booted up Grand Theft Auto Six today and finished the Prologue, they checked the menu.
+First, players noticed that the Prologue mission contained zero Gold Medal objectives or completion checklists.
+Then they opened the completed missions database inside the pause screen expecting to see a replay prompt.
+Instead, the entire completed missions archive is nothing more than a wall of static thumbnail images.
+Clicking on a finished mission does nothing at all because Rockstar removed Mission Replay at launch.
+You cannot replay individual story missions, and you cannot select previous story chapters from any menu.
+Even in their ten-out-of-ten masterpiece review, IGN called this omission a baffling step backward for Rockstar.
+Once a mission ends and the autosave icon spins in the corner, that moment is gone.
+If you missed a branching path during a heist, you cannot reload that mission from the menu.
+Why would Rockstar spend ten years building the most advanced open world ever and cut Mission Replay?
+The answer is tied to how Leonida tracks your bank account, your safehouses, and your fugitive status.
+And that exact same fugitive system is now blindsiding everyone who bought the hundred-dollar Ultimate Edition.
+Back on June twenty-fifth, two thousand twenty-six, Rockstar officially opened digital pre-orders across PlayStation and Xbox.
+The Standard Edition launched at seventy-nine ninety-nine, while the digital-only Ultimate Edition cost ninety-nine ninety-nine.
+An IGN poll of over twenty-three thousand readers revealed that seventy percent chose the hundred-dollar edition.
+That made Grand Theft Auto Six the first true hundred-dollar mainstream release for millions of players.
+On paper, the Ultimate Edition promised a massive vault of single-player vehicles, weapons, and cosmetics.
+Buyers before November twentieth received the Vintage Vice City Pack alongside Wyman’s Classic Car Collection.
+The bundle also listed a ninety-five Grotti Cheetah supercar, Jason’s Safehouse Vehicles, and custom Morgan Revolvers.
+Plus, it promised exclusive Vice City Style clothing and tattoos for both Jason and Lucia.
+Most players assumed those items would sit waiting inside their wardrobe and garage in Chapter One.
+Today, Simon Cardy at IGN revealed three harsh realities about how Ultimate Edition content actually works.
+Catch number one is that your exclusive Ultimate Edition clothes and tattoos are not free in-game.
+Paying twenty extra real-world dollars only unlocks the right to purchase those cosmetics inside Leonida’s shops.
+Even worse, those bonus outfits and tattoos are priced among the most expensive items in the state.
+You will not even have enough in-game cash to buy your paid cosmetics until much later.
+Catch number two is that Ultimate Edition vehicles, guns, and outfits are strictly locked behind specific chapters.
+You cannot drive Wyman’s Classic Car Collection or equip every bonus weapon whenever you feel like it.
+And catch number three is the one causing uproar across social media right now.
+IGN confirmed that several Ultimate Edition items are permanently taken away from you as the story progresses.
+Why would a video game confiscate items that you paid real money to unlock?
+Unlike Grand Theft Auto Five, you cannot freely purchase luxury mansions or safehouses across the map.
+Players can only buy separate garages and vehicle storage bays on their own terms.
+Your actual safehouses shift automatically through the narrative as Jason and Lucia go on the run.
+When law enforcement or rival syndicates burn a safehouse chapter down, that chapter’s tied bonuses vanish.
+And because there is no chapter select or mission replay, advancing past that point is permanent.
+Unless you follow a very specific manual save strategy, your favorite chapter and bonus gear disappear forever.
+Here is why the fifteen manual save slots inside Grand Theft Auto Six are your only lifeline.
+When you open the Save Game menu tonight, you will find exactly fifteen manual save slots.
+According to IGN’s fifty-hour campaign review, the main story takes roughly fifty hours to beat.
+If you want the PlayStation Five Platinum Trophy, expect to invest around two hundred hours total.
+Because Rockstar deleted Mission Replay, those fifteen manual slots are the only chapter select you get.
+IGN’s launch guide urges every player to create a brand-new manual save every five to ten percent.
+Instead of overwriting Slot One every night, you must rotate chronologically from Slot One through Slot Fourteen.
+Doing that preserves a playable snapshot of every major safehouse, map region, and Ultimate Edition vehicle.
+Certain story milestones also act as strict money gates that require accumulating specific cash totals to advance.
+Staggering your saves every five to ten percent ensures you never get trapped before a major transition.
+But why did we say to rotate through Slot Fourteen instead of using all fifteen slots for chapters?
+Because Slot Fifteen needs to be reserved as your dedicated Chaos and Rampage save file.
+Here is the hidden behavioral mechanic that makes a separate chaos save mandatory in Leonida.
+Both Jason and Lucia have independent Criminal Profiles that evaluate how you commit crimes across the state.
+If you rob targets cleanly using zip-ties and intimidation without slaughtering bystanders, your profile stays Professional.
+If you go on reckless rampages and gun down civilians, your profile slides toward Psychopath.
+And during the Rockstar North hands-on previews, testers noticed a chilling detail beneath the Psychopath tier.
+If you push a character’s brutality below Psychopath, the meter hits an irreversible cracked icon state.
+Once that icon cracks on your active save file, you can never restore your Professional profile again.
+Now connect that irreversible cracked icon to what IGN just confirmed in their launch review today.
+IGN confirmed that Grand Theft Auto Six is the first entry built specifically to encourage player empathy.
+More importantly, the review confirmed that Grand Theft Auto Six features multiple different story endings.
+How you behave across Leonida directly shapes how Jason and Lucia’s story culminates in the finale.
+That is why IGN explicitly warned players to keep a separate save file before going on rampages.
+And if you want classic chaos without ruining your Criminal Profile, Rockstar hid a reward at the end.
+Beating the main story unlocks an exhaustive built-in list of hilarious official cheat codes.
+Until you reach those credits, however, one unbacked rampage on your main save can alter your ending forever.
+Even if you manage your fifteen save slots carefully, muscle memory from past Rockstar games can betray you.
+Remember how Red Dead Redemption Two players constantly shot town sheriffs in the face by mistake?
+You would walk up to greet a stranger, tap the wrong trigger, and accidentally draw your revolver.
+In a game where civilian murder permanently cracks your Criminal Profile, accidental shootings would be catastrophic.
+So for the first time in modern Rockstar history, they completely rebuilt their on-foot controller layout.
+You no longer mash the X button on PlayStation or the A button on Xbox to sprint.
+Rockstar officially moved Sprint to L3 by clicking the left analog stick, saving thumbs worldwide.
+They also separated the weapon draw input so you require a deliberate command before aiming a gun.
+That prevents you from accidentally pulling a pistol when you are only trying to talk to NPCs.
+Inside vehicles, however, the button changes require an immediate mental adjustment during your first police chase.
+On PlayStation Five, the vehicle handbrake has been moved from R1 down to the X button.
+Rockstar made that change because L1 and R1 are now dedicated to aiming and firing while driving.
+If you tap R1 expecting to drift around a corner in Vice City, you will fire your weapon.
+World interactions are also much more physical than anything in Grand Theft Auto Five.
+You can no longer stand by the front wheel of a jumbo jet and teleport into the cockpit.
+You actually have to find a physical boarding path to climb inside large aircraft at the airport.
+Before you even reach the title screen tonight, there are also three mandatory technical hurdles to clear.
+First, Sony issued an urgent reminder that PlayStation Five system firmware fourteen point two-two is required.
+Without installing firmware fourteen point two-two first, the digital game license will refuse to boot at midnight.
+Second, even if you preloaded all two hundred and twelve gigabytes, a mandatory day-one patch awaits.
+Update version one point zero-zero-two adds six hundred and two megabytes on PlayStation Five.
+On Xbox Series X and S, that same day-one patch requires a one point five-nine gigabyte download.
+Third, early technical reviews confirmed that the base PlayStation Five struggles during heavy explosion sequences.
+While the game targets thirty frames per second, high-speed chases with heavy explosions trigger noticeable frame drops.
+When your countdown timer finally hits zero tonight, follow this exact checklist before starting Chapter One.
+Step one: install console firmware fourteen point two-two and patch one point zero-zero-two thirty minutes before midnight.
+Step two: the moment you finish the opening Prologue, open your pause menu and create Manual Save One.
+Never overwrite that Prologue save so you always have a clean starting point without replaying tutorials.
+Step three: every time your story completion climbs by five to ten percent, open a fresh manual slot.
+Rotate sequentially through Slots Two to Thirteen whenever you unlock a new safehouse or Ultimate Edition vehicle.
+That guarantees that when the story confiscates a safehouse or bonus car, you still own a playable chapter.
+Step four: keep Slot Fourteen as your pre-finale checkpoint so you can experience all of the multiple endings.
+Step five: reserve Slot Fifteen exclusively for five-star rampages so you never crack your main Criminal Profile.
+And finally, remember that L3 sprints and X pulls the handbrake before your first getaway begins.
+Drop a comment below letting us know which platform you are booting up on tonight.
