@@ -587,7 +587,7 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
                 if not ref.is_file():
                     raise RuntimeError(f"'{clone_name}' was added before Chatterbox; add it again from its recording to use Chatterbox")
                 if not cbx.ensure_env(lambda t: ui(view._vo_status_var.set, t)):
-                    raise RuntimeError("Chatterbox could not be set up (no internet, pip is blocked, low disk space, or a packaged build)")
+                    raise RuntimeError("Chatterbox could not be set up (no internet, a download was blocked, or low disk space; it needs about 5 GB)")
                 ui(view._vo_status_var.set, "Loading Chatterbox (the first time also downloads the model)...")
                 res = cbx.synthesize(text, str(out), str(ref), speed=speed, ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"),
                                      progress=lambda d, t: ui(_progress, view, d, t, "Chatterbox: piece"),

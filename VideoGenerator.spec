@@ -84,6 +84,15 @@ else:
           f"generation available (Stock and Manual scenes are unaffected). "
           f"See bin/README.md.")
 
+# Chatterbox voice clone (Voiceover tab): the packaged app builds Chatterbox's own Python 3.11 env on first use with a
+# bundled `uv` (from the `uv` pip package in requirements-build.txt), then runs this worker script with that env's Python.
+datas.append((str(ROOT / "voice_clone" / "chatterbox_worker.py"), "voice_clone"))
+try:
+    import uv as _uv
+    binaries += [(str(_uv.find_uv_bin()), "bin")]
+except Exception as _e:
+    print(f"WARNING: uv not found ({_e}) — packaged app cannot set up Chatterbox. pip install -r requirements-build.txt")
+
 # Bundle flow-engine/ (server.js, lib/*.js, config.js, package.json, and its
 # pre-installed node_modules) as plain data files — Node/PyInstaller runs it
 # with the bundled `node` binary above, no npm install needed at runtime.

@@ -1,6 +1,7 @@
 """voice_clone: sample checks, window splitting, saved voices, the synthesize(convert=...) hook. No network, no model download."""
 import os
 import shutil
+import sys
 import subprocess
 import tempfile
 import unittest
@@ -182,6 +183,68 @@ class ChatterboxTests(unittest.TestCase):
             self.cbx.synthesize("Hello there.", os.path.join(self.tmp, "o.mp3"), str(ref), ffmpeg=FFMPEG)
         with self.assertRaisesRegex(RuntimeError, "add the voice again"):
             self.cbx.synthesize("Hello there.", os.path.join(self.tmp, "o.mp3"), os.path.join(self.tmp, "none.wav"), ffmpeg=FFMPEG)
+
+
+class ChatterboxPackagedSetupTests(unittest.TestCase):
+    """The exe / .app set Chatterbox up with their bundled uv instead of giving up."""
+
+    def setUp(self):
+        from unittest import mock
+        from voice_clone import chatterbox_engine as cbx
+        self.cbx, self.mock = cbx, mock
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        uv = self.tmp / "bin" / ("uv.exe" if sys.platform == "win32" else "uv")
+        uv.parent.mkdir()
+        uv.write_text("")
+        self.uv = uv
+
+    def _frozen(self):
+        m = self.mock
+        return [m.patch.object(sys, "frozen", True, create=True), m.patch.object(sys, "_MEIPASS", str(self.tmp), create=True)]
+
+    def test_bundled_uv_is_used_when_packaged(self):
+        with self._frozen()[0], self._frozen()[1]:
+            self.assertEqual(self.cbx.uv_command(), [str(self.uv)])
+
+    def test_packaged_python_settings_do_not_leak_into_the_env(self):
+        env = {"PYTHONHOME": "/app", "PYTHONPATH": "/app/lib", "LD_LIBRARY_PATH": "/app", "LD_LIBRARY_PATH_ORIG": "/usr/lib", "PATH": "/bin"}
+        with self.mock.patch.dict(os.environ, env, clear=True):
+            out = self.cbx._child_env()
+        self.assertNotIn("PYTHONHOME", out)
+        self.assertNotIn("PYTHONPATH", out)
+        self.assertEqual(out["LD_LIBRARY_PATH"], "/usr/lib")
+        self.assertEqual(out["PATH"], "/bin")
+
+    def test_packaged_setup_builds_the_env_and_picks_cuda_off_mac(self):
+        calls = []
+        ready = iter([False, True])
+        with self._frozen()[0], self._frozen()[1], \
+                self.mock.patch.object(self.cbx, "is_ready", lambda: next(ready)), \
+                self.mock.patch.object(self.cbx, "_bundled_uv", lambda: self.uv), \
+                self.mock.patch.object(self.cbx, "env_dir", lambda: self.tmp / "env"), \
+                self.mock.patch.object(self.cbx, "_run", lambda cmd, timeout=0: calls.append(cmd) or True), \
+                self.mock.patch.object(sys, "platform", "win32"):
+            self.assertTrue(self.cbx.ensure_env())
+        self.assertEqual(calls[0][:2], [str(self.uv), "venv"])
+        self.assertIn("--torch-backend", calls[1])
+
+    def test_old_uv_without_torch_backend_falls_back(self):
+        calls = []
+        ready = iter([False, True])
+        with self._frozen()[0], self._frozen()[1], \
+                self.mock.patch.object(self.cbx, "is_ready", lambda: next(ready)), \
+                self.mock.patch.object(self.cbx, "_bundled_uv", lambda: self.uv), \
+                self.mock.patch.object(self.cbx, "env_python", lambda: self.uv), \
+                self.mock.patch.object(self.cbx, "_run", lambda cmd, timeout=0: calls.append(cmd) or "--torch-backend" not in cmd), \
+                self.mock.patch.object(sys, "platform", "linux"):
+            self.assertTrue(self.cbx.ensure_env())
+        self.assertNotIn("--torch-backend", calls[-1])
+
+    def test_spec_bundles_the_worker_and_uv(self):
+        spec = (Path(__file__).parent / "VideoGenerator.spec").read_text(encoding="utf-8")
+        self.assertIn('"chatterbox_worker.py"', spec)
+        self.assertIn("find_uv_bin", spec)
 
 
 if __name__ == "__main__":

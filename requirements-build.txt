@@ -2,3 +2,5 @@
 pyinstaller>=6.3.0
 # macOS only: Dock shows "Semantic YT Studio" when launching via `python app.py`
 pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
+# Bundled into the app so it can build the Chatterbox voice-clone env on first use (--torch-backend needs 0.7+)
+uv>=0.7

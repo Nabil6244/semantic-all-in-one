@@ -42,32 +42,89 @@ def is_ready() -> bool:
     py = env_python()
     if not py.is_file():
         return False
-    r = subprocess.run([str(py), "-c", CHECK], capture_output=True, timeout=120)
+    try:
+        r = subprocess.run([str(py), "-c", CHECK], capture_output=True, timeout=300, env=_child_env())
+    except (OSError, subprocess.TimeoutExpired):
+        return False
     return r.returncode == 0
 
 
+def _child_env() -> dict:
+    """Environment for the Chatterbox env's Python and for uv: drop the packaged app's own Python settings so they never leak in."""
+    env = dict(os.environ)
+    for k in ("PYTHONHOME", "PYTHONPATH", "PYTHONSTARTUP", "PYTHONEXECUTABLE", "VIRTUAL_ENV", "__PYVENV_LAUNCHER__"):
+        env.pop(k, None)
+    for k in ("LD_LIBRARY_PATH", "DYLD_LIBRARY_PATH"):       # PyInstaller saves the original as *_ORIG and points these at itself
+        if k + "_ORIG" in env:
+            env[k] = env[k + "_ORIG"]
+        elif getattr(sys, "frozen", False):
+            env.pop(k, None)
+    env.setdefault("UV_PYTHON_INSTALL_DIR", str(engine.data_dir() / "uv_python"))   # uv's Python 3.11 lives with the env
+    env.setdefault("UV_CACHE_DIR", str(engine.data_dir() / "uv_cache"))
+    return env
+
+
 def _run(cmd: list, timeout: int = 3600) -> bool:
-    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).returncode == 0
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=_child_env()).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
+def _bundled_uv() -> Optional[Path]:
+    """The uv binary shipped inside the exe / .app (VideoGenerator.spec puts it in bin/ next to ffmpeg)."""
+    name = "uv.exe" if sys.platform == "win32" else "uv"
+    roots = []
+    if getattr(sys, "_MEIPASS", None):
+        roots.append(Path(sys._MEIPASS))
+    if getattr(sys, "frozen", False):
+        roots.append(Path(sys.executable).resolve().parent)
+    for r in roots:
+        for p in (r / "bin" / name, r / name):
+            if p.is_file():
+                return p
+    return None
+
+
+def uv_command() -> Optional[list]:
+    """How to call uv: the bundled binary, else uv on PATH, else (source runs only) the app Python's uv module, installed if missing."""
+    p = _bundled_uv()
+    if p:
+        return [str(p)]
+    import shutil
+    w = shutil.which("uv")
+    if w:
+        return [w]
+    if getattr(sys, "frozen", False):
+        return None
+    cmd = [sys.executable, "-m", "uv"]
+    if _run(cmd + ["--version"], 120) or _run([sys.executable, "-m", "pip", "install", "--quiet", "uv"], 600):
+        return cmd
+    return None
 
 
 def ensure_env(say: Optional[Callable[[str], None]] = None) -> bool:
-    """Make the Chatterbox environment once: its own Python 3.11 (via uv, which fetches it) with chatterbox-tts installed."""
+    """Make the Chatterbox environment once: its own Python 3.11 (via uv, which fetches it) with chatterbox-tts installed.
+    Works the same from source, the Windows exe and the Mac .app (both ship uv)."""
     if is_ready():
         return True
-    if getattr(sys, "frozen", False):
+    uv = uv_command()
+    if not uv:
         return False
     if say:
         say("Setting up Chatterbox (one time, about 5 GB with the model, 10-30 minutes)...")
     d = env_dir()
     if not env_python().is_file():
-        if not _run([sys.executable, "-m", "uv", "--version"], 120):
-            if not _run([sys.executable, "-m", "pip", "install", "--quiet", "uv"], 600):
-                return False
-        if not _run([sys.executable, "-m", "uv", "venv", "--python", PY_VERSION, str(d)], 1800):
+        if not _run(uv + ["venv", "--python", PY_VERSION, "--python-preference", "only-managed", str(d)], 1800):
             return False
     if say:
         say("Installing Chatterbox into its own environment (one time)...")
-    if not _run([sys.executable, "-m", "uv", "pip", "install", "--python", str(env_python()), *PACKAGES], 3600):
+    install = uv + ["pip", "install", "--python", str(env_python()), *PACKAGES]
+    # Windows/Linux: PyPI's torch is CPU-only there, so let uv pick the CUDA build when an NVIDIA card is present.
+    # (Macs use PyPI's torch, which already has Apple GPU support.) Older uv lacks the flag, so retry without it.
+    if sys.platform != "darwin" and _run(install + ["--torch-backend", "auto"], 3600):
+        return is_ready()
+    if not _run(install, 3600):
         return False
     return is_ready()
 
@@ -118,7 +175,7 @@ def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
         with open(job_path, "w", encoding="utf-8") as f:
             json.dump(job, f)
         proc = subprocess.Popen([str(env_python()), str(worker_path()), job_path], stdout=subprocess.PIPE,
-                                stderr=subprocess.DEVNULL, text=True, encoding="utf-8")
+                                stderr=subprocess.DEVNULL, text=True, encoding="utf-8", env=_child_env())
         done, error = 0, ""
         try:
             for line in proc.stdout:
