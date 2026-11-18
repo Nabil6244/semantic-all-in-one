@@ -138,7 +138,7 @@ def _flag(fast):
 
 def shot_dir(spec, fast):
     # the key holds everything that changes the picture: the shot, the scene code, the quality and any TOY_* render knobs
-    knobs = sorted((k, v) for k, v in os.environ.items() if k.startswith("TOY_"))
+    knobs = sorted((k, v) for k, v in os.environ.items() if k.startswith("TOY_") and k != "TOY_JOBS")   # JOBS: speed only
     knobs = json.dumps(knobs) if knobs else ""
     key = hashlib.sha1((json.dumps(spec, sort_keys=True) + code_hash(spec["action"]) + _tag(fast) + knobs).encode()).hexdigest()[:14]
     return os.path.join(CACHE, key)

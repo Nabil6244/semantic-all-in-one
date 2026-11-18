@@ -310,7 +310,7 @@ def a_race(cast, dur, args):
         look(v, t_go, -2, 0)
         look(v, t_end, -6, -18)
     hop(cast[win].root, t_end + 0.1, 0.35)
-    cam, tgt = kit.camera((x0 + 4, -7.5, 1.8), (x0, 0, 0.8), lens=40 * templates.FILL)
+    cam, tgt = kit.camera((x0 + 4, -7.5, 1.8), (x0, 0, 0.8), lens=40)          # tracks two racers side by side: no extra zoom
     for t in (0, t_go, (t_go + t_end) / 2, t_end, dur):
         f = min(1, max(0, (t - t_go) / (t_end - t_go)))
         cx = x0 + (x1 - x0) * f
@@ -428,7 +428,7 @@ def camera(cast, spec):
         aim = ((min(xs) + max(xs)) / 2, 0, 0.9)
     dist, h, side = c.get("dist", 9.0), c.get("height", 2.3), math.radians(c.get("side", 45))   # 45: faces, not profiles
     push, pan, dur = c.get("push", 0.12), c.get("pan", 0.0), spec["dur"]
-    lens = c.get("lens", 45) * templates.FILL
+    lens = c["lens"] if "lens" in c else 45 * templates.FILL     # a lens set in the story is a hand-tuned frame: kept
     xs = [home(v)[0] for v in cast.values()]
     if len(xs) > 1:                                # bigger toys, but the whole cast stays in frame, even after the push
         need = (max(xs) - min(xs) + 3.6) / max(0.5, math.cos(side))
