@@ -11,7 +11,9 @@ import random
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
+from toycolors.paths import font as _font_path
+
+FONT = _font_path()
 W, H = 1920, 1080
 
 

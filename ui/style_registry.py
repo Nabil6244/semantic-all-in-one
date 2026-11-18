@@ -194,3 +194,14 @@ EXTRA_BLURBS[GAME_LAUNCH] = ("A big game launch, game vs real life: the official
                              "satellite map of the game's regions, chapter cards, glitch cuts and a synthwave bed, plus Shorts (one per "
                              "chapter) and a thumbnail. From a scenes CSV and the trailer files; the voice is free.")
 EXTRA_CARDS[GAME_LAUNCH] = ("\u25B6", "Game trailers vs the real places", "A scenes CSV + trailer files", "GTA 6 Leonida vs Florida, any game set in a real place")
+
+
+# Toy Vehicles (ui/toy_vehicles_section.py, toycolors/): appended here so nothing above changes
+TOY_VEHICLES = "Toy Vehicles"
+STANDALONE = STANDALONE + (TOY_VEHICLES,)
+GROUPS = tuple((title, names + (TOY_VEHICLES,) if title == "Kids" else names) for title, names in GROUPS)
+EXTRA_BLURBS[TOY_VEHICLES] = ("Bright 3D toy cars and trucks with faces on a toy playground. Songs: one sung verse per colour as a vehicle "
+                              "changes colour (surprise egg, paint pour, garage, magic portal, new wheels, convoy). Stories: Zip, Hooky, "
+                              "Splash and friends with a narrator and their own voices: stuck in mud, tow, wash, race, ramp jump, flat "
+                              "tyre, hide and seek. 720p preview or 1080p final; the voices are free.")
+EXTRA_CARDS[TOY_VEHICLES] = ("◉", "3D toy vehicles: colour songs and stories", "A colour list or a story file", "Colours, vehicles, friendship adventures")

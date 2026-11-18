@@ -215,6 +215,44 @@ def decal(text, loc, rot, size, parent, rgb=(1, 1, 1), outline=(0.1, 0.1, 0.1)):
     return ob
 
 
+def star(name, loc, r, side, m, parent):
+    """A chunky five-point star decal standing on a body side (side = -1 or +1 in Y)."""
+    bm = bmesh.new()
+    pts = []
+    for k in range(10):
+        a = math.pi / 2 + k * math.pi / 5
+        rr = r if k % 2 == 0 else r * 0.48
+        pts.append((loc[0] + rr * math.cos(a), loc[2] + rr * math.sin(a)))
+    vs = [bm.verts.new((x, loc[1], z)) for x, z in pts]
+    f = bm.faces.new(vs)
+    ext = bmesh.ops.extrude_face_region(bm, geom=[f])
+    for e in ext["geom"]:
+        if isinstance(e, bmesh.types.BMVert):
+            e.co.y += side * 0.012
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    ob = bpy.data.objects.new(name, me)
+    bpy.context.scene.collection.objects.link(ob)
+    ob.data.materials.append(m)
+    ob.parent = parent
+    bev = ob.modifiers.new("soft", "BEVEL")
+    bev.width, bev.segments = 0.004, 2
+    return ob
+
+
+def side_art(kind, up, lower):
+    """Side decals like the reference toys: a white swoosh stripe hugging the lower body and a star near the back."""
+    white = kit.mat("decal_white", (0.97, 0.97, 0.95), rough=0.3, coat=0.6)
+    gold = kit.mat("decal_star", (1.0, 0.82, 0.12), rough=0.25, coat=0.8)
+    for sy in (-1, 1):
+        if kind == "bus":
+            star(f"star{sy}", (-0.62, sy * 0.548, 0.5), 0.13, sy, gold, up)
+            continue
+        panel("side_stripe", (-0.12, sy * 0.53, 0.4), "y", 1.35, 0.07, 0.03, white, up, lower, offset=0.006)
+        star(f"star{sy}", (-0.46, sy * 0.535, 0.64), 0.12, sy, gold, up)
+
+
 def blink(v, t_frame, dur=5):
     for lid in v.lids:
         z0 = lid.location.z
@@ -225,7 +263,7 @@ def blink(v, t_frame, dur=5):
 
 # ================================================================ chibi vehicles
 def chibi(kind, rgb, loc=(0, 0, 0), yaw=0.0, name=None, monster=False, iris=(0.15, 0.45, 0.85), rim=None,
-          decal_name=True):
+          decal_name=True, art=True):
     """kind: fire, bus, dump, tanker, crane, car. monster=True lifts it on huge tyres with a coloured chassis."""
     root = kit.empty(name or kind, loc)
     root.rotation_euler = (0, 0, yaw)
@@ -252,7 +290,7 @@ def chibi(kind, rgb, loc=(0, 0, 0), yaw=0.0, name=None, monster=False, iris=(0.1
         panel_z, panel_h = 1.28, 0.55
         roof_z = 1.64
     else:
-        sbox("lower_body", (0, 0, 0.58), (L, 1.06, 0.58), body, 0.2, up)  # flat front keeps the mouth seated
+        lower = sbox("lower_body", (0, 0, 0.58), (L, 1.06, 0.58), body, 0.2, up)  # flat front keeps the mouth seated
         cab = sbox("cab", (0.47, 0, 1.12), (0.86, 1.06, 0.92), body, 0.33, up)
         front = 0.9
         panel_z, panel_h = 1.24, 0.5
@@ -282,6 +320,8 @@ def chibi(kind, rgb, loc=(0, 0, 0), yaw=0.0, name=None, monster=False, iris=(0.1
         for sy in (-1, 1):
             decal(nm, (front - 0.42 if kind != "bus" else -0.2, sy * 0.545, 0.62 if kind != "bus" else 0.6),
                   (math.radians(90), 0, math.radians(0 if sy < 0 else 180)), 0.2, up)
+    if art:
+        side_art(kind, up, cab if kind == "bus" else lower)
     # wheels
     xs = (-0.62, 0.62) if kind != "bus" else (-0.75, 0.75)
     wy = 0.66 if monster else 0.5

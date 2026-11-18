@@ -626,8 +626,9 @@ def blink(v, frame, dur=4):
 
 
 # ================================================================ colour change and props for templates
-def wipe(paint, to_rgb, axis="Z"):
-    """Turn a toy paint into a two-colour paint split at a world-space plane: new colour where position.axis > threshold.
+def wipe(paint, to_rgb, axis="Z", below=False):
+    """Turn a toy paint into a two-colour paint split at a world-space plane: new colour where position.axis > threshold
+    (below=True: where it is under the threshold, e.g. mud climbing up a body).
     Returns the threshold Value node; keyframe node.outputs[0].default_value to move the paint front."""
     nt = paint.node_tree
     b = nt.nodes["Principled BSDF"]
@@ -637,7 +638,7 @@ def wipe(paint, to_rgb, axis="Z"):
     thr = nt.nodes.new("ShaderNodeValue")
     thr.outputs[0].default_value = 99.0
     cmp = nt.nodes.new("ShaderNodeMath")
-    cmp.operation = "GREATER_THAN"
+    cmp.operation = "LESS_THAN" if below else "GREATER_THAN"
     mix = nt.nodes.new("ShaderNodeMix")
     mix.data_type = "RGBA"
     a_in, b_in = [i for i in mix.inputs if i.type == "RGBA"][:2]
@@ -655,8 +656,10 @@ def key_value(node, frame, value):
     node.outputs[0].keyframe_insert("default_value", frame=frame)
 
 
-def road(x0, x1, y=0.0, width=3.2, dashes=True):
-    asphalt = ramp_mat("asphalt", (0.16, 0.16, 0.18), (0.22, 0.22, 0.24), scale=6.0, rough=0.85)
+def road(x0, x1, y=0.0, width=3.2, dashes=True, tint=None):
+    """tint: (rgb_dark, rgb_light) for a coloured toy road instead of grey asphalt."""
+    c0, c1 = tint or ((0.16, 0.16, 0.18), (0.22, 0.22, 0.24))
+    asphalt = ramp_mat("asphalt" if tint is None else "toy_road", c0, c1, scale=6.0, rough=0.85 if tint is None else 0.45)
     box("road", ((x0 + x1) / 2, y, 0.012), (x1 - x0, width, 0.02), asphalt, 0.005)
     edge = mat("road_edge", (0.95, 0.95, 0.95), rough=0.5)
     for sy in (-1, 1):

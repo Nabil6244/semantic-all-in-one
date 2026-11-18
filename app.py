@@ -109,6 +109,7 @@ from ui import roblox_cinema_section as _rc_section   # Roblox Cinema (ui/roblox
 from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_section.py, voxelmap-engine/)
 from ui import city_timelapse_section as _ct_section   # City Timelapse (ui/city_timelapse_section.py, citygrow-engine/)
 from ui import toon_tales_section as _tt_section   # Toon Tales (ui/toon_tales_section.py, toontales/)
+from ui import toy_vehicles_section as _tv_section   # Toy Vehicles (ui/toy_vehicles_section.py, toycolors/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import game_launch_section as _gl_section   # Game Launch (ui/game_launch_section.py, game_launch/)
 from ui import ocean_section as _oc_section   # Ocean Predators (ui/ocean_section.py, ocean/)
@@ -3236,6 +3237,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "City Timelapse"
         if getattr(self, "_tt_active", False):   # Toon Tales (ui/toon_tales_section.py): opt-in, per session
             return "Toon Tales"
+        if getattr(self, "_tv_active", False):   # Toy Vehicles (ui/toy_vehicles_section.py): opt-in, per session
+            return "Toy Vehicles"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
             return "Aviation"
         if getattr(self, "_gl_active", False):   # Game Launch (ui/game_launch_section.py): opt-in, per session
@@ -3317,6 +3320,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_tv_running", False):   # Toy Vehicles
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         if getattr(self, "_av_running", False):   # Aviation
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
@@ -3380,6 +3387,12 @@ class VideoGeneratorApp(ctk.CTk):
             _tt_section.deactivate(self)
         if choice == "Toon Tales":   # its own page (ui/toon_tales_section.py); nothing runs until Generate
             _tt_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Toy Vehicles":
+            _tv_section.deactivate(self)
+        if choice == "Toy Vehicles":   # its own page (ui/toy_vehicles_section.py); nothing runs until Generate
+            _tv_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Aviation":
@@ -3565,6 +3578,9 @@ class VideoGeneratorApp(ctk.CTk):
         tt_block = getattr(self, "_tt_block", None)
         if tt_block is not None:
             tt_block.grid() if active == "Toon Tales" else tt_block.grid_remove()
+        tv_block = getattr(self, "_tv_block", None)
+        if tv_block is not None:
+            tv_block.grid() if active == "Toy Vehicles" else tv_block.grid_remove()
         av_block = getattr(self, "_av_block", None)
         if av_block is not None:
             av_block.grid() if active == "Aviation" else av_block.grid_remove()
@@ -7520,6 +7536,8 @@ class VideoGeneratorApp(ctk.CTk):
             _ct_section.cta(self, action)
         elif action in ("tt_generate", "tt_render", "tt_cancel"):
             _tt_section.cta(self, action)
+        elif action in ("tv_generate", "tv_render", "tv_cancel"):
+            _tv_section.cta(self, action)
         elif action in ("av_generate", "av_render", "av_cancel"):
             _av_section.cta(self, action)
         elif action in ("gl_generate", "gl_render", "gl_cancel"):
@@ -8374,6 +8392,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _ct_section.sync_cta(self)
         if getattr(self, "_tt_active", False) and getattr(self, "_tt_block", None) is not None:   # Toon Tales owns the button while its page is up
             return _tt_section.sync_cta(self)
+        if getattr(self, "_tv_active", False) and getattr(self, "_tv_block", None) is not None:   # Toy Vehicles owns the button while its page is up
+            return _tv_section.sync_cta(self)
         if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
             return _av_section.sync_cta(self)
         if getattr(self, "_gl_active", False) and getattr(self, "_gl_block", None) is not None:   # Game Launch owns the button while its page is up
@@ -9222,6 +9242,7 @@ class VideoGeneratorApp(ctk.CTk):
         _vm_section.deactivate(self, remember=False)   # Voxel Map likewise, until resume_on_open below
         _ct_section.deactivate(self, remember=False)   # City Timelapse likewise, until resume_on_open below
         _tt_section.deactivate(self, remember=False)   # Toon Tales likewise, until resume_on_open below
+        _tv_section.deactivate(self, remember=False)   # Toy Vehicles likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _gl_section.deactivate(self, remember=False)   # Game Launch likewise, until resume_on_open below
         _oc_section.deactivate(self, remember=False)   # Ocean Predators likewise, until resume_on_open below
@@ -9230,6 +9251,7 @@ class VideoGeneratorApp(ctk.CTk):
         _vm_section.resume_on_open(self)   # a project left on the Voxel Map page opens on it again; nothing runs until Generate
         _ct_section.resume_on_open(self)   # a project left on the City Timelapse page opens on it again; nothing runs until Generate
         _tt_section.resume_on_open(self)   # a project left on the Toon Tales page opens on it again; nothing runs until Generate
+        _tv_section.resume_on_open(self)   # a project left on the Toy Vehicles page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         _gl_section.resume_on_open(self)   # a project left on the Game Launch page opens on it again; nothing runs until Generate
         _oc_section.resume_on_open(self)   # a project left on the Ocean Predators page opens on it again; nothing runs until Generate
@@ -17120,6 +17142,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_vm_running",)   # Voxel Map likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_ct_running",)   # City Timelapse likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_tt_running",)   # Toon Tales likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_tv_running",)   # Toy Vehicles likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_av_running",)   # Aviation likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_gl_running",)   # Game Launch likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_oc_running",)   # Ocean Predators likewise

@@ -312,6 +312,7 @@ def portal(colour="red", kind="car", from_colour=None, **_):
 
 
 def _swirl_mat(rgb):
+    """A clean candy spiral (3 arms) that turns as the disc spins: calm and readable, not noise."""
     m = bpy.data.materials.new("swirl")
     m.use_nodes = True
     nt = m.node_tree
@@ -319,25 +320,39 @@ def _swirl_mat(rgb):
         if n.type != "OUTPUT_MATERIAL":
             nt.nodes.remove(n)
     out = [n for n in nt.nodes if n.type == "OUTPUT_MATERIAL"][0]
-    tc = nt.nodes.new("ShaderNodeTexCoord")
-    wave = nt.nodes.new("ShaderNodeTexWave")
-    wave.wave_type = "RINGS"
-    wave.inputs["Scale"].default_value = 3.0
-    wave.inputs["Distortion"].default_value = 8.0
-    ramp = nt.nodes.new("ShaderNodeValToRGB")
-    ramp.color_ramp.elements[0].color = (*[c * 0.4 for c in rgb], 1)
-    ramp.color_ramp.elements[1].color = (*[min(1, c + 0.5) for c in rgb], 1)
-    em = nt.nodes.new("ShaderNodeEmission")
-    em.inputs["Strength"].default_value = 2.5
-    tr = nt.nodes.new("ShaderNodeBsdfTransparent")
-    mix = nt.nodes.new("ShaderNodeMixShader")
-    mix.inputs[0].default_value = 0.75
-    nt.links.new(tc.outputs["Object"], wave.inputs["Vector"])
-    nt.links.new(wave.outputs["Color"], ramp.inputs["Fac"])
-    nt.links.new(ramp.outputs["Color"], em.inputs["Color"])
-    nt.links.new(tr.outputs[0], mix.inputs[1])
-    nt.links.new(em.outputs[0], mix.inputs[2])
-    nt.links.new(mix.outputs[0], out.inputs["Surface"])
+    N, L = nt.nodes.new, nt.links.new
+    tc = N("ShaderNodeTexCoord")
+    sep = N("ShaderNodeSeparateXYZ")
+    ang = N("ShaderNodeMath"); ang.operation = "ARCTAN2"
+    rad = N("ShaderNodeVectorMath"); rad.operation = "LENGTH"
+    arms = N("ShaderNodeMath"); arms.operation = "MULTIPLY"; arms.inputs[1].default_value = 3 / (2 * math.pi)
+    twist = N("ShaderNodeMath"); twist.operation = "MULTIPLY"; twist.inputs[1].default_value = 1.3
+    add = N("ShaderNodeMath"); add.operation = "ADD"
+    fr = N("ShaderNodeMath"); fr.operation = "FRACT"
+    ramp = N("ShaderNodeValToRGB")
+    els = ramp.color_ramp.elements
+    els[0].position, els[0].color = 0.0, (*[min(1, c + 0.55) for c in rgb], 1)
+    els[1].position, els[1].color = 0.5, (*[c * 0.55 for c in rgb], 1)
+    e3 = els.new(1.0)
+    e3.color = els[0].color
+    glow = N("ShaderNodeMath"); glow.operation = "SUBTRACT"; glow.inputs[0].default_value = 1.0   # brighter centre
+    em = N("ShaderNodeEmission")
+    em.inputs["Strength"].default_value = 2.2
+    tr = N("ShaderNodeBsdfTransparent")
+    mix = N("ShaderNodeMixShader")
+    mix.inputs[0].default_value = 0.8
+    L(tc.outputs["Object"], sep.inputs[0])
+    L(sep.outputs["Y"], ang.inputs[0]); L(sep.outputs["X"], ang.inputs[1])
+    L(tc.outputs["Object"], rad.inputs[0])
+    L(ang.outputs[0], arms.inputs[0])
+    L(rad.outputs["Value"], twist.inputs[0])
+    L(arms.outputs[0], add.inputs[0]); L(twist.outputs[0], add.inputs[1])
+    L(add.outputs[0], fr.inputs[0])
+    L(fr.outputs[0], ramp.inputs["Fac"])
+    L(ramp.outputs["Color"], em.inputs["Color"])
+    L(tr.outputs[0], mix.inputs[1])
+    L(em.outputs[0], mix.inputs[2])
+    L(mix.outputs[0], out.inputs["Surface"])
     return m
 
 
@@ -397,14 +412,17 @@ def wheels(colour="red", kind="monster", **_):
 
 # ================================================================ convoy
 def convoy(colour="red", kind="monster", kinds=None, **_):
-    rgb = COLOURS[colour]
+    """colour "rainbow": five vehicles, one in each colour (a chorus that names every colour)."""
+    rainbow = colour == "rainbow"
+    rgbs = [c for _, c in T.COLOURS] if rainbow else None
+    rgb = rgbs[0] if rainbow else COLOURS[colour]
     others = [k for k in ("monster", "bus", "fire", "dump", "tanker", "crane", "car") if k != kind]
-    kinds = kinds or [kind] + others[:3]           # the verse's own vehicle leads the line
+    kinds = kinds or [kind] + others[:4 if rainbow else 3]   # the verse's own vehicle leads the line
     kit.road(-40, 40, 0)
     speed, gap = 3.6, 3.6                           # chibi toys are short: a tight, cheerful line
     vs = []
     for i, k in enumerate(kinds):
-        v = toy.vehicle(k, rgb, loc=(0, 0, 0), name=f"convoy{i}")
+        v = toy.vehicle(k, rgbs[i % len(rgbs)] if rainbow else rgb, loc=(0, 0, 0), name=f"convoy{i}")
         x0 = -14 - i * gap
         drive(v, 0, DUR, (x0, 0), (x0 + speed * DUR, 0))
         for b in range(0, 16, 4):                  # each one hops on its own beat

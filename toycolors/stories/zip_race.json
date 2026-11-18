@@ -1,0 +1,36 @@
+{
+ "title": "Zip and the Big Race",
+ "set": "park",
+ "voices": {
+  "narrator": {"voice": "en-US-JennyNeural", "rate": "-6%", "pitch": "+0Hz"},
+  "zip": {"voice": "en-US-AnaNeural", "rate": "+0%", "pitch": "+4Hz"},
+  "toot": {"voice": "en-GB-MaisieNeural", "rate": "+0%", "pitch": "+0Hz"},
+  "bumpy": {"voice": "en-US-ChristopherNeural", "rate": "-6%", "pitch": "+4Hz"}
+ },
+ "cast": {
+  "zip": {"kind": "car", "colour": "red"},
+  "toot": {"kind": "bus", "colour": "orange"},
+  "bumpy": {"kind": "dump", "colour": "green"}
+ },
+ "shots": [
+  {"action": "drive_in", "args": {"who": "toot", "to": 1.8, "from": "right"}, "cast": {"zip": {"x": -1.8}, "toot": {"x": 1.8, "yaw": 180}},
+   "camera": {"dist": 9.5, "side": 28, "push": 0.14},
+   "lines": [["narrator", "Here comes Toot, the orange bus!", 1.0], ["toot", "Hi Zip! Do you want to race?"], ["zip", "Yes! Let's race!"]]},
+  {"action": "race", "args": {"a": "zip", "b": "toot", "winner": "toot"}, "cast": {"zip": {}, "toot": {}},
+   "lines": [["narrator", "Ready, steady, go!", 0.2], ["narrator", "Zoom, zoom! Who will win?"], ["toot", "I win! Toot toot!", 4.6]]},
+  {"action": "jump", "args": {"who": "zip"}, "cast": {"zip": {"x": 0.0}},
+   "camera": {"aim": [4.0, 0, 1.4], "dist": 15.0, "side": 18, "push": 0.08},
+   "lines": [["zip", "Look at me! A big jump!", 0.2], ["narrator", "Wheee! Zip flies through the air!", 1.8]]},
+  {"action": "flat", "args": {"who": "zip", "helper": "bumpy"}, "cast": {"zip": {"x": 0.0}, "bumpy": {"x": 3.4, "yaw": 180}},
+   "camera": {"dist": 8.5, "side": 30, "push": 0.14},
+   "lines": [["narrator", "Pop! Oh no, Zip has a flat tyre!", 1.2], ["bumpy", "I can help! Pump, pump, pump!"], ["zip", "Thank you, Bumpy!"]]},
+  {"action": "hide", "args": {"who": "zip", "seeker": "toot"}, "cast": {"zip": {"x": 1.0, "y": 3.4}, "toot": {"x": -2.6}},
+   "camera": {"aim": [-0.5, 1.0, 0.8], "dist": 10.0, "side": 30, "push": 0.12},
+   "lines": [["toot", "Where is Zip? Is Zip here?", 0.4], ["toot", "Is Zip there?"], ["zip", "Peekaboo! Here I am!"]]},
+  {"action": "template", "args": {"name": "egg", "colour": "green", "kind": "car"},
+   "lines": [["narrator", "Look! A big surprise egg!", 0.4], ["narrator", "What is inside?"], ["narrator", "It's a green car! Green!", 4.4]]},
+  {"action": "dance", "cast": {"toot": {"x": -3.4}, "zip": {"x": 0.0}, "bumpy": {"x": 3.4, "yaw": 180}},
+   "camera": {"dist": 11.5, "side": 14, "push": 0.14},
+   "lines": [["zip", "What a fun day!", 0.8], ["narrator", "Racing, jumping and playing with friends!"], ["narrator", "See you next time!"]]}
+ ]
+}

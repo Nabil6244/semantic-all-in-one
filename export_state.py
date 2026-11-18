@@ -29,6 +29,7 @@ STYLE_LABELS = {
 STYLE_LABELS["aviation"] = "Aviation"   # ui/aviation_section.py
 STYLE_LABELS["ocean"] = "Ocean Predators"   # ui/ocean_section.py
 STYLE_LABELS["game_launch"] = "Game Launch"   # ui/game_launch_section.py
+STYLE_LABELS["toy_vehicles"] = "Toy Vehicles"   # ui/toy_vehicles_section.py
 
 
 def run_outcome(error: str, output_path=None, stopped: bool = False) -> str:

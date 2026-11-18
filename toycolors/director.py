@@ -2,6 +2,10 @@
 
 python3 -m toycolors.director --colours red,yellow,green,blue,orange --out toycolors/out/song1 [--tune wheels] [--stills] [--render] [--fast]
 
+--song FILE --lyrics FILE uses a real sung song (e.g. made with ACE-Step on acemusic.ai): Whisper finds where each
+[verse] starts, each colour scene is time-stretched to its verse, a [chorus] gets a rainbow convoy, and the mix is
+the song plus the scene sound effects. The lyrics' verses go in the same order as --colours.
+
 --tune sings our colour words to a public-domain nursery tune (kids_audio/tunes.py: wheels, mary, twinkle, london) over
 a matching backing track that doubles the melody; each verse sings one half of the tune. --tune none keeps the older
 one-note-a-word melody over the "sunny" bed.
@@ -30,7 +34,9 @@ from toycolors.template_events import EVENTS
 from toycolors.post import GRADE
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
+from toycolors.paths import blender as _blender_path
+
+BLENDER = _blender_path()
 VOICE = "en-US-AnaNeural"
 VERSE_BEATS = 16
 VERSE = VERSE_BEATS * T.BEAT
@@ -135,7 +141,51 @@ def build_audio(p, out):
 
 def template_events(p):
     for v in p["verses"]:
-        v["events"] = EVENTS[v["template"]]
+        k = v.get("dur", VERSE) / VERSE                 # a stretched verse stretches its sound cues with it
+        v["events"] = [dict(e, t=round(e["t"] * k, 3)) for e in EVENTS[v["template"]]]
+
+
+def song_plan(p, song, lyrics, lead=0.4):
+    """Cut the plan on a real song's verses. lead: the scene starts this long before its first sung word."""
+    from kids_audio.lyric_align import align
+    a = align(song, open(lyrics, encoding="utf-8").read())
+    secs, dur = a["sections"], a["duration"]
+    verses = [x for x in secs if x["tag"].startswith("verse")]
+    choruses = [x for x in secs if not x["tag"].startswith("verse")]
+    n = len(p["verses"])
+    if len(verses) != n:
+        print(f"warning: {len(verses)} sung verses for {n} colours; extra ones are dropped", flush=True)
+    starts = [x["t"] for x in verses[:n]] + [None] * max(0, n - len(verses))
+    end = next((c["t"] for c in choruses if c["t"]), None) or dur
+    for i, t in enumerate(starts):                   # a verse Whisper did not find sits halfway between its neighbours
+        if t is None:
+            prev = starts[i - 1] if i else 0.0
+            nxt = next((x for x in starts[i + 1:] if x is not None), end)
+            starts[i] = (prev + nxt) / 2
+    cuts = [0.0] + [max(0.0, t - lead) for t in starts[1:]] + [max(0.0, end - lead) if end < dur else dur]
+    for v, c0, c1, sec in zip(p["verses"], cuts, cuts[1:], verses + [None] * n):
+        v["t0"], v["dur"] = round(c0, 3), round(c1 - c0, 3)
+        if sec:
+            v["lines"] = [sec["first_line"]]
+    if end < dur - 1.0:                               # the chorus: every colour drives by together
+        p["verses"].append({"i": n, "template": "convoy", "colour": "rainbow", "kind": "car", "from": None,
+                            "t0": round(cuts[-1], 3), "dur": round(dur - cuts[-1], 3),
+                            "lines": [choruses[0]["first_line"]] if choruses else []})
+    p["duration"] = round(dur, 3)
+    p["song"] = {"file": os.path.abspath(song), "lyrics": os.path.abspath(lyrics), "sections": secs}
+    return p
+
+
+def song_audio(p, out):
+    """The song is the voice and the music; only the scene sound effects are added, a little under it."""
+    L.build()
+    y = L.read_audio(p["song"]["file"])
+    wav = os.path.join(out, "song.wav")
+    L.write_wav(wav, np.clip(y, -1, 1))
+    sfx = [{"t": round(v["t0"] + e["t"], 3), "name": e["sfx"], "gain_db": -9} for v in p["verses"] for e in v.get("events", [])]
+    rep = mix({"voice": wav, "out": os.path.join(out, "mix.wav"), "duration": p["duration"], "music": None,
+               "sfx": sfx, "voice_lufs": round(L.lufs(y), 2), "target_lufs": -14})
+    return os.path.join(out, "mix.wav"), rep
 
 
 def blender(args, log):
@@ -190,11 +240,12 @@ def titles(p, out):
     os.makedirs(td, exist_ok=True)
     paths = []
     for v in p["verses"]:
-        rgb = tuple(int(min(255, c * 255 * 1.15 + 10)) for c in dict(T.COLOURS)[v["colour"]])
+        base = dict(T.COLOURS).get(v["colour"], (0.95, 0.75, 0.05))       # rainbow: a sunny yellow title
+        rgb = tuple(int(min(255, c * 255 * 1.15 + 10)) for c in base)
         path = os.path.join(td, f"v{v['i']:02d}.png")
         # the title names what the verse teaches: the wheels verse colours the wheels, the convoy is many trucks
         what = {"wheels": "wheels", "convoy": "trucks"}.get(v["template"], SPOKEN[v["kind"]])
-        O.title(f"{v['colour']} {what}", rgb).save(path)
+        O.title("all the colours" if v["colour"] == "rainbow" else f"{v['colour']} {what}", rgb).save(path)
         paths.append(path)
     return paths
 
@@ -207,12 +258,14 @@ def render(p, out, mix_wav, fast=False, limit=None):
     for v in p["verses"]:
         if limit is not None and v["t0"] >= limit:
             break
-        vd = os.path.join(out, "verses", f"v{v['i']:02d}_{v['template']}_{v['colour']}_{v['kind']}")
-        need = int(round(VERSE * T.FPS))
-        extra = []
-        if limit is not None and v["t0"] + VERSE > limit:
+        vdur = v.get("dur", VERSE)
+        stretch = abs(vdur - VERSE) > 0.01
+        vd = os.path.join(out, "verses", f"v{v['i']:02d}_{v['template']}_{v['colour']}_{v['kind']}" + (f"_{vdur:.2f}s" if stretch else ""))
+        need = int(round(vdur * T.FPS))
+        extra = ["--dur", f"{vdur:.3f}"] if stretch else []
+        if limit is not None and v["t0"] + vdur > limit:
             need = int(round((limit - v["t0"]) * T.FPS))
-            extra = ["--frames", str(need)]
+            extra += ["--frames", str(need)]
         done = len([f for f in os.listdir(vd) if f.startswith("f_")]) if os.path.isdir(vd) else 0
         if done < need:                              # a finished verse is reused, a partial one is rendered again
             blender(verse_args(v, vd) + (["--fast"] if fast else []) + extra, os.path.join(out, "blender.log"))
@@ -221,7 +274,7 @@ def render(p, out, mix_wav, fast=False, limit=None):
     with open(lst, "w") as f:
         for vd, need in parts:
             for fr in sorted(x for x in os.listdir(vd) if x.startswith("f_"))[:need]:
-                f.write(f"file '{os.path.join(vd, fr)}'\nduration {1 / T.FPS:.6f}\n")
+                f.write(f"file '{os.path.join(vd, fr).replace(os.sep, '/')}'\nduration {1 / T.FPS:.6f}\n")
     mp4 = os.path.join(out, "song.mp4" if limit is None else f"song_{int(limit)}s.mp4")
     tl = titles(p, out)
     ins, fc, last = [], f"[0:v]fps={T.FPS},{GRADE}[g0];", "g0"
@@ -229,7 +282,7 @@ def render(p, out, mix_wav, fast=False, limit=None):
         if limit is not None and v["t0"] >= limit:
             break
         ins += ["-loop", "1", "-t", str(p["duration"]), "-i", path]
-        a0, a1 = v["t0"] + 0.4, v["t0"] + VERSE - 0.4     # title shows for the verse, off at the cut
+        a0, a1 = v["t0"] + 0.4, v["t0"] + v.get("dur", VERSE) - 0.4     # title shows for the verse, off at the cut
         fc += f"[{last}][{k + 2}:v]overlay=0:0:enable='between(t,{a0:.3f},{a1:.3f})'[g{k + 1}];"
         last = f"g{k + 1}"
     fc = fc.rstrip(";")
@@ -247,18 +300,22 @@ def main():
     ap.add_argument("--out", default=os.path.join(ROOT, "toycolors/out/song1"))
     ap.add_argument("--start", type=int, default=0, help="which template opens the song")
     ap.add_argument("--tune", default="wheels", choices=sorted(TU.TUNES) + ["none"])
+    ap.add_argument("--song", help="a sung song (mp3/wav) to cut the scenes on")
+    ap.add_argument("--lyrics", help="its lyrics with [verse]/[chorus] tags, verses in colour order")
     ap.add_argument("--stills", action="store_true")
     ap.add_argument("--render", action="store_true")
     ap.add_argument("--fast", action="store_true")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
-    p = plan([c.strip() for c in a.colours.split(",")], a.start, None if a.tune == "none" else a.tune)
+    p = plan([c.strip() for c in a.colours.split(",")], a.start, None if a.tune == "none" or a.song else a.tune)
+    if a.song:
+        song_plan(p, a.song, a.lyrics)
     template_events(p)
     json.dump(p, open(os.path.join(a.out, "plan.json"), "w"), indent=1)
     for v in p["verses"]:
         print(f"{v['t0']:6.2f}s  {v['template']:7s} {v['colour']:7s} {v['kind']:8s} | " + " / ".join(v["lines"]))
-    mix_wav, rep = build_audio(p, a.out)
-    print("audio:", mix_wav, json.dumps(rep["voice_over_music_db"]), "lufs", rep["lufs"])
+    mix_wav, rep = song_audio(p, a.out) if a.song else build_audio(p, a.out)
+    print("audio:", mix_wav, "lufs", rep.get("lufs"))
     if a.stills:
         print("sheet:", stills(p, a.out, fast=True))
     if a.render:

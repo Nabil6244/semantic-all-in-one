@@ -1,6 +1,7 @@
 """Render one scene template (one verse) as frames or quick stills.
 
-blender -b -P toycolors/scene_template.py -- TEMPLATE COLOUR KIND OUT_DIR [--still 2.0,6.0] [--fast] [--from COLOUR]
+blender -b -P toycolors/scene_template.py -- TEMPLATE COLOUR KIND OUT_DIR [--still 2.0,6.0] [--fast] [--from COLOUR] [--dur S]
+--dur stretches the whole scene's timing to S seconds (a sung verse that runs longer or shorter than 16 beats).
 """
 import os
 import sys
@@ -24,6 +25,11 @@ toy.grade()
 sc.camera.data.lens *= info.get("zoom", 1.0)          # chibi toys are small: frame them tighter
 toy.playground(slides=info.get("slides", True), size=info.get("platform", (34, 20)))
 sc.frame_start, sc.frame_end = 1, templates.F(info["dur"]) - 1
+if "--dur" in argv:                                     # time-stretch: Blender remaps every keyframe, camera included
+    want = float(argv[argv.index("--dur") + 1])
+    k = want / info["dur"]
+    sc.render.frame_map_old, sc.render.frame_map_new = 100, max(1, int(round(100 * k)))
+    sc.frame_end = templates.F(want) - 1
 if "--frames" in argv:                                  # render only the first N frames (short tests)
     sc.frame_end = min(sc.frame_end, int(argv[argv.index("--frames") + 1]))
 sc.render.image_settings.file_format = "PNG"

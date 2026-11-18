@@ -2,7 +2,8 @@
 """Speak lines with a free Edge voice and save each line's mp3 plus exact word timings.
 
 Usage: tts_words.py JOB.json
-JOB = {"voice": "...", "rate": "-6%", "lines": [{"text": "...", "out": "/path/line0.mp3"}, ...]}
+JOB = {"voice": "...", "rate": "-6%", "pitch": "+0Hz" (optional), "lines": [{"text": "...", "out": "/path/line0.mp3"}, ...]}
+A line may carry its own "voice", "rate" and "pitch" (one job can then hold a whole cast).
 Writes <out>.words.json next to each mp3: [{"text": "Ball", "t0": 0.11, "t1": 0.52}, ...] (seconds from the line start).
 Lines whose mp3 and words file already exist are skipped (cache)."""
 import asyncio
@@ -13,9 +14,9 @@ import sys
 import edge_tts
 
 
-async def speak(text, voice, rate, out):
+async def speak(text, voice, rate, out, pitch="+0Hz"):
     words, audio = [], bytearray()
-    com = edge_tts.Communicate(text, voice, rate=rate, boundary="WordBoundary")
+    com = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, boundary="WordBoundary")
     async for chunk in com.stream():
         if chunk["type"] == "audio":
             audio.extend(chunk["data"])
@@ -37,7 +38,8 @@ async def main(job):
             continue
         for attempt in range(3):
             try:
-                await speak(line["text"], job.get("voice", "en-US-JennyNeural"), job.get("rate", "+0%"), out)
+                await speak(line["text"], line.get("voice") or job.get("voice", "en-US-JennyNeural"),
+                            line.get("rate") or job.get("rate", "+0%"), out, line.get("pitch") or job.get("pitch", "+0Hz"))
                 break
             except Exception as e:  # network hiccup: retry twice, then fail loudly
                 if attempt == 2:
