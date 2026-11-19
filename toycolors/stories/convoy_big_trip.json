@@ -1,0 +1,685 @@
+{
+ "title": "The Big Truck Convoy",
+ "set": "convoy",
+ "voices": {
+  "narrator": {
+   "voice": "en-US-JennyNeural",
+   "rate": "-4%",
+   "pitch": "+0Hz"
+  },
+  "red": {
+   "voice": "en-US-ChristopherNeural",
+   "rate": "+0%",
+   "pitch": "+2Hz"
+  },
+  "yellow": {
+   "voice": "en-GB-MaisieNeural",
+   "rate": "+0%",
+   "pitch": "+0Hz"
+  },
+  "green": {
+   "voice": "en-US-EricNeural",
+   "rate": "+0%",
+   "pitch": "+4Hz"
+  },
+  "blue": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+0%",
+   "pitch": "+2Hz"
+  },
+  "hooky": {
+   "voice": "en-GB-RyanNeural",
+   "rate": "-4%",
+   "pitch": "+0Hz"
+  }
+ },
+ "cast": {
+  "red": {
+   "kind": "semi",
+   "colour": "red",
+   "load": [
+    "car:blue",
+    "car:yellow",
+    "car:green"
+   ]
+  },
+  "yellow": {
+   "kind": "semi",
+   "colour": "yellow",
+   "load": [
+    "car:red",
+    "car:purple",
+    "car:orange"
+   ]
+  },
+  "green": {
+   "kind": "semi",
+   "colour": "green",
+   "load": [
+    "car:orange",
+    "car:blue",
+    "car:pink"
+   ]
+  },
+  "blue": {
+   "kind": "semi",
+   "colour": "blue",
+   "load": [
+    "car:yellow",
+    "car:green",
+    "car:red"
+   ]
+  },
+  "hooky": {
+   "kind": "crane",
+   "colour": "orange"
+  }
+ },
+ "shots": [
+  {
+   "action": "convoy_line",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "order": [
+     "red",
+     "yellow",
+     "green",
+     "blue"
+    ]
+   },
+   "lines": [
+    [
+     "narrator",
+     "Here come the big trucks!",
+     0.3
+    ],
+    [
+     "red",
+     "I'm the red truck!"
+    ],
+    [
+     "yellow",
+     "I'm the yellow truck!"
+    ],
+    [
+     "green",
+     "I'm the green truck!"
+    ],
+    [
+     "blue",
+     "And I'm the blue truck!"
+    ],
+    [
+     "narrator",
+     "They carry lots of little cars!"
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "bump",
+    "cam": "front"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Look! A big speed bump!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Bump, bump, bump!",
+     2.4
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "bump",
+    "cam": "side",
+    "amp": 2.2
+   },
+   "lines": [
+    [
+     "narrator",
+     "Hold on tight, little cars!",
+     0.5
+    ],
+    [
+     "red",
+     "Whoa! That was bumpy!",
+     4.0
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "bump",
+    "cam": "low",
+    "amp": 2.4,
+    "fall": {
+     "who": "blue",
+     "car": 2,
+     "side": -1
+    }
+   },
+   "lines": [
+    [
+     "narrator",
+     "One more bump...",
+     0.6
+    ],
+    [
+     "narrator",
+     "Oh no! The red car fell off!",
+     5.7
+    ]
+   ]
+  },
+  {
+   "action": "convoy_lift",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {},
+    "hooky": {}
+   },
+   "args": {
+    "who": "blue",
+    "car": 2,
+    "helper": "hooky",
+    "side": -1
+   },
+   "lines": [
+    [
+     "blue",
+     "Uh oh! My little red car!",
+     0.3
+    ],
+    [
+     "hooky",
+     "Hooky can help! Up, up, up!",
+     2.3
+    ],
+    [
+     "blue",
+     "Thank you, Hooky!",
+     5.6
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "pothole",
+    "cam": "front"
+   },
+   "lines": [
+    [
+     "narrator",
+     "Watch out! A big pothole!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Down and up! Wheee!",
+     3.2
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "pothole",
+    "cam": "chase",
+    "amp": 2.0
+   },
+   "lines": [
+    [
+     "yellow",
+     "Follow me, everybody!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Splish, splash, bumpy road!",
+     3.6
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "blue": {},
+    "green": {}
+   },
+   "args": {
+    "obstacle": "pothole",
+    "cam": "low",
+    "amp": 2.6,
+    "fall": {
+     "who": "green",
+     "car": 2,
+     "side": -1
+    }
+   },
+   "lines": [
+    [
+     "narrator",
+     "Careful, green truck!",
+     0.6
+    ],
+    [
+     "narrator",
+     "Oops! The pink car bounced off!",
+     5.7
+    ]
+   ]
+  },
+  {
+   "action": "convoy_lift",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "blue": {},
+    "green": {},
+    "hooky": {}
+   },
+   "args": {
+    "who": "green",
+    "car": 2,
+    "helper": "hooky",
+    "side": -1
+   },
+   "lines": [
+    [
+     "green",
+     "Oh no, my pink car!",
+     0.3
+    ],
+    [
+     "hooky",
+     "Don't worry, I've got it!",
+     2.3
+    ],
+    [
+     "narrator",
+     "Back on the truck it goes!",
+     5.4
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "train"
+   },
+   "min": 10.5,
+   "lines": [
+    [
+     "narrator",
+     "Ding ding! A train is coming!",
+     0.4
+    ],
+    [
+     "narrator",
+     "Stop, trucks! Wait for the train.",
+     2.6
+    ],
+    [
+     "red",
+     "Hello, train! Choo choo!",
+     5.2
+    ],
+    [
+     "narrator",
+     "Now we can go!",
+     8.0
+    ]
+   ]
+  },
+  {
+   "action": "convoy_line",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "order": [
+     "red",
+     "yellow",
+     "green",
+     "blue"
+    ]
+   },
+   "lines": [
+    [
+     "narrator",
+     "Let's count the trucks!",
+     0.3
+    ],
+    [
+     "narrator",
+     "One!",
+     1.9
+    ],
+    [
+     "narrator",
+     "Two!",
+     2.9
+    ],
+    [
+     "narrator",
+     "Three!",
+     3.9
+    ],
+    [
+     "narrator",
+     "Four!",
+     4.9
+    ],
+    [
+     "narrator",
+     "Four big trucks!",
+     6.0
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "bump",
+    "cam": "side",
+    "amp": 2.6
+   },
+   "lines": [
+    [
+     "narrator",
+     "Another bump! An even bigger one!",
+     0.4
+    ],
+    [
+     "green",
+     "Whee! I'm flying!",
+     4.2
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "green": {},
+    "blue": {},
+    "yellow": {}
+   },
+   "args": {
+    "obstacle": "bump",
+    "cam": "front",
+    "amp": 2.7,
+    "fall": {
+     "who": "yellow",
+     "car": 1,
+     "side": -1
+    }
+   },
+   "lines": [
+    [
+     "narrator",
+     "Up the yellow truck goes!",
+     0.6
+    ],
+    [
+     "narrator",
+     "The purple car flew in the air!",
+     5.6
+    ]
+   ]
+  },
+  {
+   "action": "convoy_lift",
+   "cast": {
+    "red": {},
+    "green": {},
+    "blue": {},
+    "yellow": {},
+    "hooky": {}
+   },
+   "args": {
+    "who": "yellow",
+    "car": 1,
+    "helper": "hooky",
+    "side": -1
+   },
+   "lines": [
+    [
+     "yellow",
+     "Come back, purple car!",
+     0.3
+    ],
+    [
+     "hooky",
+     "Up you go, purple car!",
+     2.3
+    ],
+    [
+     "yellow",
+     "Hooray! Thank you!",
+     5.6
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "pothole",
+    "cam": "side",
+    "amp": 2.2
+   },
+   "lines": [
+    [
+     "narrator",
+     "Bumpy road! Shake, shake, shake!",
+     0.5
+    ],
+    [
+     "blue",
+     "Hold on, little cars!",
+     4.0
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "train"
+   },
+   "min": 10.0,
+   "lines": [
+    [
+     "narrator",
+     "Here comes the train again!",
+     0.4
+    ],
+    [
+     "yellow",
+     "Wait, wait, wait!",
+     2.8
+    ],
+    [
+     "narrator",
+     "Choo choo! Bye bye, train!",
+     6.0
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "bump",
+    "cam": "low",
+    "amp": 2.2
+   },
+   "lines": [
+    [
+     "narrator",
+     "Slow down...",
+     0.5
+    ],
+    [
+     "narrator",
+     "And bump!",
+     2.0
+    ],
+    [
+     "narrator",
+     "Good job, trucks!",
+     5.2
+    ]
+   ]
+  },
+  {
+   "action": "convoy_drive",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "obstacle": "pothole",
+    "cam": "chase",
+    "amp": 2.0
+   },
+   "lines": [
+    [
+     "narrator",
+     "Almost home!",
+     0.5
+    ],
+    [
+     "red",
+     "Beep beep! Here we come!",
+     3.0
+    ]
+   ]
+  },
+  {
+   "action": "convoy_line",
+   "cast": {
+    "red": {},
+    "yellow": {},
+    "green": {},
+    "blue": {}
+   },
+   "args": {
+    "order": [
+     "red",
+     "yellow",
+     "green",
+     "blue"
+    ]
+   },
+   "lines": [
+    [
+     "narrator",
+     "We did it! All the little cars are safe!",
+     0.3
+    ],
+    [
+     "red",
+     "Yay!"
+    ],
+    [
+     "yellow",
+     "Hooray!"
+    ],
+    [
+     "green",
+     "Woo-hoo!"
+    ],
+    [
+     "blue",
+     "Beep beep!"
+    ],
+    [
+     "narrator",
+     "Bye bye, trucks! See you next time!"
+    ]
+   ]
+  }
+ ]
+}

@@ -96,6 +96,20 @@ def _sfx():
     S.place(b, r.standard_normal(n) * S._env(n, 0.0005, 0.025), 0)
     S.place(b, S.glock(hz("G6"), 0.25, dur=0.4), 0.03)
     out["burst"] = b
+    b = S.one_shot(0.9); n = int(0.62 * SR); t = np.arange(n) / SR                    # horn: a friendly two-note truck honk
+    env = S._env(n, 0.01, 0.5) * (t < 0.55)
+    tone = sum(np.sign(np.sin(2 * np.pi * f * t)) * 0.22 + np.sin(2 * np.pi * f * t) * 0.5 for f in (311.1, 392.0))
+    S.place(b, tone * env * 0.5, 0)
+    out["horn"] = S.reverb_tail(b, 0.15)
+    b = S.one_shot(0.6)                                                                # thud: a heavy wheel landing
+    S.place(b, S.kick(1.0), 0); S.place(b, S.kick(0.6), 0.012)
+    n = int(0.16 * SR); S.place(b, np.random.default_rng(21).standard_normal(n) * S._env(n, 0.001, 0.05) * 0.25, 0)
+    out["thud"] = b
+    b = S.one_shot(0.9)                                                                # clank: a toy car hitting the road
+    for k, f in enumerate((523.3, 740.0, 1046.5)):
+        S.place(b, S._modal(f, 0.6, [(1, 1.0, 0.25), (2.76, 0.5, 0.12), (5.4, 0.25, 0.06)], vel=0.5), k * 0.03, pan=-0.2 + k * 0.2)
+    S.place(b, S.kick(0.7), 0)
+    out["clank"] = S.reverb_tail(b, 0.15)
     b = S.one_shot(0.7); n = int(0.5 * SR); t = np.arange(n) / SR                    # whoosh: filtered air sweeping up
     x = np.random.default_rng(9).standard_normal(n)
     k = np.clip((200 + 3500 * (t / 0.5) ** 2) / SR * 2 * np.pi, 0, 1)

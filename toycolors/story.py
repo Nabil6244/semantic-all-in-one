@@ -41,7 +41,10 @@ ACTION_FN = {"idle": "a_idle", "drive_in": "a_drive_in", "spot": "a_spot", "stuc
              "wash": "a_wash", "dance": "a_dance", "race": "a_race", "jump": "a_jump", "flat": "a_flat", "hide": "a_hide",
              "template": "template_shot"}
 MIN_DUR = {"idle": 2.0, "drive_in": 3.2, "spot": 3.0, "stuck": 4.5, "tow": 6.0, "wash": 5.5, "dance": 4.0,
-           "template": 16 * 60 / 112, "race": 6.0, "jump": 5.0, "flat": 6.5, "hide": 6.0}
+           "template": 16 * 60 / 112, "race": 6.0, "jump": 5.0, "flat": 6.5, "hide": 6.0,
+           "convoy_line": 4.0, "convoy_drive": 7.5, "convoy_lift": 7.0}
+CONVOY = ("convoy_line", "convoy_drive", "convoy_lift")      # Truck Convoy shots: toycolors/convoy.py, own runner
+CONVOY_CODE = ["toycolors/convoy.py", "toycolors/convoy_scene.py", "toycolors/story_actions.py"]
 LEAD, GAP, TAIL = 0.4, 0.3, 0.7
 
 
@@ -50,6 +53,10 @@ def code_hash(action=None):
     this shot's own action, so adding or editing another action keeps every other cached shot."""
     import ast
     h = hashlib.sha1()
+    if action in CONVOY:                             # a convoy shot depends on its own files, not the story-action table
+        for p in CODE + CONVOY_CODE:
+            h.update(open(os.path.join(ROOT, p), "rb").read())
+        return h.hexdigest()[:10]
     for p in CODE:
         h.update(open(os.path.join(ROOT, p), "rb").read())
     src = open(os.path.join(ROOT, "toycolors/story_actions.py")).read()
@@ -122,9 +129,10 @@ def layout(story, mp3s):
     return specs, voice, round(t_song, 3)
 
 
-def blender(args, log):
+def blender(args, log, action=None):
+    scene = "toycolors/convoy_scene.py" if action in CONVOY else "toycolors/story_scene.py"
     with open(log, "a") as f:
-        subprocess.run([BLENDER, "-b", "-P", os.path.join(ROOT, "toycolors/story_scene.py"), "--"] + args,
+        subprocess.run([BLENDER, "-b", "-P", os.path.join(ROOT, scene), "--"] + args,
                        stdout=f, stderr=subprocess.STDOUT, check=True)
 
 
@@ -154,7 +162,7 @@ def render_shot(spec, out, fast=False):
         os.makedirs(fr)
         jp = os.path.join(sd, "spec.json")
         json.dump(spec, open(jp, "w"), indent=1)
-        blender([jp, fr] + _flag(fast), os.path.join(out, "blender.log"))
+        blender([jp, fr] + _flag(fast), os.path.join(out, "blender.log"), spec["action"])
         shutil.move(os.path.join(fr, "events.json"), os.path.join(sd, "events.json"))
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-framerate", "24", "-i", os.path.join(fr, "f_%04d.png"),
                         "-c:v", "libx264", "-preset", "medium", "-crf", "12", "-pix_fmt", "yuv420p", mp4 + ".tmp.mp4"],
@@ -174,7 +182,7 @@ def stills(specs, out):
         d = os.path.join(sd, f"s{i:02d}")
         jp = os.path.join(sd, f"s{i:02d}.json")
         json.dump(spec, open(jp, "w"), indent=1)
-        blender([jp, d, "--still", str(t), "--fast"], os.path.join(out, "blender.log"))
+        blender([jp, d, "--still", str(t), "--fast"], os.path.join(out, "blender.log"), spec["action"])
         raw = os.path.join(d, f"still_{t:05.2f}.png")
         g = os.path.join(sd, f"s{i:02d}.png")
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", raw, "-vf", GRADE + ",scale=480:-1", g], check=True)
