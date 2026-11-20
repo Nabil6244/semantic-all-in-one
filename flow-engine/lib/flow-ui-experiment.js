@@ -28,6 +28,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
+import { attachReferenceImages } from "./flow-references.js";
 import { collectAllStillUrls, collectAllVideoUrls, readPromptsForStillUrls } from "./flow-ui-agent.js";
 import { wordsOf } from "./agent-api.js";
 
@@ -64,7 +65,7 @@ const GENERATE_BUTTON_SELECTOR = 'button[aria-label="Start generation"]';
 const SETTINGS_CONTROL_SELECTORS = ['button[aria-label="Settings trigger"]', 'button[aria-label="Settings"]'];
 /** Real button labels confirmed live in the settings panel's mode toggle
  * group (role="radio" buttons: Image / Video / Frames / Ingredients). */
-const MODE_TOGGLE_LABEL = { image: "Image", video: "Video" };
+const MODE_TOGGLE_LABEL = { image: "Image", video: "Video", ingredients: "Ingredients" };
 /** Confirmed live in earlier ogiZ0b response captures this investigation. */
 const MEDIA_HOST = "flow-content.google";
 /**
@@ -381,11 +382,14 @@ async function runUiGeneration(page, prompt, opts = {}) {
     // (every first single Generate after an agent batch failed with no_visible_settings_control, then reloaded). Turn it off.
     diag.agentToggleWasOn = await turnAgentModeOff(page);
 
-    if (opts.mode && MODE_TOGGLE_LABEL[opts.mode]) {
+    // A video with reference pictures (a host who keeps his face) is Flow's "Ingredients" video mode.
+    const refs = Array.isArray(opts.referenceImages) ? opts.referenceImages.filter(Boolean) : [];
+    const toggleMode = opts.mode === "video" && refs.length ? "ingredients" : opts.mode;
+    if (opts.mode && MODE_TOGGLE_LABEL[toggleMode]) {
       diag.stage = "selecting_mode";
       const modeBtn = page
         .locator('button[role="radio"]')
-        .filter({ hasText: MODE_TOGGLE_LABEL[opts.mode] })
+        .filter({ hasText: MODE_TOGGLE_LABEL[toggleMode] })
         .first();
 
       // Reading the panel's live DOM state on every call (never a stored/
@@ -447,6 +451,14 @@ async function runUiGeneration(page, prompt, opts = {}) {
       }
     }
 
+    // Flow's agent-only layout (2026-11-21) has no Video switch, and its Agent settings default to "Confirm before generating:
+    // Always": with reference pictures attached the agent made stills and waited for a yes (Prepper Host talking clips came back
+    // as images). For a video, that project's agent is set to Never, so the one request becomes the one video.
+    if (opts.mode === "video" && diag.modeSelected === "agent-defaults") {
+      diag.stage = "agent_video_no_confirm";
+      diag.agentConfirm = await setAgentConfirmNever(page).catch((e) => `error: ${e?.message || e}`);
+    }
+
     diag.stage = "locating_prompt_editor";
     const editor = page.locator(PROMPT_EDITOR_SELECTOR).first();
     await editor.waitFor({ state: "visible", timeout: timeoutMs });
@@ -456,11 +468,26 @@ async function runUiGeneration(page, prompt, opts = {}) {
     await editor.click();
     await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     await page.keyboard.press("Backspace");
+    if (refs.length) {
+      // Never send the clip without the pictures that were asked for (it would show someone else).
+      diag.stage = "attaching_references";
+      try {
+        const ref = await attachReferenceImages(page, refs);
+        diag.references = ref.attached;
+        diag.referencesUploaded = ref.uploaded;
+        if (ref.missing && ref.missing.length) diag.referencesMissing = ref.missing;
+      } catch (e) {
+        diag.outcome = "references_not_attached";
+        diag.error = e?.message || String(e);
+        return { mediaId: null, fifeUrl: null, diag };
+      }
+      await editor.click();
+    }
     // Flow's Agent UI has no Image/Video switch: its agent decides from the
     // wording, and motion words ("drone glide", "water flow") made it plan a
     // paid 10 s video when an image was requested. The picture stays the
     // scene text; a short trailing line is what keeps it a still.
-    const typed = diag.modeSelected === "agent-defaults" ? agentPromptFor(prompt, opts.mode) : prompt;
+    const typed = diag.modeSelected === "agent-defaults" ? agentPromptFor(prompt, opts.mode, { references: (diag.references || []).length }) : prompt;
     diag.agentInstructionAdded = typed !== prompt;
     await editor.pressSequentially(typed);
     diag.promptEntered = true;
@@ -658,8 +685,32 @@ async function runUiGeneration(page, prompt, opts = {}) {
  * picture itself: a leading command ("Generate one still image only …: <text>")
  * was drawn as the photo when a failed stock search was switched to a still.
  */
-export function agentPromptFor(prompt, mode) {
+/** Agent settings → "Confirm before generating" → Never (per project). Returns "set", "already" or "not_found". */
+export async function setAgentConfirmNever(page, { timeoutMs = 6000 } = {}) {
+  const open = page.locator('button[aria-label="Agent settings"]').first();
+  if (!(await open.isVisible().catch(() => false))) return "not_found";
+  await open.click();
+  const never = page.locator('button[role="radio"]').filter({ hasText: /^\s*Never/ }).first();
+  let result = "not_found";
+  if (await never.waitFor({ state: "visible", timeout: timeoutMs }).then(() => true, () => false)) {
+    if ((await never.getAttribute("aria-checked").catch(() => null)) === "true") result = "already";
+    else { await never.click(); result = "set"; }
+  }
+  // Back to the chat (the panel's own back arrow; Escape as a fallback).
+  const back = page.locator('button[aria-label="Back"], button:has-text("arrow_back")').first();
+  if (await back.isVisible().catch(() => false)) await back.click().catch(() => {});
+  else await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(600);
+  return result;
+}
+
+export function agentPromptFor(prompt, mode, { references = 0 } = {}) {
   const text = String(prompt || "").trim();
+  if (mode === "video" && references > 0) {
+    return `Generate one video clip only, straight away, with the default video model: a single short video with motion and sound, `
+      + `not a still image, and do not create any images first. Use the attached picture${references > 1 ? "s" : ""} as ingredients `
+      + `for how the person and the place look. ${text}`;
+  }
   if (mode === "video") return `Generate one video clip only (a single short video with motion, not a still image): ${text}`;
   if (mode !== "image") return text;
   if (/\b(still photograph|still image|no motion)\b/i.test(text)) return text;
@@ -700,6 +751,7 @@ export async function generateOneVideoViaUI(page, projectId, prompt, settings, p
   const { mediaId, fifeUrl, diag } = await runUiGeneration(page, prompt, {
     outputDir: settings?.outputDir,
     mode: "video",
+    referenceImages: settings?.referenceImages,
     shouldStop,
     // Flow video jobs routinely run past 3 minutes under load (and several
     // run concurrently across accounts). The old 180s window gave up while

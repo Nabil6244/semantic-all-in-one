@@ -205,3 +205,13 @@ EXTRA_BLURBS[TOY_VEHICLES] = ("Bright 3D toy cars and trucks with faces on a toy
                               "Splash and friends with a narrator and their own voices: stuck in mud, tow, wash, race, ramp jump, flat "
                               "tyre, hide and seek. 720p preview or 1080p final; the voices are free.")
 EXTRA_CARDS[TOY_VEHICLES] = ("◉", "3D toy vehicles: colour songs and stories", "A colour list or a story file", "Colours, vehicles, friendship adventures")
+# Prepper Host (ui/prepper_host_section.py, prepper_host/): appended here so nothing above changes
+PREPPER_HOST = "Prepper Host"
+STANDALONE = STANDALONE + (PREPPER_HOST,)
+GROUPS = tuple((title, names + (PREPPER_HOST,) if title == "Explainers" else names) for title, names in GROUPS)
+EXTRA_BLURBS[PREPPER_HOST] = ("A talking-host prepper explainer, 'the exact cart I'd buy': the same AI host in every picture (Flow keeps his "
+                              "face), split screen, a round host cam over b-roll, camera moves, product photo cards that pop in, math "
+                              "rows that count up, checklists, bars, big numbers, chapter bumpers, his name bar and a thumbnail. "
+                              "From a Prepper Host CSV or a script; the voice is free.")
+EXTRA_CARDS[PREPPER_HOST] = ("\u2302", "Talking-host prepper explainers", "A Prepper Host CSV or a script",
+                             "90 days without power, what to buy, store carts, emergency food and water")

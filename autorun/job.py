@@ -51,6 +51,8 @@ STYLES: Dict[str, Dict[str, Any]] = {
     "kids-learn": _s("Kids Learn", "required", "cartoon3d-engine/samples/chant_lesson.csv", voice="optional",
                      fields={"csv": "_kl_csv_var", "voice": "_kl_voice_var", "music": "_kl_music_var"}),
     "aviation": _s("Aviation", "optional", "aviation/data/aviation_csv_prompt.txt", fields={"csv": "_av_csv_var", "voice": "_av_voice_var"}),
+    "prepper-host": _s("Prepper Host", "optional", "prepper_host/csv_prompt.txt", voice="optional",
+                       fields={"script": "_ph_script_var", "csv": "_ph_csv_var", "voice": "_ph_voice_var"}),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 
@@ -78,6 +80,8 @@ def make_job(style: str, voice: str = "", script: str = "", csv: str = "", title
     c = Path(csv).expanduser().resolve() if csv else None
     if c is not None and not c.is_file():
         raise JobError(f"CSV file not found: {csv}")
+    if style == "prepper-host" and c is None and s is None:
+        raise JobError("the prepper-host style needs a Prepper Host CSV (--csv) or the script (--script)")
     if c is None and STYLES[style]["csv"] == "required":
         raise JobError(f"the {style} style needs a CSV (--csv); write it with: make_video.py prompt --style {style}")
     o = Path(out).expanduser().resolve() if out else None

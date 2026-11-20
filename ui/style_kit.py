@@ -209,6 +209,7 @@ def wrap_style(app: Any, active: str) -> None:
     want = None if active == "Aviation" else want   # Aviation (ui/aviation_section.py) builds its own steps too
     want = None if active == "Ocean Predators" else want   # Ocean Predators (ui/ocean_section.py) builds its own steps too
     want = None if active == "Game Launch" else want   # Game Launch (ui/game_launch_section.py) builds its own steps too
+    want = None if active == "Prepper Host" else want   # Prepper Host (ui/prepper_host_section.py) builds its own steps too
     for name, (top, bottom) in wraps.items():
         if name != want:
             top.grid_remove()

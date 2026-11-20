@@ -191,6 +191,15 @@ hiddenimports += ["tk_thread_guard"]   # imported inside app.main / the main-thr
 hiddenimports += ["game_launch", "game_launch.runner", "game_launch.plan", "game_launch.look"]   # imported inside the Game Launch page's handlers
 datas.append((str(ROOT / "game_launch" / "example_scenes.csv"), "game_launch"))   # the page's Example CSV
 hiddenimports += ["stall_guard", "psutil"]   # imported inside app.main: the stall watchdog for stuck downloads / media tools
+# Prepper Host: prepper_host/ (CSV + script prompts, the shipped Dale host pack); imported inside the Prepper Host page's handlers
+for _p in ("csv_prompt.txt", "script_prompt.txt"):
+    if (ROOT / "prepper_host" / _p).is_file():
+        datas.append((str(ROOT / "prepper_host" / _p), "prepper_host"))
+for _p in sorted((ROOT / "prepper_host" / "hosts").rglob("*")):
+    if _p.is_file():
+        datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
+hiddenimports += ["prepper_host", "prepper_host.runner", "prepper_host.csvplan", "prepper_host.director", "prepper_host.flow",
+                  "prepper_host.host", "prepper_host.render", "prepper_host.voice"]
 hiddenimports += ["autorun", "autorun.job", "autorun.driver"]   # imported inside app.main (SYT_AUTORUN): make_video.py jobs run by the installed app
 
 # StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the

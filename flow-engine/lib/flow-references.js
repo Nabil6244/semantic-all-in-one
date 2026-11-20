@@ -30,7 +30,9 @@ export function validateReferenceImages(paths, { fsImpl = fs } = {}) {
   return list.map((p) => {
     const abs = path.resolve(p);
     if (seen.has(abs)) throw new Error(`Reference image listed twice: ${path.basename(abs)}`);
+    if (seen.has(path.basename(abs))) throw new Error(`Two reference images share the file name ${path.basename(abs)} (Flow's picker finds them by name)`);
     seen.add(abs);
+    seen.add(path.basename(abs));
     if (!OK_EXT.has(path.extname(abs).toLowerCase())) throw new Error(`Reference image ${path.basename(abs)} must be a PNG, JPEG or WebP picture`);
     let st;
     try { st = fsImpl.statSync(abs); } catch { throw new Error(`Reference image not found: ${abs}`); }
@@ -57,6 +59,11 @@ export function withReferenceSettings(settings, { fsImpl = fs } = {}) {
   const asked = settings && Array.isArray(settings.referenceImages) && settings.referenceImages.length;
   if (!asked) return settings;
   const referenceImages = validateReferenceImages(settings.referenceImages, { fsImpl });
+  // Video with references (2026-11-20, a host who keeps his face): Flow's "Ingredients" video mode on the standard UI path
+  // (flow-ui-experiment.js attaches them); the agent route is images only.
+  if (String(settings.mediaKind || "").toLowerCase() === "video") {
+    return { ...settings, referenceImages, referenceKey: referenceKeyOf(referenceImages, { fsImpl }), generationMode: "ui" };
+  }
   return {
     ...settings,
     referenceImages,
@@ -106,7 +113,7 @@ async function searchPicker(page, name, timeoutMs) {
  * Attach the pictures to the open Agent composer. Returns { attached: [file names], uploaded: [file names] }.
  * Throws (nothing was sent to Flow) when a picture cannot be uploaded or attached.
  */
-export async function attachReferenceImages(page, paths, { timeoutMs = 20000, probeMs = 2500, settleMs = 600 } = {}) {
+export async function attachReferenceImages(page, paths, { timeoutMs = 20000, probeMs = 2500, settleMs = 600, settleRetryMs = 3000, uploadSettleMs = 4000 } = {}) {
   const files = validateReferenceImages(paths);
   const out = { attached: [], uploaded: [] };
   if (!files.length) return out;
@@ -125,6 +132,10 @@ export async function attachReferenceImages(page, paths, { timeoutMs = 20000, pr
       if (!(await listed(page, names[i], timeoutMs))) throw new Error(`Flow did not list the uploaded reference image ${names[i]}`);
       out.uploaded.push(names[i]);
     }
+    // Let the fresh uploads finish processing, then start the attach from a freshly opened picker.
+    try { await page.keyboard.press("Escape"); } catch {}
+    if (uploadSettleMs) await wait(uploadSettleMs);
+    await openPicker(page, timeoutMs);
   }
 
   // 2. Attach each one: select it in the picker, "Add to prompt"; the picker is reopened for the next.
@@ -142,10 +153,39 @@ export async function attachReferenceImages(page, paths, { timeoutMs = 20000, pr
       try { await page.keyboard.press("Escape"); } catch {}
       break;
     }
-    await item.click();
-    const addToPrompt = page.getByRole("button", { name: /add to prompt/i }).first();
-    try { await addToPrompt.waitFor({ state: "visible", timeout: timeoutMs }); } catch { throw new Error(`Flow offered no "Add to prompt" for ${names[i]}`); }
-    await addToPrompt.click();
+    // Flow redraws the asset detail while a fresh upload settles ("element was detached", then no "Add to prompt" at all,
+    // 2026-11-20 Prepper Host: the first try after an upload always failed, the next run with the same files worked).
+    // Each try re-selects the picture; after a failed try the picker is closed, given time to settle and reopened.
+    let clicked = false, lastErr = null;
+    for (let k = 0; k < 3 && !clicked; k++) {
+      if (k > 0) {
+        try { await page.keyboard.press("Escape"); } catch {}
+        await wait(settleRetryMs);
+        try {
+          await openPicker(page, timeoutMs);
+          item = pickerItem(page, names[i]);
+          let seen = await item.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 8000) }).then(() => true, () => false);
+          if (!seen) seen = await searchPicker(page, names[i], timeoutMs).then((it) => { if (it) item = it; return !!it; }, () => false);
+          if (!seen) throw new Error(`Reference image ${names[i]} is not in Flow's reopened asset picker`);
+        } catch (e) { lastErr = e; continue; }
+      }
+      try {
+        await item.click({ timeout: 6000 });
+        const addToPrompt = page.getByRole("button", { name: /add to prompt/i }).first();
+        await addToPrompt.waitFor({ state: "visible", timeout: k ? timeoutMs : Math.min(timeoutMs, 10000) });
+        for (let j = 0; j < 3 && !clicked; j++) {
+          try { await addToPrompt.click({ timeout: 5000 }); clicked = true; } catch (e) { lastErr = e; await wait(1200); }
+        }
+      } catch (e) { lastErr = e; }
+    }
+    if (!clicked && i > 0) {
+      // The face picture is attached; a later one that will not attach is dropped (sending with fewer beats sending nothing).
+      out.missing = names.slice(i);
+      out.pickerText = await page.locator("body").innerText({ timeout: 3000 }).then((t) => String(t).slice(0, 4000), () => "");
+      try { await page.keyboard.press("Escape"); } catch {}
+      break;
+    }
+    if (!clicked) throw lastErr || new Error(`"Add to prompt" could not be clicked for ${names[i]}`);
     out.attached.push(names[i]);
     if (settleMs) await wait(settleMs);
   }

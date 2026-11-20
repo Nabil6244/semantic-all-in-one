@@ -1,0 +1,54 @@
+You are writing a Prepper Host CSV for the "Prepper Host" style of Semantic YT Studio: a talking-host prepper explainer in
+the style of "90 Days Without Power: the exact cart I'd buy". One host (default: Dale, a rancher in his late fifties) talks
+to camera in his workshop; the video cuts every 3-6 seconds between him, split screen, a round host cam over b-roll,
+real-life b-roll pictures, product photo cards and number cards.
+
+Write ONE CSV (comma separated, double quotes around any cell with a comma) with this header, exactly:
+line,shot,visual,product,title,rows,chapter
+
+RULES
+- `line` is the narration, word for word, in order. All lines together ARE the voiceover. First person, calm, plain words,
+  short sentences, real prices and quantities. One or two sentences per row (about 4-9 seconds spoken).
+- `shot` (leave empty to let the director pick):
+    host       the host talking to camera (open with 1-2 of these, and use one every ~10 rows)
+    split      host on the left, the `visual` picture on the right
+    pip        the `visual` picture full screen with a round host cam top right
+    broll      the `visual` picture full screen (a slow camera move is added)
+    product    one product photo card: `product` = the product name (brand + item, e.g. "Kirkland Signature 40-pack bottled water")
+    compare    2-3 product cards side by side: `product` = "Rice | Pinto beans | Rolled oats", `rows` = labels "RICE; BEANS; OATS"
+    data       math rows: `rows` = "4 PEOPLE x 90 DAYS = 1 GAL/DAY; WATER YOU NEED = 360 GAL !red"
+    checklist  ticked list: `rows` = "PORCH; OPEN GARAGE; ~THE ATTIC; -BACKYARD"   (~ = struck out in red, - = no tick)
+    bars       bar chart: `rows` = "CASES = 100 GAL; JUGS = 35 GAL; WATER HEATER = 50 GAL" (the numbers set the bar lengths)
+    big        one big number: `rows` = "360 GAL = WATER FOR A FAMILY OF FOUR"
+    chapter    a bumper with `title` ("ITEM 2 · FOOD") over a b-roll of this line's `visual`
+    thumbnail  (one row, no line) `title` = 2 short lines "90 DAYS | NO POWER", `visual` = the thumbnail picture, `product` = what he holds
+- `visual` = a picture prompt for split / pip / broll / chapter rows: a concrete real-life scene, place, light and objects.
+  Write {host} wherever the host is in the picture: "{host} lifting a case of water onto a garage shelf, afternoon light".
+  Mix: the host doing the thing (~40 %), empty-store / dark-house / family-by-lantern moments, close-ups of the items.
+- `title` = the chip on a card, 2-4 words in capitals ("THE WATER MATH", "NEVER STORE IT HERE", "THE BIG THREE").
+- `rows` = the card rows (see shot); keep each label 1-4 words, values short ("360 GAL", "$5", "~40,000 CAL"). Colours:
+  !red for the scary number, !green for the good result, !yellow for a total.
+- `chapter` = optional bumper text when the list moves on ("ITEM 3 · COOKING").
+- Every number spoken gets a data / big / bars row; every named product gets a product or compare row; never two cards
+  in a row more than twice; the host (host / split / pip) at least every 3 rows.
+- Structure (about 25 minutes = ~190-230 rows; a test can be 15-30 rows):
+  1. Cold open: news hook, the scary number, the promise ("one cart, one family of four, 90 days, item by item, with the
+     price and the reason") and a tease for the end ("the three things I'd never buy").
+  2. One authority line about the host (his ranch years) and a folksy rule.
+  3. Items in the order he'd buy them: what, exact store item + price, the math, why, one trick most people miss.
+  4. "People do the opposite… don't be that family."
+  5. A normal day of meals from the cart (breakfast, lunch, dinner) to prove it is livable.
+  6. The promised list of things he'd never buy.
+  7. The small budget version, one thing to do this week, a neighbour line, a comment question, subscribe line, title callback.
+- Output only the CSV, no commentary.
+
+EXAMPLE
+line,shot,visual,product,title,rows,chapter
+"Ninety days without power. Most families won't last ninety hours.",host,,,,,
+"Because the store shelves are empty by the end of day one.",broll,"Empty shelves in a big warehouse store aisle at night, cardboard on the floor",,,,
+"So I loaded one cart for a family of four, item by item.",split,"{host} pushing a flat warehouse cart loaded with water cases and rice sacks down a tall aisle",,,,
+"Item one is water. Not food. Water.",chapter,"Clear water poured into a glass on a dark kitchen counter, lantern light",,ITEM 1 · WATER,,
+"One gallon per person, per day. Four people, ninety days.",data,,,THE WATER MATH,"4 PEOPLE x 90 DAYS = 1 GAL/DAY; WATER YOU NEED = 360 GAL !red",
+"Layer one is ten big cases of bottled water, about five dollars each.",product,,Kirkland Signature 40-pack bottled water case,,,
+"And never store it in the attic.",checklist,,,NEVER STORE IT HERE,"~THE ATTIC; ~IN THE SUN; THE GARAGE FLOOR",
+"",thumbnail,"{host} holding a case of bottled water in front of a big warehouse store at dusk",bottled water case,90 DAYS | NO POWER,,

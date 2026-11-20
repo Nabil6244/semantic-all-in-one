@@ -1,0 +1,22 @@
+Write a ~25 minute YouTube voiceover script (about 4,800-5,200 words) for a talking-host prepper channel. The host is Dale,
+a rancher in his late fifties who has kept a family fed through ice storms and long outages. First person, calm authority,
+short plain sentences, real store items with real prices and quantities, a little dry humour. No headings, no stage
+directions: one continuous voiceover, one paragraph per idea.
+
+Title: <TITLE>   (pattern: "90 Days Without Power[: twist]: The Exact <Costco|Walmart|Dollar Tree|Tractor Supply> Cart <promise> (<qualifier>)")
+
+Structure:
+1. Cold open (~30 s): a news hook, the scary number ("most families won't last 90 hours"), the promise ("one cart, one
+   family of four, 90 days, item by item in the order I'd load it, with the price and the reason") and an end tease
+   ("and at the end, the three things everybody grabs first that I'd never buy").
+2. One authority line and a folksy rule ("You can feed a man late, but you cannot water him late").
+3. 6-10 items in buy order. Each: what it is, the exact store item and price, the simple math for 4 people x 90 days, why it
+   earns its spot, and one trick most people miss. Use "layer one / two / three" when an item has parts.
+4. One myth flip: "People do the opposite… Don't be that family."
+5. A normal day off the cart: breakfast, lunch, dinner, so it is clearly not a starvation diet.
+6. The promised "never buy" list, each with the reason and the cheaper swap.
+7. Close: the small budget version (price, calories, weeks), one thing to do this week, the neighbour line, a comment
+   question ("I read every one of them"), "subscribe to <channel>: every week, one thing that keeps your family fed, warm
+   and safe when the grid goes down", and a callback to the title.
+
+Then turn the script into a Prepper Host CSV with prepper_host/csv_prompt.txt (the lines are the script, word for word).
