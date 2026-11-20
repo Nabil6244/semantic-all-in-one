@@ -29,7 +29,10 @@ QUIET_PREFIX = "rtq_"
 # voice around them and a whoosh played on almost every scene change). Elder only: a whoosh only at a chapter, small effects far quieter, ticking
 # sounds dropped, at most 3 effects in 10 s, and a calm music bed (never "Stormfront").
 CALM_THEMES = ("elder",)
-CALM_TRANSITION_SCALE, CALM_SFX_SCALE, CALM_MAX_PER_WINDOW = 0.22, 0.35, 3
+CALM_TRANSITION_SCALE, CALM_SFX_SCALE, CALM_MAX_PER_WINDOW = 0.16, 0.25, 3      # 0.22/0.35 -> 0.16/0.25 (owner, 2026-11-20: a bit lower)
+# Carl Jung Theory: effects a bit lower than the other looks (owner, 2026-11-20), and no ring sound on a named body part (picture.NO_BODY_RING)
+JUNG_TRANSITION_SCALE, JUNG_SFX_SCALE = 0.35, 0.5
+BODY_RING_SOUNDS = ("glow", "ring", "grip ring")      # the events of the popping body ring
 CALM_DROP = ("counter_ticks", "clock_ticking", "deep_thud", "fast_whoosh")      # loud or busy sounds a calm health video never plays (a chapter whoosh is the soft one)
 CALM_MOOD = "wonder"
 
@@ -41,8 +44,9 @@ def _quiet(sound_id: str, kind: str = "sfx") -> str:
     if s is None or s.kind == "composite": return sound_id
     from . import theme as T
     calm = T.THEME in CALM_THEMES
-    scale = AMBIENCE_SCALE if kind == "ambience" else (CALM_TRANSITION_SCALE if calm else TRANSITION_SCALE) if sound_id in TRANSITION_SFX else (CALM_SFX_SCALE if calm else SFX_SCALE)
-    qid = QUIET_PREFIX + ("calm_" if calm else "") + sound_id
+    jung = T.THEME == "jung"
+    scale = AMBIENCE_SCALE if kind == "ambience" else (CALM_TRANSITION_SCALE if calm else JUNG_TRANSITION_SCALE if jung else TRANSITION_SCALE) if sound_id in TRANSITION_SFX else (CALM_SFX_SCALE if calm else JUNG_SFX_SCALE if jung else SFX_SCALE)
+    qid = QUIET_PREFIX + ("calm_" if calm else "jung_" if jung else "") + sound_id
     if qid not in SOUNDS: SOUNDS[qid] = dataclasses.replace(s, id=qid, volume=s.volume * scale)
     return qid
 
@@ -72,10 +76,11 @@ def music_gain(voiceover: str, work: Path, duration: float, text: str, seed: str
 def cues(scenes: List[dict]) -> List[dict]:
     """[{t, sfx, source}] for the plan's meaningful changes: a new composition gets a soft transition (a new part of the video a whoosh), every development
     the sound of what it does; then the spacing rule (same sound >= 0.6 s apart, any two >= 0.4 s, at most 8 in 10 s, a major sound wins)."""
+    from . import theme as T
     out: List[dict] = []; chapter_at = {float(sc["start"]) for sc in scenes if sc.get("chapter_card")}
     for e in C.events(scenes):
         if e["type"] == "primary": out.append({"t": e["t"], "sfx": "fast_whoosh" if e["t"] in chapter_at else "soft_transition", "source": e["what"]})
-        elif e["meaningful"] and e["what"] in KIND_SFX: out.append({"t": e["t"], "sfx": KIND_SFX[e["what"]], "source": e["what"]})
+        elif e["meaningful"] and e["what"] in KIND_SFX and not (e["what"] in BODY_RING_SOUNDS and T.THEME in ("jung", "elder")): out.append({"t": e["t"], "sfx": KIND_SFX[e["what"]], "source": e["what"]})
     from . import theme as T
     calm = T.THEME in CALM_THEMES
     if calm:      # Elder: a soft transition only where a chapter starts; no whoosh on every scene change; busy/loud effects dropped

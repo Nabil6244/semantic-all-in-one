@@ -304,6 +304,7 @@ def _draw_cues(cv: Image.Image, ctx, sc: dict, t: float, info: dict) -> int:
         tr = t - (c["at"] - sc["start"])
         if tr < 0: continue
         q = T.ease_out(min(1.0, tr / 0.45)); d = ImageDraw.Draw(cv, "RGBA")
+        if c["kind"] == "part" and T.THEME in NO_BODY_RING: continue      # no body-part ring on Jung / Elder pictures
         if c["kind"] == "part":
             k = parts.index(c); fp = _part_point(info, c, k)
             if fp is None: continue
@@ -362,6 +363,8 @@ def _draw_cues(cv: Image.Image, ctx, sc: dict, t: float, info: dict) -> int:
         n += 1
     return n
 
+NO_BODY_RING = ("jung", "elder")      # owner, 2026-11-20: the ring that pops on a named body part (and its sound) is gone from these looks
+
 def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
     """What the older looks drew on the figure, drawn on the picture (render final 2 dropped them on every picture scene): the part the narration names lights up on its word
     (a soft glow + a ring that pops + a leader label with the word as said: FOREARM, BICEP; no label when the picture before showed the same one; in the part's state colour: orange, red when it works hard, icy blue when it rests), and a body change on "bulk" /
@@ -371,6 +374,7 @@ def overlays(cv: Image.Image, ctx, sc: dict, t: float) -> int:
     info = study(_path(sc.get("art")) or "")
     if not info or not sc.get("_shown"): return 0
     n = 0; live = [g for g in sc.get("glows") or [] if g["at"] - sc["start"] <= t + 1e-6]
+    if T.THEME in NO_BODY_RING: live = []      # owner, 2026-11-20: no popping ring + body-part label on Jung / Elder pictures
     if any(c["kind"] == "part" for c in sc.get("pic_cues") or []): live = []      # every part said gets its own ring and label below (_draw_cues), not only the latest
     if live:
         g = live[-1]; at = g["at"] - sc["start"]; col = ST.TONES.get(g.get("tone"), T.ORANGE); label = "" if sc.get("_label_off") else (g.get("word") or g.get("label") or ""); fx, fy = info["red_c"] if info["red"] is not None else info.get("red_pt") or (info["subject"][0], max(info["top"] + 0.12, info["subject"][1] - 0.1))

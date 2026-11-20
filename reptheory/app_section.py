@@ -1,7 +1,7 @@
 """Rep Theory in the app's style picker: the card, its controls and the render worker. Imported only when the style is picked.
 
 Same shape as health_cinema/app_section.py: small additive hooks in app.py (`_reptheory_*`), everything else lives in this package. Opt-in per session; nothing starts until Render.
-16:9 landscape only: Final is 1920x1080, Preview is 1280x720. Scenes come from a scenes JSON (list of {text, start, end, ...}) or CSV you choose (untimed CSV rows, as "Copy the CSV prompt" asks for, are aligned to the voiceover), else the voiceover's own transcript
+16:9 landscape only: Resolution 1080p is 1920x1080, 720p is 1280x720 (about twice as fast to render). Scenes come from a scenes JSON (list of {text, start, end, ...}) or CSV you choose (untimed CSV rows, as "Copy the CSV prompt" asks for, are aligned to the voiceover), else the voiceover's own transcript
 cut into sentences (the app's word timings). The art ships with the app (assets/reptheory); a user library (~/RepTheoryAssets or REP_THEORY_ASSET_DIR) is optional and overrides it."""
 from __future__ import annotations
 import sys
@@ -113,6 +113,7 @@ def copy_script_prompt(app) -> None:
     app._rt_status_var.set("Survival script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.") if survival else app._rt_status_var.set("Full Guide script prompt copied. Paste it into any AI, replace its last line with your topic, then use the script it writes.")
 
 SETTINGS_KEY = "reptheory_settings"
+RES_1080, RES_720 = "1080p", "720p (faster)"      # the Resolution switch; "preview" in the settings = 720p
 SETTINGS = {"scenes": "_rt_scenes_var", "title": "_rt_title_var", "preview": "_rt_preview_var", "smart": "_rt_smart_var", "3d": "_rt_3d_var", "flow": "_rt_flow_var",
             "variety": "_rt_variety_var", "end": "_rt_end_var", "end_title": "_rt_end_title", "end_url": "_rt_end_url", "end_image": "_rt_end_image"}
 
@@ -183,7 +184,11 @@ def build(app, parent, *, row: int) -> None:
     opts = ctk.CTkFrame(controls, fg_color="transparent"); opts.grid(row=2, column=0, sticky="ew", pady=(10, 0))
     ctk.CTkLabel(opts, text="Section label", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8))
     ctk.CTkEntry(opts, textvariable=app._rt_title_var, width=260, placeholder_text="e.g. Grip · No Gym").grid(row=0, column=1, padx=(0, 16))
-    ctk.CTkCheckBox(opts, text="Preview (1280x720)", variable=app._rt_preview_var).grid(row=0, column=2)
+    res = ctk.CTkFrame(opts, fg_color="transparent"); res.grid(row=0, column=2)      # owner, 2026-11-20: a plain 1080p / 720p choice; 720p draws ~2x faster on Mac and Windows (same look, fewer pixels)
+    ctk.CTkLabel(res, text="Resolution", font=ctk.CTkFont(size=12), text_color=M._MUTED).grid(row=0, column=0, padx=(0, 8))
+    app._rt_res_var = ctk.StringVar(value=RES_720 if app._rt_preview_var.get() else RES_1080)
+    ctk.CTkSegmentedButton(res, values=[RES_1080, RES_720], variable=app._rt_res_var, command=lambda v: app._rt_preview_var.set(v == RES_720)).grid(row=0, column=1)
+    app._rt_preview_var.trace_add("write", lambda *_: app._rt_res_var.set(RES_720 if app._rt_preview_var.get() else RES_1080))      # a remembered project choice shows on the switch
     from . import elder_art as EA      # Elder Health Theory only: the main person (an uploaded picture, a new person every video, or this channel's own cast); remembered, nothing runs
     try: pv, own, sex = EA.per_video(), EA.own_picture(), EA.own_sex()
     except Exception: pv, own, sex = False, None, "f"

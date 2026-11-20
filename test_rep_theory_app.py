@@ -53,7 +53,7 @@ def scenario():
             except Exception: pass
             walk(c)
     walk(inst._rt_block)
-    emit("the_four_checkboxes_are_on_screen", all(t in labels for t in ("Scene per idea (smart planner)", "3D muscle clips", "Flow pictures", "Mix looks for long videos", "Preview (1280x720)", "Render Rep Theory")), str([l for l in labels if isinstance(l, str)][:14]))
+    emit("the_four_checkboxes_are_on_screen", all(t in labels for t in ("Scene per idea (smart planner)", "3D muscle clips", "Flow pictures", "Mix looks for long videos", "Resolution", "Render Rep Theory")), str([l for l in labels if isinstance(l, str)][:14]))
     inst._sync_primary_cta()
     emit("button_says_render_when_a_voiceover_exists", inst._cta_action == "rt_render", inst._cta_action)
     inst._current_voiceover_path = lambda: None; inst._sync_primary_cta()
@@ -82,7 +82,7 @@ def scenario():
     inst._rt_smart_var.set(True)
 
     # ---- preview checkbox
-    inst._rt_preview_var.set(True); inst._on_primary_cta(); yield (lambda: not inst._rt_running and bool(calls))
+    inst._rt_res_var.set("720p (faster)"); inst._rt_preview_var.set(True); inst._on_primary_cta(); yield (lambda: not inst._rt_running and bool(calls))
     emit("preview_reaches_the_engine", calls.get("quality") == "preview"); inst._rt_preview_var.set(False)
 
     # ---- Stop
