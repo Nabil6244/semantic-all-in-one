@@ -81,7 +81,13 @@ async function openPicker(page, timeoutMs) {
   const add = page.locator(ADD_BUTTON).first();
   await add.waitFor({ state: "visible", timeout: timeoutMs });
   await add.click();
-  await page.getByRole("button", { name: /upload media/i }).first().waitFor({ state: "visible", timeout: timeoutMs });
+  const upload = page.getByRole("button", { name: /upload media/i }).first();
+  // Flow reopens the picker on the tab used last; after a voice that is the Voices tab, which has no "Upload media"
+  // (live 2026-11-21: every clip after a voiced one failed here). Go back to the All tab.
+  if (await upload.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 3000) }).then(() => true, () => false)) return;
+  const all = page.getByText(/^\s*All\s*$/).filter({ visible: true }).first();
+  if (await all.isVisible().catch(() => false)) await all.click().catch(() => {});
+  await upload.waitFor({ state: "visible", timeout: timeoutMs });
 }
 
 // The picker's entry for a file: the first VISIBLE element with its name. Flow keeps hidden copies of the names in the page, and taking the
@@ -190,4 +196,54 @@ export async function attachReferenceImages(page, paths, { timeoutMs = 20000, pr
     if (settleMs) await wait(settleMs);
   }
   return out;
+}
+
+/**
+ * Attach one of Flow's voices (the picker's Voices tab: Algenib, Charon, ...) so a talking clip speaks in that exact voice,
+ * the same in every clip (owner, 2026-11-21: one voice for the host). performance fills "Customise performance".
+ * Returns { voice, performance }. Throws (nothing was sent) when the voice cannot be found or attached.
+ */
+/** Close the asset picker when it is still open (its "Search assets" box is on screen). */
+export async function closePicker(page) {
+  const box = page.getByPlaceholder(/search assets/i).filter({ visible: true }).first();
+  for (let i = 0; i < 3; i++) {
+    if (!(await box.isVisible().catch(() => false))) return true;
+    try { await page.keyboard.press("Escape"); } catch {}
+    await wait(500);
+  }
+  return !(await box.isVisible().catch(() => false));
+}
+
+export async function attachVoice(page, name, { performance = "", timeoutMs = 15000, settleMs = 600 } = {}) {
+  const voice = String(name || "").trim();
+  if (!voice) return null;
+  let lastErr = null;
+  for (let k = 0; k < 3; k++) {
+    try {
+      if (k > 0) { try { await page.keyboard.press("Escape"); } catch {} await wait(1500); }
+      await openPicker(page, timeoutMs);
+      const tab = page.getByText(/^\s*Voices\s*$/i).filter({ visible: true }).first();
+      await tab.waitFor({ state: "visible", timeout: timeoutMs });
+      await tab.click();
+      const item = page.getByText(new RegExp(`^\\s*${voice.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*$`, "i")).filter({ visible: true }).first();
+      let seen = await item.waitFor({ state: "visible", timeout: Math.min(timeoutMs, 8000) }).then(() => true, () => false);
+      let it = item;
+      if (!seen) { const found = await searchPicker(page, voice, timeoutMs).catch(() => null); if (found) { it = found; seen = true; } }
+      if (!seen) throw new Error(`Flow's Voices list has no voice called ${voice}`);
+      await it.click({ timeout: 6000 });
+      if (performance) {
+        const box = page.getByPlaceholder(/voice performance/i).filter({ visible: true }).first();
+        if (await box.isVisible().catch(() => false)) await box.fill(String(performance).slice(0, 300));
+      }
+      const add = page.getByRole("button", { name: /add to prompt/i }).filter({ visible: true }).first();
+      await add.waitFor({ state: "visible", timeout: timeoutMs });
+      await add.click({ timeout: 6000 });
+      if (settleMs) await wait(settleMs);
+      // The picker stays open on the voice after "Add to prompt" (live 2026-11-21): left open, it swallowed the next clip's
+      // Settings click (settings_trigger_click_no_transition on every later clip). Close it.
+      await closePicker(page);
+      return { voice, performance: performance ? String(performance).slice(0, 300) : "" };
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error(`voice ${voice} could not be attached`);
 }

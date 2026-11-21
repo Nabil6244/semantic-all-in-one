@@ -28,7 +28,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
-import { attachReferenceImages } from "./flow-references.js";
+import { attachReferenceImages, attachVoice, closePicker } from "./flow-references.js";
 import { collectAllStillUrls, collectAllVideoUrls, readPromptsForStillUrls } from "./flow-ui-agent.js";
 import { wordsOf } from "./agent-api.js";
 
@@ -46,6 +46,12 @@ function uiFailure(kind, diag) {
   // The page offered no settings control (Flow's agent-panel layout, or right after an agent batch): this account cannot make a
   // single picture now, and nothing was sent. batch-runner hands the scene to another account instead of looping here.
   err.layoutUnsupported = !clicked && diag.outcome === "no_visible_settings_control";
+  // No credits left on this account (Flow's agent said so; nothing was made or billed): another account takes the scene.
+  if (diag.outcome === "out_of_credits") {
+    err.layoutUnsupported = true;
+    err.outOfCredits = true;
+    err.message += ` (${diag.agentReply || "no credits left"})`;
+  }
   return tagSubmission(err, clicked ? Submission.UNKNOWN : Submission.NOT_SUBMITTED);
 }
 
@@ -381,6 +387,8 @@ async function runUiGeneration(page, prompt, opts = {}) {
     // A UI Agent batch leaves Flow's bottom-bar "Agent" toggle on, which hides the settings control this path needs
     // (every first single Generate after an agent batch failed with no_visible_settings_control, then reloaded). Turn it off.
     diag.agentToggleWasOn = await turnAgentModeOff(page);
+    // An asset picker left open by the last clip (a voice stays selected in it) takes the Settings click: close it first.
+    await closePicker(page).catch(() => {});
 
     // A video with reference pictures (a host who keeps his face) is Flow's "Ingredients" video mode.
     const refs = Array.isArray(opts.referenceImages) ? opts.referenceImages.filter(Boolean) : [];
@@ -454,7 +462,8 @@ async function runUiGeneration(page, prompt, opts = {}) {
     // Flow's agent-only layout (2026-11-21) has no Video switch, and its Agent settings default to "Confirm before generating:
     // Always": with reference pictures attached the agent made stills and waited for a yes (Prepper Host talking clips came back
     // as images). For a video, that project's agent is set to Never, so the one request becomes the one video.
-    if (opts.mode === "video" && diag.modeSelected === "agent-defaults") {
+    // Images too (2026-11-21): on "Always" the agent plans the still and waits for a yes, so every picture sat until the timeout.
+    if ((opts.mode === "video" || opts.mode === "image") && diag.modeSelected === "agent-defaults") {
       diag.stage = "agent_video_no_confirm";
       diag.agentConfirm = await setAgentConfirmNever(page).catch((e) => `error: ${e?.message || e}`);
     }
@@ -478,6 +487,18 @@ async function runUiGeneration(page, prompt, opts = {}) {
         if (ref.missing && ref.missing.length) diag.referencesMissing = ref.missing;
       } catch (e) {
         diag.outcome = "references_not_attached";
+        diag.error = e?.message || String(e);
+        return { mediaId: null, fifeUrl: null, diag };
+      }
+      await editor.click();
+    }
+    if (opts.voice?.name) {
+      // One Flow voice for the host in every clip; never send the clip in a made-up voice instead.
+      diag.stage = "attaching_voice";
+      try {
+        diag.voice = await attachVoice(page, opts.voice.name, { performance: opts.voice.performance || "" });
+      } catch (e) {
+        diag.outcome = "voice_not_attached";
         diag.error = e?.message || String(e);
         return { mediaId: null, fifeUrl: null, diag };
       }
@@ -555,7 +576,21 @@ async function runUiGeneration(page, prompt, opts = {}) {
     diag.stage = "waiting_for_completion";
     const deadline = Date.now() + generationTimeoutMs;
     let unreadable = 0;
+    let creditCheckAt = 0;
     while (Date.now() < deadline && !mediaUrl && !opts.shouldStop?.()) {
+      // Flow's agent answers in the chat when the account has no credits left ("... you currently have 0 credits remaining
+      // (refreshing on ...)", live 2026-11-21) and makes nothing: stop now instead of waiting out the 9-minute window.
+      if (Date.now() - creditCheckAt > 8000) {
+        creditCheckAt = Date.now();
+        const said = await Promise.resolve().then(() => page.locator("body").innerText({ timeout: 2000 }))
+          .then((t) => String(t).slice(-2500), () => "");
+        const m = said.match(/[^\n]*\b0 credits remaining[^\n]*/i) || said.match(/[^\n]*(?:top up|upgrade) (?:or (?:top up|upgrade) )?(?:your )?(?:credits|plan)[^\n]*/i);
+        if (m) {
+          diag.outcome = "out_of_credits";
+          diag.agentReply = m[0].trim().slice(0, 400);
+          return { mediaId: null, fifeUrl: null, diag };
+        }
+      }
       mediaUrl = await page
         .evaluate(
           ({ host, known, wantVideo }) => {
@@ -614,6 +649,9 @@ async function runUiGeneration(page, prompt, opts = {}) {
     if (!mediaUrl) {
       diag.outcome = opts.shouldStop?.() ? "stopped" : "timeout_no_media_detected";
       if (diag.outcome === "timeout_no_media_detected") {
+        // The agent chat's last words (a limit, a question, a refusal): with no video tile, that is the only answer Flow gave.
+        diag.agentReply = await Promise.resolve().then(() => page.locator("body").innerText({ timeout: 3000 }))
+          .then((t) => String(t).replace(/\s+\n/g, "\n").slice(-1500), () => "");
         // What the page actually showed when detection gave up: element
         // counts by host / first path segment / alt text only (never a full
         // URL or token), so a future miss can be told apart in the log.
@@ -686,7 +724,18 @@ async function runUiGeneration(page, prompt, opts = {}) {
  * was drawn as the photo when a failed stock search was switched to a still.
  */
 /** Agent settings → "Confirm before generating" → Never (per project). Returns "set", "already" or "not_found". */
+// Pages already set to Never (the setting is per Flow project, so the key is the page's project URL): no panel round-trip per image.
+const confirmNeverDone = new WeakMap();
+
 export async function setAgentConfirmNever(page, { timeoutMs = 6000 } = {}) {
+  const where = (() => { try { return String(page.url() || "").split("?")[0]; } catch { return ""; } })();
+  if (where && confirmNeverDone.get(page) === where) return "cached";
+  const result = await setAgentConfirmNeverNow(page, { timeoutMs });
+  if (where && (result === "set" || result === "already")) confirmNeverDone.set(page, where);
+  return result;
+}
+
+async function setAgentConfirmNeverNow(page, { timeoutMs = 6000 } = {}) {
   const open = page.locator('button[aria-label="Agent settings"]').first();
   if (!(await open.isVisible().catch(() => false))) return "not_found";
   await open.click();
@@ -752,6 +801,7 @@ export async function generateOneVideoViaUI(page, projectId, prompt, settings, p
     outputDir: settings?.outputDir,
     mode: "video",
     referenceImages: settings?.referenceImages,
+    voice: settings?.voice,
     shouldStop,
     // Flow video jobs routinely run past 3 minutes under load (and several
     // run concurrently across accounts). The old 180s window gave up while

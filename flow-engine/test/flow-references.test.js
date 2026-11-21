@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const {
-  validateReferenceImages, referenceKeyOf, withReferenceSettings, attachReferenceImages, MAX_REFERENCES, MAX_REFERENCE_BYTES,
+  validateReferenceImages, referenceKeyOf, withReferenceSettings, attachReferenceImages, attachVoice, MAX_REFERENCES, MAX_REFERENCE_BYTES,
 } = await import("../lib/flow-references.js");
 const { generationKey } = await import("../lib/generation-ledger.js");
 const { runAgentSlice, resetUiBatchCaps } = await import("../lib/agent-runner.js");
@@ -209,4 +209,47 @@ test("attach: a detail panel redrawn after a fresh upload is re-selected and att
   const r = await attachReferenceImages(page, [a], { timeoutMs: 100, probeMs: 10, settleMs: 0, settleRetryMs: 0, uploadSettleMs: 0 });
   assert.deepEqual(r.attached, ["host_face.png"]);
   assert.deepEqual(state.attached, ["host_face.png"]);
+});
+
+// ---- Flow voices: the picker's Voices tab ------------------------------------------------------------------------------------------
+function fakeVoicePicker({ voices = ["Achird", "Algenib", "Charon"] } = {}) {
+  const st = { picker: false, tab: null, selected: null, attached: [], performance: "" };
+  const loc = (kind, key) => ({
+    first() { return this; }, filter() { return this; },
+    async isVisible() { return kind === "box" && !!st.selected; },
+    async waitFor() {
+      if (kind === "button" && /upload media/i.test(key) && !st.picker) throw new Error("timeout");
+      if (kind === "text" && /Voices/.test(String(key)) && !st.picker) throw new Error("timeout");
+      if (kind === "text" && !/Voices/.test(String(key)) && !(st.tab === "voices" && voices.some((v) => key.test(v)))) throw new Error("timeout");
+      if (kind === "button" && /add to prompt/i.test(key) && !st.selected) throw new Error("timeout");
+    },
+    async click() {
+      if (kind === "add") st.picker = true;
+      else if (kind === "text" && /Voices/.test(String(key))) st.tab = "voices";
+      else if (kind === "text") st.selected = voices.find((v) => key.test(v));
+      else if (kind === "button" && /add to prompt/i.test(key)) { st.attached.push(st.selected); st.selected = null; st.picker = false; }
+    },
+    async fill(v) { st.performance = v; },
+  });
+  const page = {
+    locator: (sel) => loc(sel.includes("Add ingredients") ? "add" : "other", sel),
+    getByRole: (_r, { name }) => loc("button", String(name)),
+    getByText: (t) => loc("text", t instanceof RegExp ? t : new RegExp(t)),
+    getByPlaceholder: () => loc("box", "performance"),
+    keyboard: { press: async () => {} },
+  };
+  return { page, st };
+}
+
+test("voice: picks the named Flow voice in the Voices tab, fills its performance and adds it to the prompt", async () => {
+  const { page, st } = fakeVoicePicker();
+  const r = await attachVoice(page, "Algenib", { performance: "calm rancher", timeoutMs: 50, settleMs: 0 });
+  assert.deepEqual(r, { voice: "Algenib", performance: "calm rancher" });
+  assert.deepEqual(st.attached, ["Algenib"]);
+  assert.equal(st.performance, "calm rancher");
+});
+
+test("voice: a voice Flow does not list is an error (the clip is not sent in another voice)", async () => {
+  const { page } = fakeVoicePicker({ voices: ["Charon"] });
+  await assert.rejects(() => attachVoice(page, "Algenib", { timeoutMs: 30, settleMs: 0 }), /no voice called Algenib/);
 });

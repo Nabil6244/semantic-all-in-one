@@ -14,7 +14,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { waitForFlowReady } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
-import { resolveAsbImage } from "./flow-ui-experiment.js";
+import { resolveAsbImage, setAgentConfirmNever } from "./flow-ui-experiment.js";
 import { attachReferenceImages } from "./flow-references.js";
 
 const PROMPT_EDITOR_SELECTOR = 'div.ProseMirror[aria-label="What do you want to create?"], div.ProseMirror';
@@ -598,6 +598,11 @@ export async function generateAgentBatchViaUI(page, {
         Submission.NOT_SUBMITTED,
       );
     }
+
+    // Flow's agent-only layout (2026-11-21) defaults to "Confirm before generating: Always": the agent lists its plan and waits
+    // for a yes, so a pasted scene list made nothing until the reply timed out and every scene fell back to one-by-one stills.
+    diag.stage = "agent_confirm_never";
+    diag.agentConfirm = await bounded(setAgentConfirmNever(page), 12000, "timeout").catch((e) => `error: ${e?.message || e}`);
 
     if (referenceImages && referenceImages.length) {
       diag.stage = "attaching_references";
