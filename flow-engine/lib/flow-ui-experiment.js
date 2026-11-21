@@ -463,8 +463,9 @@ async function runUiGeneration(page, prompt, opts = {}) {
     // Always": with reference pictures attached the agent made stills and waited for a yes (Prepper Host talking clips came back
     // as images). For a video, that project's agent is set to Never, so the one request becomes the one video.
     // Images too (2026-11-21): on "Always" the agent plans the still and waits for a yes, so every picture sat until the timeout.
-    if ((opts.mode === "video" || opts.mode === "image") && diag.modeSelected === "agent-defaults") {
-      diag.stage = "agent_video_no_confirm";
+    // Every video and image, whatever layout was detected: "not_found" (no Agent settings button) costs nothing.
+    if (opts.mode === "video" || opts.mode === "image") {
+      diag.stage = "agent_no_confirm";
       diag.agentConfirm = await setAgentConfirmNever(page).catch((e) => `error: ${e?.message || e}`);
     }
 
