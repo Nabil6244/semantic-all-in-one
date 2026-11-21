@@ -82,9 +82,27 @@ _SCALES = {
 }
 
 
+# Urdu (Arabic script): Whisper and scripts mix the Arabic and Urdu forms of the same letter, so those become the Urdu
+# form; Arabic-Indic digits become ASCII. Diacritics (zer/zabar/pesh), tatweel and punctuation are dropped.
+_URDU_LETTERS = str.maketrans({"ي": "ی", "ى": "ی", "ك": "ک", "ه": "ہ"})
+_URDU_KEEP = re.compile(r"[^a-z0-9ء-غف-يٱ-ۓ]")
+
+
+def _is_arabic_script(w: str) -> bool:
+    return any("؀" <= ch <= "ۿ" for ch in w)
+
+
+def _normalize_urdu(w: str) -> str:
+    w = unicodedata.normalize("NFC", w.lower().strip()).translate(_URDU_LETTERS)
+    w = "".join(str(unicodedata.digit(ch)) if ("٠" <= ch <= "٩" or "۰" <= ch <= "۹") else ch for ch in w)
+    return _URDU_KEEP.sub("", w)
+
+
 def normalize_word(w: str) -> str:
     """Lowercase, strip punctuation/possessives. Keeps letters+digits only; accented letters fold to their base letter
     (caminó -> camino, ángeles -> angeles) instead of being dropped, so non-English narration aligns and reads intact."""
+    if _is_arabic_script(w):
+        return _normalize_urdu(w)
     w = unicodedata.normalize("NFKD", w.lower().strip())
     # Devanagari (Hindi) keeps its vowel signs and virama, which are what make the word; only the nukta is dropped
     # (Whisper and scripts disagree on it) and chandrabindu folds to anusvara. Digits become ASCII so they match.
@@ -355,6 +373,14 @@ STOPWORDS = {
     "आप", "आपको", "आपका", "आपकी", "हम", "उस", "इस", "कोई", "किसी", "ऐसे", "ऐसा", "जहाँ", "जहां", "फिर",
 }
 
+# Urdu function words: too common to anchor a row on (stored in normalize_word's form)
+STOPWORDS |= {normalize_word(w) for w in (
+    "کے", "کی", "کا", "میں", "ہی", "ہے", "ہیں", "تھا", "تھی", "تھے", "اور", "کہ", "کو", "سے", "پر", "یہ", "وہ", "یہی", "وہی",
+    "بھی", "تو", "جو", "ایک", "کر", "رہا", "رہی", "رہے", "نہیں", "لیکن", "بلکہ", "جب", "تب", "آپ", "ہم", "اس", "ان", "انہیں",
+    "کوئی", "کسی", "ایسا", "ایسی", "ایسے", "جہاں", "پھر", "اب", "ہو", "ہوا", "ہوتا", "ہوتی", "ہوتے", "گیا", "گئی", "گئے",
+    "لیے", "کیا", "کیے", "نے", "ہوں", "گا", "گی", "گے", "ذرا", "یعنی", "اپنی", "اپنے", "اپنا", "کچھ", "کئی",
+    "صرف", "ساتھ", "بہت", "بڑا", "بڑی", "بڑے", "سکتا", "سکتی", "چاہیے", "والے", "والا", "والی", "کیوں", "کیسے")}
+
 # Magnitude/currency words that recur constantly in numbers-heavy scripts
 # (e.g. finance/business explainers). They're long enough to pass a naive
 # length check, but Whisper frequently drops or reformats them next to a
@@ -400,7 +426,28 @@ def _align_words_match(a: str, b: str) -> bool:
     if len(a) >= 4 and len(b) >= 4 and "\u0900" <= a[0] <= "\u097f" and "\u0900" <= b[0] <= "\u097f":
         import difflib
         return difflib.SequenceMatcher(None, a, b).ratio() >= 0.75
+    # Urdu: Whisper writes the same word with other letter shapes (ے/ی, ھ/ہ, ں/ن, hamza, madda) and its own spelling
+    # of loan words (اندسٹریل for انڈسٹریل), so compare folded forms and let close spellings count
+    if _is_arabic_script(a) and _is_arabic_script(b):
+        ka, kb = a.translate(_URDU_FOLD), b.translate(_URDU_FOLD)
+        if ka == kb:
+            return True
+        if min(len(ka), len(kb)) >= 4 and max(len(ka), len(kb)) >= 5:
+            import difflib
+            # short words need a closer spelling: سامان must not match سامنے a sentence later
+            need = 0.84 if min(len(ka), len(kb)) <= 6 else 0.75
+            return difflib.SequenceMatcher(None, ka, kb).ratio() >= need
     return False
+
+
+_URDU_FOLD = str.maketrans({"آ": "ا", "أ": "ا", "إ": "ا", "ٱ": "ا",
+                            "ئ": "ی", "ۓ": "ی", "ے": "ی", "ۂ": "ہ",
+                            "ۃ": "ہ", "ة": "ہ", "ھ": "ہ", "ں": "ن",
+                            "ؤ": "و", "ء": None,
+                            # letters that sound the same in Urdu speech, which Whisper swaps freely
+                            "ڈ": "د", "ڑ": "ر", "ٹ": "ت", "ط": "ت",
+                            "ذ": "ز", "ض": "ز", "ظ": "ز", "ث": "س",
+                            "ص": "س", "ح": "ہ", "ع": "ا"})
 
 
 def align_rows(rows, whisper_words):
@@ -447,23 +494,47 @@ def align_rows(rows, whisper_words):
             window_end = min(n_whisper, cursor + horizon)
 
             max_span = max(25, round(expected_span * 2.5 + 15))
-            found_indices = []
-            last_target_found = False
-            local_cursor = window_start
-            for t_i, target in enumerate(distinctive):
-                idx = None
-                # Once the row has a first hit, its later words must fall within the row's
-                # plausible span of it: a far-away duplicate (scene 9's "stone tower" while
-                # scene 2 says "tower") must not pull the search past this row's real words.
-                search_end = window_end if not found_indices else min(window_end, found_indices[0] + max_span + 1)
-                for j in range(local_cursor, search_end):
-                    if _align_words_match(whisper_words[j][0], target):
-                        idx = j
-                        break
-                if idx is not None:
-                    found_indices.append(idx)
-                    local_cursor = idx + 1
-                    last_target_found = t_i == len(distinctive) - 1
+            urdu_row = any(_is_arabic_script(t) for t in distinctive)
+            if urdu_row:
+                # Urdu rows are short and Whisper's loose spellings match more words, so a row's key words must stay
+                # close together: a short row must not take a word said two rows later (جاتیں ~ جاتی)
+                max_span = max(10, round(expected_span * 1.6 + 5))
+
+            def _search(start, first_t):
+                found, last_found, local_cursor = [], False, start
+                for t_i in range(first_t, len(distinctive)):
+                    target = distinctive[t_i]
+                    idx = None
+                    # Once the row has a first hit, its later words must fall within the row's
+                    # plausible span of it: a far-away duplicate (scene 9's "stone tower" while
+                    # scene 2 says "tower") must not pull the search past this row's real words.
+                    search_end = window_end if not found else min(window_end, found[0] + max_span + 1)
+                    for j in range(local_cursor, search_end):
+                        if _align_words_match(whisper_words[j][0], target):
+                            idx = j
+                            break
+                    if idx is not None:
+                        found.append(idx)
+                        local_cursor = idx + 1
+                        last_found = t_i == len(distinctive) - 1
+                return found, last_found
+
+            found_indices, last_target_found = _search(window_start, 0)
+            # Urdu: Whisper often spells a row's first key word its own way (بہتنام for ویتنام), and the plain
+            # search then latches onto the NEXT time that word is said, rows ahead. Try the nearest few places
+            # where any key word is heard and keep the one where most of the row's words follow.
+            if urdu_row:
+                starts = {}
+                for t_i, target in enumerate(distinctive):
+                    for j in range(window_start, window_end):
+                        if _align_words_match(whisper_words[j][0], target):
+                            starts.setdefault(j, t_i)
+                            break
+                for j in sorted(starts)[:4]:
+                    cand = _search(j, starts[j])
+                    if len(cand[0]) > len(found_indices) or (
+                            len(cand[0]) == len(found_indices) and cand[0] and found_indices and cand[0][0] < found_indices[0]):
+                        found_indices, last_target_found = cand
 
             # Quality gates — reject weak/spurious anchors that would advance the
             # cursor past later scenes (the other cascade mode).
@@ -490,6 +561,15 @@ def align_rows(rows, whisper_words):
                             _align_words_match(whisper_words[end_idx + 1 + k][0], w)
                             for k, w in enumerate(trailing)):
                         end_idx += len(trailing)
+                if urdu_row:
+                    # Urdu rows often open on short words (لیکن آج, اگر آپ بھی): when the voice says them just before
+                    # the first key word, the row starts there, not in the row before
+                    first_key = next(k for k, w in enumerate(words) if is_distinctive(w))
+                    for w in reversed(words[:first_key]):
+                        if start_idx - 1 >= cursor and _align_words_match(whisper_words[start_idx - 1][0], w):
+                            start_idx -= 1
+                        else:
+                            break
                 anchors[i] = (start_idx, end_idx)
                 cursor = end_idx + 1
 
