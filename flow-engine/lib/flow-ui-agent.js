@@ -496,8 +496,14 @@ function agentToggle(page) {
  * open on the right, with the same "What do you want to create?" editor and Start generation button. Its "Agent
  * instructions" button only shows while the agent is active (same signal as the toggle layout).
  */
+// The agent chat panel's own controls. Flow's 2026-11-21 layout dropped "Agent instructions": its always-open panel shows
+// "Agent settings", "Open session history" and Close instead (live, Account 4). Missing it, every batch waited 15 s twice and
+// then made all scenes one by one (~30 s each).
+export const AGENT_PANEL_SELECTOR =
+  'button[aria-label="Agent instructions"], button[aria-label="Agent settings"], button[aria-label="Open session history"]';
+
 async function agentPanelOpen(page) {
-  const panel = page.locator('button[aria-label="Agent instructions"]').first();
+  const panel = page.locator(AGENT_PANEL_SELECTOR).first();
   if ((await bounded(panel.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) return false;
   return Boolean(await bounded(panel.isVisible(), PAGE_CALL_TIMEOUT_MS, false));
 }
@@ -515,10 +521,10 @@ async function agentModeOn(page) {
 export async function ensureAgentMode(page, { timeoutMs = 15000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   const btn = agentToggle(page);
-  // Either layout's control: the toggle, or the chat panel's "Agent instructions" (no 15 s wait for a toggle that is not there).
+  // Either layout's control: the toggle, or the chat panel's own buttons (no 15 s wait for a toggle that is not there).
   await Promise.any([
     btn.waitFor({ state: "visible", timeout: timeoutMs }),
-    page.locator('button[aria-label="Agent instructions"]').first().waitFor({ state: "visible", timeout: timeoutMs }),
+    page.locator(AGENT_PANEL_SELECTOR).first().waitFor({ state: "visible", timeout: timeoutMs }),
   ]).catch(() => {});
   if ((await bounded(btn.count(), PAGE_CALL_TIMEOUT_MS, 0)) === 0) {
     // Chat-panel layout: no toggle to press; the agent is on when its panel is open.

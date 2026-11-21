@@ -248,7 +248,7 @@ function layoutPage({ toggle, panel }) {
     state,
     locator: (sel) => {
       if (sel === "button") return { filter: () => ({ first: () => (toggle ? toggleLoc : none) }) };
-      if (sel.includes("Agent instructions")) return { first: () => (panel ? panelLoc : none) };
+      if (sel.includes("Agent instructions")) return { first: () => (panel && sel.includes(panel === true ? "Agent instructions" : panel) ? panelLoc : none) };
       return { first: () => none };
     },
   };
@@ -260,6 +260,9 @@ test("agent mode is found in both Flow layouts: the Agent toggle, and the always
   assert.deepEqual(await ensureAgentMode(t, { timeoutMs: 2000 }), { ok: true, reason: "pressed" });
   assert.equal(t.state.pressed, true);
   assert.deepEqual(await ensureAgentMode(layoutPage({ toggle: false, panel: true }), { timeoutMs: 2000 }), { ok: true, reason: "agent_panel" });
+  // 2026-11-21 layout: no "Agent instructions", the open panel shows "Agent settings" / "Open session history".
+  assert.deepEqual(await ensureAgentMode(layoutPage({ toggle: false, panel: "Agent settings" }), { timeoutMs: 2000 }), { ok: true, reason: "agent_panel" });
+  assert.deepEqual(await ensureAgentMode(layoutPage({ toggle: false, panel: "Open session history" }), { timeoutMs: 2000 }), { ok: true, reason: "agent_panel" });
   const started = Date.now();
   assert.equal((await ensureAgentMode(layoutPage({ toggle: false, panel: false }), { timeoutMs: 200 })).ok, false);
   assert.ok(Date.now() - started < 2000);
