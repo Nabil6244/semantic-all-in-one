@@ -8,7 +8,9 @@ Output ONLY the CSV, starting with the header row. No explanations, no code fenc
 blank lines. Quote any cell that contains a comma.
 
 HEADER (exactly this, in this order)
-scene_number,script_segment,asset_type,prompt
+scene_number,script_segment,asset_type,prompt,gfx
+When the narration is NOT in English (Urdu, Hindi ...), add one more column at the end:
+scene_number,script_segment,asset_type,prompt,gfx,on_screen_en
 
 COLUMNS
 - scene_number   1, 2, 3 ... one per row, in order, no gaps, never repeated.
@@ -17,6 +19,10 @@ COLUMNS
                  stock_video, stock_image, youtube_video, archive_video, nasa_video,
                  commons_image, commons_video, flow_video, flow_image, map
 - prompt         what to find or make (see PROMPTS). Never empty.
+- gfx            the animated graphic shown over this shot (see GRAPHICS), or empty.
+- on_screen_en   only for non-English narration: the row's words in short, plain English.
+                 The video is still timed on the real voice; on-screen text and graphics
+                 are planned from this line (Urdu letters cannot be drawn on screen).
 
 HOW TIME WORKS (the most important rule: a CSV that breaks it lands on the wrong words)
 - THE ROWS COVER THE SCRIPT EXACTLY. Put the script_segment cells one after another and
@@ -71,34 +77,76 @@ PROMPTS
 - map: the place, big to small, separated by >, then options after |:
   "Canada > Hudson Bay | camera: zoom_in". Up to three levels (parent > focus >
   inner). Options: camera (zoom_in, zoom_out or drift), label (a short name in
-  capitals), style (dark or natural). Use real names an atlas knows.
+  capitals), style (dark or natural), mark (towns or places to pin, comma separated:
+  "mark: Sialkot, Faisalabad, Karachi"), route (an animated line between places,
+  several routes separated by ;: "route: China -> Vietnam"). Use real names an atlas
+  knows. Never a continent as the parent (it paints the whole continent): write
+  "Vietnam | route: China -> Vietnam", not "Asia > Vietnam | ...". Use a map whenever the narration names a country, city, region, border,
+  corridor or route - about one map row per minute of video.
+
+GRAPHICS (the gfx column)
+- A small JSON object: the template in "t", then its fields. Example cells:
+  {"t": "text_slam", "text": "NO INDUSTRIAL BASE"}
+  {"t": "stat_countup", "value": 87, "label": "% OF GDP FROM EXPORTS", "sub": "VIETNAM, 2023"}
+- Put a graphic on about every second row, and on every row that says a number, a
+  year, a comparison, a list, a named place or company, or a strong short line.
+- NUMBERS COME ONLY FROM THE SCRIPT. Never add a figure, year or percent the narration
+  does not say; never make up values for a chart.
+- Words: keyword_title {"words": [...]} (the last word turns red), text_slam {"text"}
+  (short, up to 5 words), text_word_pop {"text"} (longer lines, wraps), text_glow,
+  text_outline, headline_wash {"title", "sub"}, quote_boxed {"text"}.
+- Tags and names: yellow_tag {"text"}, tag_headline {"text"} (a question or headline),
+  name_bar {"label", "sub"} (a place, company or person), lower_kicker {"kicker",
+  "title", "sub"}.
+- Chapters: chapter_serif / chapter_next {"kicker", "title"}, fact_title {"kicker",
+  "title"}, fact_card {"n", "kicker", "title", "body"} (numbered lessons, reasons).
+- Numbers: stat_countup {"value", "label", "sub"}, big_number {"label", "value",
+  "unit", "sub"}, ring_percent {"title", "value", "label", "sub"} (a percent),
+  gold_stat, counter_corner, dial_gauge {"value", "max", "unit", "label"},
+  dot_tally {"total", "label"}, year_wipe {"text": "1986", "sub"}.
+- Comparisons and charts: versus_numbers {"title", "a_label", "a_value", "b_label",
+  "b_value", "unit"} (two numbers side by side), rank_bars {"title", "rows": [{"label",
+  "value"}], "unit"}, trend_line {"title", "values": [...], "labels": [...], "unit",
+  "footnote"} (a change over time), stacked_compare, number_line, bar_race {"title",
+  "frames": [{"label": 2000, "rows": [{"label", "value"}]}]}.
+- Lists and stories: checklist_card {"title", "items": [3 to 6 short items]},
+  three_rings {"items": [3 words]}, side_panel {"title", "bullets"}, timeline_strip
+  {"title", "rows": [{"label": "1986", "text": "Doi Moi"}]}, dossier_card {"title",
+  "rows": [{"label", "text"}]}, end_question {"kicker", "text"} (the last row).
+- Never use: text_stamp, text_typewriter, text_split, text_sweep, text_underline,
+  tag_context, text_box (they look cheap or run off the screen).
+- One graphic at a time: never on two rows in a row when the first row is short;
+  never on a map row (the map has its own labels). Keep every text short.
+- Add "span": 2 to keep a chart up across two rows.
 - Never a person's name in a stock search, never a brand, never a file name.
 - Never repeat the same search twice in the video.
 
 CHECKLIST BEFORE YOU ANSWER
-1. The header is exactly: scene_number,script_segment,asset_type,prompt
+1. The header is exactly: scene_number,script_segment,asset_type,prompt,gfx
+   (plus ,on_screen_en at the end when the narration is not English)
 2. scene_number runs 1, 2, 3 ... with no gaps.
 3. TIME: joining every script_segment gives the script word for word. Check it.
 4. Every row has an asset_type from the list and a prompt that is not empty.
 5. Rows are 5 to 15 words; still images are short (5 to 8 words).
 6. Map prompts use "place > place | camera: ..."; searches use || between options.
 7. No two similar shots in a row; no repeated search; no invented facts.
-8. Output is the CSV only.
+8. About half the rows carry a gfx; every number in a gfx is said in the script.
+9. Output is the CSV only.
 
 EXAMPLE
 Script:
 Hudson Bay is one of the largest inland seas on Earth. In winter, its surface freezes almost completely, and polar bears walk out onto the ice to hunt seals. In 1610, the explorer Henry Hudson sailed into the bay looking for a passage to Asia. Today, the town of Churchill sits on its western shore.
 
 CSV:
-scene_number,script_segment,asset_type,prompt
-1,Hudson Bay is one of the largest inland seas on Earth.,map,Canada > Hudson Bay | camera: zoom_in | label: HUDSON BAY
-2,"In winter, its surface freezes almost completely,",stock_video,aerial view of a vast frozen sea covered in cracked white ice under a pale winter sky
-3,and polar bears walk out onto the ice,stock_video,polar bear walking slowly across flat sea ice in soft arctic daylight
-4,to hunt seals.,stock_image,ringed seal resting beside a breathing hole in arctic sea ice
-5,"In 1610, the explorer Henry Hudson",commons_image,Henry Hudson explorer portrait||Henry Hudson 1610 voyage painting
-6,sailed into the bay looking for a passage to Asia.,flow_video,"a seventeenth-century wooden sailing ship entering a misty icy bay at dawn, cold light, cinematic, photorealistic"
-7,"Today, the town of Churchill",map,Canada > Manitoba > Churchill | camera: zoom_in | label: CHURCHILL
-8,sits on its western shore.,stock_video,small arctic town with low houses on a rocky shoreline beside a frozen bay
+scene_number,script_segment,asset_type,prompt,gfx
+1,Hudson Bay is one of the largest inland seas on Earth.,map,Canada > Hudson Bay | camera: zoom_in | label: HUDSON BAY,
+2,"In winter, its surface freezes almost completely,",stock_video,aerial view of a vast frozen sea covered in cracked white ice under a pale winter sky,"{""t"": ""text_slam"", ""text"": ""FROZEN SOLID""}"
+3,and polar bears walk out onto the ice,stock_video,polar bear walking slowly across flat sea ice in soft arctic daylight,
+4,to hunt seals.,stock_image,ringed seal resting beside a breathing hole in arctic sea ice,"{""t"": ""yellow_tag"", ""text"": ""THE HUNT""}"
+5,"In 1610, the explorer Henry Hudson",commons_image,Henry Hudson explorer portrait||Henry Hudson 1610 voyage painting,"{""t"": ""year_wipe"", ""text"": ""1610"", ""sub"": ""HENRY HUDSON""}"
+6,sailed into the bay looking for a passage to Asia.,map,Canada > Hudson Bay | route: England -> Hudson Bay | label: THE VOYAGE,
+7,"Today, the town of Churchill",map,Canada > Manitoba > Churchill | camera: zoom_in | label: CHURCHILL,
+8,sits on its western shore.,stock_video,small arctic town with low houses on a rocky shoreline beside a frozen bay,"{""t"": ""name_bar"", ""label"": ""CHURCHILL"", ""sub"": ""WESTERN SHORE OF HUDSON BAY""}"
 
 NOW WRITE THE VISUAL PLAN CSV FOR THIS SCRIPT:
 <<<PASTE THE SCRIPT HERE>>>

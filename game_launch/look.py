@@ -476,7 +476,7 @@ def short_png(top: str, second: str, foot: str, path) -> None:
     img.save(path)
 
 
-def thumbnail(left: Image.Image, right: Image.Image, head: str, sub: str, tag: str, path) -> None:
+def thumbnail(left: Image.Image, right: Image.Image, head: str, sub: str, tag: str, path, right_tag: str = "REAL LIFE") -> None:
     """1280x720: game frame | real frame, pink divider, big text at the bottom."""
     from PIL import ImageEnhance
 
@@ -490,7 +490,8 @@ def thumbnail(left: Image.Image, right: Image.Image, head: str, sub: str, tag: s
     d = ImageDraw.Draw(img)
     d.rectangle((W // 2 - 8, 0, W // 2 + 8, H), fill=PINK)
     pill(img, (50, 50), tag or "IN GAME", PINK, 70)
-    pill(img, (W - 50, 50), "REAL LIFE", TEAL_DARK, 70, anchor="rt")
+    if right_tag:
+        pill(img, (W - 50, 50), right_tag, TEAL_DARK, 70, anchor="rt")
     band(img, 560, 230)
     shadow_text(img, (W // 2, 880), head, fit(head, F_HEAD, 250, W - 120), blur=16)
     if sub:

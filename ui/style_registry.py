@@ -205,6 +205,29 @@ EXTRA_BLURBS[TOY_VEHICLES] = ("Bright 3D toy cars and trucks with faces on a toy
                               "Splash and friends with a narrator and their own voices: stuck in mud, tow, wash, race, ramp jump, flat "
                               "tyre, hide and seek. 720p preview or 1080p final; the voices are free.")
 EXTRA_CARDS[TOY_VEHICLES] = ("◉", "3D toy vehicles: colour songs and stories", "A colour list or a story file", "Colours, vehicles, friendship adventures")
+
+
+# Kids Stories (ui/kids_stories_section.py, cartoon2d/): appended here so nothing above changes
+KIDS_STORIES = "Kids Stories"
+STANDALONE = STANDALONE + (KIDS_STORIES,)
+GROUPS = tuple((title, names + (KIDS_STORIES,) if title == "Kids" else names) for title, names in GROUPS)
+EXTRA_BLURBS[KIDS_STORIES] = ("2D cartoon kids episodes from a story file written for you: Channel 3 play adventures with Ms Lina, "
+                              "Tobi, Rosie, Fizz, Pip, Dot, Nia and Poppy (a goal to find, rides, games, songs, a hero who gets "
+                              "brave), and Ms Molly learning episodes. Generate voices every line and checks the story; Render "
+                              "draws, mixes and exports. The voices are free; no Gemini, no Flow.")
+EXTRA_CARDS[KIDS_STORIES] = ("\u263A", "2D cartoon kids stories", "A story file (.kidstory)", "Play adventures, lost-and-found quests, learning songs")
+
+# Stickman (ui/stickman_section.py, stickman/): appended here so nothing above changes
+STICKMAN = "Stickman"
+STANDALONE = STANDALONE + (STICKMAN,)
+GROUPS = tuple((title, names + (STICKMAN,) if title == "Explainers" else names) for title, names in GROUPS)
+EXTRA_BLURBS[STICKMAN] = ("Faceless stickman explainers drawn in code: two stick figures act out every spoken line with 40 poses, 77 "
+                          "props and 8 places picked from the words, spoken-word captions, a calm bed and effects. Five looks (Ink "
+                          "Paper, Chalk Dark, Colour Pop, Retro TV, Night Thriller), 16:9 or a native 9:16 Short. From a script, a "
+                          "Stickman CSV, or both; the voice is free.")
+EXTRA_CARDS[STICKMAN] = ("\u2659", "Stickman explainers and Shorts", "A script or a Stickman CSV", "Habits, money, psychology, 'why you...' explainers")
+
+
 # Prepper Host (ui/prepper_host_section.py, prepper_host/): appended here so nothing above changes
 PREPPER_HOST = "Prepper Host"
 STANDALONE = STANDALONE + (PREPPER_HOST,)

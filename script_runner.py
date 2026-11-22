@@ -49,3 +49,39 @@ def run_script(script, args: Sequence = (), *, cwd: Optional[str] = None, timeou
             sys.argv, sys.path[:] = old_argv, old_path
             os.chdir(old_cwd)
         return rc, buf.getvalue()
+
+
+RUN_FLAG = "--run-script"
+
+
+def command(script, args: Sequence = ()) -> list:
+    """The command line that runs a tool script in its own process: a child Python from source; in the installed app
+    the app itself with --run-script (dispatch() below runs it before any window opens). For work that must run
+    several processes at once (the 2D cartoon renderer draws pieces of a video side by side)."""
+    if frozen():
+        return [sys.executable, RUN_FLAG, str(script), *map(str, args)]
+    return [sys.executable, str(script), *map(str, args)]
+
+
+def dispatch(argv=None) -> bool:
+    """Called first thing by the app's entry: `<app> --run-script <file.py> args...` runs that script as __main__ in this
+    process and exits, without opening the app's window. Returns False when this is a normal start."""
+    argv = list(sys.argv if argv is None else argv)
+    if len(argv) < 3 or argv[1] != RUN_FLAG:
+        return False
+    script = Path(argv[2])
+    for name, fd in (("stdout", 1), ("stderr", 2)):   # a windowed app (no console) may start without them: use the
+        if getattr(sys, name) is None:                 # pipe the parent handed over, else nowhere
+            try:
+                setattr(sys, name, io.TextIOWrapper(io.FileIO(fd, "w", closefd=False), line_buffering=True))
+            except Exception:   # noqa: BLE001
+                setattr(sys, name, open(os.devnull, "w"))
+    sys.argv = [str(script), *argv[3:]]
+    sys.path.insert(0, str(script.parent))
+    code = 0
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+    sys.stdout.flush()
+    raise SystemExit(code)

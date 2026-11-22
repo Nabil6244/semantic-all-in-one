@@ -1,0 +1,784 @@
+{
+ "id": "poyais",
+ "title": "The Man Who Sold a Country That Didn't Exist",
+ "topic": "Gregor MacGregor's invented country of Poyais (1822-1823): bonds, banknotes, settlers and the jungle they found",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "ballroom": "A grand 1822 London ballroom: chandeliers, gilded mirrors, red velvet curtains, a polished floor, candle light",
+  "office": "An 1822 London office: a big desk with maps, ink pots, piles of printed papers, a window onto a foggy street",
+  "dock": {
+   "prompt": "A busy 1822 London dock on the Thames: a tall sailing ship, crates and barrels, ropes, grey morning fog",
+   "ambient": "none"
+  },
+  "ship": "The deck of an 1822 sailing ship at sea: masts, sails, ropes, barrels, bright blue ocean and sky",
+  "jungle": {
+   "prompt": "A wild Central American jungle coast in 1823: thick palms, swampy shore, a rough wooden hut, heavy humid light",
+   "ambient": "rain"
+  },
+  "court": "An 1826 Paris courtroom: wooden benches, a judge's high bench, tall windows, dark wood panels"
+ },
+ "hook_title": "A FAKE COUNTRY?",
+ "keywords": [
+  "Poyais",
+  "MacGregor",
+  "country",
+  "bonds",
+  "banknotes",
+  "settlers",
+  "jungle",
+  "London",
+  "Prince"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Gregor_MacGregor",
+  "https://en.wikipedia.org/wiki/Poyais"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1822, a Scottish soldier sold a whole country.",
+   "set": "ballroom",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "held_by": "walt",
+     "text": "POYAIS"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "The country did not exist.",
+   "set": "ballroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "FAKE"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. How do you sell nothing?",
+   "set": "ballroom",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Gregor MacGregor told London he was the prince of Poyais.",
+   "set": "ballroom",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "GREGOR MACGREGOR"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Rich soil, gold in the rivers, a capital with a cathedral.",
+   "set": "office",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "held_by": "walt",
+     "text": "POYAIS"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "GOLD RIVERS"
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Land for sale! Cheap!",
+   "set": "office",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He printed a guidebook, land papers, even banknotes.",
+   "set": "office",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Investors bought two hundred thousand pounds of Poyais bonds.",
+   "set": "office",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "money",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "£200,000"
+   },
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Nobody could check. There were no photos, no phones.",
+   "set": "office",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "cross",
+    "text": "PHOTOS"
+   },
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So about two hundred and fifty settlers set sail.",
+   "set": "dock",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -1.6,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "wave",
+       "at": 1.7
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "They swapped their savings for his Poyais dollars.",
+   "set": "ship",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "pip",
+   "text": "Land ho! The capital!",
+   "set": "ship",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "They found jungle, swamp, and a few old huts.",
+   "set": "jungle",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "NO CITY"
+   },
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "No capital. No cathedral.",
+   "set": "jungle",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The banknotes were just paper.",
+   "set": "jungle",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s15",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Fever spread, and most of the settlers never came home.",
+   "set": "jungle",
+   "camera": "close",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "mood": "sad",
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "MacGregor fled to France and tried the same trick again.",
+   "set": "court",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "AGAIN?!"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He was put on trial in Paris.",
+   "set": "court",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "cower",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "gasp",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And the court let him go.",
+   "set": "court",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "NOT GUILTY"
+   },
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He died years later in Venezuela, on a general's pension.",
+   "set": "ballroom",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "PENSION"
+   },
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So Poyais was never real?",
+   "set": "ballroom",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Buy a bond, Pip.",
+   "set": "ballroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "held_by": "walt",
+     "text": "POYAIS"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 45.53
+}

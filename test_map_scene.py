@@ -348,3 +348,14 @@ class TestPlaceFallbacks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_map_prompt_pins_and_routes():
+    from map_scene.spec import parse_map_prompt, MapPromptError
+    s = parse_map_prompt("Pakistan | mark: Sialkot, Karachi | route: Kashgar -> Gwadar; China -> Vietnam | label: CPEC")
+    assert s.marks == ["Sialkot", "Karachi"] and s.routes == [["Kashgar", "Gwadar"], ["China", "Vietnam"]]
+    try:
+        parse_map_prompt("Pakistan | route: Karachi")
+        assert False, "a one-place route must be refused"
+    except MapPromptError:
+        pass

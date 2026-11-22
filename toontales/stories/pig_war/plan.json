@@ -1,0 +1,756 @@
+{
+ "id": "pig_war",
+ "title": "The War That Started Over a Pig",
+ "topic": "The Pig War of 1859 on San Juan Island between the United States and Britain, settled in 1872 with one casualty: a pig",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "farm": "A small 1859 farm on San Juan Island: a log cabin, a potato patch with a split rail fence, pine forest, the sea behind",
+  "trading": "An 1859 Hudson's Bay Company trading post: a wooden store with furs and barrels, a British flag, pine trees",
+  "camp": "An 1859 US Army camp on a grassy island hill: canvas tents, small cannons, a US flag, the sea below, sunny sky",
+  "bay": {
+   "prompt": "A calm 1859 Pacific bay with big British wooden warships with sails, forested islands, morning mist",
+   "ambient": "none"
+  },
+  "palace": "A grand 1872 Berlin palace office: a gilded desk, maps on the walls, a big window, rich red curtains"
+ },
+ "hook_title": "A WAR OVER A PIG?",
+ "keywords": [
+  "pig",
+  "war",
+  "potatoes",
+  "San",
+  "Juan",
+  "warships",
+  "cannons",
+  "Pickett",
+  "Kaiser",
+  "island"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Pig_War_(1859)"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1859, America and Britain nearly went to war.",
+   "set": "farm",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "WAR?"
+   },
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Over one pig.",
+   "set": "farm",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "THE PIG"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. What did the pig do?",
+   "set": "farm",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "On San Juan Island, both countries claimed the land.",
+   "set": "bay",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "spot": "wall_l",
+     "text": "SAN JUAN ISLAND"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "An American farmer found a British pig eating his potatoes.",
+   "set": "farm",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "angry",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sack",
+     "spot": "floor_front"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "So he shot it.",
+   "set": "farm",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "gunshot",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The pig's owner worked for a British trading company.",
+   "set": "trading",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "HUDSON'S BAY CO."
+   },
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "pip",
+   "text": "Pay up! Ten dollars!",
+   "set": "trading",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "walt",
+   "text": "Keep your pig off my land!",
+   "set": "trading",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "The US Army sent Captain Pickett with sixty four soldiers.",
+   "set": "camp",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "gun",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "64 SOLDIERS"
+   },
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Britain sent warships.",
+   "set": "bay",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "boom",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Soon four hundred Americans and fourteen cannons dug in.",
+   "set": "camp",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "fist_pump",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "461 + 14 CANNONS"
+   },
+   "freeze": "WAIT...",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Against five British warships and two thousand men.",
+   "set": "bay",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "angry",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "5 SHIPS, 2,140 MEN"
+   },
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "One order, and it was war.",
+   "set": "bay",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But the British admiral refused to fight over a pig.",
+   "set": "bay",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shake_head",
+       "at": 0.0
+      },
+      {
+       "do": "cross",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "NO"
+   },
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So both armies just stayed. For twelve years.",
+   "set": "camp",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "12 YEARS"
+   },
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "They held parties and races together.",
+   "set": "camp",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "laugh",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "laugh",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "In 1872, the German Kaiser was asked to decide.",
+   "set": "palace",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "pip",
+     "text": "WHO GETS IT?"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He gave the islands to America.",
+   "set": "palace",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "pip",
+     "text": "USA"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.5
+    }
+   ],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "The war's only casualty? The pig.",
+   "set": "farm",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "1 PIG"
+   },
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the pig lost the war?",
+   "set": "farm",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. It ate my potatoes.",
+   "set": "farm",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 42.01
+}

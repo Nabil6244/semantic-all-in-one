@@ -1,0 +1,831 @@
+{
+ "id": "hitler_diaries",
+ "title": "The Fake Diaries That Fooled the World",
+ "topic": "The 1983 Hitler Diaries hoax: Konrad Kujau's forgeries, Stern magazine's 9.3 million marks, and the lab test that exposed them",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "newsroom": "A 1983 German magazine newsroom: desks with typewriters, piles of magazines, ashtrays, big windows over Hamburg",
+  "shop": "A cluttered 1980s antiques shop in Stuttgart: old uniforms on racks, glass cases of medals, stacks of old books, dim lamps",
+  "studio": {
+   "prompt": "A forger's back room in the 1980s: a desk lamp, ink bottles, stacks of black notebooks, tea cups, a kettle",
+   "ambient": "none"
+  },
+  "press": "A crowded 1983 press conference hall: rows of chairs, microphones on a table, TV cameras, flash photography light",
+  "lab": "A 1983 forensic laboratory: microscopes, ultraviolet lamps, test tubes, white coats on hooks, bright clean light",
+  "court": "A 1985 German courtroom: wooden benches, a judge's bench, flags, tall windows"
+ },
+ "hook_title": "9 MILLION FOR FAKE DIARIES?",
+ "keywords": [
+  "diaries",
+  "Stern",
+  "Kujau",
+  "millions",
+  "paper",
+  "lab",
+  "fake",
+  "forger",
+  "marks"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Hitler_Diaries"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1983, a magazine paid millions for Hitler's secret diaries.",
+   "set": "newsroom",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt",
+     "text": "DIARIES"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 1.0
+    }
+   ],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Sixty little black books.",
+   "set": "newsroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "60 BOOKS"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. Who wrote them?",
+   "set": "newsroom",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "A shop owner named Konrad Kujau.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "sneak",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "KONRAD KUJAU"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "He wrote every page himself, at his kitchen table.",
+   "set": "studio",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "walt",
+     "text": "DIARY 1935"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He made them look old by pouring tea on them.",
+   "set": "studio",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "walt",
+     "text": "TEA"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 0.7
+    }
+   ],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Aged to perfection!",
+   "set": "studio",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "A reporter from Stern magazine bought them, book by book.",
+   "set": "newsroom",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "held_by": "pip"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "STERN"
+   },
+   "id": "s08"
+  },
+  {
+   "beat": "deadline",
+   "speaker": "narrator",
+   "text": "The total: 9.3 million marks.",
+   "set": "newsroom",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "9.3 MILLION"
+   },
+   "id": "s09"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "They announced the scoop to the world.",
+   "set": "press",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "present",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "spot": "wall_r",
+     "text": "THE DIARIES!"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "But experts had only checked a few pages.",
+   "set": "press",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "look_around",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "A FEW PAGES"
+   },
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Even the gold letters on the cover were wrong.",
+   "set": "press",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "pip",
+     "text": "FH"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then police scientists tested the paper.",
+   "set": "lab",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "picked_by": "pip",
+     "text": "DIARY 1935"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Under ultraviolet light, it glowed.",
+   "set": "lab",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "GLOWS"
+   },
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "It held a whitener only made after the war.",
+   "set": "lab",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "AFTER 1945"
+   },
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "They're fakes!",
+   "set": "lab",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "angry",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Stern's bosses quit. The magazine was a laughing stock.",
+   "set": "newsroom",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "laugh",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "HOAX"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Kujau got four and a half years in prison.",
+   "set": "court",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "4.5 YEARS"
+   },
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "When he got out, he opened a gallery.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Selling signed Kujau fakes.",
+   "set": "shop",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "walt",
+     "text": "GENUINE FAKE"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Then other forgers started faking his fakes.",
+   "set": "shop",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "facepalm",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "FAKE FAKES"
+   },
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the fakes got faked?",
+   "set": "newsroom",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. This one's real. Promise.",
+   "set": "newsroom",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt",
+     "text": "DIARIES"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s23"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 42.11
+}

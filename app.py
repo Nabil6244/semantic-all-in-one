@@ -110,6 +110,8 @@ from ui import voxelmap_section as _vm_section   # Voxel Map (ui/voxelmap_sectio
 from ui import city_timelapse_section as _ct_section   # City Timelapse (ui/city_timelapse_section.py, citygrow-engine/)
 from ui import toon_tales_section as _tt_section   # Toon Tales (ui/toon_tales_section.py, toontales/)
 from ui import toy_vehicles_section as _tv_section   # Toy Vehicles (ui/toy_vehicles_section.py, toycolors/)
+from ui import kids_stories_section as _ks_section   # Kids Stories (ui/kids_stories_section.py, cartoon2d/): .kidstory files
+from ui import stickman_section as _sm_section   # Stickman (ui/stickman_section.py, stickman/)
 from ui import prepper_host_section as _ph_section   # Prepper Host (ui/prepper_host_section.py, prepper_host/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import game_launch_section as _gl_section   # Game Launch (ui/game_launch_section.py, game_launch/)
@@ -3240,6 +3242,10 @@ class VideoGeneratorApp(ctk.CTk):
             return "Toon Tales"
         if getattr(self, "_tv_active", False):   # Toy Vehicles (ui/toy_vehicles_section.py): opt-in, per session
             return "Toy Vehicles"
+        if getattr(self, "_ks_active", False):   # Kids Stories (ui/kids_stories_section.py): opt-in, per session
+            return "Kids Stories"
+        if getattr(self, "_sm_active", False):   # Stickman (ui/stickman_section.py): opt-in, per session
+            return "Stickman"
         if getattr(self, "_ph_active", False):   # Prepper Host (ui/prepper_host_section.py): opt-in, per session
             return "Prepper Host"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
@@ -3327,6 +3333,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_ks_running", False):   # Kids Stories
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         if getattr(self, "_av_running", False):   # Aviation
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
@@ -3352,6 +3362,15 @@ class VideoGeneratorApp(ctk.CTk):
             self._sync_style_picker()
             self._sync_primary_cta()
             return
+        # every other own-page style off first: the chain below returns at the chosen style, so a style listed later in it
+        # (Game Launch, Ocean Predators, Kids Learn, Roblox Cinema) stayed on after picking one listed earlier (Aviation)
+        for _sec_name, _sec in (("Product Trailer", _pt_section), ("Rules Horror", _rh_section), ("Voxel Map", _vm_section),
+                                ("City Timelapse", _ct_section), ("Toon Tales", _tt_section), ("Toy Vehicles", _tv_section),
+                                ("Kids Stories", _ks_section), ("Stickman", _sm_section), ("Prepper Host", _ph_section),
+                                ("Aviation", _av_section), ("Game Launch", _gl_section), ("Ocean Predators", _oc_section),
+                                ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section)):
+            if choice != _sec_name:
+                _sec.deactivate(self)
         if choice != "War Documentary":
             self._war_deactivate()
         if choice != "Health Cinema":
@@ -3362,15 +3381,6 @@ class VideoGeneratorApp(ctk.CTk):
             self._weather_deactivate()
         if choice != "What If":
             self._whatif_deactivate()
-        # every other own-page style off first: the chain below returns at the chosen style, so a style listed later in it
-        # (Game Launch, Ocean Predators, Kids Learn, Roblox Cinema) stayed on after picking one listed earlier (Aviation)
-        for _sec_name, _sec in (("Product Trailer", _pt_section), ("Rules Horror", _rh_section), ("Voxel Map", _vm_section),
-                                ("City Timelapse", _ct_section), ("Toon Tales", _tt_section), ("Toy Vehicles", _tv_section),
-                                ("Kids Stories", _ks_section), ("Stickman", _sm_section), ("Prepper Host", _ph_section),
-                                ("Aviation", _av_section), ("Game Launch", _gl_section), ("Ocean Predators", _oc_section),
-                                ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section)):
-            if choice != _sec_name:
-                _sec.deactivate(self)
         if choice != "Product Trailer":
             _pt_section.deactivate(self)
         if choice == "Product Trailer":   # its own page (ui/product_trailer_section.py); nothing runs until Generate
@@ -3405,6 +3415,18 @@ class VideoGeneratorApp(ctk.CTk):
             _tv_section.deactivate(self)
         if choice == "Toy Vehicles":   # its own page (ui/toy_vehicles_section.py); nothing runs until Generate
             _tv_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Kids Stories":
+            _ks_section.deactivate(self)
+        if choice == "Kids Stories":   # its own page (ui/kids_stories_section.py); nothing runs until Generate
+            _ks_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Stickman":
+            _sm_section.deactivate(self)
+        if choice == "Stickman":   # its own page (ui/stickman_section.py); nothing runs until Generate
+            _sm_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Prepper Host":
@@ -3599,6 +3621,9 @@ class VideoGeneratorApp(ctk.CTk):
         tv_block = getattr(self, "_tv_block", None)
         if tv_block is not None:
             tv_block.grid() if active == "Toy Vehicles" else tv_block.grid_remove()
+        ks_block = getattr(self, "_ks_block", None)
+        if ks_block is not None:
+            ks_block.grid() if active == "Kids Stories" else ks_block.grid_remove()
         av_block = getattr(self, "_av_block", None)
         if av_block is not None:
             av_block.grid() if active == "Aviation" else av_block.grid_remove()
@@ -7556,6 +7581,10 @@ class VideoGeneratorApp(ctk.CTk):
             _tt_section.cta(self, action)
         elif action in ("tv_generate", "tv_render", "tv_cancel"):
             _tv_section.cta(self, action)
+        elif action in ("ks_generate", "ks_render", "ks_cancel"):
+            _ks_section.cta(self, action)
+        elif action in ("sm_generate", "sm_render", "sm_cancel"):
+            _sm_section.cta(self, action)
         elif action in ("ph_generate", "ph_render", "ph_cancel"):
             _ph_section.cta(self, action)
         elif action in ("av_generate", "av_render", "av_cancel"):
@@ -8387,6 +8416,10 @@ class VideoGeneratorApp(ctk.CTk):
             return _tt_section.sync_cta(self)
         if getattr(self, "_tv_active", False) and getattr(self, "_tv_block", None) is not None:   # Toy Vehicles owns the button while its page is up
             return _tv_section.sync_cta(self)
+        if getattr(self, "_ks_active", False) and getattr(self, "_ks_block", None) is not None:   # Kids Stories owns the button while its page is up
+            return _ks_section.sync_cta(self)
+        if getattr(self, "_sm_active", False) and getattr(self, "_sm_block", None) is not None:   # Stickman owns the button while its page is up
+            return _sm_section.sync_cta(self)
         if getattr(self, "_ph_active", False) and getattr(self, "_ph_block", None) is not None:   # Prepper Host owns the button while its page is up
             return _ph_section.sync_cta(self)
         if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
@@ -9238,6 +9271,8 @@ class VideoGeneratorApp(ctk.CTk):
         _ct_section.deactivate(self, remember=False)   # City Timelapse likewise, until resume_on_open below
         _tt_section.deactivate(self, remember=False)   # Toon Tales likewise, until resume_on_open below
         _tv_section.deactivate(self, remember=False)   # Toy Vehicles likewise, until resume_on_open below
+        _ks_section.deactivate(self, remember=False)   # Kids Stories likewise, until resume_on_open below
+        _sm_section.deactivate(self, remember=False)   # Stickman likewise, until resume_on_open below
         _ph_section.deactivate(self, remember=False)   # Prepper Host likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _gl_section.deactivate(self, remember=False)   # Game Launch likewise, until resume_on_open below
@@ -9248,6 +9283,8 @@ class VideoGeneratorApp(ctk.CTk):
         _ct_section.resume_on_open(self)   # a project left on the City Timelapse page opens on it again; nothing runs until Generate
         _tt_section.resume_on_open(self)   # a project left on the Toon Tales page opens on it again; nothing runs until Generate
         _tv_section.resume_on_open(self)   # a project left on the Toy Vehicles page opens on it again; nothing runs until Generate
+        _ks_section.resume_on_open(self)   # a project left on the Kids Stories page opens on it again; nothing runs until Generate
+        _sm_section.resume_on_open(self)   # a project left on the Stickman page opens on it again; nothing runs until Generate
         _ph_section.resume_on_open(self)   # a project left on the Prepper Host page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         _gl_section.resume_on_open(self)   # a project left on the Game Launch page opens on it again; nothing runs until Generate
@@ -15816,6 +15853,18 @@ class VideoGeneratorApp(ctk.CTk):
 
                 with _story_align.applied(vg):
                     aligned, audio_end = vg.align_rows(config["rows"], whisper_words)
+            try:   # English on-screen text over an Urdu/Hindi voice: the CSV's on_screen_en column drives pop-ups, graphics and cues; timing stays on the voice
+                import english_overlay as _en_overlay
+
+                _en_plan = _en_overlay.apply(config["rows"], aligned, whisper_words, vg.split_words)
+                if _en_plan is not None:
+                    config["rows"], aligned, whisper_words = _en_plan
+                    print(f"[EN TEXT] On-screen text and graphics planned from the English lines of "
+                          f"{len(_en_overlay.english_lines(config['rows']))} scene(s); timing stays on the voice.")
+            except Exception as _en_exc:
+                print(f"[EN TEXT] English on-screen text skipped ({_en_exc})")
+            # settings.json "normal_hybrid_fill": Hybrid graphics also fill the footage clips with text cards (normal_gfx/planner._fill_on)
+            os.environ["SYT_NORMAL_GFX_FILL"] = "1" if self._settings.get("normal_hybrid_fill") else "0"
 
             visual_plan = getattr(self, "_visual_plan", None)
             resolved_style = self._resolve_project_style(
@@ -16150,8 +16199,12 @@ class VideoGeneratorApp(ctk.CTk):
                     except Exception as exc:
                         print(f"[SMART] Sound density limit skipped ({exc})")
 
+                _sfx_before_hybrid = sfx_for_mix
                 if config.get("hybrid_style"):
                     sfx_for_mix = []   # Hybrid Map's sound design replaces the generic effects (mixed in video_generator.render_video); ambience stays
+                if config.get("hybrid_style") and self._settings.get("hybrid_keep_sfx"):
+                    sfx_for_mix = _sfx_before_hybrid   # settings.json "hybrid_keep_sfx": the normal effects play too, under the Hybrid sound design
+                    print(f"[SMART] Keeping {len(sfx_for_mix)} normal sound effect(s) with the Hybrid sound design.")
                 needs_audio_mix = bool(sfx_for_mix) or bool(ambience_for_mix)
                 if needs_audio_mix:
                     mixed = work_dir / "narration_with_sfx.wav"
@@ -17383,4 +17436,6 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     if multiprocessing.current_process().name != "MainProcess":
         raise SystemExit(0)
+    import script_runner as _script_runner   # `<app> --run-script tool.py ...`: a tool script in its own process, no window
+    _script_runner.dispatch()
     main()

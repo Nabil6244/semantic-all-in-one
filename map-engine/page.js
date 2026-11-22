@@ -80,6 +80,15 @@ async function setup() {
 
   const byRole = Object.fromEntries(areas.map((a) => [a.role, a]));
   const focus = byRole.focus;
+  // Pins (`mark:`) and routes (`route:`) from the map prompt: the close camera keeps every one of them in frame.
+  const pins = scene.pins || [];
+  const routes = scene.routes || [];
+  const extraPts = pins.map((p) => [p.lon, p.lat]).concat(...routes.map((r) => r.coords));
+  if (extraPts.length) {
+    const b = focus.bbox.slice();
+    for (const [x, y] of extraPts) { b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], y); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], y); }
+    focus.bbox = b;
+  }
   const wide = byRole.parent ? byRole.parent.bbox : expandBounds(focus.bbox, 4);
   const pad = (fx, fy) => ({ top: H * fy, bottom: H * fy * 0.8, left: W * fx, right: W * fx });
   const camFor = (bbox, padding) => {
@@ -172,6 +181,61 @@ async function setup() {
     }
   }
 
+  // map.project gives map-container pixels; the map canvas is drawn stretched to W x H
+  const toFrame = (lon, lat) => {
+    const p = map.project([lon, lat]);
+    const cw = map.getContainer().clientWidth || W, ch = map.getContainer().clientHeight || H;
+    return { x: p.x * W / cw, y: p.y * H / ch };
+  };
+  const pinFont = `800 ${Math.round(H * 0.03)}px 'MapLabel'`;
+  function drawPins(t) {
+    pins.forEach((p, i) => {
+      const at = p.at != null ? p.at : Math.min(D * 0.35, 1.0) + i * 0.45;
+      if (t < at) return;
+      const u = Math.min(1, (t - at) / 0.35), s = 1 + 0.6 * (1 - easeOut(u));
+      const { x, y } = toFrame(p.lon, p.lat);
+      const r = Math.max(5, H * 0.008) * s;
+      ctx.save(); ctx.globalAlpha = u;
+      ctx.fillStyle = '#FFD23F'; ctx.strokeStyle = '#111'; ctx.lineWidth = Math.max(2, H * 0.0025);
+      glowStroke(() => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); }, 'rgba(255,210,63,0.9)', [[16, 0.6]]);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.font = pinFont; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      const tx = x + r * 2.2, ty = y, tw = ctx.measureText(p.name).width, ph = H * 0.042;
+      ctx.fillStyle = 'rgba(10,14,20,0.78)'; ctx.fillRect(tx - H * 0.008, ty - ph / 2, tw + H * 0.016, ph);
+      ctx.fillStyle = '#fff'; ctx.fillText(p.name, tx, ty + 1);
+      ctx.restore();
+    });
+  }
+  function drawRoutes(t) {
+    routes.forEach((r, i) => {
+      const at = r.at != null ? r.at : Math.min(D * 0.3, 0.9) + i * 0.6;
+      if (t < at || r.coords.length < 2) return;
+      const u = easeOut(Math.min(1, (t - at) / Math.max(0.6, Math.min(2.2, D * 0.4))));
+      // a gentle arc through the stops, drawn up to share u of its length
+      const pts = [];
+      for (let k = 0; k < r.coords.length - 1; k++) {
+        const a = toFrame(...r.coords[k]), b = toFrame(...r.coords[k + 1]);
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, dx = b.x - a.x, dy = b.y - a.y;
+        const cx = mx - dy * 0.18, cy = my + dx * 0.18;
+        for (let s = 0; s <= 24; s++) {
+          const q = s / 24, iq = 1 - q;
+          pts.push({ x: iq * iq * a.x + 2 * iq * q * cx + q * q * b.x, y: iq * iq * a.y + 2 * iq * q * cy + q * q * b.y });
+        }
+      }
+      const n = Math.max(2, Math.round(pts.length * u));
+      ctx.save();
+      ctx.strokeStyle = '#FF5A3C'; ctx.lineWidth = Math.max(3, H * 0.0055); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      const path = () => { ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); for (let k = 1; k < n; k++) ctx.lineTo(pts[k].x, pts[k].y); ctx.stroke(); };
+      glowStroke(path, 'rgba(255,90,60,0.9)', [[14, 0.6], [5, 0.9]]);
+      path();
+      const e = pts[n - 1], f = pts[Math.max(0, n - 3)], ang = Math.atan2(e.y - f.y, e.x - f.x), hl = H * 0.022;
+      ctx.fillStyle = '#FF5A3C'; ctx.beginPath(); ctx.moveTo(e.x, e.y);
+      ctx.lineTo(e.x - hl * Math.cos(ang - 0.45), e.y - hl * Math.sin(ang - 0.45));
+      ctx.lineTo(e.x - hl * Math.cos(ang + 0.45), e.y - hl * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    });
+  }
+
   function composite(t) {
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
@@ -198,6 +262,8 @@ async function setup() {
       ctx.fillText(labelText, 0, 0);
       ctx.restore();
     }
+    drawRoutes(t);
+    drawPins(t);
     if (scene.credit) {
       ctx.font = creditFont; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
       ctx.fillStyle = 'rgba(255,255,255,0.5)';

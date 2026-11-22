@@ -407,3 +407,10 @@ class DriverTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_autorun_never_says_yes_to_deleting_files():
+    from autorun.driver import is_delete_question
+    assert is_delete_question("Delete downloaded assets?")
+    assert not is_delete_question("Visual QA")
+    assert not is_delete_question("")

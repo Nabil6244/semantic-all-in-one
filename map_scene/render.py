@@ -186,10 +186,86 @@ def _drawn_places(places: dict) -> dict:
     return places
 
 
+_CITIES: Optional[list] = None
+
+
+def _city(name: str, near: Optional[Place]) -> Optional[list]:
+    """A town or city from Natural Earth's populated places (public domain, shipped in pakmap-engine/data): the biggest one
+    with this name, preferring one inside the focus area."""
+    global _CITIES
+    if _CITIES is None:
+        import gzip
+
+        _CITIES = []
+        path = _find("pakmap-engine/data/places_index.json.gz")
+        if path is not None:
+            try:
+                with gzip.open(path, "rt", encoding="utf-8") as fh:
+                    _CITIES = json.load(fh)
+            except (OSError, ValueError):
+                _CITIES = []
+    key = name.strip().lower()
+    hits = [r for r in _CITIES if key in (str(r[0]).lower(), str(r[1]).lower()) or key in [str(a).lower() for a in (r[2] or [])]]
+    if not hits:   # spellings differ (Sialkot / Sialkote): a close name, inside the focus area when there is one
+        import difflib
+
+        pool = _CITIES
+        if near is not None:
+            b = near.bbox()
+            pool = [r for r in _CITIES if b[0] <= r[3] <= b[2] and b[1] <= r[4] <= b[3]] or _CITIES
+        hits = [r for r in pool if difflib.SequenceMatcher(None, key, str(r[1]).lower()).ratio() >= 0.85]
+    if not hits:
+        return None
+    if near is not None:
+        b = near.bbox()
+        inside = [r for r in hits if b[0] <= r[3] <= b[2] and b[1] <= r[4] <= b[3]]
+        hits = inside or hits
+    best = max(hits, key=lambda r: r[5] or 0)
+    return [round(float(best[3]), 5), round(float(best[4]), 5)]
+
+
+def _point(name: str, near: Optional[Place], notes: Optional[list]) -> Optional[list]:
+    """[lon, lat] of a pinned or routed place: an area inside the focus first, then a city (Natural Earth), then any area.
+    Not found = left out."""
+    if near is not None:
+        try:
+            return [round(float(c), 5) for c in find_place(name, parent=near).anchor()]
+        except PlaceNotFound:
+            pass
+    city = _city(name, near)
+    if city:
+        return city
+    try:
+        return [round(float(c), 5) for c in find_place(name).anchor()]
+    except PlaceNotFound:
+        pass
+    if notes is not None:
+        notes.append(f"map place {name!r} not found: left out")
+    return None
+
+
+def pins_and_routes(spec: MapSpec, places: dict, notes: Optional[list] = None) -> tuple:
+    """The `mark:` pins and `route:` lines of a map prompt as engine data (places that can't be found are left out)."""
+    near = places.get("focus")
+    pins = []
+    for name in getattr(spec, "marks", []) or []:
+        pt = _point(name, near, notes)
+        if pt:
+            pins.append({"name": name.strip().upper(), "lon": pt[0], "lat": pt[1]})
+    routes = []
+    for stops in getattr(spec, "routes", []) or []:
+        coords = [pt for pt in (_point(s, near, notes) for s in stops) if pt]
+        if len(coords) >= 2:
+            routes.append({"coords": coords})
+    return pins, routes
+
+
 def build_scene(spec: MapSpec, places: dict, *, duration: float, fps: int, width: int, height: int,
                 imagery: bool = True) -> dict:
     places = _drawn_places(places)
+    pins, routes = pins_and_routes(spec, places)
     return {
+        "pins": pins, "routes": routes,
         "imagery": imagery,
         "sea": sea_polygon(_view_bbox(places)) if spec.style == "dark" else None,
         "width": width, "height": height, "fps": fps, "duration": duration,

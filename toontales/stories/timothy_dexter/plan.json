@@ -1,0 +1,757 @@
+{
+ "id": "timothy_dexter",
+ "title": "The Worst Businessman Who Got Rich Anyway",
+ "topic": "'Lord' Timothy Dexter of Newburyport (1747-1806): worthless currency, warming pans to the West Indies, and a book with no punctuation",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "harbor": "Newburyport harbour in Massachusetts around 1790: tall sailing ships, wooden wharves, warehouses, barrels, blue sky",
+  "mansion": "A fancy 1790s New England mansion garden: a big white house, wooden statues on tall columns along a fence, flower beds",
+  "tavern": {
+   "prompt": "A 1780s New England tavern: wooden tables, pewter mugs, a fireplace, men in tricorn hats far back, candle light",
+   "ambient": "none"
+  },
+  "caribbean": "A 1790s Caribbean sugar plantation yard: big copper molasses kettles, palm trees, a mill, hot bright sun",
+  "newcastle": {
+   "prompt": "An English coal town quay in the 1790s: coal heaps, colliers' boats, brick chimneys, grey smoky sky",
+   "ambient": "embers"
+  },
+  "study": "A 1802 printer's shop: a wooden printing press, stacks of paper, trays of metal letters, a small window"
+ },
+ "hook_title": "SO DUMB HE GOT RICH?",
+ "keywords": [
+  "Dexter",
+  "warming",
+  "pans",
+  "coal",
+  "currency",
+  "punctuation",
+  "Newburyport",
+  "rich",
+  "Lord"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Timothy_Dexter"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In the 1790s, a man shipped bed warmers to the tropics.",
+   "set": "harbor",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.2
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "And made a fortune.",
+   "set": "harbor",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "cash",
+     "at": 0.5
+    }
+   ],
+   "transition": "cut",
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. Who needs heaters there?",
+   "set": "harbor",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Meet Timothy Dexter. He called himself Lord Dexter.",
+   "set": "mansion",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "LORD TIMOTHY DEXTER"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "First, he bought piles of worthless paper money.",
+   "set": "tavern",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "money",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "WORTHLESS"
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Then the new government agreed to honour it.",
+   "set": "tavern",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "WORTH $$$"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "I'm a genius!",
+   "set": "tavern",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "fist_pump",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Other merchants thought he was a fool. So they gave him bad advice.",
+   "set": "tavern",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "BAD ADVICE"
+   },
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Ship warming pans to the West Indies, they said.",
+   "set": "harbor",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "present",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "In the hot islands, he said, sugar makers bought them.",
+   "set": "caribbean",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "picked_by": "pip"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "As ladles for molasses.",
+   "set": "caribbean",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "pip",
+     "text": "MOLASSES"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": "WAIT...",
+   "id": "s11"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Ship coal to Newcastle, they joked. Coal country.",
+   "set": "newcastle",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "COAL TO COAL TOWN"
+   },
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He said it arrived during a miners' strike.",
+   "set": "newcastle",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "coins",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "SOLD OUT"
+   },
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "How does he keep winning?",
+   "set": "newcastle",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He filled his garden with statues of famous men.",
+   "set": "mansion",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "hips",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "40 STATUES"
+   },
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Including one of himself. Labelled: first in the East.",
+   "set": "mansion",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "spot": "wall_r",
+     "text": "FIRST IN THE EAST"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Then he wrote a book with no punctuation at all.",
+   "set": "study",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt",
+     "text": "A PICKLE FOR THE KNOWING ONES"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Readers complained. So the next edition added a page of nothing but punctuation.",
+   "set": "study",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "walt",
+     "text": ". , ; : ! ? . , ;"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Readers could pepper and salt it as they pleased.",
+   "set": "study",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "throw",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "scratch",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the fool won every time?",
+   "set": "harbor",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Want to buy a heater?",
+   "set": "harbor",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "tool",
+     "held_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 45.95
+}

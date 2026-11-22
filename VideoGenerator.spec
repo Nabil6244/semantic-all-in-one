@@ -191,6 +191,16 @@ hiddenimports += ["tk_thread_guard"]   # imported inside app.main / the main-thr
 hiddenimports += ["game_launch", "game_launch.runner", "game_launch.plan", "game_launch.look"]   # imported inside the Game Launch page's handlers
 datas.append((str(ROOT / "game_launch" / "example_scenes.csv"), "game_launch"))   # the page's Example CSV
 hiddenimports += ["stall_guard", "psutil"]   # imported inside app.main: the stall watchdog for stuck downloads / media tools
+# Stickman: stickman/ (fonts, CSV prompt) + the kids_audio mixer it uses for the bed and effects; imported inside the Stickman page's handlers
+for _p in sorted((ROOT / "stickman" / "assets").rglob("*.ttf")):
+    datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
+datas.append((str(ROOT / "stickman" / "csv_prompt.txt"), "stickman"))
+for _p in sorted((ROOT / "kids_audio" / "library").glob("*.*")):
+    datas.append((str(_p), "kids_audio/library"))
+hiddenimports += ["stickman", "stickman.runner", "stickman.rig", "stickman.poses", "stickman.looks", "stickman.timeline",
+                  "stickman.draw", "stickman.render", "stickman.props", "stickman.places", "stickman.director",
+                  "stickman.checker", "stickman.voice", "stickman.csvplan", "edge_voiceover",
+                  "kids_audio", "kids_audio.mixer", "kids_audio.library", "kids_audio.synth", "kids_audio.lyric_align"]
 # Prepper Host: prepper_host/ (CSV + script prompts, the shipped Dale host pack); imported inside the Prepper Host page's handlers
 for _p in ("csv_prompt.txt", "script_prompt.txt"):
     if (ROOT / "prepper_host" / _p).is_file():
@@ -199,7 +209,19 @@ for _p in sorted((ROOT / "prepper_host" / "hosts").rglob("*")):
     if _p.is_file():
         datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
 hiddenimports += ["prepper_host", "prepper_host.runner", "prepper_host.csvplan", "prepper_host.director", "prepper_host.flow",
-                  "prepper_host.host", "prepper_host.render", "prepper_host.voice"]
+                  "prepper_host.host", "prepper_host.render", "prepper_host.voice", "prepper_host.flowvoice"]
+# Kids Stories: cartoon2d/ (the 2D cartoon engine) loaded by path from the page's handlers; every piece of a render runs as
+# `<app> --run-script cartoon2d/render.py ...` (script_runner.dispatch), so its .py files ship as files, with the cast, props,
+# hands, brand art and the packed stories. Backgrounds travel inside each .kidstory file, so art/bg does not ship.
+for _p in sorted((ROOT / "cartoon2d").glob("*.py")):
+    datas.append((str(_p), "cartoon2d"))
+for _sub in ("cast", "art/props", "art/hands", "brand"):
+    for _p in sorted((ROOT / "cartoon2d" / _sub).rglob("*")):
+        if _p.is_file() and "__pycache__" not in _p.parts:
+            datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
+for _p in sorted((ROOT / "cartoon2d" / "stories").glob("*.kidstory")):
+    datas.append((str(_p), "cartoon2d/stories"))
+hiddenimports += ["script_runner", "edge_tts", "kids_audio.chant"]
 hiddenimports += ["autorun", "autorun.job", "autorun.driver"]   # imported inside app.main (SYT_AUTORUN): make_video.py jobs run by the installed app
 
 # StarMap: starmap-engine/ (the Node renderer for space documentaries: three.js in the same Playwright browser) with exactly the

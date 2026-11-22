@@ -1,0 +1,28 @@
+{
+  "look": "ink_paper",
+  "fps": 30,
+  "size": [1920, 1080],
+  "duration": 20.0,
+  "figures": {
+    "sam": {"x": 0.0, "facing": 1, "height": 0.40},
+    "alex": {"x": 1.0, "facing": -1, "height": 0.40}
+  },
+  "beats": [
+    {"t": 0.0, "dur": 2.5, "title": "The *big* idea", "caption": "Meet *Sam*.",
+     "acts": {"sam": {"do": "walk", "to": 0.32}}},
+    {"t": 2.5, "dur": 2.5, "caption": "Sam has an *idea*.", "camera": {"zoom": 1.06, "x": 0.48},
+     "acts": {"sam": {"do": "point"}, "alex": {"do": "walk", "to": 0.68}}},
+    {"t": 5.0, "dur": 2.5, "caption": "Alex isn't *sure*.", "camera": {"zoom": 1.16, "x": 0.6},
+     "acts": {"alex": {"do": "shrug"}, "sam": {"do": "stand"}}},
+    {"t": 7.5, "dur": 2.5, "caption": "So Sam *thinks*...", "camera": {"zoom": 1.16, "x": 0.38},
+     "acts": {"sam": {"do": "think"}, "alex": {"do": "stand"}}},
+    {"t": 10.0, "dur": 2.5, "caption": "Got it!", "camera": {"zoom": 1.04, "x": 0.5},
+     "acts": {"sam": {"do": "jump", "then": "cheer"}}},
+    {"t": 12.5, "dur": 2.5, "caption": "Way too *loud*.", "camera": {"zoom": 1.14, "x": 0.6},
+     "acts": {"alex": {"do": "scared"}}},
+    {"t": 15.0, "dur": 2.5, "caption": "*Oops.*", "camera": {"zoom": 1.16, "x": 0.38},
+     "acts": {"sam": {"do": "facepalm"}, "alex": {"do": "stand"}}},
+    {"t": 17.5, "dur": 2.5, "caption": "Let's *go*!", "camera": {"zoom": 1.0, "x": 0.5},
+     "acts": {"sam": {"do": "run", "to": 1.3}, "alex": {"do": "run", "to": 1.3}}}
+  ]
+}

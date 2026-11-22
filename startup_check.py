@@ -121,6 +121,25 @@ def run(report_path: str, ffmpeg: Optional[Callable[[], Optional[Path]]] = None)
     except Exception as exc:
         failures.append(f"bundled SFX: {exc}")
 
+    # Chatterbox voice clone (Voiceover tab): the bundle must carry uv (it builds Chatterbox's own Python on first use) and the worker
+    # script that env runs, and the env the app hands its children must not carry the packaged app's own Python settings.
+    try:
+        from voice_clone import chatterbox_engine as cbx
+
+        uv = cbx._bundled_uv()
+        checks["chatterbox_uv"] = str(uv) if uv else None
+        if checks["frozen"]:
+            problem = _runs(str(uv) if uv else None, "--version")
+            if problem:
+                failures.append(f"chatterbox uv: {problem}")
+            if not cbx.worker_path().is_file():
+                failures.append(f"chatterbox worker missing: {cbx.worker_path()}")
+            leaked = [k for k in ("PYTHONHOME", "PYTHONPATH") if k in cbx._child_env()]
+            if leaked:
+                failures.append(f"chatterbox env leaks {leaked}")
+    except Exception as exc:
+        failures.append(f"chatterbox: {type(exc).__name__}: {exc}")
+
     # Every style's "Copy the CSV prompt", built inside the bundle exactly as the button builds it (with a script). A file
     # being present is not enough: some prompts are assembled from template catalogs and mission packs at click time.
     try:

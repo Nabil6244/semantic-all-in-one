@@ -1,0 +1,873 @@
+{
+ "id": "marathon_1904",
+ "title": "The Strangest Olympic Marathon Ever",
+ "topic": "The 1904 St. Louis Olympic marathon: Fred Lorz's car ride, Thomas Hicks's brandy and strychnine, Andarin Carvajal's apple nap",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "stadium": "A 1904 St. Louis Olympic stadium: wooden grandstands with flags, a dirt running track, a finish line tape, hot summer sun",
+  "road": {
+   "prompt": "A dusty country road in Missouri in 1904: rolling hills, wooden fences, big clouds of dust, blazing hot sun",
+   "ambient": "dust"
+  },
+  "car": "A 1904 open-top motor car parked on a dusty country road: brass lamps, leather seats, a wooden wheel, fields behind",
+  "orchard": "A 1904 Missouri apple orchard beside a road: apple trees with red apples, fallen apples on the grass, hot sunny afternoon",
+  "well": "A water well beside a dusty 1904 country road: a stone well with a wooden bucket, a lone tree, scorching sun"
+ },
+ "hook_title": "HE WON BY CAR?",
+ "keywords": [
+  "marathon",
+  "car",
+  "Lorz",
+  "Hicks",
+  "apples",
+  "dust",
+  "water",
+  "Olympics",
+  "1904",
+  "strychnine"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Athletics_at_the_1904_Summer_Olympics_%E2%80%93_Men%27s_marathon"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "The 1904 Olympic marathon was a mess.",
+   "set": "stadium",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "1904"
+   },
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "The first man across the line had ridden in a car.",
+   "set": "stadium",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "celebrate",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "BY CAR"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. A car?",
+   "set": "stadium",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "It was over thirty degrees, on dirt roads choked with dust.",
+   "set": "road",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.8,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "tremble",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "footsteps",
+     "at": 0.1
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "90°F + DUST"
+   },
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "And there was just one water stop on the whole course.",
+   "set": "well",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "plead",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "picked_by": "pip",
+     "text": "WATER"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "1 WATER STOP"
+   },
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "The organiser wanted to study thirst.",
+   "set": "well",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "THIRST TEST"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Fred Lorz got cramps around mile nine.",
+   "set": "road",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "tremble",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 0.9,
+       "params": {
+        "side": "right"
+       }
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "FRED LORZ"
+   },
+   "id": "s07"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "So he hopped into a car.",
+   "set": "car",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -1.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "laugh",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Just resting my legs!",
+   "set": "car",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "It drove him about eleven miles.",
+   "set": "car",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "11 MILES"
+   },
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then he jogged into the stadium, first.",
+   "set": "stadium",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_r",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -1.8,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.3
+    }
+   ],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He even posed for photos with the President's daughter.",
+   "set": "stadium",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "ALICE ROOSEVELT"
+   },
+   "freeze": "WAIT...",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then someone saw the car.",
+   "set": "stadium",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "CHEAT"
+   },
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "The real leader, Thomas Hicks, was barely moving.",
+   "set": "road",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "THOMAS HICKS"
+   },
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "His team fed him egg whites, brandy and rat poison.",
+   "set": "road",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "dizzy",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "pip",
+     "text": "BRANDY"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "Is the road moving?",
+   "set": "road",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "In tiny doses, the poison was a stimulant.",
+   "set": "stadium",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "STRYCHNINE"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "He staggered over the line and won.",
+   "set": "stadium",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "celebrate",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "WINNER"
+   },
+   "id": "s18"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "And a Cuban mailman stopped to eat apples from an orchard.",
+   "set": "orchard",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.0,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "pick_up",
+       "at": 1.4
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "They were rotten. He took a nap.",
+   "set": "orchard",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "dizzy",
+       "at": 0.0
+      },
+      {
+       "do": "fall",
+       "at": 0.8,
+       "params": {
+        "side": "left"
+       }
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 1.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He still finished fourth.",
+   "set": "orchard",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "4TH"
+   },
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Lorz was banned, then forgiven, and won the Boston Marathon in 1905.",
+   "set": "stadium",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "celebrate",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "BOSTON 1905"
+   },
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So the cheater became a champ?",
+   "set": "stadium",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s23"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Need a lift?",
+   "set": "stadium",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s24"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 47.26
+}

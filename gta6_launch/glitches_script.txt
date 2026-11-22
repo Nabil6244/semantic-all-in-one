@@ -1,0 +1,90 @@
+You wait thirteen years for the highest-rated video game ever made, and a boat climbs a bridge.
+Within hours of launch, Grand Theft Auto Six smashed streaming records with six million live viewers.
+Critics handed it a ninety-nine on Metacritic, calling it the pinnacle of open-world realism.
+Then the actual players got their hands on the controllers, and social media immediately lost its mind.
+Trucks started flying across Leonida like mortar shells.
+Police officers merged into solid concrete walls while wrestling Jason inside a precinct.
+And one streamer literally escaped the cops by falling straight through the earth into a black void.
+Before you knew it, people on X were dropping the one comparison every studio dreads: Cyberpunk Twenty-Seventy-Seven.
+Hold on, don’t cancel your download just yet, because that comparison misses half the story.
+Yes, the day-one clips are hilarious, bizarre, and occasionally broken enough to force a full console restart.
+There is even one specific smartphone glitch right now that can trap Jason in the Shadow Realm.
+Yet another viral launch bug actually brought back Rockstar’s most beloved physics meme from two thousand eight.
+So let’s break down every wild day-one glitch players already caught on camera tonight.
+And by the end, you’ll know which bugs are harmless comedy, and which one ruins your save.
+Imagine booting up the biggest launch in gaming history with hundreds of thousands watching live.
+That was Kai Cenat during an early mission when the police finally cornered his character.
+Everyone in chat braced for the classic busted screen and a trip to the county jail.
+Instead, the floor beneath his boots simply stopped existing, swallowing him whole mid-arrest.
+He dropped straight under the map and escaped the cops through sheer collision failure.
+And if you think that was a fluke, Lucia has the exact same problem in the Prologue.
+Early on, there is a scripted chase where Lucia tries to flee on a scooter.
+No matter how good you drive, the cops are scripted to tase her and make the arrest.
+Except when player BaylenLatona got tased, the scooter’s weight shoved Lucia straight through the pavement.
+She plummeted endlessly beneath Leonida until the game panicked and teleported her back to custody.
+Even when you stay above ground, Leonida’s police officers are having a very strange launch day.
+Streamer MichaelDoesLife walked into a police station and picked a brawl with an officer.
+The cop charged forward for a tackle, and both bodies fused together like wet clay.
+Within a second, Jason and the officer got sucked straight inside the solid precinct wall.
+They rolled around inside the drywall for several seconds until Jason finally knocked the officer out.
+Only then did the wall spit Jason back onto the station floor.
+Wait until you see what happens when you take this broken collision engine into the sky.
+You know how every GTA player loves bailing out of a jet right before it hits a skyscraper?
+Streamer Windpress tried that exact stunt in Vice City today, expecting a Michael Bay fireball.
+Jason popped his parachute, watched his empty plane dive toward a tower, and braced for impact.
+Except the plane didn’t explode, it phased cleanly through the skyscraper like a ghost.
+No smoke, no debris, and zero civilian casualties added to his permanent Criminal Profile.
+Meanwhile, Kick streamer Neon took the opposite approach during a mid-air police chase.
+He leaped out of a moving airplane with zero parachute on his back.
+Behind him, the plane slammed into the ground and detonated in a massive explosion.
+Jason hit the dirt right beside it and stood up without losing a single sliver of health.
+Then there is the moment that made streamer JasonTheWeen lose his mind mid-drive.
+He was cruising across a bridge with Jason and Cal when the ocean glitched.
+A massive ship suddenly popped into existence wedged sideways against the bridge supports.
+Before anyone could react, the vessel started thrashing around and climbing onto the asphalt road.
+Even during the early mission Gone Fishing, Windpress rammed a speedboat straight into a crowded boat.
+Nobody capsized, nobody screamed, and the passengers didn’t even blink.
+Okay, floating coffee cups at the safehouse and NPCs walking into walls are funny.
+But none of those compare to the two wildest bugs, one nostalgic, and one genuinely dangerous.
+If you grew up playing Grand Theft Auto Four in two thousand eight, remember the swingset?
+You would back your car into a playground swingset in Liberty City and get launched into orbit.
+Well, eighteen years later, Rockstar’s physics engine just gave us its spiritual successor in Leonida.
+X user TheCanadianGTR clipped an ordinary tree with their car today.
+Instead of stopping, the tree violently catapulted their entire car across the map.
+And they weren’t alone, another player shared footage of a heavy truck rocketing through the sky.
+Here is the brutal catch nobody tells you about that flying-car glitch in GTA Six.
+Cash is painfully scarce in this game, and your car lands completely wrecked.
+So hitting one cursed bush doesn’t just launch you, it drains your hard-earned repair money.
+Still, even a flying truck doesn’t explain why people are yelling Cyberpunk Twenty-Seventy-Seven on X.
+That panic comes from two nightmare clips that look straight out of twenty-twenty.
+First, X user Raeed shared footage from the opening sequence right before the Prologue.
+Streaming textures completely failed to load, turning Vice City into a jagged PlayStation One nightmare.
+Whole stretches of the world vanished, and characters looked worse than San Andreas.
+Second, X user FACELESS uncovered a glitch that can actually trap your active playthrough.
+If you squeeze Jason into a tight gap, like between a parked car and a fence, stop.
+The second you pull out Jason’s in-game smartphone in that tight spot, reality breaks.
+Jason clips straight under the map into a pitch-black void staring at his phone screen.
+Unlike Lucia’s scooter fall, the game never teleports you back out of that darkness.
+Your only escape is closing the entire application and praying your last manual save was recent.
+Now let’s drop the clickbait panic and look at what is actually happening beneath the hood.
+When Cyberpunk Twenty-Seventy-Seven launched in twenty-twenty, PlayStation pulled it off the store completely.
+Grand Theft Auto Six is not even remotely in that same broken category.
+Out of hundreds of critics playing fifty-to-one-hundred-fifty hours, almost everyone called it remarkably polished.
+Shacknews played the entire campaign and saw nothing worse than one floating coffee cup.
+GosuGamers spotted only brief clothing pop-ins on Jason and Lucia’s outfits.
+The Sydney Morning Herald ran into a few pedestrians walking blindly into brick walls.
+So why are flying trucks and Shadow Realm clips flooding your feed right now?
+It is simple math: over six million people are watching and millions more are playing simultaneously.
+When ten million players stress-test a two-hundred-twelve-gigabyte simulation at midnight, rare bugs go viral instantly.
+Every time an engine tracks dynamic water, shifting safehouses, and hundreds of enterable interiors, edge cases slip through.
+A single tree collision can still divide velocity by zero and launch a sedan into orbit.
+Honestly, for half the fanbase, finding a swingset-style launch glitch feels like a Rockstar rite of passage.
+So before you jump into Vice City tonight, keep three simple rules in your back pocket.
+Rule number one: never pull out your smartphone while wedged tight between a car and a wall.
+If you trigger the Shadow Realm clip, only a hard restart gets Jason back to Leonida.
+Rule number two: drop a fresh manual save before testing any cursed trees or stunts.
+Remember, Rockstar removed Mission Replay, so a manual save protects both your progress and your wallet.
+Rule number three: if a cop tackles you straight into a wall, don’t panic and quit.
+Keep swinging until the officer drops, and the wall will spit you right back out.
+Which one of these day-one bugs have you seen, or accidentally triggered, in your own game tonight?
+Drop it in the comments below so other players know what weirdness to watch out for.

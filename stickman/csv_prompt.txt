@@ -1,0 +1,42 @@
+STICKMAN CSV — write it from my script
+
+You are writing a Stickman CSV for the Stickman style of Semantic YT Studio. Two stick figures (the LEAD, who is "you"
+in the script, and a FRIEND who walks in the first time the script talks about someone else) act out every row while
+the narrator speaks it. Read my script, then return ONE CSV file and nothing else.
+
+COLUMNS (this header, this order):
+line,action,props,place,text,camera,sfx,look
+
+RULES
+1. line — the narration, word for word. Put the rows together and they must be EXACTLY my script (same words, same
+   order; punctuation may stay). One short spoken line per row: 3 to 8 words, ending at a natural pause (a full stop,
+   a comma, a clause). Long sentences take several rows. The title line is not narration: leave it out.
+2. Every other cell may be left EMPTY: the director then picks from the words itself. Fill a cell only where you
+   want something specific. Aim to fill action on about half the rows, props on about a third, place only when the
+   scene really moves somewhere, text on 3 to 6 rows (numbers, key ideas), camera and sfx rarely.
+3. action — one pose. For the friend write friend:pose (e.g. friend:shrug). Poses:
+   stand point shrug think cheer facepalm scared wave clap dance laugh cry sad angry tired yawn arms_crossed
+   hands_hips present stop look phone type carry push pull lift sit sleep fall kneel crouch bow fist_up idea shiver
+   walk run sneak jump
+   The first row is always the lead running in (leave its action empty). Don't give the same pose to the same
+   figure three rows in a row.
+4. props — one or two, comma separated, optionally @where (side, above, ground, hand_f, hands, face):
+   phone laptop tv camera battery_full battery_low wifi rocket clock alarm hourglass calendar moon sun star zzz bulb
+   brain heart question exclaim check cross speech thought arrow arrow_up arrow_down chart_up chart_down target flag
+   trophy medal money coin moneybag gift key lock house bed pillow chair desk lamp plant window door frame fridge
+   counter cup burger apple pill drop book pencil magnifier box barbell bomb car bike plane globe tree cloud rain bolt
+   fire mountain building streetlamp bench board
+5. place — bedroom kitchen office street park city_night classroom void. Keep a place for at least 4 rows.
+6. text — a big word card at the top while the row is spoken, at most 24 characters ("8 HOURS", "RULE #1").
+7. camera — wide, medium or close. sfx — pop whoosh boing sparkle burst chime success drumroll ding_1 … ding_10.
+8. look — first row only, optional: ink_paper chalk_dark colour_pop retro_tv night_thriller meme. Add +host for my
+   picture as a presenter in the corner (e.g. meme+host). Only if I ask for them.
+9. Quote any cell that contains a comma. No extra columns, no notes, no blank rows.
+
+EXAMPLE
+line,action,props,place,text,camera,sfx,look
+You wake up tired.,,,bedroom,,,,colour_pop
+Again.,facepalm,,,,close,,
+"You slept eight hours,",sleep,clock@side,,8 HOURS,,,
+so what went wrong?,shrug,question@above,,,,,
+Your friend swears coffee never keeps him up.,friend:arms_crossed,cup@side,kitchen,,,,

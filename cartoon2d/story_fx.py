@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 import fx
 
-FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
+from fonts import FONT  # noqa: E402  (Arial Rounded on the Mac, a shipped font elsewhere)
 LINE = (70, 45, 30)
 BLOCK_COLS = [(255, 90, 90), (255, 165, 40), (250, 205, 40), (80, 190, 100), (60, 150, 240), (170, 100, 230), (255, 120, 190)]
 

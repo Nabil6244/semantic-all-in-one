@@ -9,7 +9,7 @@ style (dark, natural).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 CAMERAS = ("zoom_in", "zoom_out", "drift")
@@ -29,6 +29,8 @@ class MapSpec:
     label: Optional[str] = None
     camera: str = "zoom_in"
     style: str = "dark"
+    marks: list = field(default_factory=list)    # place names pinned on the map (option `mark:`)
+    routes: list = field(default_factory=list)   # [[place, place, ...], ...] drawn as animated lines (option `route:`)
 
     @property
     def label_text(self) -> str:
@@ -72,6 +74,14 @@ def parse_map_prompt(prompt: str) -> MapSpec:
             spec.style = value.lower()
         elif key == "label":
             spec.label = value
+        elif key == "mark":      # mark: Sialkot, Faisalabad, Karachi  -> a pin and name on each place, in turn
+            spec.marks = [m.strip() for m in value.split(",") if m.strip()]
+        elif key == "route":     # route: China -> Vietnam ; Kashgar -> Gwadar  -> an animated line through the places
+            for part in value.split(";"):
+                stops = [s.strip() for s in part.replace("→", "->").split("->") if s.strip()]
+                if len(stops) < 2:
+                    raise MapPromptError(f"Map route {part!r} needs two places, e.g. 'route: China -> Vietnam'.")
+                spec.routes.append(stops)
         else:
-            raise MapPromptError(f"Unknown map option {key!r}; use camera, label or style.")
+            raise MapPromptError(f"Unknown map option {key!r}; use camera, label, style, mark or route.")
     return spec

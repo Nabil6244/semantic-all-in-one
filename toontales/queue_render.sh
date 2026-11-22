@@ -3,7 +3,7 @@
 # minutes, then render each story in turn and copy the finished Shorts into DEST with a titles list.
 # Usage: toontales/queue_render.sh story_id [story_id ...]
 cd "${0:A:h}/.." || exit 1
-DEST="$HOME/Downloads/Toon Tales Shorts"
+DEST="${DEST:-$HOME/Downloads/Toon Tales Shorts}"
 IDLE_MIN=${IDLE_MIN:-15}
 mkdir -p "$DEST"
 busy() { pgrep -f "cartoon2d/(render|voice|mix|hook)\.py|cartoon3d-engine|lesson\.mjs" >/dev/null; }
@@ -20,7 +20,8 @@ for s in "$@"; do
   if python3 -m toontales.shots.build_story "$plan" > "toontales/build/queue_$s.log" 2>&1 \
      && python3 -m toontales.edit.edit "$plan" >> "toontales/build/queue_$s.log" 2>&1; then
     n=$((n + 1))
-    name=$(printf "%02d - %s.mp4" $n "${title//[\/:?\"]/}")
+    ch=$(python3 -c "import json;c=json.load(open('$plan')).get('channel');print({'channel2':'Ch2 Western','channel3':'Ch3 World In A Box','channel4':'Ch4 ZerryCars','channel5':'Ch5 Trial and Eureka','channel1':'Ch1 Wobbly'}.get(c,'Ch1 Flow'))")
+    name=$(printf "%s %02d - %s.mp4" "${PREFIX:-$ch}" $n "${title//[\/:?\"]/}")
     cp "out/toontales_$s.mp4" "$DEST/$name"
     echo "$name" >> "$DEST/titles.txt"
     echo "DONE $s -> $name $(date '+%H:%M')"

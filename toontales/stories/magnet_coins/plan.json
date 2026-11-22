@@ -1,0 +1,1227 @@
+{
+ "id": "magnet_coins",
+ "title": "Why American Coins Don't Stick to Magnets",
+ "topic": "US cupronickel-clad coins are not magnetic; Canada's plated-steel coins (2000) and UK copper-plated steel 1p/2p (1992) are; vending machine electromagnetic signatures; the nickel is 25% nickel",
+ "hook_title": "WHY WON'T IT STICK?",
+ "keywords": [
+  "magnet",
+  "nickel",
+  "copper",
+  "steel",
+  "Canada",
+  "quarter",
+  "iron",
+  "coins",
+  "Britain"
+ ],
+ "cast": [],
+ "channel": "channel5",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Cupronickel",
+  "https://en.wikipedia.org/wiki/Coins_of_the_Canadian_dollar",
+  "https://en.wikipedia.org/wiki/Nickel_(United_States_coin)"
+ ],
+ "places": {
+  "us": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.07,
+      0.0,
+      0.9
+     ],
+     "r": 0.0121,
+     "mat": "silver",
+     "id": "quarter",
+     "reeds": 119
+    },
+    {
+     "m": "@coin",
+     "at": [
+      -0.03,
+      0.02,
+      0.9
+     ],
+     "r": 0.0089,
+     "mat": "silver",
+     "id": "dime",
+     "reeds": 118
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.01,
+      -0.01,
+      0.9
+     ],
+     "r": 0.0106,
+     "mat": "silver",
+     "id": "nickel"
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.05,
+      0.02,
+      0.9
+     ],
+     "r": 0.0095,
+     "mat": "copper",
+     "id": "penny"
+    },
+    {
+     "m": "@magnet",
+     "at": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "w": 0.05,
+     "id": "magnet"
+    }
+   ],
+   "prompt": "US coins and a red horseshoe magnet on a walnut bar"
+  },
+  "world": {
+   "world": "dio_bar_counter",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.05,
+      0.0,
+      0.9
+     ],
+     "r": 0.0121,
+     "mat": "silver",
+     "id": "us_q",
+     "reeds": 119
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.0,
+      0.0,
+      0.9
+     ],
+     "r": 0.0119,
+     "mat": "steel",
+     "id": "ca_q",
+     "reeds": 120
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.05,
+      0.0,
+      0.9
+     ],
+     "r": 0.0129,
+     "mat": "copper",
+     "id": "uk_2p"
+    },
+    {
+     "m": "@magnet",
+     "at": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "w": 0.05,
+     "id": "magnet2"
+    }
+   ],
+   "prompt": "A US, a Canadian and a British coin under a magnet"
+  },
+  "mint": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      0.0,
+      0.0,
+      0.9
+     ],
+     "r": 0.0121,
+     "mat": "silver",
+     "id": "big",
+     "reeds": 119
+    }
+   ],
+   "prompt": "One quarter on a mint backdrop"
+  },
+  "slug": {
+   "world": "dio_mint_studio",
+   "add": [
+    {
+     "m": "@coin",
+     "at": [
+      -0.03,
+      0.0,
+      0.9
+     ],
+     "r": 0.0121,
+     "mat": "silver",
+     "id": "real",
+     "reeds": 119
+    },
+    {
+     "m": "@coin",
+     "at": [
+      0.03,
+      0.0,
+      0.9
+     ],
+     "r": 0.0121,
+     "mat": "steel",
+     "id": "slug",
+     "hole": 0.003
+    },
+    {
+     "m": "@magnifier",
+     "at": [
+      0.0,
+      -0.05,
+      0.935
+     ],
+     "rot": -30
+    }
+   ],
+   "prompt": "A real coin and a steel washer under a magnifier"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "text": "Hold a magnet over an American quarter.",
+   "set": "us",
+   "camera": "medium",
+   "move": "push",
+   "look": {
+    "at": [
+     -0.07,
+     0.0,
+     0.93
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 16,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet",
+     "from": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "to": [
+      -0.07,
+      0.0,
+      0.904
+     ],
+     "t0": 0.2,
+     "t1": 0.8,
+     "ease": "out"
+    },
+    {
+     "id": "magnet",
+     "from": [
+      -0.07,
+      0.0,
+      0.904
+     ],
+     "to": [
+      -0.07,
+      0.0,
+      0.99
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    }
+   ],
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "text": "Nothing. It won't budge.",
+   "set": "us",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "look": {
+    "at": [
+     -0.07,
+     0.0,
+     0.905
+    ],
+    "dist": 0.14,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 70
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "NOTHING"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "text": "Try it in Canada, and the coin jumps. Why?",
+   "set": "world",
+   "camera": "medium",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.93
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 16,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "from": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "to": [
+      0.0,
+      0.0,
+      0.904
+     ],
+     "t0": 0.2,
+     "t1": 0.8,
+     "ease": "out"
+    },
+    {
+     "id": "magnet2",
+     "from": [
+      0.0,
+      0.0,
+      0.904
+     ],
+     "to": [
+      0.0,
+      0.0,
+      0.99
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    },
+    {
+     "id": "ca_q",
+     "to": [
+      0.0,
+      0.0,
+      0.986
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    }
+   ],
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "text": "A magnet only grabs a few metals. Mainly iron, nickel and cobalt.",
+   "set": "us",
+   "camera": "wide",
+   "move": "pull",
+   "look": {
+    "at": [
+     -0.01,
+     0.01,
+     0.92
+    ],
+    "dist": 0.42,
+    "yaw": -8,
+    "pitch": 22,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "chalk",
+    "text": "IRON  NICKEL  COBALT"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "text": "Fridge doors are steel. Mostly iron. So magnets stick.",
+   "set": "world",
+   "camera": "close",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.98
+    ],
+    "dist": 0.2,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 65
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "STEEL = IRON"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "concept",
+   "text": "American coins look silver.",
+   "set": "us",
+   "camera": "medium",
+   "move": "pan_r",
+   "look": {
+    "at": [
+     -0.02,
+     0.01,
+     0.904
+    ],
+    "dist": 0.26,
+    "yaw": -8,
+    "pitch": 34,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "label",
+    "text": "LOOKS SILVER"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "text": "But there's no silver in them at all.",
+   "set": "mint",
+   "camera": "insert",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.903
+    ],
+    "dist": 0.12,
+    "yaw": -8,
+    "pitch": 40,
+    "lens": 70
+   },
+   "overlay": {
+    "type": "cross",
+    "text": "SILVER"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "text": "A quarter is mostly copper, wrapped in a copper nickel skin.",
+   "set": "mint",
+   "camera": "close",
+   "move": "orbit_r",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.903
+    ],
+    "dist": 0.16,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 65
+   },
+   "overlay": {
+    "type": "label",
+    "text": "COPPER CORE"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "setup",
+   "text": "Three parts copper to one part nickel.",
+   "set": "mint",
+   "camera": "medium",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.904
+    ],
+    "dist": 0.22,
+    "yaw": -8,
+    "pitch": 26,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "chalk",
+    "text": "75% CU / 25% NI"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "text": "Nickel on its own sticks to a magnet.",
+   "set": "us",
+   "camera": "close",
+   "move": "crash_zoom",
+   "look": {
+    "at": [
+     0.01,
+     -0.01,
+     0.904
+    ],
+    "dist": 0.16,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 65
+   },
+   "overlay": {
+    "type": "label",
+    "text": "NICKEL: MAGNETIC"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "text": "But mixed with that much copper, the pull disappears.",
+   "set": "us",
+   "camera": "medium",
+   "move": "push",
+   "look": {
+    "at": [
+     -0.07,
+     0.0,
+     0.93
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 16,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet",
+     "from": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "to": [
+      -0.07,
+      0.0,
+      0.904
+     ],
+     "t0": 0.2,
+     "t1": 0.8,
+     "ease": "out"
+    },
+    {
+     "id": "magnet",
+     "from": [
+      -0.07,
+      0.0,
+      0.904
+     ],
+     "to": [
+      -0.07,
+      0.0,
+      0.99
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "NO PULL"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "con",
+   "text": "The penny? Copper over zinc. Not magnetic either.",
+   "set": "us",
+   "camera": "insert",
+   "move": "pan_r",
+   "look": {
+    "at": [
+     0.05,
+     0.02,
+     0.904
+    ],
+    "dist": 0.14,
+    "yaw": -8,
+    "pitch": 32,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "magnet",
+     "to": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "text": "So why do Canadian coins jump?",
+   "set": "world",
+   "camera": "wide",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.93
+    ],
+    "dist": 0.4,
+    "yaw": -8,
+    "pitch": 18,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "freeze": "WAIT...",
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "text": "Copper and nickel got expensive.",
+   "set": "world",
+   "camera": "medium",
+   "move": "drift",
+   "look": {
+    "at": [
+     -0.05,
+     0.0,
+     0.904
+    ],
+    "dist": 0.22,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "$$$"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "text": "In 2000, Canada started making coins from steel, plated in nickel.",
+   "set": "world",
+   "camera": "close",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.904
+    ],
+    "dist": 0.16,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 65
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "STEEL CORE"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "text": "Steel is far cheaper than nickel.",
+   "set": "world",
+   "camera": "medium",
+   "move": "pan_l",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.904
+    ],
+    "dist": 0.22,
+    "yaw": -8,
+    "pitch": 28,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "CHEAPER"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "escalate",
+   "text": "Steel is mostly iron.",
+   "set": "world",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.903
+    ],
+    "dist": 0.11,
+    "yaw": -8,
+    "pitch": 36,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.0,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "IRON"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s17",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "text": "Britain did the same. Since 1992, its copper coins are copper-coated steel.",
+   "set": "world",
+   "camera": "medium",
+   "move": "pan_r",
+   "look": {
+    "at": [
+     0.05,
+     0.0,
+     0.93
+    ],
+    "dist": 0.28,
+    "yaw": -8,
+    "pitch": 16,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "from": [
+      0.05,
+      0.0,
+      0.96
+     ],
+     "to": [
+      0.05,
+      0.0,
+      0.904
+     ],
+     "t0": 0.2,
+     "t1": 0.8,
+     "ease": "out"
+    },
+    {
+     "id": "magnet2",
+     "from": [
+      0.05,
+      0.0,
+      0.904
+     ],
+     "to": [
+      0.05,
+      0.0,
+      0.99
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    },
+    {
+     "id": "uk_2p",
+     "to": [
+      0.05,
+      0.0,
+      0.986
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    }
+   ],
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "twist",
+   "text": "Clink. Straight up to the magnet.",
+   "set": "world",
+   "camera": "close",
+   "move": "push",
+   "look": {
+    "at": [
+     0.05,
+     0.0,
+     0.98
+    ],
+    "dist": 0.18,
+    "yaw": -8,
+    "pitch": 6,
+    "lens": 65
+   },
+   "moves": [
+    {
+     "id": "magnet2",
+     "to": [
+      0.05,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    },
+    {
+     "id": "uk_2p",
+     "to": [
+      0.05,
+      0.0,
+      0.986
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "stamp",
+    "text": "CLINK"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "twist",
+   "text": "Vending machines use this. Every coin leaves its own magnetic signature.",
+   "set": "slug",
+   "camera": "medium",
+   "move": "push",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.904
+    ],
+    "dist": 0.26,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "overlay": {
+    "type": "label",
+    "text": "SIGNATURE"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "twist",
+   "text": "Canada's layered plating makes that signature extra hard to fake.",
+   "set": "slug",
+   "camera": "close",
+   "move": "orbit_r",
+   "look": {
+    "at": [
+     -0.03,
+     0.0,
+     0.903
+    ],
+    "dist": 0.16,
+    "yaw": -8,
+    "pitch": 32,
+    "lens": 65
+   },
+   "overlay": {
+    "type": "label",
+    "text": "HARD TO FAKE"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "twist",
+   "text": "A steel washer gives itself away.",
+   "set": "slug",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "look": {
+    "at": [
+     0.03,
+     0.0,
+     0.903
+    ],
+    "dist": 0.12,
+    "yaw": -8,
+    "pitch": 38,
+    "lens": 70
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "REJECTED"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  },
+  {
+   "beat": "payoff",
+   "text": "One last surprise. The American coin called the nickel is only one quarter nickel.",
+   "set": "us",
+   "camera": "insert",
+   "move": "push",
+   "look": {
+    "at": [
+     0.01,
+     -0.01,
+     0.904
+    ],
+    "dist": 0.14,
+    "yaw": -8,
+    "pitch": 32,
+    "lens": 70
+   },
+   "moves": [
+    {
+     "id": "magnet",
+     "to": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "25% NICKEL"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s23"
+  },
+  {
+   "beat": "payoff",
+   "text": "The other three quarters? Copper.",
+   "set": "mint",
+   "camera": "close",
+   "move": "orbit_l",
+   "look": {
+    "at": [
+     0.0,
+     0.0,
+     0.903
+    ],
+    "dist": 0.16,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 65
+   },
+   "overlay": {
+    "type": "label",
+    "text": "75% COPPER"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s24"
+  },
+  {
+   "beat": "payoff",
+   "text": "Dimes and quarters too. Copper inside, every one.",
+   "set": "us",
+   "camera": "medium",
+   "move": "pan_r",
+   "look": {
+    "at": [
+     -0.05,
+     0.01,
+     0.904
+    ],
+    "dist": 0.24,
+    "yaw": -8,
+    "pitch": 30,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet",
+     "to": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "t0": 0.0,
+     "t1": 0.05
+    }
+   ],
+   "overlay": {
+    "type": "chalk",
+    "text": "ALL COPPER"
+   },
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s25"
+  },
+  {
+   "beat": "payoff",
+   "text": "So go ahead. Hold a magnet over your change.",
+   "set": "us",
+   "camera": "medium",
+   "move": "push",
+   "look": {
+    "at": [
+     -0.07,
+     0.0,
+     0.93
+    ],
+    "dist": 0.3,
+    "yaw": -8,
+    "pitch": 16,
+    "lens": 55
+   },
+   "moves": [
+    {
+     "id": "magnet",
+     "from": [
+      -0.07,
+      0.0,
+      0.96
+     ],
+     "to": [
+      -0.07,
+      0.0,
+      0.904
+     ],
+     "t0": 0.2,
+     "t1": 0.8,
+     "ease": "out"
+    },
+    {
+     "id": "magnet",
+     "from": [
+      -0.07,
+      0.0,
+      0.904
+     ],
+     "to": [
+      -0.07,
+      0.0,
+      0.99
+     ],
+     "t0": 1.1,
+     "t1": 1.8,
+     "ease": "in"
+    }
+   ],
+   "speaker": "narrator",
+   "cast": [],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s26"
+  }
+ ],
+ "est_total": 68.52
+}

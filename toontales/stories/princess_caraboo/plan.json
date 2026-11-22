@@ -1,0 +1,744 @@
+{
+ "id": "princess_caraboo",
+ "title": "The Fake Princess Who Fooled an English Town",
+ "topic": "Princess Caraboo (1817): Mary Baker, a cobbler's daughter, poses as a kidnapped princess from the island of Javasu",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "village": "An 1817 English country village in Gloucestershire: stone cottages, a muddy lane, a church tower, green fields, spring light",
+  "manor": "A grand 1817 English manor house drawing room: oil paintings, a fireplace, silk sofas, tall windows over a lawn",
+  "lake": "An 1817 country estate lake: willow trees, a little boathouse, reeds, a manor house far away, morning mist",
+  "bristol": "Bristol harbour in 1817: tall sailing ships, warehouses, cobbled quay, barrels and ropes, grey sky",
+  "lodging": {
+   "prompt": "A plain 1817 Bristol lodging house parlour: a wooden table with a wash jug, a chair, a small window, a coat on a hook, candle light",
+   "ambient": "none"
+  },
+  "infirmary": "An 1830s Bristol hospital ward: rows of iron beds, glass jars on shelves, a nurse's table, soft daylight"
+ },
+ "hook_title": "A PRINCESS FROM NOWHERE?",
+ "keywords": [
+  "princess",
+  "Caraboo",
+  "Javasu",
+  "pirates",
+  "language",
+  "Mary",
+  "Baker",
+  "leeches",
+  "Bristol"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/Princess_Caraboo"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1817, a stranger walked into an English village in a turban.",
+   "set": "village",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "wave",
+       "at": 1.6
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "She spoke a language nobody had ever heard.",
+   "set": "village",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "???"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "walt",
+   "text": "Wait. Where's she from?",
+   "set": "village",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "A rich local family took her into their mansion.",
+   "set": "manor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "sign",
+     "spot": "wall_r",
+     "text": "KNOLE PARK"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "A sailor claimed he could understand her.",
+   "set": "manor",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "TRANSLATION"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "She was Princess Caraboo, from the island of Javasu.",
+   "set": "manor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "cheer",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "PRINCESS CARABOO"
+   },
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Kidnapped by pirates. She escaped by jumping overboard.",
+   "set": "manor",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "jump",
+       "at": 0.0
+      },
+      {
+       "do": "plead",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 0.9
+    }
+   ],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "A real princess! Here!",
+   "set": "manor",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "celebrate",
+       "at": 0.0
+      },
+      {
+       "do": "money",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "She swam, fenced with swords, and prayed on the roof.",
+   "set": "lake",
+   "camera": "wide",
+   "move": "pan_r",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "run",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.4,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "jump",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "splash",
+     "at": 1.1
+    }
+   ],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Guests travelled miles to meet her.",
+   "set": "lake",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "wave",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "crowd",
+     "at": 0.2
+    }
+   ],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "GUESTS"
+   },
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Experts were stumped.",
+   "set": "lake",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "shrug",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "STUMPED"
+   },
+   "freeze": "WAIT...",
+   "id": "s11"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then a Bristol newspaper printed her portrait.",
+   "set": "bristol",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "picked_by": "walt",
+     "text": "THE PRINCESS"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.6
+    }
+   ],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "A boarding house keeper took one look.",
+   "set": "lodging",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "newspaper",
+     "held_by": "pip",
+     "text": "THE PRINCESS"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "pip",
+   "text": "That's my old lodger!",
+   "set": "lodging",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "shock",
+       "at": 0.5
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s14",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The princess was Mary Baker, a cobbler's daughter from Devon.",
+   "set": "lodging",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "MARY BAKER"
+   },
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The language? She made it up.",
+   "set": "manor",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "facepalm",
+       "at": 0.4
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "MADE UP"
+   },
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "The family wasn't angry. They paid her way to America.",
+   "set": "manor",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "TICKET: PHILADELPHIA"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Years later, she came home to Bristol.",
+   "set": "bristol",
+   "camera": "medium",
+   "move": "pan_l",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         -1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "wave",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "And sold leeches to the hospital.",
+   "set": "infirmary",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "bottle",
+     "held_by": "pip",
+     "text": "LEECHES"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pop",
+     "at": 0.5
+    }
+   ],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "So no princess at all?",
+   "set": "village",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "Shh. Bow to Princess Pip.",
+   "set": "village",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 40.6
+}

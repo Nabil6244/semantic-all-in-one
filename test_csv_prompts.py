@@ -46,7 +46,7 @@ class TestCsvPrompts(unittest.TestCase):
 
         _text, script, csv_text = _example("normal_csv_prompt.txt")
         rows = list(csv.DictReader(io.StringIO(csv_text)))
-        self.assertEqual(list(rows[0].keys()), ["scene_number", "script_segment", "asset_type", "prompt"])
+        self.assertEqual(list(rows[0].keys()), ["scene_number", "script_segment", "asset_type", "prompt", "gfx"])   # gfx: the row's animated graphic (2026-11-22)
         self.assertEqual(" ".join(r["script_segment"] for r in rows), script)
         self.assertEqual([r["scene_number"] for r in rows], [str(i) for i in range(1, len(rows) + 1)])
         allowed = {"stock_video", "stock_image", "youtube_video", "archive_video", "nasa_video", "commons_image", "commons_video",

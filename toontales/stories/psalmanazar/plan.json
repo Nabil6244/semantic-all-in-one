@@ -1,0 +1,775 @@
+{
+ "id": "psalmanazar",
+ "title": "The Man Who Invented a Whole Country's Language",
+ "topic": "George Psalmanazar (1703-1706), the European who posed in London as a native of Formosa with an invented language and book",
+ "cast": [
+  "walt",
+  "pip"
+ ],
+ "places": {
+  "coffeehouse": "A busy 1703 London coffee house: wooden booths, pewter cups, pipe smoke, newspapers on tables, warm candle light",
+  "study": {
+   "prompt": "A cramped 1704 writer's study: a desk covered in papers and quills, ink pots, stacks of old books, one candle",
+   "ambient": "none"
+  },
+  "society": "A 1704 Royal Society meeting room in London: a long table, globes, telescopes, portraits of scientists, tall windows",
+  "oxford": "An Oxford college quad in 1704: honey-coloured stone buildings, a clipped lawn, arched windows, soft afternoon light",
+  "garret": {
+   "prompt": "A small 1760s London attic room: a sloped ceiling, a bed, a writing desk by a window over rooftops, grey light",
+   "ambient": "none"
+  }
+ },
+ "hook_title": "A FAKE FORMOSAN?",
+ "keywords": [
+  "Formosa",
+  "Psalmanazar",
+  "alphabet",
+  "language",
+  "book",
+  "Oxford",
+  "Halley",
+  "raw",
+  "name"
+ ],
+ "sources": [
+  "https://en.wikipedia.org/wiki/George_Psalmanazar"
+ ],
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "In 1703, a stranger told London he came from Formosa.",
+   "set": "coffeehouse",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hips",
+       "at": 0.0
+      },
+      {
+       "do": "wave",
+       "at": 1.0
+      }
+     ]
+    },
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "FORMOSA"
+   },
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Everything he said about it was made up.",
+   "set": "coffeehouse",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "MADE UP"
+   },
+   "id": "s02"
+  },
+  {
+   "beat": "hook",
+   "speaker": "pip",
+   "text": "Wait. Nobody could check?",
+   "set": "coffeehouse",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Formosa, now Taiwan,",
+   "set": "coffeehouse",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 0.76
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "spot": "wall_l",
+     "text": "FORMOSA"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "was a world away. Almost nobody in Europe had been.",
+   "set": "coffeehouse",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "map",
+     "spot": "wall_l",
+     "text": "FORMOSA"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "He called himself George Psalmanazar.",
+   "set": "study",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 0.9
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "label",
+     "held_by": "walt",
+     "text": "PSALMANAZAR"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "He ate raw meat and slept sitting up in a chair.",
+   "set": "coffeehouse",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "pick_up",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 1.2
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "rock",
+     "picked_by": "walt"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "setup",
+   "speaker": "walt",
+   "text": "Just like at home!",
+   "set": "study",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "money",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Then he invented a whole alphabet and language.",
+   "set": "study",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "walt",
+     "text": "A B C ?"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "scratch",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "And wrote a best-selling book about his homeland.",
+   "set": "study",
+   "camera": "insert",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "nod",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "box",
+     "held_by": "walt",
+     "text": "DESCRIPTION OF FORMOSA"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "paper",
+     "at": 0.4
+    }
+   ],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "con",
+   "speaker": "narrator",
+   "text": "Gold everywhere. People who ate snakes.",
+   "set": "study",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.0
+      },
+      {
+       "do": "tremble",
+       "at": 0.8
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "chalk",
+    "text": "SNAKES + GOLD"
+   },
+   "id": "s11"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Some scholars doubted him. His skin was pale, not tanned.",
+   "set": "society",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "think",
+       "at": 0.0
+      },
+      {
+       "do": "point",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "circle",
+    "text": "PALE?"
+   },
+   "id": "s12"
+  },
+  {
+   "beat": "con",
+   "speaker": "walt",
+   "text": "Our nobles live underground!",
+   "set": "society",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "present",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Astronomer Edmund Halley grilled him about sunlight on the island.",
+   "set": "society",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "think",
+       "at": 1.1
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "board",
+     "held_by": "pip",
+     "text": "SUNLIGHT?"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "EDMUND HALLEY"
+   },
+   "freeze": "WAIT...",
+   "id": "s14"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "He talked his way out.",
+   "set": "society",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "laugh",
+       "at": 0.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "ESCAPED"
+   },
+   "id": "s15"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Oxford even invited him to study and teach his language.",
+   "set": "oxford",
+   "camera": "wide",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "enter_l",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.0,
+       "params": {
+        "to": [
+         1.2,
+         0.0
+        ]
+       }
+      },
+      {
+       "do": "wave",
+       "at": 1.6
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [
+    {
+     "name": "ding",
+     "at": 1.2
+    }
+   ],
+   "transition": "cut",
+   "id": "s16",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "But the doubts grew, and the fame faded.",
+   "set": "oxford",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sigh",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "arrow",
+    "text": "FADING"
+   },
+   "id": "s17"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Years later, he quietly confessed it was all invented.",
+   "set": "garret",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hold",
+       "at": 0.0
+      },
+      {
+       "do": "sad",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [
+    {
+     "type": "letter",
+     "held_by": "walt",
+     "text": "I CONFESS"
+    }
+   ],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "He became an honest writer, and a friend of Samuel Johnson.",
+   "set": "garret",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.0
+      },
+      {
+       "do": "present",
+       "at": 1.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "label",
+    "text": "SAMUEL JOHNSON"
+   },
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "But his real name? Still unknown.",
+   "set": "garret",
+   "camera": "insert",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "shrug",
+       "at": 0.0
+      },
+      {
+       "do": "scratch_head",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "overlay": {
+    "type": "stamp",
+    "text": "NAME: ???"
+   },
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "pip",
+   "text": "So who was he really?",
+   "set": "coffeehouse",
+   "camera": "two_shot",
+   "move": "push",
+   "cast": [
+    {
+     "id": "pip",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "scratch_head",
+       "at": 0.0
+      }
+     ]
+    },
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look_around",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "walt",
+   "text": "Shh. Call me Walt-anazar.",
+   "set": "coffeehouse",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [
+    {
+     "id": "walt",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "sneak",
+       "at": 0.0
+      },
+      {
+       "do": "point_you",
+       "at": 0.7
+      }
+     ]
+    }
+   ],
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  }
+ ],
+ "version": "batch40",
+ "est_total": 43.67
+}

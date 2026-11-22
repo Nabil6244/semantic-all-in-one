@@ -5,6 +5,14 @@
   @font-face { font-family: 'PakMapSans'; src: url('/fonts/Montserrat-VF.ttf') format('truetype'); font-weight: 100 900; }
   @font-face { font-family: 'GfxSerif'; src: url('/gfx/fonts/CormorantGaramond-VF.ttf') format('truetype'); font-weight: 300 700; font-style: normal; }
   @font-face { font-family: 'GfxSerif'; src: url('/gfx/fonts/CormorantGaramond-Italic-VF.ttf') format('truetype'); font-weight: 300 700; font-style: italic; }
+  /* Urdu / Arabic script: Montserrat and Cormorant have no such letters (Urdu narration drew empty boxes), so the same
+     families take Noto Naskh Arabic (OFL, gfx-core/fonts) for those code points only; Latin text is unchanged. */
+  @font-face { font-family: 'GfxSans'; src: url('/gfx/fonts/NotoNaskhArabic-Regular.ttf') format('truetype'); font-weight: 100 599; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: 'GfxSans'; src: url('/gfx/fonts/NotoNaskhArabic-Bold.ttf') format('truetype'); font-weight: 600 900; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: 'PakMapSans'; src: url('/gfx/fonts/NotoNaskhArabic-Regular.ttf') format('truetype'); font-weight: 100 599; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: 'PakMapSans'; src: url('/gfx/fonts/NotoNaskhArabic-Bold.ttf') format('truetype'); font-weight: 600 900; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: 'GfxSerif'; src: url('/gfx/fonts/NotoNaskhArabic-Bold.ttf') format('truetype'); font-weight: 300 700; font-style: normal; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: 'GfxSerif'; src: url('/gfx/fonts/NotoNaskhArabic-Bold.ttf') format('truetype'); font-weight: 300 700; font-style: italic; unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF; }
   html, body { margin: 0; background: transparent; }
   canvas { display: block; }
 </style>

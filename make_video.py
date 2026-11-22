@@ -58,6 +58,7 @@ STYLES = {   # kept in step with autorun/job.py (test_autorun.py checks it): nam
     "rules-horror": ("required", "required", "rules_horror/prompt.txt", "Rules Horror"),
     "kids-learn": ("required", "optional", "cartoon3d-engine/samples/chant_lesson.csv", "Kids Learn"),
     "aviation": ("optional", "required", "aviation/data/aviation_csv_prompt.txt", "Aviation"),
+    "stickman": ("optional", "optional", "stickman/csv_prompt.txt", "Stickman"),
     "prepper-host": ("optional", "optional", "prepper_host/csv_prompt.txt", "Prepper Host"),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
@@ -115,6 +116,8 @@ def check_args(a) -> str:
         val = getattr(a, flag)
         if val and not Path(val).expanduser().is_file():
             return f"--{flag} file not found: {val}"
+    if a.style == "stickman" and not a.csv and not a.script:
+        return "the stickman style needs --script (the narration) or --csv (a Stickman CSV)"
     if a.style == "prepper-host" and not a.csv and not a.script:
         return "the prepper-host style needs --csv (a Prepper Host CSV) or --script (the narration)"
     if csv_need == "required" and not a.csv:

@@ -133,7 +133,7 @@ class Coverage(unittest.TestCase):
 
         data = planner.allowlist()
         automatic = set(planner.allowed("auto", data)) | set(planner.allowed("doc", data))
-        self.assertEqual(len(automatic), 31)                               # was 17 before the variants and rules (the 4 full-frame cards of those 17 are now off)
+        self.assertEqual(len(automatic), 26)                               # was 17 before the variants and rules (the 4 full-frame cards of those 17 are now off); 31 -> 26 when the owner rejected text_stamp/typewriter/split/sweep/underline (2026-11-22)
         full = {t for t, v in data["templates"].items() if v["mode"] == "full_frame" and t in data["doc_looks"].values()}
         self.assertEqual(full, {"day_cards", "dossier_card", "quote_card_black", "three_rings"})
         reachable = {a[0] for a in G.AUTO} | (set(data["doc_looks"].values()) - full) | {"end_question", "chapter_words"}

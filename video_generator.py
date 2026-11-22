@@ -92,6 +92,21 @@ def _is_arabic_script(w: str) -> bool:
     return any("؀" <= ch <= "ۿ" for ch in w)
 
 
+def _has_arabic_text(obj, _depth: int = 0) -> bool:
+    """True when any text inside obj (str, dict, list, dataclass) is in Arabic script (Urdu)."""
+    if obj is None or _depth > 6:
+        return False
+    if isinstance(obj, str):
+        return _is_arabic_script(obj)
+    if isinstance(obj, dict):
+        return any(_has_arabic_text(v, _depth + 1) for v in obj.values())
+    if isinstance(obj, (list, tuple, set)):
+        return any(_has_arabic_text(v, _depth + 1) for v in obj)
+    if hasattr(obj, "__dict__"):
+        return any(_has_arabic_text(v, _depth + 1) for v in vars(obj).values())
+    return False
+
+
 def _normalize_urdu(w: str) -> str:
     w = unicodedata.normalize("NFC", w.lower().strip()).translate(_URDU_LETTERS)
     w = "".join(str(unicodedata.digit(ch)) if ("٠" <= ch <= "٩" or "۰" <= ch <= "۹") else ch for ch in w)
@@ -2803,6 +2818,12 @@ def render_video(
             gfx_specs_all_once = list(gfx_specs_all_once) + doc_extras
         except Exception as exc:
             print(f"[3/4] Doc Style extras skipped: {exc}")
+    if gfx_specs_all_once and any(str((r or {}).get("gfx") or "").strip() for r in aligned_rows):
+        # The scene CSV has its own graphics (`gfx` column, drawn as animated templates): the editorial planner's still
+        # lower-thirds, captions and chapter cards came on top of them (two texts at once, sentence fragments). The CSV wins.
+        _kept = [s for s in gfx_specs_all_once if str(getattr(s, "decision", "")) == "WATERMARK"]
+        print(f"[3/4] The CSV has its own graphics: left out {len(gfx_specs_all_once) - len(_kept)} planned still graphic(s).")
+        gfx_specs_all_once = _kept
 
     # PHASE 4/5: project-scoped render cache — off entirely (pure render,
     # identical to pre-Batch-1 behavior) unless a caller opts in by passing
@@ -2909,6 +2930,12 @@ def render_video(
                     s for s in gfx_specs_all
                     if float(s.start) < scene_end and float(s.end) > scene_start
                 ]
+                # Pillow draws these and has no text shaping here: Urdu/Arabic text would be empty boxes (see Smart Text below)
+                _urdu_gfx = [s for s in scene_gfx_specs if _has_arabic_text(getattr(s, "text", None)) or _has_arabic_text(getattr(s, "payload", None))]
+                if _urdu_gfx:
+                    scene_gfx_specs = [s for s in scene_gfx_specs if s not in _urdu_gfx]
+                    print(f"[3/4] Scene {row.get('scene_number')}: left out {len(_urdu_gfx)} graphic(s) with Urdu/Arabic text "
+                          f"(this Pillow cannot join those letters).")
                 if scene_gfx_specs:
                     gfx_dir = Path("graphics_overlays")
                     gfx_dir.mkdir(exist_ok=True)
@@ -2936,6 +2963,13 @@ def render_video(
                 scene_gfx_specs = []
 
         smart_fx_list = list(per_scene_fx[i] or [])
+        # Pillow here has no text shaping (no raqm): Urdu/Arabic text comes out as empty boxes or loose reversed letters.
+        # Those Smart Text pop-ups and Pillow graphics are left out; the browser-drawn template graphics show Urdu properly.
+        _urdu_fx = [fx for fx in smart_fx_list if _has_arabic_text(fx)]
+        if _urdu_fx:
+            smart_fx_list = [fx for fx in smart_fx_list if fx not in _urdu_fx]
+            print(f"[3/4] Scene {row.get('scene_number')}: left out {len(_urdu_fx)} Smart Text pop-up(s) with Urdu/Arabic text "
+                  f"(this Pillow cannot join those letters).")
         if smart_fx_list and scene_gfx_specs:
             try:
                 from graphics.conflicts import filter_smart_text_for_graphics

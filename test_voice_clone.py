@@ -175,6 +175,29 @@ class ChatterboxTests(unittest.TestCase):
         self.assertGreater(res["duration"], 0.4 * res["pieces"])
         self.assertEqual(__import__("json").loads(Path(res["words_path"]).read_text()), [])
 
+    def test_kept_pieces_resume_after_a_stop(self):
+        """A run that dies part way keeps its pieces; the next run only makes the missing ones (none = no worker at all)."""
+        flaky = FAKE_WORKER.replace('    print(json.dumps({"done": i, "seconds": 0.5}), flush=True)',
+                                    '    print(json.dumps({"done": i, "seconds": 0.5}), flush=True)\n    if i == 1: sys.exit(1)')
+        self._patch_worker(flaky)
+        ref = Path(self.tmp) / "ref.wav"
+        engine.write_wav(_speechlike(6), str(ref))
+        text = " ".join(f"Sentence number {i} is right here." for i in range(40))
+        out, keep = os.path.join(self.tmp, "out.mp3"), os.path.join(self.tmp, "keep")
+        with self.assertRaisesRegex(RuntimeError, "stopped early"):
+            self.cbx.synthesize(text, out, str(ref), ffmpeg=FFMPEG, keep_dir=keep)
+        kept = sorted(p for p in os.listdir(keep) if p.endswith(".wav"))
+        self.assertEqual(len(kept), 2)
+        self._patch_worker(FAKE_WORKER)
+        ticks = []
+        res = self.cbx.synthesize(text, out, str(ref), ffmpeg=FFMPEG, ffprobe=shutil.which("ffprobe"), keep_dir=keep,
+                                  progress=lambda d, t: ticks.append(d))
+        self.assertEqual(ticks[0], 2)                           # starts from the two kept pieces
+        self.assertEqual(ticks[-1], res["pieces"])
+        self._patch_worker('import sys; sys.exit("the model must not load")')
+        res2 = self.cbx.synthesize(text, out, str(ref), ffmpeg=FFMPEG, ffprobe=shutil.which("ffprobe"), keep_dir=keep)
+        self.assertEqual(res2["pieces"], res["pieces"])
+
     def test_worker_failure_and_missing_sample_are_errors(self):
         self._patch_worker('import json; print(json.dumps({"error": "boom"}))')
         ref = Path(self.tmp) / "ref.wav"

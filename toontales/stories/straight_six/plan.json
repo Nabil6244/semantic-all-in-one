@@ -1,0 +1,944 @@
+{
+ "id": "straight_six",
+ "title": "Why a Straight Six Is Smoother Than a V6",
+ "topic": "inline six vs V6: mirrored piston pairs give an inline six perfect primary and secondary balance; a V6 needs balance shafts; packaging",
+ "hook_title": "SAME 6 CYLINDERS. WHY SMOOTHER?",
+ "keywords": [
+  "six",
+  "straight",
+  "V6",
+  "shake",
+  "balance",
+  "BMW",
+  "smooth",
+  "long"
+ ],
+ "cast": [],
+ "channel": "channel4",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Straight-six_engine",
+  "https://en.wikipedia.org/wiki/V6_engine"
+ ],
+ "places": {
+  "garage": {
+   "world": "garage",
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 22,
+     "cyl": 6,
+     "layout": "I",
+     "cover": [
+      0.2,
+      0.45,
+      0.95
+     ],
+     "id": "i6",
+     "run": 0.8
+    },
+    {
+     "m": "@engine",
+     "at": [
+      0.75,
+      2.2,
+      1.0
+     ],
+     "rot": -22,
+     "cyl": 6,
+     "layout": "V",
+     "cover": [
+      0.9,
+      0.12,
+      0.1
+     ],
+     "id": "v6",
+     "run": 0.8
+    }
+   ],
+   "prompt": "Two six-cylinder engines on orange stands: a long inline six and a short V6"
+  },
+  "i6_bench": {
+   "world": "garage",
+   "remove": [
+    "stand_b"
+   ],
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 6,
+     "layout": "I",
+     "cutaway": true,
+     "block": [
+      0.62,
+      0.64,
+      0.68
+     ],
+     "cover": [
+      0.2,
+      0.45,
+      0.95
+     ],
+     "id": "ci6",
+     "run": 1.0
+    }
+   ],
+   "prompt": "A cutaway inline six engine on a stand"
+  },
+  "v6_bench": {
+   "world": "garage",
+   "remove": [
+    "stand_b"
+   ],
+   "add": [
+    {
+     "m": "@engine",
+     "at": [
+      -0.75,
+      2.2,
+      1.0
+     ],
+     "rot": 0,
+     "cyl": 6,
+     "layout": "V",
+     "cutaway": true,
+     "block": [
+      0.62,
+      0.64,
+      0.68
+     ],
+     "cover": [
+      0.9,
+      0.12,
+      0.1
+     ],
+     "id": "cv6",
+     "run": 1.0
+    }
+   ],
+   "prompt": "A cutaway V6 engine on a stand"
+  },
+  "strip": {
+   "world": "drag_strip",
+   "remove": [
+    "car_a",
+    "car_b"
+   ],
+   "add": [
+    {
+     "m": "sedan-sports",
+     "at": [
+      -1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.15,
+      0.35,
+      1.0
+     ],
+     "tint_mode": "color",
+     "id": "blue"
+    },
+    {
+     "m": "hatchback-sports",
+     "at": [
+      1.7,
+      0,
+      0
+     ],
+     "rot": 180,
+     "s": 0.8,
+     "tint": [
+      0.9,
+      0.1,
+      0.1
+     ],
+     "tint_mode": "color",
+     "id": "red"
+    }
+   ],
+   "prompt": "A blue sedan and a red hatchback at the start"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "Both engines have six cylinders.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6",
+     "v6"
+    ]
+   },
+   "moves": [
+    {
+     "id": "i6",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.4
+    },
+    {
+     "id": "v6",
+     "run_to": 4,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "callout": {
+    "text": "6 vs 6",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.1
+    }
+   ],
+   "id": "s01",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "hook",
+   "speaker": "narrator",
+   "text": "But one is way smoother. Why?",
+   "set": "garage",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.2
+    ],
+    "dist": 3.4,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6"
+    ]
+   },
+   "callout": {
+    "text": "SMOOTH?",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "i6",
+     "run_to": 6,
+     "t0": 0.1,
+     "t1": 1.0
+    }
+   ],
+   "id": "s02",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Blue: a straight six. One long row.",
+   "set": "i6_bench",
+   "camera": "wide",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.6,
+    "yaw": 16,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "INLINE 6",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "moves": [
+    {
+     "id": "ci6",
+     "run_to": 3,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "id": "s03",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "concept",
+   "speaker": "narrator",
+   "text": "Red: a V6. Two rows of three.",
+   "set": "v6_bench",
+   "camera": "wide",
+   "move": "orbit_l",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.6,
+    "yaw": -16,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "V6",
+    "x": 0.5,
+    "y": 0.38
+   },
+   "moves": [
+    {
+     "id": "cv6",
+     "run_to": 3,
+     "t0": 0.2,
+     "t1": 1.4
+    }
+   ],
+   "id": "s04",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Every piston slams up and down.",
+   "set": "i6_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 1.6,
+    "yaw": 24,
+    "pitch": 8,
+    "lens": 30
+   },
+   "hud": {
+    "label": "SHAKE",
+    "fmt": "{v}%",
+    "from": 0,
+    "to": 60,
+    "max": 100,
+    "color": "red"
+   },
+   "moves": [
+    {
+     "id": "ci6",
+     "run_to": 5,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.4
+    }
+   ],
+   "id": "s05",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "In a straight six,",
+   "set": "i6_bench",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.0,
+    "yaw": -10,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "MIRROR",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s06",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "the front three mirror the back three.",
+   "set": "i6_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.0,
+    "yaw": -10,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "MIRROR",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s07",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Every shove gets cancelled.",
+   "set": "i6_bench",
+   "camera": "close",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.6
+    ],
+    "dist": 1.5,
+    "yaw": 30,
+    "pitch": 8,
+    "lens": 30
+   },
+   "hud": {
+    "label": "SHAKE",
+    "fmt": "{v}%",
+    "from": 60,
+    "to": 0,
+    "max": 100,
+    "color": "green"
+   },
+   "moves": [
+    {
+     "id": "ci6",
+     "run_to": 7,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "id": "s08",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "setup",
+   "speaker": "narrator",
+   "text": "Almost zero shake.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.2
+    ],
+    "dist": 3.0,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6"
+    ]
+   },
+   "hud": {
+    "label": "SHAKE",
+    "fmt": "{v}%",
+    "from": 5,
+    "to": 0,
+    "max": 100,
+    "color": "green"
+   },
+   "id": "s09",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "A V6 has two short rows.",
+   "set": "v6_bench",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 1.8,
+    "yaw": -26,
+    "pitch": 8,
+    "lens": 30
+   },
+   "callout": {
+    "text": "3 + 3",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "cv6",
+     "run_to": 5,
+     "t0": 0,
+     "t1": 0.6
+    }
+   ],
+   "id": "s10",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "obstacle",
+   "speaker": "narrator",
+   "text": "Three can't balance. It rocks.",
+   "set": "v6_bench",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.2,
+    "yaw": 10,
+    "pitch": 8,
+    "lens": 30
+   },
+   "hud": {
+    "label": "SHAKE",
+    "fmt": "{v}%",
+    "from": 0,
+    "to": 45,
+    "max": 100,
+    "color": "red"
+   },
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.3
+    },
+    {
+     "name": "thud",
+     "at": 0.8
+    }
+   ],
+   "freeze": "WAIT...",
+   "id": "s11",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "So V6s often need extra spinning weights.",
+   "set": "garage",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0.75,
+     2.2,
+     1.2
+    ],
+    "dist": 2.6,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "v6"
+    ]
+   },
+   "callout": {
+    "text": "BALANCE SHAFT",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "moves": [
+    {
+     "id": "v6",
+     "run_to": 5,
+     "t0": 0.1,
+     "t1": 1.0
+    }
+   ],
+   "id": "s12",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "escalate",
+   "speaker": "narrator",
+   "text": "Then why build V6s?",
+   "set": "garage",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6",
+     "v6"
+    ]
+   },
+   "callout": {
+    "text": "WHY V6?",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "id": "s13",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "freeze": ""
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "Because a straight six is long.",
+   "set": "garage",
+   "camera": "medium",
+   "move": "pan_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.2
+    ],
+    "dist": 3.4,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6"
+    ]
+   },
+   "callout": {
+    "text": "TOO LONG",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s14",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "It won't fit sideways in small cars.",
+   "set": "strip",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     0,
+     0.7
+    ],
+    "dist": 12,
+    "yaw": 0,
+    "pitch": 10,
+    "lens": 26
+   },
+   "callout": {
+    "text": "NO ROOM",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s15",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "twist",
+   "speaker": "narrator",
+   "text": "So in the 1990s, most brands went V6.",
+   "set": "strip",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     0.6,
+     2,
+     0.6
+    ],
+    "dist": 11,
+    "yaw": 10,
+    "pitch": 9,
+    "lens": 26
+   },
+   "callout": {
+    "text": "1990s: V6",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s16",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "BMW never gave up the straight six.",
+   "set": "i6_bench",
+   "camera": "medium",
+   "move": "orbit_r",
+   "cast": [],
+   "look": {
+    "at": [
+     -0.75,
+     2.2,
+     1.5
+    ],
+    "dist": 2.2,
+    "yaw": 6,
+    "pitch": 8,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "ci6",
+     "run_to": 6,
+     "t0": 0.2,
+     "t1": 1.2
+    }
+   ],
+   "callout": {
+    "text": "BMW",
+    "x": 0.5,
+    "y": 0.4
+   },
+   "id": "s17",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Now Mercedes and Mazda build them again.",
+   "set": "garage",
+   "camera": "wide",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6",
+     "v6"
+    ]
+   },
+   "callout": {
+    "text": "IT'S BACK",
+    "x": 0.5,
+    "y": 0.42
+   },
+   "moves": [
+    {
+     "id": "i6",
+     "run_to": 5,
+     "t0": 0.1,
+     "t1": 1.0
+    }
+   ],
+   "id": "s18",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Same six. Smoother answer.",
+   "set": "strip",
+   "camera": "medium",
+   "move": "drift",
+   "cast": [],
+   "look": {
+    "at": [
+     -1.7,
+     4,
+     0.6
+    ],
+    "to": [
+     -1.7,
+     40,
+     0.6
+    ],
+    "dist": 9,
+    "yaw": 8,
+    "pitch": 9,
+    "lens": 26
+   },
+   "moves": [
+    {
+     "id": "blue",
+     "to": [
+      -1.7,
+      48,
+      0
+     ],
+     "t0": 0.1,
+     "t1": 2.4,
+     "ease": "out"
+    },
+    {
+     "id": "red",
+     "to": [
+      1.7,
+      40,
+      0
+     ],
+     "t0": 0.2,
+     "t1": 2.4,
+     "ease": "in"
+    }
+   ],
+   "sfx": [
+    {
+     "name": "car",
+     "at": 0.1
+    }
+   ],
+   "id": "s19",
+   "props": [],
+   "transition": "cut"
+  },
+  {
+   "beat": "payoff",
+   "speaker": "narrator",
+   "text": "Which six would you pick?",
+   "set": "garage",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [],
+   "look": {
+    "at": [
+     0,
+     2.2,
+     1.35
+    ],
+    "dist": 6.2,
+    "yaw": 0,
+    "pitch": 9,
+    "lens": 26,
+    "fit": [
+     "i6",
+     "v6"
+    ]
+   },
+   "moves": [
+    {
+     "id": "i6",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    },
+    {
+     "id": "v6",
+     "run_to": 5,
+     "t0": 0.2,
+     "t1": 1.0
+    }
+   ],
+   "id": "s20",
+   "props": [],
+   "sfx": [],
+   "transition": "cut"
+  }
+ ],
+ "est_total": 38.0
+}

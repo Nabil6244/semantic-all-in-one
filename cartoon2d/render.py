@@ -33,7 +33,7 @@ OUT_W, OUT_H, FPS = 1920, 1080, 25
 WORLD_W, WORLD_H = 2560, 1440
 SS = 3                                          # supersampling for drawn mouths / lids
 SHUTTER = 0.012                                 # motion blur: smear = speed x this (s); ~ a 1/80 s shutter, kept light
-FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
+from fonts import FONT  # noqa: E402  (Arial Rounded on the Mac, a shipped font elsewhere)
 # vibrant kids-TV colour: the Flow art comes out pale/pastel. Vibrance lifts the dull colours most (skin is guarded by the
 # low red balance, so faces and Bobo's fur stay natural), plus a little contrast and deeper mid-tones. Applied in the encode.
 # Stage C finish: crisper outlines (a light unsharp on brightness only). A highlight glow and a vignette were tried and
@@ -86,6 +86,7 @@ def load(story_path):
     for name, pl in places.items():
         G["places"][name] = {"bg": Image.open(ROOT / pl["background"]).convert("RGB").resize((WORLD_W, WORLD_H), Image.LANCZOS),
                              "floor": pl["floor_y"] * WORLD_H, "spots": {w: x * WORLD_W for w, x in pl["spots"].items()}}
+        G["places"][name]["bg"]._depth_file = str(ROOT / pl["background"]) + ".depth.npy"   # packed with a story file
         if st.get("scenery", True):                    # living place: depth parallax, clouds, leaves, water, light
             G["places"][name]["scene"] = scenery.prepare(G["places"][name]["bg"], pl["floor_y"], G["places"][name]["spots"],
                                                          outdoor=pl.get("outdoor"))
@@ -2268,6 +2269,24 @@ def main():
         sys.exit("render refused: fix the places (or pass --allow-place-rules for an old episode)")
     grade = st.get("grade", GRADE)                   # story "grade": false = the art's own colours
     n = int((G["tl"]["total"] + hook.length(G["hook"])) * FPS)
+    if "--frames" in args:                           # how many frames the whole video has (the app splits them)
+        print("FRAMES", n, flush=True)
+        return
+    if "--range" in args:                            # one piece of the video, drawn in this process (no Pool: the
+        f0, f1 = (int(x) for x in args[args.index("--range") + 1].split(","))   # installed app has no child Python)
+        enc = ["-c:v", "libx264", "-preset", "veryfast", "-tune", "animation", "-crf", "19"] if "--fast" in args else ENCODE
+        ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{OUT_W}x{OUT_H}",
+                               "-r", str(FPS), "-i", "-", *(["-vf", grade] if grade else []), *enc, "-pix_fmt", "yuv420p",
+                               "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", str(out)],
+                              stdin=subprocess.PIPE)
+        for i in range(f0, min(f1, n)):
+            ff.stdin.write(_frame_bytes(i))
+            if (i - f0) % 25 == 0:
+                print("FRAME", i - f0, "/", min(f1, n) - f0, flush=True)
+        ff.stdin.close()
+        ff.wait()
+        print("PIECE", out, ff.returncode, flush=True)
+        sys.exit(ff.returncode)
     print("HOOK", G["hook"], flush=True)
     ff = subprocess.Popen(["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{OUT_W}x{OUT_H}", "-r", str(FPS),
                            "-i", "-", *(["-vf", grade] if grade else []), *ENCODE, "-pix_fmt", "yuv420p",

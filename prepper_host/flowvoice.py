@@ -74,14 +74,21 @@ def split_rows(rows, spec):
 
 
 def clip_key(meta, line):
-    return "say_" + director.key_of(f"{meta['name']}|{line}")
+    v = meta.get("voice") or ""
+    return "say_" + director.key_of(f"{meta['name']}|{v}|{line}" if v else f"{meta['name']}|{line}")
+
+
+def flow_voice(meta):
+    return {"name": meta["voice"], "performance": meta.get("voice_performance", "")} if meta.get("voice") else None
 
 
 def clip_prompt(meta, line):
     return (f"Photorealistic video, 8 seconds long, static medium shot on a tripod. The man from the reference pictures "
             f"{meta.get('set') or ''}. He looks straight into the camera and says, clearly, at a calm natural pace: \"{line}\" "
-            "Then he stops talking and stays quiet. Deep, warm, slightly gravelly American male voice, the same voice every time. "
-            "Small natural hand gestures. No music, quiet room tone. No text, no subtitles, no logos.")
+            "Then he stops talking and stays quiet. "
+            + (f"He speaks in the attached voice, {meta['voice']}. " if meta.get("voice")
+               else "Deep, warm, slightly gravelly American male voice, the same voice every time. ")
+            + "Small natural hand gestures. No music, quiet room tone. No text, no subtitles, no logos.")
 
 
 # ------------------------------------------------------------------ audio
@@ -119,9 +126,85 @@ def _spread(text, t0, t1):
     return [{"word": w, "start": round(float(a), 4), "end": round(float(b) - 0.02, 4)} for w, a, b in zip(words, edges, edges[1:])]
 
 
-def build(rows, clips, edge_voice, log=print):
+# ------------------------------------------------------------------ the same voice for the other lines
+def voice_sample(meta, clip_paths, seconds=20.0):
+    """Dale's own Flow voice as a clone sample: the speech of his clips, joined until ~20 s (kept in his host folder)."""
+    dest = Path(meta["dir"]) / (f"flow_voice_sample_{meta['voice']}.wav" if meta.get("voice") else "flow_voice_sample.wav")
+    if dest.is_file():
+        return dest
+    parts, total = [], 0.0
+    for c in clip_paths:
+        try:
+            y = _read(c)
+            a, b = speech_span(y)
+            seg = _level(y[int(a * SR): int(b * SR)])
+        except Exception:  # noqa: BLE001
+            continue
+        parts += [seg, np.zeros(int(SR * 0.3), dtype=np.float32)]
+        total += len(seg) / SR
+        if total >= seconds:
+            break
+    if total < 6.0:                      # too little of him to copy yet
+        return None
+    _write(np.concatenate(parts), dest)
+    return dest
+
+
+def clone_lines(texts, sample, log=print, cancel=None):
+    """{text: wav} spoken in the sample's voice by Chatterbox (one model load for all of them), cached per line."""
+    import os
+    import sys
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    from voice_clone import chatterbox_engine as cb
+    if not cb.is_ready():
+        raise RuntimeError("the Chatterbox voice clone is not set up (Voiceover tab → Clone engine)")
+    tag = hashlib.sha1(Path(sample).read_bytes()).hexdigest()[:10]
+    out = {t: CACHE / f"clone_{tag}_{hashlib.sha1(t.encode()).hexdigest()[:12]}.wav" for t in texts}
+    todo = [{"text": t, "out": str(w)} for t, w in out.items() if not (w.is_file() and w.stat().st_size > 1000)]
+    if todo:
+        log(f"prepper host: speaking {len(todo)} line(s) in his Flow voice (voice clone)")
+        job = CACHE / f"clone_job_{tag}.json"
+        job.write_text(json.dumps({"ref": str(sample), "device": "", "pieces": todo}))
+        proc = subprocess.Popen([str(cb.env_python()), str(cb.worker_path()), str(job)], stdout=subprocess.PIPE,
+                                stdin=subprocess.DEVNULL, stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
+                                errors="replace", env=cb._child_env())
+        err = ""
+        try:
+            for line in proc.stdout:
+                if cancel and cancel():
+                    raise RuntimeError("stopped")
+                try:
+                    ev = json.loads(line)
+                except ValueError:
+                    continue
+                err = ev.get("error", err)
+            proc.wait()
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+                proc.wait()
+        bad = [t for t, w in out.items() if not (w.is_file() and w.stat().st_size > 1000)]
+        if bad:
+            log(f"prepper host: the voice clone missed {len(bad)} line(s){': ' + err if err else ''}; those use the Edge voice")
+        _ = os
+    return {t: w for t, w in out.items() if w.is_file() and w.stat().st_size > 1000}
+
+
+def _write(y, path):
+    import wave
+    pcm = (np.clip(y, -1, 1) * 32767).astype("<i2")
+    with wave.open(str(path), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(SR)
+        w.writeframes(pcm.tobytes())
+
+
+def build(rows, clips, edge_voice, log=print, cloned=None):
     """rows from split_rows, clips {row index: mp4} -> {"path","duration","words","said": {row: (clip, clip_at)}}."""
-    sig = hashlib.sha1(json.dumps([[r["line"], clips.get(k, "")] for k, r in enumerate(rows)] + [edge_voice]).encode()).hexdigest()[:16]
+    sig = hashlib.sha1(json.dumps([[r["line"], clips.get(k, ""), str((cloned or {}).get(r["line"], ""))] for k, r in enumerate(rows)] + [edge_voice]).encode()).hexdigest()[:16]
     out = CACHE / f"flowvoice_{sig}.wav"
     CACHE.mkdir(parents=True, exist_ok=True)
     gap = np.zeros(int(SR * pv.GAP), dtype=np.float32)
@@ -139,6 +222,15 @@ def build(rows, clips, edge_voice, log=print):
             except Exception as e:  # noqa: BLE001 - that line keeps the Edge voice
                 log(f"prepper host: clip sound not usable ({e}); Edge voice for: {r['line'][:60]}")
                 seg = None
+        if seg is None and (cloned or {}).get(r["line"]):
+            try:
+                y = _read(cloned[r["line"]])
+                a, b = speech_span(y)
+                seg = _level(y[int(a * SR): int(b * SR)])
+                words += _spread(r["line"], t, t + len(seg) / SR)
+            except Exception as e:  # noqa: BLE001
+                log(f"prepper host: cloned line not usable ({e}); Edge voice for: {r['line'][:60]}")
+                seg = None
         if seg is None:
             ev = pv.edge(r["line"], edge_voice, log=lambda m: None)
             seg = _level(_read(ev["path"]))
@@ -146,13 +238,7 @@ def build(rows, clips, edge_voice, log=print):
         parts += [seg, gap]
         t += (len(seg) + len(gap)) / SR
     y = np.concatenate(parts) if parts else np.zeros(SR, dtype=np.float32)
-    pcm = (np.clip(y, -1, 1) * 32767).astype("<i2")
-    import wave
-    with wave.open(str(out), "wb") as w:
-        w.setnchannels(1)
-        w.setsampwidth(2)
-        w.setframerate(SR)
-        w.writeframes(pcm.tobytes())
+    _write(y, out)
     return {"path": str(out), "duration": len(y) / SR, "words": words, "said": said}
 
 

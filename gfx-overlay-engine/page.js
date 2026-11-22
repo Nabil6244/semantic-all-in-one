@@ -10,6 +10,10 @@ window.setup = async (w, h) => {
   await document.fonts.load('800 40px GfxSans');
   await document.fonts.load('600 40px GfxSerif');
   await document.fonts.load('italic 500 40px GfxSerif');
+  // the Urdu faces load only for text that uses them: load them now, or the first frames draw before they arrive
+  for (const f of ['400 40px GfxSans', '800 40px GfxSans', '400 40px PakMapSans', '800 40px PakMapSans', '600 40px GfxSerif', 'italic 500 40px GfxSerif']) {
+    await document.fonts.load(f, 'پاکستان ویتنام');
+  }
   return true;
 };
 

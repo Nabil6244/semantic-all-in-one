@@ -19,7 +19,7 @@ def _s(pick: str, csv: str, prompt: str, voice: str = "required", fields: Option
 _RT = "reptheory/"
 # command-line name -> the style. Every card of the app's style picker (ui/style_registry.py).
 STYLES: Dict[str, Dict[str, Any]] = {
-    "normal": _s("Normal video", "required", "composition_styles/normal_csv_prompt.txt"),
+    "normal": _s("Normal video", "required", "composition_styles/normal_csv_prompt.txt", fields={"music": "bg_var"}),   # --music fills "Background music"
     "story-motion": _s("Story Motion", "required", "composition_styles/normal_csv_prompt.txt"),
     "modern-tech-news": _s("Modern Tech News", "required", "composition_styles/normal_csv_prompt.txt"),
     "overscaled": _s("Overscaled", "required", "composition_styles/overscaled_csv_prompt.txt"),
@@ -51,6 +51,8 @@ STYLES: Dict[str, Dict[str, Any]] = {
     "kids-learn": _s("Kids Learn", "required", "cartoon3d-engine/samples/chant_lesson.csv", voice="optional",
                      fields={"csv": "_kl_csv_var", "voice": "_kl_voice_var", "music": "_kl_music_var"}),
     "aviation": _s("Aviation", "optional", "aviation/data/aviation_csv_prompt.txt", fields={"csv": "_av_csv_var", "voice": "_av_voice_var"}),
+    "stickman": _s("Stickman", "optional", "stickman/csv_prompt.txt", voice="optional",
+                   fields={"script": "_sm_script_var", "csv": "_sm_csv_var", "voice": "_sm_voice_var"}),
     "prepper-host": _s("Prepper Host", "optional", "prepper_host/csv_prompt.txt", voice="optional",
                        fields={"script": "_ph_script_var", "csv": "_ph_csv_var", "voice": "_ph_voice_var"}),
 }
@@ -80,6 +82,8 @@ def make_job(style: str, voice: str = "", script: str = "", csv: str = "", title
     c = Path(csv).expanduser().resolve() if csv else None
     if c is not None and not c.is_file():
         raise JobError(f"CSV file not found: {csv}")
+    if style == "stickman" and c is None and s is None:
+        raise JobError("the stickman style needs the script (--script) or a Stickman CSV (--csv)")
     if style == "prepper-host" and c is None and s is None:
         raise JobError("the prepper-host style needs a Prepper Host CSV (--csv) or the script (--script)")
     if c is None and STYLES[style]["csv"] == "required":

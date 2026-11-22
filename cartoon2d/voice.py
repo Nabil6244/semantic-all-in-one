@@ -24,7 +24,9 @@ from kids_audio.chant import chant  # noqa: E402
 from kids_audio.library import read_audio, write_wav  # noqa: E402
 from kids_audio.synth import SR  # noqa: E402
 
-RHUBARB = ROOT / "cartoon3d-engine" / "authoring" / "tools" / "Rhubarb-Lip-Sync-1.14.0-macOS" / "rhubarb"
+_TOOLS = ROOT / "cartoon3d-engine" / "authoring" / "tools"
+RHUBARB = (_TOOLS / "Rhubarb-Lip-Sync-1.14.0-Windows" / "rhubarb.exe" if sys.platform == "win32"
+           else _TOOLS / "Rhubarb-Lip-Sync-1.14.0-macOS" / "rhubarb")
 PASS = ("act", "also", "cam", "card", "card_at", "pic", "sfx", "place", "hold", "drop", "give", "title", "endcard", "chapter",
         "word_cards", "chant", "go", "run", "game", "your_turn", "face", "hand", "fx", "tr", "goal", "map", "find", "found", "calm", "teaser", "sign",
         "lost", "beat", "setback", "waiting", "funny")
@@ -90,7 +92,28 @@ def to_wav(mp3, wav):
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(mp3), "-af", VOICE_FX, "-ar", str(SR), "-ac", "1", str(wav)], check=True)
 
 
+def loud_mouths(wav, step=0.06):
+    """Mouth shapes from how loud the voice is (no Rhubarb on this computer, e.g. Windows): closed in silence,
+    open wider when louder, round now and then so it does not flap like a puppet."""
+    a = read_audio(str(wav))
+    a = a.mean(axis=0) if a.ndim > 1 else a          # read_audio gives (channels, samples)
+    n = max(1, int(len(a) / (SR * step)))
+    rms = np.array([np.sqrt(np.mean(np.square(a[int(i * SR * step):int((i + 1) * SR * step)]) + 1e-12)) for i in range(n)])
+    top = float(np.percentile(rms, 95)) + 1e-9
+    cues, last = [], None
+    for i, v in enumerate(rms / top):
+        shape = "X" if v < 0.08 else "B" if v < 0.3 else ("F" if i % 7 == 3 else "C") if v < 0.6 else "D"
+        if shape != last:
+            cues.append({"start": round(i * step, 2), "end": round((i + 1) * step, 2), "value": shape})
+            last = shape
+        else:
+            cues[-1]["end"] = round((i + 1) * step, 2)
+    return cues
+
+
 def mouths(wav, text, out_json):
+    if not RHUBARB.is_file():
+        return loud_mouths(wav)
     if not out_json.exists():
         cmd = [str(RHUBARB), "-f", "json", "--extendedShapes", "GHX", "-o", str(out_json), str(wav)]
         r = subprocess.run(cmd[:-3] + ["--dialogFile", "/dev/stdin"] + cmd[-3:], input=text.encode(), capture_output=True)

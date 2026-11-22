@@ -39,3 +39,17 @@ def test_urdu_rows_anchor_to_urdu_transcript():
     assert all(r["confidence"] > 0 for r in timed), [(r["scene_number"], r["confidence"]) for r in timed]
     starts = [r["start_time"] for r in timed]
     assert starts == sorted(starts) and starts[1] >= 2.0 and starts[2] >= 5.0
+
+
+def test_urdu_text_is_found_inside_overlay_specs():
+    from dataclasses import dataclass, field
+
+    @dataclass
+    class Spec:
+        text: object = None
+        payload: dict = field(default_factory=dict)
+
+    assert v._has_arabic_text({"text": "ویتنام", "style": "pop"})
+    assert v._has_arabic_text(Spec(payload={"lines": ["16%", "پاکستان"]}))
+    assert not v._has_arabic_text(Spec(text="Vietnam", payload={"value": 87}))
+    assert not v._has_arabic_text(None)

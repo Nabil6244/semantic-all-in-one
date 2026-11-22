@@ -30,6 +30,10 @@ LINE = (70, 45, 30)
 
 # ------------------------------------------------------------------ preparing a place
 def _depth(bg):
+    side = getattr(bg, "_depth_file", None)       # a story file carries its depth maps (kidstory.py): same look anywhere
+    if side and Path(side).is_file():
+        d = np.load(side).astype(np.float32)
+        return np.asarray(Image.fromarray(d, "F").resize(bg.size, Image.BILINEAR), np.float32)
     try:
         from health_cinema.puppet import depth as dm
         if dm.available():

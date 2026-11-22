@@ -2204,6 +2204,12 @@ def build_plan(
         # A zoom-blur cut always gets its whoosh: a cached plan made before
         # these cuts existed must not be reused.
         settings_key = f"{settings_key}|zoom_blur:{','.join(zb)}"
+    # The pop-up words come from the rows' text: a cached plan made from other text (an edited CSV, or English
+    # on-screen lines over an Urdu voice) must not be reused — it showed the old words.
+    import hashlib as _hashlib
+
+    _text = "\n".join(str((r or {}).get("script_segment") or "") for r in (rows or []))
+    settings_key = f"{settings_key}|text:{_hashlib.sha1(_text.encode('utf-8')).hexdigest()[:12]}"
     cached: dict = {}
     if state_dir is not None:
         cached = load_cache(state_dir)

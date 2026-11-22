@@ -102,18 +102,70 @@ def _doc_slots(look: str, params: dict, text: str, t0: float, t1: float) -> Tupl
     raise KeyError(look)
 
 
+def csv_events(rows: Sequence[dict], display_timeline: Sequence[Tuple[float, float]], words: Sequence[Tuple[str, float, float]],
+               data: Optional[dict] = None, *, notes: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    """Events for the rows whose `gfx` cell names a template: {"t": "<template id>", "span": <scenes, default 1>, "<slot>": ...}.
+    Shown from just after the scene starts to the end of its span (at least 3 s); a template the allowlist does not let through, or one
+    whose slots are wrong, is skipped with a note."""
+    data = data or allowlist()
+    out: List[Dict[str, Any]] = []
+    n = min(len(rows or []), len(display_timeline or []))
+    for i in range(n):
+        raw = str((rows[i] or {}).get("gfx") or "").strip()
+        if not raw:
+            continue
+        try:
+            spec = json.loads(raw)
+            tid = str(spec.pop("t"))
+            span = max(1, int(spec.pop("span", 1)))
+            if tid not in data["templates"] or data["templates"][tid].get("mode") == "excluded":
+                raise KeyError(f"template {tid!r} is not allowed in a Normal Video")
+            t0 = float(display_timeline[i][0]) + 0.3
+            t1 = float(display_timeline[min(n - 1, i + span - 1)][1]) - 0.2
+            t1 = max(t1, t0 + 3.0)
+            ev, _hold = G.event_for(tid, {}, event_id=f"ngfx_csv_{i + 1}", t_in=t0, t_out=t1, extra=spec, words=words)
+        except Exception as exc:
+            if notes is not None:
+                notes.append(f"scene {(rows[i] or {}).get('scene_number')}: CSV graphic skipped ({exc})")
+            continue
+        ev["template"] = G._footage_backing(ev["template"])
+        ev["over_footage"] = True
+        ev["from_csv"] = True
+        if out and ev["t_in"] < out[-1]["t_out"]:
+            if notes is not None:
+                notes.append(f"scene {(rows[i] or {}).get('scene_number')}: CSV graphic skipped (overlaps the one before)")
+            continue
+        out.append(ev)
+    return out
+
+
+def _fill_on() -> bool:
+    """The Hybrid clip-fill (text cards and layouts over about 60 % of the clips) for a Normal Video whose scenes are all real footage
+    clips: settings.json "normal_hybrid_fill", passed by the app as SYT_NORMAL_GFX_FILL=1. Off by default (the look of other videos stays)."""
+    import os
+
+    return os.environ.get("SYT_NORMAL_GFX_FILL") == "1"
+
+
 def plan_graphics(words: Sequence[Tuple[str, float, float]], total: float, rows: Sequence[dict], display_timeline: Sequence[Tuple[float, float]],
                   existing_specs: Sequence[Any], *, captions: bool = False, log=print) -> Plan:
     data = allowlist()
     plan = Plan()
     taken: List[Tuple[float, float]] = [(float(s.start), float(s.end)) for s in existing_specs or []
                                         if str(getattr(s, "decision", "")) != "WATERMARK"]
+    # ---- csv: the graphics the scene CSV asks for (a `gfx` column), on their own scenes, before anything is planned ----
+    try:
+        for ev in csv_events(rows, display_timeline, words, data, notes=plan.notes):
+            plan.events.append(ev)
+            taken.append((ev["t_in"], ev["t_out"]))
+    except Exception as exc:
+        plan.notes.append(f"CSV graphics skipped ({exc})")
     # ---- auto: the narration's own facts, through the Hybrid planner ----
     try:
         replaced: List[str] = []
         autos = G.auto_events(words, niche="map", taken=taken, total=total, id_prefix="ngfx", enabled=allowed("auto", data),
                               stats=_stat_events(existing_specs), replaced=replaced, footage=[(0.0, float(total))],
-                              narration_fill=False)   # the Hybrid clip-fill and dates recap are for real footage clips
+                              narration_fill=_fill_on())   # the Hybrid clip-fill and dates recap are for real footage clips: off unless asked
         for ev in autos:
             if str(ev.get("template", {}).get("id")) in data["templates"] and data["templates"][ev["template"]["id"]]["mode"] == "excluded":
                 continue
@@ -166,7 +218,7 @@ def plan_graphics(words: Sequence[Tuple[str, float, float]], total: float, rows:
 
         rot = R.Rotation()
         plan.events.sort(key=lambda e: e["t_in"])
-        plan.events = [R.adapt(e, rot) for e in plan.events]
+        plan.events = [e if e.get("from_csv") else R.adapt(e, rot) for e in plan.events]   # a graphic the CSV names keeps its look
     except Exception as exc:
         plan.notes.append(f"template variants skipped ({exc})")
     plan.events.sort(key=lambda e: e["t_in"])

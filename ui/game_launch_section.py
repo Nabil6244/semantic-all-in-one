@@ -41,6 +41,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._gl_csv_var = ctk.StringVar(value="")
     app._gl_trailers_var = ctk.StringVar(value="")
     app._gl_voice_var = ctk.StringVar(value=next(iter(VOICES)))
+    app._gl_vo_var = ctk.StringVar(value="")       # the user's own recording (mp3/wav); used instead of the Edge voice when set
     app._gl_shorts_var = ctk.BooleanVar(value=True)
     app._gl_thumb_var = ctk.BooleanVar(value=True)
     app._gl_thumb_text_var = ctk.StringVar(value="")
@@ -69,8 +70,10 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=3, column=0, sticky="w", pady=(4, 0))
 
     body = section(block, 1, 2, "Voice and extras")
+    app._path_row(0, "My voiceover (optional)", app._gl_vo_var, lambda: _browse_vo(app), parent=body,
+                  placeholder_text="Your own mp3/wav of the whole script (or a Voiceover-tab clone): used instead of the voice below")
     opts = ctk.CTkFrame(body, fg_color="transparent")
-    opts.grid(row=0, column=0, sticky="ew")
+    opts.grid(row=1, column=0, sticky="ew", pady=(6, 0))
     ctk.CTkLabel(opts, text="Voice", font=ctk.CTkFont(size=12), text_color=T.MUTED).grid(row=0, column=0, padx=(0, 8), sticky="w")
     ctk.CTkOptionMenu(opts, values=list(VOICES), variable=app._gl_voice_var, width=220).grid(row=0, column=1, sticky="w")
     ctk.CTkCheckBox(opts, text="Shorts (one per chapter, 9:16)", variable=app._gl_shorts_var).grid(row=1, column=0, columnspan=2, sticky="w", pady=(8, 0))
@@ -95,7 +98,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  wraplength=600).grid(row=1, column=0, sticky="ew", pady=(8, 0))
     render_panel(app, body, row=2)
     block.grid_remove()
-    for v in (app._gl_csv_var, app._gl_trailers_var, app._gl_voice_var, app._gl_shorts_var, app._gl_thumb_var,
+    for v in (app._gl_csv_var, app._gl_trailers_var, app._gl_vo_var, app._gl_voice_var, app._gl_shorts_var, app._gl_thumb_var,
               app._gl_thumb_text_var, app._gl_foot_var):
         v.trace_add("write", lambda *_a: _save(app))
 
@@ -131,7 +134,7 @@ def _save(app: Any) -> None:
     try:
         planned = getattr(app, "_gl_planned", None)
         data = {"active": bool(getattr(app, "_gl_active", False)), "csv": app._gl_csv_var.get(), "trailers": app._gl_trailers_var.get(),
-                "voice": app._gl_voice_var.get(), "shorts": bool(app._gl_shorts_var.get()), "thumb": bool(app._gl_thumb_var.get()),
+                "voiceover": app._gl_vo_var.get(), "voice": app._gl_voice_var.get(), "shorts": bool(app._gl_shorts_var.get()), "thumb": bool(app._gl_thumb_var.get()),
                 "thumb_text": app._gl_thumb_text_var.get(), "foot": app._gl_foot_var.get(),
                 "planned": {**planned, "sig": _sig(planned["csv"])} if planned else None}
         f.parent.mkdir(parents=True, exist_ok=True)
@@ -156,6 +159,7 @@ def _restore(app: Any) -> None:
     try:
         app._gl_csv_var.set(d.get("csv", "") or "")
         app._gl_trailers_var.set(d.get("trailers", "") or "")
+        app._gl_vo_var.set(d.get("voiceover", "") or "")
         if d.get("voice") in VOICES:
             app._gl_voice_var.set(d["voice"])
         app._gl_shorts_var.set(bool(d.get("shorts", True)))
@@ -187,6 +191,18 @@ def _browse_csv(app: Any) -> None:
     path = filedialog.askopenfilename(title="Choose the scenes CSV", filetypes=[("CSV", "*.csv"), ("All files", "*.*")])
     if path:
         app._gl_csv_var.set(path)          # remembered only: nothing is read until Generate
+        app._gl_planned = None
+        _save(app)
+        _sync_buttons(app)
+
+
+def _browse_vo(app: Any) -> None:
+    from tkinter import filedialog
+
+    path = filedialog.askopenfilename(title="Choose your voiceover of the whole script",
+                                      filetypes=[("Audio", "*.mp3 *.wav *.m4a"), ("All files", "*.*")])
+    if path:
+        app._gl_vo_var.set(path)           # remembered only: it is cut into the CSV's lines on Generate
         app._gl_planned = None
         _save(app)
         _sync_buttons(app)
@@ -384,6 +400,10 @@ def on_generate(app: Any) -> None:
         messagebox.showerror("The scenes CSV has problems", "\n".join(c["errors"][:12]))
         return
     voice = VOICES.get(app._gl_voice_var.get(), GR.DEFAULT_VOICE)
+    vo = app._gl_vo_var.get().strip()
+    if vo and not Path(vo).is_file():
+        messagebox.showerror("Cannot start", f"Your voiceover file is not there: {vo}\nChoose it again, or clear the box to use a free voice.")
+        return
     work = str(_work_dir(app) / "film")
     import visual_bridge
 
@@ -406,7 +426,7 @@ def on_generate(app: Any) -> None:
     log = _log(app)
 
     def job():
-        r = GR.prepare(csv_path, trailers, work, voice, log=log, cancel=app._gl_cancel.is_set, progress=_progress(app))
+        r = GR.prepare(csv_path, trailers, work, voice, log=log, cancel=app._gl_cancel.is_set, progress=_progress(app), voiceover=vo)
         for no, f in files.items():                  # the CSV's own clip files go in the Visuals tab as they are
             visual_bridge.seed(images_dir, str(no), f, "csv_file", stock=Path(f).stem)
         r["rows"], r["found"] = [], 0

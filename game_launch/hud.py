@@ -21,7 +21,8 @@ W, H = L.W, L.H
 PINK, TEAL, NAVY, WHITE = L.PINK, L.TEAL, L.NAVY, L.WHITE
 RED, BLUE, GREEN, AMBER = (235, 40, 50), (40, 110, 255), (40, 200, 120), (255, 190, 40)
 TEMPLATES = ("minimap", "stars", "heat", "tiers", "carry", "capacity", "cash", "waink", "focus", "economy", "safe", "agencies",
-             "profile", "checklist", "cards", "stats", "download", "scam", "unlock", "nodisc", "garage", "loop", "saves", "controller", "archive")
+             "profile", "checklist", "cards", "stats", "download", "scam", "unlock", "nodisc", "garage", "loop", "saves", "controller", "archive", "firsts", "wasted", "stuck", "quote", "void", "launch",
+             "dpad", "grind", "grid", "prefix", "pyramid", "lockout", "filter")
 
 
 def parse(params: str) -> Dict[str, str]:
@@ -932,19 +933,545 @@ def _archive(p, folder, stem, raw=""):
     return out
 
 
+def _firsts(p, folder, stem, raw=""):
+    """A 'world firsts' board, rows ticking in one by one: 'HEAD/SUB::FIRST GLITCH=0:41|FIRST TIGER DEATH=1:12|FIRST 100%=?'
+    (a value of '?' stays open, blinking)."""
+    head, rest = _split_head(raw, "GTA VI WORLD FIRSTS")
+    head, _s, sub = head.partition("/")
+    items = [(x.split("=", 1) + [""])[:2] for x in rest.split("|") if x.strip()][:6]
+    out = [{"png": _save(_frame(head.upper(), (sub or "LAUNCH NIGHT LOG").upper()), folder, stem, 0), "at": 0.0}]
+    rh = min(124, 600 // max(1, len(items)))
+    for k, (name, val) in enumerate(items):
+        name, val = name.strip(), val.strip()
+        open_ = val in ("", "?")
+        img = _new()
+        d = ImageDraw.Draw(img)
+        y = 300 + (640 - rh * len(items)) // 2 + k * rh
+        col = AMBER if open_ else GREEN
+        d.rounded_rectangle((300, y, W - 300, y + rh - 20), radius=22, fill=(16, 20, 44, 235), outline=col + (200,), width=4)
+        cx, cy, r = 370, y + (rh - 20) / 2, (rh - 20) * 0.32
+        if open_:
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=AMBER + (255,), width=6)
+            _label(img, (cx, cy + 2), "?", int(r * 1.5), fill=AMBER)
+        else:
+            d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=GREEN + (255,))
+            d.line([(cx - r * .45, cy), (cx - r * .1, cy + r * .38), (cx + r * .5, cy - r * .35)], fill=WHITE + (255,), width=6)
+        _label(img, (440, cy), name.upper(), int(rh * 0.40), anchor="lm")
+        _label(img, (W - 340, cy), "UNCLAIMED" if open_ else val.upper(), int(rh * 0.36), fill=col, anchor="rm")
+        item = {"png": _save(img, folder, stem, k + 1), "at": 0.06 + 0.8 * k / max(1, len(items))}
+        if open_:
+            item["blink"] = 1
+        out.append(item)
+    return out
+
+
+def _wasted(p, folder, stem, raw=""):
+    """Death screens side by side: GTA V's grey 'WASTED' banner vs GTA VI's red wash: 'HEAD::LEFT WORD|RIGHT WORD|footer'."""
+    head, rest = _split_head(raw, "HOW YOU DIE NOW")
+    parts = [x.strip() for x in rest.split("|")] + ["", "", ""]
+    lw, rw, foot = parts[0] or "WASTED", parts[1] or "WASTED", parts[2]
+    out = [{"png": _save(_frame(head.upper(), "DEATH SCREEN  ·  ILLUSTRATION"), folder, stem, 0), "at": 0.0}]
+    bw, bh, y0 = 760, 430, 300
+    for k, (x, tag, word, grey) in enumerate(((150, "GTA V  ·  2013", lw, True), (W - 150 - bw, "GTA VI  ·  2026", rw, False))):
+        img = _new()
+        d = ImageDraw.Draw(img)
+        for yy in range(bh):
+            t = yy / bh
+            c = (int(70 + 40 * t),) * 3 if grey else (int(150 - 60 * t), int(20 + 10 * t), int(40 + 10 * t))
+            d.line([(x, y0 + yy), (x + bw, y0 + yy)], fill=c + (255,))
+        d.rectangle((x, y0, x + bw, y0 + bh), outline=(255, 255, 255, 120), width=4)
+        if grey:
+            d.rectangle((x, y0 + bh // 2 - 60, x + bw, y0 + bh // 2 + 60), fill=(0, 0, 0, 170))
+            _label(img, (x + bw // 2, y0 + bh // 2), word.upper(), 110, fill=(200, 30, 30))
+        else:
+            L.shadow_text(img, (x + bw // 2, y0 + bh // 2), word.lower(), L.font(L.F_HEAD, 120), fill=WHITE)
+        L.pill(img, (x, y0 + bh + 26), tag, (60, 70, 90) if grey else RED, 32)
+        out.append({"png": _save(img, folder, stem, k + 1), "at": 0.08 + 0.32 * k})
+    if foot:
+        img = _new()
+        _label(img, (W // 2, 960), foot.upper(), 50, fill=AMBER)
+        out.append({"png": _save(img, folder, stem, 3), "at": 0.7})
+    return out
+
+
+def _stuck(p, folder, stem, raw=""):
+    """Top-down breakdown of a car beached in a hedge: rocks under the frame, wheels spinning in the air, the camera inside the
+    leaves. Callouts light one by one: 'HEAD::ROCKS LIFT THE FRAME|WHEELS SPIN IN THE AIR|CAMERA CLIPS INTO THE HEDGE'."""
+    head, rest = _split_head(raw, "WHY THE TRUCK WON'T MOVE")
+    calls = [x.strip() for x in rest.split("|") if x.strip()][:3] or ["ROCKS LIFT THE FRAME", "WHEELS SPIN IN THE AIR",
+                                                                    "CAMERA CLIPS INTO THE HEDGE"]
+    img = _frame(head.upper(), "TOP-DOWN X-RAY VIEW")
+    d = ImageDraw.Draw(img)
+    rnd = random.Random(5)
+    for _ in range(90):                                    # hedge blobs
+        x, y, r = rnd.randint(330, 1590), rnd.randint(300, 1000), rnd.randint(30, 70)
+        g = rnd.randint(60, 120)
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(20, g, 40, 230))
+    cx, cy, cw, ch = W // 2, 640, 300, 560                # the truck from above
+    d.rounded_rectangle((cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2), radius=50, fill=(45, 55, 60, 255), outline=WHITE + (200,), width=5)
+    d.rectangle((cx - cw / 2 + 30, cy - 20, cx + cw / 2 - 30, cy + ch / 2 - 40), fill=(25, 30, 35, 255), outline=(255, 255, 255, 90), width=3)
+    d.rounded_rectangle((cx - cw / 2 + 40, cy - ch / 2 + 50, cx + cw / 2 - 40, cy - ch / 2 + 140), radius=16, fill=(90, 120, 140, 255))
+    out = [{"png": _save(img, folder, stem, 0), "at": 0.0}]
+    wheels = [(cx - cw / 2 - 18, cy - ch / 2 + 110), (cx + cw / 2 + 18, cy - ch / 2 + 110),
+              (cx - cw / 2 - 18, cy + ch / 2 - 110), (cx + cw / 2 + 18, cy + ch / 2 - 110)]
+    # 1: rocks under the frame
+    a = _new()
+    d = ImageDraw.Draw(a)
+    for rx, ry in ((cx - 60, cy + 40), (cx + 70, cy - 90), (cx - 10, cy + 200)):
+        d.polygon([(rx - 70, ry + 20), (rx - 40, ry - 45), (rx + 30, ry - 55), (rx + 75, ry + 5), (rx + 40, ry + 50), (rx - 30, ry + 48)],
+                  fill=(150, 145, 135, 235), outline=AMBER + (255,))
+    for wx, wy in wheels:
+        d.rounded_rectangle((wx - 22, wy - 52, wx + 22, wy + 52), radius=10, fill=(15, 15, 18, 255), outline=(255, 255, 255, 120), width=2)
+    L.pill(a, (180, 360), "1  " + calls[0].upper(), AMBER, 30)
+    out.append({"png": _save(a, folder, stem, 1), "at": 0.15})
+    # 2: wheels spin (two frames swapped by blink)
+    b = _new()
+    d = ImageDraw.Draw(b)
+    for wx, wy in wheels:
+        for r in (70, 95):
+            d.arc((wx - r, wy - r, wx + r, wy + r), 200, 320, fill=TEAL + (255,), width=6)
+            d.arc((wx - r, wy - r, wx + r, wy + r), 20, 140, fill=TEAL + (255,), width=6)
+    L.pill(b, (180, 460), "2  " + calls[1].upper(), TEAL, 30)
+    out.append({"png": _save(b, folder, stem, 2), "at": 0.4, "blink": 1})
+    # 3: camera icon inside the leaves
+    c = _new()
+    d = ImageDraw.Draw(c)
+    kx, ky = cx + 420, cy - 200
+    d.rounded_rectangle((kx - 70, ky - 45, kx + 70, ky + 45), radius=14, fill=(20, 20, 30, 255), outline=PINK + (255,), width=5)
+    d.ellipse((kx - 30, ky - 30, kx + 30, ky + 30), outline=PINK + (255,), width=6)
+    for _ in range(14):
+        x, y, r = kx + rnd.randint(-110, 110), ky + rnd.randint(-90, 90), rnd.randint(18, 34)
+        d.ellipse((x - r, y - r, x + r, y + r), fill=(30, 140, 60, 200))
+    L.pill(c, (kx - 200, ky + 110), "3  " + calls[2].upper(), PINK, 30)
+    out.append({"png": _save(c, folder, stem, 3), "at": 0.65})
+    return out
+
+
+def _wrap(text, n):
+    words, lines, cur = str(text).split(), [], ""
+    for w_ in words:
+        tt = (cur + " " + w_).strip()
+        if len(tt) > n and cur:
+            lines.append(cur)
+            cur = w_
+        else:
+            cur = tt
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def _quote(p, folder, stem, raw=""):
+    """A big pull quote with its source: 'HEAD::quote text|who said it|where it ran'. Not a mock post: plain quote card."""
+    head, rest = _split_head(raw, "WHAT PLAYERS ARE SAYING")
+    parts = [x.strip() for x in rest.split("|")] + ["", "", ""]
+    q, who, where = parts[0], parts[1], parts[2]
+    out = [{"png": _save(_frame(head.upper()), folder, stem, 0), "at": 0.0}]
+    img = _new()
+    d = ImageDraw.Draw(img)
+    lines = _wrap(q.upper(), 26)[:4]
+    bh = 150 + 110 * len(lines)
+    y0 = 300 + (600 - bh) // 2
+    d.rounded_rectangle((260, y0, W - 260, y0 + bh), radius=36, fill=(16, 20, 44, 240), outline=PINK + (255,), width=6)
+    L.shadow_text(img, (330, y0 + 70), "“", L.font(L.F_HEAD, 200), fill=PINK, anchor="mm")
+    for j, ln in enumerate(lines):
+        _label(img, (W // 2, y0 + 120 + j * 110), ln, 88 if len(lines) < 3 else 74)
+    out.append({"png": _save(img, folder, stem, 1), "at": 0.08})
+    if who or where:
+        img = _new()
+        _label(img, (W // 2, y0 + bh + 60), who.upper(), 46, fill=TEAL)
+        if where:
+            _small(img, (W // 2, y0 + bh + 112), where.upper(), 30)
+        out.append({"png": _save(img, folder, stem, 2), "at": 0.35})
+    return out
+
+
+def _void(p, folder, stem, raw=""):
+    """Under the map: black void, a falling figure lit by a phone, a 'no way back' warning: 'HEAD::warning|footer'."""
+    head, rest = _split_head(raw, "THE SHADOW REALM")
+    parts = [x.strip() for x in rest.split("|")] + ["", ""]
+    img = _new()
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, 0, W, H), fill=(0, 0, 0, 245))
+    rnd = random.Random(3)
+    for _ in range(60):                                    # a few broken world triangles drifting overhead
+        x, y = rnd.randint(0, W), rnd.randint(0, 260)
+        s_ = rnd.randint(20, 70)
+        d.polygon([(x, y), (x + s_, y + rnd.randint(-20, 20)), (x + rnd.randint(-20, 20), y + s_)], fill=(40, 46, 60, 200))
+    L.shadow_text(img, (W // 2, 120), head.upper(), L.fit(head.upper(), L.F_HEAD, 104, W - 400))
+    L.pill(img, (60, 56), "ILLUSTRATION", (90, 90, 110), 30)
+    out = [{"png": _save(img, folder, stem, 0), "at": 0.0}]
+    fig = _new()
+    d = ImageDraw.Draw(fig)
+    cx, cy = W // 2, 600
+    for r, a in ((260, 30), (180, 50), (110, 80)):
+        d.ellipse((cx + 40 - r, cy - 40 - r, cx + 40 + r, cy - 40 + r), fill=(80, 160, 255, a))
+    d.ellipse((cx - 34, cy - 170, cx + 34, cy - 102), fill=(30, 30, 36, 255), outline=(120, 170, 255, 255), width=3)
+    d.rounded_rectangle((cx - 50, cy - 100, cx + 50, cy + 60), radius=24, fill=(30, 30, 36, 255), outline=(120, 170, 255, 255), width=3)
+    d.line([(cx - 30, cy + 55), (cx - 60, cy + 200)], fill=(30, 30, 36, 255), width=34)
+    d.line([(cx + 30, cy + 55), (cx + 50, cy + 200)], fill=(30, 30, 36, 255), width=34)
+    d.line([(cx + 40, cy - 70), (cx + 70, cy - 30)], fill=(30, 30, 36, 255), width=24)
+    d.rounded_rectangle((cx + 58, cy - 70, cx + 98, cy - 4), radius=8, fill=(170, 210, 255, 255))
+    out.append({"png": _save(fig, folder, stem, 1), "at": 0.1})
+    if parts[0]:
+        w_ = _new()
+        dd = ImageDraw.Draw(w_)
+        dd.rounded_rectangle((W // 2 - 520, 860, W // 2 + 520, 960), radius=20, fill=(60, 10, 20, 240), outline=RED + (255,), width=6)
+        _label(w_, (W // 2, 910), parts[0].upper(), 54, fill=RED)
+        out.append({"png": _save(w_, folder, stem, 2), "at": 0.45, "blink": 1})
+    if parts[1]:
+        f_ = _new()
+        _small(f_, (W // 2, 1010), parts[1].upper(), 30)
+        out.append({"png": _save(f_, folder, stem, 3), "at": 0.6})
+    return out
+
+
+def _launch(p, folder, stem, raw=""):
+    """Launch arcs: an object hits a trap and the car flies along an arc that draws in steps.
+    'HEAD::2008=SWINGSET|2026=TREE' (one or two arcs)."""
+    head, rest = _split_head(raw, "LAUNCHED INTO ORBIT")
+    items = [(x.split("=", 1) + [""])[:2] for x in rest.split("|") if x.strip()][:2] or [["2008", "SWINGSET"], ["2026", "TREE"]]
+    out = [{"png": _save(_frame(head.upper(), "SAME PHYSICS MEME  ·  18 YEARS APART"), folder, stem, 0), "at": 0.0}]
+    k = 1
+    pal = [AMBER, PINK]
+    n = len(items)
+    for i, (year, trap) in enumerate(items):
+        col = pal[i % 2]
+        x0 = 220 if n == 2 else 560
+        span = 700 if n == 2 else 900
+        x0 += i * 820
+        gy = 900
+        base = _new()
+        d = ImageDraw.Draw(base)
+        d.line([(x0 - 60, gy), (x0 + span + 40, gy)], fill=(255, 255, 255, 140), width=4)
+        if "SWING" in trap.upper():
+            d.line([(x0 - 30, gy), (x0 + 10, gy - 150), (x0 + 50, gy)], fill=WHITE + (230,), width=6)
+            d.line([(x0 + 10, gy - 150), (x0 + 10, gy - 60)], fill=WHITE + (230,), width=3)
+            d.rectangle((x0 - 5, gy - 62, x0 + 25, gy - 54), fill=WHITE + (230,))
+        else:
+            d.rectangle((x0 + 2, gy - 90, x0 + 18, gy), fill=(120, 80, 40, 255))
+            d.ellipse((x0 - 50, gy - 210, x0 + 70, gy - 80), fill=(30, 140, 60, 255))
+        L.pill(base, (x0 - 60, gy + 24), f"{year}  ·  {trap}".upper(), col, 30)
+        out.append({"png": _save(base, folder, stem, k), "at": 0.05 + 0.4 * i})
+        k += 1
+        pts = []
+        for j in range(41):
+            t = j / 40
+            pts.append((x0 + 40 + span * t, gy - 40 - 560 * 4 * t * (1 - t)))
+        for step in range(1, 5):
+            img = _new()
+            d = ImageDraw.Draw(img)
+            seg = pts[: 1 + step * 10]
+            d.line(seg, fill=col + (255,), width=8, joint="curve")
+            cx_, cy_ = seg[-1]
+            d.rounded_rectangle((cx_ - 46, cy_ - 22, cx_ + 46, cy_ + 22), radius=10, fill=WHITE + (255,), outline=col + (255,), width=4)
+            out.append({"png": _save(img, folder, stem, k), "at": 0.1 + 0.4 * i + 0.07 * step})
+            k += 1
+    return out
+
+
+
+# ---------------------------------------------------------------------------------------------------------------- cheat cards
+
+_DIRS = {"U": 0, "R": 90, "D": 180, "L": 270}
+
+
+def _arrow(d, cx, cy, s, dirn, col, cap=(16, 20, 44, 240), edge=None):
+    """One D-pad keycap with an arrow pointing up/right/down/left (drawn, so no font glyphs are needed)."""
+    d.rounded_rectangle((cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2), radius=int(s * .18), fill=cap,
+                        outline=(edge or col) + (255,), width=max(3, int(s * .05)))
+    if dirn not in _DIRS:
+        return
+    a = math.radians(_DIRS[dirn])
+    pts = [(0, -.32), (.26, -.02), (.11, -.02), (.11, .3), (-.11, .3), (-.11, -.02), (-.26, -.02)]
+    out = []
+    for x, y in pts:
+        out.append((cx + s * (x * math.cos(a) - y * math.sin(a)), cy + s * (x * math.sin(a) + y * math.cos(a))))
+    d.polygon(out, fill=col + (255,))
+
+
+def _seq(code: str) -> List[str]:
+    return [c for c in str(code or "").upper() if c in "URDL?"]
+
+
+def _dpad(p, folder, stem, raw=""):
+    """A cheat code typed in arrow by arrow: 'NAME::URDLULDR|unlock rule|CONFIRMED|7' (code '?' = still unknown,
+    last part = how many opening arrows to tint as the shared prefix)."""
+    head, rest = _split_head(raw, "CHEAT CODE")
+    parts = [x.strip() for x in rest.split("|")] + ["", "", "", ""]
+    seq = _seq(parts[0]) or list("?" * 10)
+    rule, status = parts[1], (parts[2] or ("CODE TBC" if "?" in seq else "CODE CONFIRMED")).upper()
+    pre = int(parts[3]) if parts[3].isdigit() else 0
+    out = [{"png": _save(_frame(head.upper(), rule.upper()), folder, stem, 0), "at": 0.0}]
+    n = len(seq)
+    s = min(150, int((W - 260) / n) - 18)
+    gap = s + 18
+    x0 = W // 2 - gap * (n - 1) / 2
+    y = 560
+    base = _new()
+    d = ImageDraw.Draw(base)
+    for i in range(n):
+        d.rounded_rectangle((x0 + i * gap - s / 2, y - s / 2, x0 + i * gap + s / 2, y + s / 2), radius=int(s * .18),
+                            outline=(255, 255, 255, 70), width=3)
+    _small(base, (W // 2, y + s / 2 + 60), "D-PAD ONLY  ·  SAME ON PS5 AND XBOX", 28, fill=(200, 200, 215))
+    out.append({"png": _save(base, folder, stem, 1), "at": 0.02})
+    for i, c in enumerate(seq):
+        img = _new()
+        d = ImageDraw.Draw(img)
+        col = TEAL if i < pre else (AMBER if c == "?" else PINK)
+        _arrow(d, x0 + i * gap, y, s, c, col)
+        if c == "?":
+            _label(img, (x0 + i * gap, y), "?", int(s * .6), fill=AMBER)
+        out.append({"png": _save(img, folder, stem, 2 + i), "at": 0.08 + 0.6 * i / max(1, n), "blink": 1 if c == "?" else 0})
+    if pre:
+        img = _new()
+        d = ImageDraw.Draw(img)
+        xa, xb = x0 - s / 2, x0 + (pre - 1) * gap + s / 2
+        d.line([(xa, y - s / 2 - 30), (xa, y - s / 2 - 50), (xb, y - s / 2 - 50), (xb, y - s / 2 - 30)], fill=TEAL + (255,), width=6)
+        _small(img, ((xa + xb) / 2, y - s / 2 - 85), f"SHARED FIRST {pre}", 30, fill=TEAL)
+        out.append({"png": _save(img, folder, stem, 30), "at": 0.72})
+    img = _new()
+    col = AMBER if "TBC" in status or "?" in seq else GREEN
+    L.pill(img, (W // 2, 880), status, col, 44, anchor="mt")
+    out.append({"png": _save(img, folder, stem, 40), "at": 0.78, "blink": 1 if col == AMBER else 0})
+    return out
+
+
+def _grind(p, folder, stem, raw=""):
+    """A challenge counter filling to its target, then the cheat it unlocks: 'NAME::100|GYM WORKOUTS|BODY ARMOR'."""
+    head, rest = _split_head(raw, "THE GRIND")
+    parts = [x.strip() for x in rest.split("|")] + ["", "", ""]
+    goal, what, prize = parts[0] or "100", parts[1] or "CHALLENGES", parts[2]
+    num = float(re.sub(r"[^0-9.]", "", goal) or 100)
+    out = [{"png": _save(_frame(head.upper(), "UNLOCK REQUIREMENT"), folder, stem, 0), "at": 0.0}]
+    cx, cy, r = W // 2, 600, 250
+    base = _new()
+    d = ImageDraw.Draw(base)
+    d.ellipse((cx - r, cy - r, cx + r, cy + r), outline=(255, 255, 255, 60), width=34)
+    _small(base, (cx, cy + 90), what.upper(), 34 if len(what) < 22 else 26)
+    out.append({"png": _save(base, folder, stem, 1), "at": 0.02})
+    steps = 5
+    for k in range(1, steps + 1):
+        img = _new()
+        d = ImageDraw.Draw(img)
+        frac = k / steps
+        d.rounded_rectangle((cx - 205, cy - 105, cx + 205, cy + 55), radius=30, fill=(22, 28, 58, 255))
+        d.arc((cx - r, cy - r, cx + r, cy + r), -90, -90 + 360 * frac, fill=(GREEN if k == steps else PINK) + (255,), width=34)
+        v = num * frac
+        txt = goal if k == steps else (f"{v:,.0f}" if num >= 10 else f"{v:.1f}")
+        if goal.startswith("$"):
+            txt = goal if k == steps else f"${v:,.0f}"
+        _label(img, (cx, cy - 20), txt, 130 if len(txt) < 6 else 96, fill=GREEN if k == steps else WHITE)
+        out.append({"png": _save(img, folder, stem, 1 + k), "at": 0.06 + 0.13 * (k - 1)})
+    if prize:
+        img = _new()
+        L.pill(img, (W // 2, 935), f"UNLOCKS  ·  {prize.upper()}", GREEN, 46, anchor="mt")
+        out.append({"png": _save(img, folder, stem, 20), "at": 0.72})
+    return out
+
+
+def _grid(p, folder, stem, raw=""):
+    """61 cheat tiles, a few lit and the rest locked: 'HEAD::61|4|UNLOCKED AT THE CREDITS|LOCKED BEHIND CHALLENGES'."""
+    head, rest = _split_head(raw, "ALL 61 CHEATS")
+    parts = [x.strip() for x in rest.split("|")] + ["", "", "", ""]
+    total = int(parts[0]) if parts[0].isdigit() else 61
+    lit = int(parts[1]) if parts[1].isdigit() else 4
+    out = [{"png": _save(_frame(head.upper(), f"{lit} OF {total}"), folder, stem, 0), "at": 0.0}]
+    cols = 13
+    s, gap = 92, 112
+    x0 = W // 2 - gap * (cols - 1) / 2
+    y0 = 330
+    base = _new()
+    d = ImageDraw.Draw(base)
+    for i in range(total):
+        x, y = x0 + (i % cols) * gap, y0 + (i // cols) * gap
+        d.rounded_rectangle((x - s / 2, y - s / 2, x + s / 2, y + s / 2), radius=14, fill=(16, 20, 44, 230), outline=(255, 255, 255, 60), width=3)
+        icon(d, "lock", x, y, s * .62, (120, 125, 150))
+    out.append({"png": _save(base, folder, stem, 1), "at": 0.03})
+    batch = max(1, lit // 6 + 1)
+    k = 2
+    for b in range(0, lit, batch):
+        img = _new()
+        d = ImageDraw.Draw(img)
+        for i in range(b, min(lit, b + batch)):
+            x, y = x0 + (i % cols) * gap, y0 + (i // cols) * gap
+            d.rounded_rectangle((x - s / 2, y - s / 2, x + s / 2, y + s / 2), radius=14, fill=GREEN + (255,), outline=WHITE + (255,), width=4)
+            d.line([(x - 22, y + 2), (x - 6, y + 18), (x + 24, y - 16)], fill=WHITE + (255,), width=9)
+        out.append({"png": _save(img, folder, stem, k), "at": 0.15 + 0.4 * b / max(1, lit)})
+        k += 1
+    img = _new()
+    rows = (total - 1) // cols + 1
+    yb = y0 + rows * gap + 10
+    if parts[2]:
+        _label(img, (W // 2 - 420, yb), f"{lit}  ·  {parts[2].upper()}", 38, fill=GREEN)
+    if parts[3]:
+        _label(img, (W // 2 + 420, yb), f"{total - lit}  ·  {parts[3].upper()}", 38, fill=(190, 190, 205))
+    out.append({"png": _save(img, folder, stem, 40), "at": 0.65})
+    return out
+
+
+def _prefix(p, folder, stem, raw=""):
+    """Codes stacked so their shared opening arrows line up: 'HEAD::MAX AMMO=DURDLLUUDL|INFINITE AMMO=DURDLLUDDD'."""
+    head, rest = _split_head(raw, "THE CODE FAMILY")
+    items = [(a.strip(), _seq(b)) for a, b in (x.split("=", 1) for x in rest.split("|") if "=" in x)][:4]
+    pre = 0
+    if items:
+        while all(len(q) > pre for _n, q in items) and len({q[pre] for _n, q in items}) == 1:
+            pre += 1
+    out = [{"png": _save(_frame(head.upper(), f"SAME FIRST {pre} ARROWS" if pre else ""), folder, stem, 0), "at": 0.0}]
+    s, gap = 88, 102
+    x0 = 720
+    for r, (name, q) in enumerate(items):
+        y = 360 + r * 165
+        img = _new()
+        d = ImageDraw.Draw(img)
+        _label(img, (x0 - 90, y), name.upper(), 44 if len(name) < 14 else 34, anchor="rm")
+        for i, c in enumerate(q):
+            _arrow(d, x0 + i * gap, y, s, c, TEAL if i < pre else PINK)
+        out.append({"png": _save(img, folder, stem, 1 + r), "at": 0.08 + 0.17 * r})
+    if pre and items:
+        img = _new()
+        d = ImageDraw.Draw(img)
+        y1, y2 = 360 - s / 2 - 22, 360 + (len(items) - 1) * 165 + s / 2 + 22
+        d.rounded_rectangle((x0 - s / 2 - 16, y1, x0 + (pre - 1) * gap + s / 2 + 16, y2), radius=20, outline=TEAL + (255,), width=7)
+        _small(img, (x0 + (pre - 1) * gap / 2, y2 + 45), "SAME PREFIX", 32, fill=TEAL)
+        _small(img, (x0 + pre * gap + (max(len(q) for _n, q in items) - pre - 1) * gap / 2, y2 + 45), "PICKS THE CHEAT", 32, fill=PINK)
+        out.append({"png": _save(img, folder, stem, 20), "at": 0.1 + 0.17 * len(items), "blink": 0})
+    return out
+
+
+def _pyramid(p, folder, stem, raw=""):
+    """A ladder of tiers built from the bottom up, top tier glowing: 'HEAD::P-996 LAZER=Every challenge|...|DISCOVER=Bulldozer'."""
+    head, rest = _split_head(raw, "THE UNLOCK LADDER")
+    tiers = [(x.split("=", 1) + [""])[:2] for x in rest.split("|") if x.strip()][:6]
+    n = len(tiers)
+    out = [{"png": _save(_frame(head.upper(), "BOTTOM RUNG TO SUMMIT"), folder, stem, 0), "at": 0.0}]
+    top, bottom = 280, 1010
+    th = (bottom - top) / max(1, n)
+    pal = [AMBER, PINK, (170, 90, 255), TEAL, BLUE, GREEN]
+    for j in range(n):            # j = 0 bottom rung
+        name, note = tiers[n - 1 - j]
+        y2 = bottom - j * th
+        y1 = y2 - th + 14
+        half = 300 + (n - 1 - j) * 110
+        col = pal[(n - 1 - j) % len(pal)]
+        img = _new()
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle((W // 2 - half, y1, W // 2 + half, y2), radius=18, fill=(16, 20, 44, 235), outline=col + (255,), width=6)
+        ym = (y1 + y2) / 2
+        _label(img, (W // 2, ym - (16 if note else 0)), name.upper(), 46 if len(name) < 22 else 34, fill=col)
+        if note:
+            _small(img, (W // 2, ym + 30), note.upper(), 26)
+        out.append({"png": _save(img, folder, stem, 1 + j), "at": 0.06 + 0.7 * j / max(1, n), "blink": 1 if j == n - 1 else 0})
+    return out
+
+
+def _lockout(p, folder, stem, raw=""):
+    """What a cheat switches off, each stamped with a red X: 'HEAD::TROPHIES|ACHIEVEMENTS|MANUAL SAVES|reload a clean save'."""
+    head, rest = _split_head(raw, "CHEAT ACTIVE")
+    parts = [x.strip() for x in rest.split("|") if x.strip()]
+    items, foot = (parts[:-1], parts[-1]) if len(parts) > 3 else (parts or ["TROPHIES", "ACHIEVEMENTS", "SAVING"], "")
+    out = [{"png": _save(_frame(head.upper(), "FOR THE WHOLE SESSION"), folder, stem, 0), "at": 0.0}]
+    n = len(items)
+    bw = 460
+    x0 = W // 2 - (bw + 40) * (n - 1) / 2
+    for i, it in enumerate(items):
+        x = x0 + i * (bw + 40)
+        img = _new()
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle((x - bw / 2, 380, x + bw / 2, 760), radius=30, fill=(16, 20, 44, 235), outline=(255, 255, 255, 120), width=5)
+        _label(img, (x, 712), it.upper(), 44 if len(it) < 12 else 34)
+        out.append({"png": _save(img, folder, stem, 1 + i), "at": 0.05 + 0.08 * i})
+        img = _new()
+        d = ImageDraw.Draw(img)
+        d.line([(x - 110, 420), (x + 110, 650)], fill=RED + (255,), width=26)
+        d.line([(x + 110, 420), (x - 110, 650)], fill=RED + (255,), width=26)
+        out.append({"png": _save(img, folder, stem, 10 + i), "at": 0.3 + 0.12 * i})
+    img = _new()
+    L.pill(img, (W // 2, 880), "DISABLED", RED, 56, anchor="mt")
+    out.append({"png": _save(img, folder, stem, 20), "at": 0.3 + 0.12 * n, "blink": 1})
+    if foot:
+        img = _new()
+        _small(img, (W // 2, 990), foot.upper(), 32, fill=AMBER)
+        out.append({"png": _save(img, folder, stem, 21), "at": 0.75})
+    return out
+
+
+FILTERS = {  # kind -> (tint rgba, label colour)
+    "dark": ((0, 0, 0, 200), (200, 200, 215)), "bubblegum": ((190, 60, 230, 110), (255, 230, 60)),
+    "golden": ((255, 170, 60, 80), AMBER), "dollhouse": ((255, 120, 200, 60), PINK), "migraine": ((255, 255, 255, 40), RED),
+    "pixel": ((40, 200, 120, 40), GREEN), "hellscape": ((200, 20, 10, 120), RED), "fisheye": ((40, 110, 255, 40), BLUE),
+    "videotape": ((30, 40, 60, 60), WHITE), "pinhole": ((0, 0, 0, 0), WHITE), "powdered": ((255, 255, 255, 140), (40, 60, 120)),
+    "neon": ((30, 230, 120, 70), (255, 60, 200)), "yesteryear": ((150, 110, 60, 110), (255, 220, 160)),
+    "faded": ((150, 150, 150, 120), WHITE), "cataclysm": ((230, 80, 20, 110), AMBER), "fast": ((60, 200, 255, 50), TEAL),
+}
+
+
+def _filter(p, folder, stem, raw=""):
+    """A screen-filter preview laid over the shot: 'NAME::kind|how to unlock' (kinds in FILTERS)."""
+    head, rest = _split_head(raw, "SCREEN FILTER")
+    parts = [x.strip() for x in rest.split("|")] + ["", ""]
+    kind = parts[0].lower() or "golden"
+    tint, col = FILTERS.get(kind, FILTERS["golden"])
+    out = []
+    img = _new()
+    d = ImageDraw.Draw(img)
+    d.rectangle((0, 0, W, H), fill=tint)
+    if kind == "golden":
+        d.rectangle((0, 0, W, 170), fill=(0, 0, 0, 255)); d.rectangle((0, H - 170, W, H), fill=(0, 0, 0, 255))
+    elif kind == "dollhouse":
+        d.rectangle((0, 0, 420, H), fill=(0, 0, 0, 255)); d.rectangle((W - 420, 0, W, H), fill=(0, 0, 0, 255))
+    elif kind in ("pinhole", "fisheye"):
+        r = 470 if kind == "pinhole" else 640
+        mask = Image.new("L", (W, H), 255)
+        ImageDraw.Draw(mask).ellipse((W // 2 - r, H // 2 - r, W // 2 + r, H // 2 + r), fill=0)
+        black = Image.new("RGBA", (W, H), (0, 0, 0, 245))
+        img.paste(black, (0, 0), mask)
+    elif kind == "videotape":
+        for y in range(0, H, 6):
+            d.line([(0, y), (W, y)], fill=(0, 0, 0, 70), width=2)
+        L.pill(img, (80, 130), "REC", RED, 40)
+    elif kind == "pixel":
+        for x in range(0, W, 48):
+            d.line([(x, 0), (x, H)], fill=(0, 0, 0, 80), width=3)
+        for y in range(0, H, 48):
+            d.line([(0, y), (W, y)], fill=(0, 0, 0, 80), width=3)
+    elif kind == "migraine":
+        for k in range(9):
+            r = 120 + k * 110
+            d.ellipse((W // 2 - r, H // 2 - r, W // 2 + r, H // 2 + r), outline=(255, 60, 60, 70 - k * 6), width=26)
+    out.append({"png": _save(img, folder, stem, 0), "at": 0.0})
+    t = _new()
+    if kind == "dark":
+        txt = _new()
+        L.shadow_text(txt, (W // 2, 520), "THE WORLD FLIPS UPSIDE DOWN", L.fit("THE WORLD FLIPS UPSIDE DOWN", L.F_HEAD, 84, W - 500))
+        t.alpha_composite(txt.rotate(180))
+    L.shadow_text(t, (W // 2, 150 if kind not in ("golden",) else 260), head.upper(), L.fit(head.upper(), L.F_HEAD, 120, W - 500), fill=col)
+    L.pill(t, (60, 56), "ILLUSTRATION  ·  FILTER PREVIEW", (90, 90, 110), 30)
+    out.append({"png": _save(t, folder, stem, 1), "at": 0.05})
+    if parts[1]:
+        u = _new()
+        L.pill(u, (W // 2, H - 250 if kind != "golden" else H - 260), f"UNLOCK  ·  {parts[1].upper()}", (16, 20, 44), 40, anchor="mt")
+        out.append({"png": _save(u, folder, stem, 2), "at": 0.35})
+    return out
+
 _FN = {"minimap": _minimap, "stars": _stars, "heat": _heat, "tiers": _tiers, "carry": _carry, "capacity": _capacity,
        "cash": _cash, "waink": _waink, "focus": _focus, "economy": _economy, "safe": _safe, "agencies": _agencies,
        "profile": _profile, "checklist": _checklist, "cards": _cards, "stats": _stats,
        "download": _download, "scam": _scam, "unlock": _unlock, "nodisc": _nodisc,
        "garage": _garage, "loop": _loop,
-       "saves": _saves, "controller": _controller, "archive": _archive}
+       "saves": _saves, "controller": _controller, "archive": _archive,
+       "firsts": _firsts, "wasted": _wasted, "stuck": _stuck,
+       "quote": _quote, "void": _void, "launch": _launch,
+       "dpad": _dpad, "grind": _grind, "grid": _grid, "prefix": _prefix, "pyramid": _pyramid, "lockout": _lockout, "filter": _filter}
 
 
 def layers(template: str, params: str, folder: Path, stem: str) -> List[Dict[str, Any]]:
     fn = _FN.get(str(template or "").strip().lower())
     if fn is None:
         raise ValueError(f"unknown hud card '{template}' (use one of: {', '.join(TEMPLATES)})")
-    if fn in (_checklist, _cards, _stats, _download, _scam, _unlock, _nodisc, _garage, _loop, _saves, _controller, _archive):
+    if fn in (_checklist, _cards, _stats, _download, _scam, _unlock, _nodisc, _garage, _loop, _saves, _controller, _archive, _firsts, _wasted, _stuck, _quote, _void, _launch,
+              _dpad, _grind, _grid, _prefix, _pyramid, _lockout, _filter):
         return fn(parse(""), folder, stem, str(params or ""))
     return fn(parse(params), folder, stem)
 

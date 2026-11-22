@@ -7,6 +7,8 @@ Only use a voice that is yours or whose owner agreed.
 """
 from __future__ import annotations
 
+import contextlib
+import hashlib
 import json
 import os
 import subprocess
@@ -43,7 +45,7 @@ def is_ready() -> bool:
     if not py.is_file():
         return False
     try:
-        r = subprocess.run([str(py), "-c", CHECK], capture_output=True, timeout=300, env=_child_env())
+        r = subprocess.run([str(py), "-c", CHECK], capture_output=True, timeout=600, stdin=subprocess.DEVNULL, env=_child_env())      # first torch import on Windows (antivirus scan) can be slow
     except (OSError, subprocess.TimeoutExpired):
         return False
     return r.returncode == 0
@@ -61,14 +63,30 @@ def _child_env() -> dict:
             env.pop(k, None)
     env.setdefault("UV_PYTHON_INSTALL_DIR", str(engine.data_dir() / "uv_python"))   # uv's Python 3.11 lives with the env
     env.setdefault("UV_CACHE_DIR", str(engine.data_dir() / "uv_cache"))
+    env["PYTHONUTF8"] = "1"      # the worker's messages and paths read the same on a Windows code page
+    env["PYTHONIOENCODING"] = "utf-8"
     return env
 
 
+def setup_log() -> Path:
+    """What the one-time setup printed (uv's own messages), so a failed setup on someone's PC can be read afterwards."""
+    return engine.data_dir() / "chatterbox_setup.log"
+
+
 def _run(cmd: list, timeout: int = 3600) -> bool:
+    # utf-8 + replace: uv/pip print non-ASCII (progress marks, names); a Windows code page would raise UnicodeDecodeError here
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=_child_env()).returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
+        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+                           stdin=subprocess.DEVNULL, env=_child_env())
+        ok, out = r.returncode == 0, f"exit {r.returncode}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
+    except (OSError, subprocess.TimeoutExpired) as ex:
+        ok, out = False, f"{type(ex).__name__}: {ex}"
+    try:
+        with open(setup_log(), "a", encoding="utf-8") as f:
+            f.write(f"$ {' '.join(map(str, cmd))}\n{out}\n\n")
+    except OSError:
+        pass
+    return ok
 
 
 def _bundled_uv() -> Optional[Path]:
@@ -158,9 +176,10 @@ def save_reference(src: str, dest: Path, ffmpeg: str = "ffmpeg", seconds: float 
 def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
                ffmpeg: str = "ffmpeg", ffprobe: str = "ffprobe",
                progress: Optional[Callable[[int, int], None]] = None,
-               cancel: Optional[Callable[[], bool]] = None, device: str = "") -> dict:
+               cancel: Optional[Callable[[], bool]] = None, device: str = "", keep_dir: str = "") -> dict:
     """Same result shape as edge_voiceover.synthesize: {'path', 'duration', 'pieces', 'words_path'}.
-    Chatterbox gives no word timings, so the words file is an empty list (later steps then transcribe as usual)."""
+    Chatterbox gives no word timings, so the words file is an empty list (later steps then transcribe as usual).
+    keep_dir: keep the spoken pieces there, so a run that stops (disk full, crash, Stop) picks up where it left off."""
     import edge_voiceover as ev
 
     pieces = ev.split_script(text, MAX_CHUNK_CHARS)
@@ -168,17 +187,23 @@ def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
         raise ValueError("empty script")
     if not Path(ref_wav).is_file():
         raise RuntimeError("this voice has no saved sample for Chatterbox; add the voice again from its recording")
-    with tempfile.TemporaryDirectory() as wd:
+    if keep_dir:
+        os.makedirs(keep_dir, exist_ok=True)
+    with (contextlib.nullcontext(keep_dir) if keep_dir else tempfile.TemporaryDirectory()) as wd:
         job = {"ref": str(ref_wav), "device": device,
-               "pieces": [{"text": t, "out": os.path.join(wd, f"piece_{i:04d}.wav")} for i, t in enumerate(pieces)]}
+               "pieces": [{"text": t, "out": os.path.join(wd, f"piece_{i:04d}_{hashlib.md5(t.encode('utf-8')).hexdigest()[:8]}.wav")}
+                          for i, t in enumerate(pieces)]}
+        todo = [q for q in job["pieces"] if not (os.path.isfile(q["out"]) and os.path.getsize(q["out"]) > 1000)]
         job_path = os.path.join(wd, "job.json")
         with open(job_path, "w", encoding="utf-8") as f:
-            json.dump(job, f)
-        proc = subprocess.Popen([str(env_python()), str(worker_path()), job_path], stdout=subprocess.PIPE,
-                                stderr=subprocess.DEVNULL, text=True, encoding="utf-8", env=_child_env())
-        done, error = 0, ""
+            json.dump({**job, "pieces": todo}, f)
+        done, error = len(pieces) - len(todo), ""
+        proc = None
+        if todo:                                      # every piece already kept from an earlier run: no model load needed
+            proc = subprocess.Popen([str(env_python()), str(worker_path()), job_path], stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                                    stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace", env=_child_env())
         try:
-            for line in proc.stdout:
+            for line in (proc.stdout if proc else []):
                 if cancel and cancel():
                     raise RuntimeError("stopped")
                 try:
@@ -192,10 +217,11 @@ def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
                     if progress:
                         progress(done, len(pieces))
                 elif "ready" in ev_ and progress:
-                    progress(0, len(pieces))
-            proc.wait()
+                    progress(done, len(pieces))
+            if proc:
+                proc.wait()
         finally:
-            if proc.poll() is None:
+            if proc and proc.poll() is None:
                 proc.kill()
                 proc.wait()
         if done < len(pieces):

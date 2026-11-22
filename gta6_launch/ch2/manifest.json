@@ -1,0 +1,627 @@
+{
+  "project": "gta6_chapter2_10_secret_tricks",
+  "title": "10 Secret GTA 6 Chapter 2 Tricks Rockstar Never Tells You (Free Paul Walker Car & Hidden Cash)",
+  "alt_title": "Grab These Secret Early-Game Rewards in GTA 6 Before Chapter 3",
+  "source_narration_file": "gta6_chapter2_10_tricks_narration_only.txt",
+  "voiceover_audio_file": "manual_vo.mp3",
+  "trailer_clips_allowed": false,
+  "verified_spoken_word_count": 1469,
+  "vo_sync_strategy": {
+    "mode": "whisper_forced_alignment_on_manual_vo",
+    "audio_mastering_filter": "highpass=f=80,acompressor=threshold=-18dB:ratio=3:attack=5:release=60,loudnorm=I=-14:TP=-1.5:LRA=11",
+    "instructions": "1) Run faster-whisper or whisper (word_timestamps=True) on the user's uploaded manual voiceover file (manual_vo.mp3 / .wav / .m4a). 2) Match each beat's sync_anchors.start_phrase and sync_anchors.end_phrase (case-insensitive fuzzy match) to lock exact cut_in and cut_out seconds to the user's real pacing. 3) NEVER cut using est_time_range_150wpm \u2014 that is a pacing estimate only.",
+    "source_clip_rule": "Every beat now has exact verified YouTube source_clips (video_id + start -> end MM:SS). Do NOT scrape YouTube captions. Download ONLY these exact source_clips ranges via yt-dlp --download-sections."
+  },
+  "beats": [
+    {
+      "beat_id": "beat01_hook",
+      "section": "Hook: Chapter 2 Broke Start",
+      "word_count": 93,
+      "sync_anchors": {
+        "start_phrase": "GTA Six Chapter Two drops you",
+        "end_phrase": "cost you nearly seven thousand dollars."
+      },
+      "narration_text": "GTA Six Chapter Two drops you at the Starlight Motel with under a hundred and fifty dollars. Linda is already waiting at the front desk with a nine-hundred-dollar bill. Meanwhile, Rockstar hid ten insane early-game secrets right under your nose and never put them in a tutorial. We are talking Paul Walker's free green Eclipse, a talking parrot guarding thirteen hundred bucks, and a hidden serial killer mission with zero map markers. Wait until you hear trick number two, because one wrong click at Moses's garage will cost you nearly seven thousand dollars.",
+      "visual_direction": "Fast 4K montage of Vice City Starlight Motel, green Maibatsu '97 Penumbra (Eclipse), red talking parrot, and Port Gellhorn night streets.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=Ycj28M_Jjlg",
+        "http://www.youtube.com/watch?v=RpPmy591f2Y",
+        "http://www.youtube.com/watch?v=RNCcXLpXchk"
+      ],
+      "transcript_keywords": [
+        "Chapter 2",
+        "Paul Walker",
+        "Eclipse",
+        "Starlight Motel"
+      ],
+      "local_broll_tags": [
+        "starlight_motel",
+        "vice_city_drive",
+        "green_eclipse"
+      ],
+      "overlay_graphics": [
+        "CHAPTER 2 START: <$150 CASH | $900 BILL",
+        "10 SECRET TRICKS ROCKSTAR NEVER TELLS YOU"
+      ],
+      "audio_sfx_cue": "Cash register error buzz -> fast synth bass kick-in",
+      "est_time_range_150wpm_ref_only": "00:00-00:37",
+      "cut_in_sec": 0.0,
+      "cut_out_sec": 32.08,
+      "source_clips": [
+        {
+          "video_id": "Ycj28M_Jjlg",
+          "start": "0:15",
+          "end": "0:28",
+          "scene": "4K Paul Walker green Eclipse driving",
+          "url": "http://www.youtube.com/watch?v=Ycj28M_Jjlg"
+        },
+        {
+          "video_id": "RpPmy591f2Y",
+          "start": "0:02",
+          "end": "0:06",
+          "scene": "Red talking parrot in cage",
+          "url": "http://www.youtube.com/watch?v=RpPmy591f2Y"
+        },
+        {
+          "video_id": "skD4GeYV94g",
+          "start": "1:15",
+          "end": "1:21",
+          "scene": "Opening pink PRTYGRL trunk",
+          "url": "http://www.youtube.com/watch?v=skD4GeYV94g"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat02_trick1_eclipse",
+      "section": "Trick #1: Free Paul Walker's Eclipse (Maibatsu '97 Penumbra)",
+      "word_count": 157,
+      "sync_anchors": {
+        "start_phrase": "Trick number one: grab Paul Walker's",
+        "end_phrase": "the fastest starter cars in Leonida."
+      },
+      "narration_text": "Trick number one: grab Paul Walker's iconic green Mitsubishi Eclipse for free before doing anything else. In-game, it is called the Maibatsu ninety-seven Penumbra, complete with the bright green paint, blue wave graphics, and massive rear spoiler. Head over to Vespucci Island in the Rialto Islands just east of Vice City. Drive along the eastern beach until you hit the bridge, stop at the first crossroad, turn left, and look at the first house on your right. Walk up to the small side door next to the garage and force it open, or pop it with a Snap Gun. Now stop\u2014do not jump straight into the car when the garage opens. Find the alarm switch on the far wall and cut it first, or the cops get pinged the second you roll out. Once the alarm is dead, smash the window, hotwire the Eclipse, and peel out with one of the fastest starter cars in Leonida.",
+      "visual_direction": "Show Vespucci Island map zoom -> villa side garage door -> cutting the wall alarm switch -> hotwiring the bright green Maibatsu '97 Penumbra.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=g6pNfpij-JE",
+        "http://www.youtube.com/watch?v=9pzx9OtMDiI",
+        "http://www.youtube.com/watch?v=Ycj28M_Jjlg"
+      ],
+      "transcript_keywords": [
+        "Paul Walker",
+        "Eclipse",
+        "Vespucci Island",
+        "Penumbra"
+      ],
+      "local_broll_tags": [
+        "green_eclipse",
+        "vespucci_island",
+        "garage_heist"
+      ],
+      "overlay_graphics": [
+        "TRICK #1: FREE PAUL WALKER ECLIPSE (VESPUCCI ISLAND)",
+        "CRITICAL: CUT WALL ALARM SWITCH FIRST!"
+      ],
+      "audio_sfx_cue": "Wire-snip SFX -> glass shatter -> turbo engine rev",
+      "est_time_range_150wpm_ref_only": "00:37-01:40",
+      "cut_in_sec": 32.08,
+      "cut_out_sec": 83.32,
+      "source_clips": [
+        {
+          "video_id": "g6pNfpij-JE",
+          "start": "0:12",
+          "end": "0:52",
+          "scene": "Map to Vespucci Island, side garage door, green Eclipse reveal",
+          "url": "http://www.youtube.com/watch?v=g6pNfpij-JE"
+        },
+        {
+          "video_id": "9pzx9OtMDiI",
+          "start": "0:24",
+          "end": "0:44",
+          "scene": "Breaking into villa & hotwiring Eclipse",
+          "url": "http://www.youtube.com/watch?v=9pzx9OtMDiI"
+        },
+        {
+          "video_id": "Ycj28M_Jjlg",
+          "start": "0:30",
+          "end": "1:10",
+          "scene": "4K HDR Eclipse driving",
+          "url": "http://www.youtube.com/watch?v=Ycj28M_Jjlg"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat03_trick2_moses",
+      "section": "Trick #2: Save $6,750 on Free Car Registration with Moses",
+      "word_count": 133,
+      "sync_anchors": {
+        "start_phrase": "That leads straight into trick number",
+        "end_phrase": "property app to store it safely."
+      },
+      "narration_text": "That leads straight into trick number two, the single biggest rookie mistake in Chapter Two. When you meet Moses the mechanic, he offers to register your very first vehicle completely free. Most players pull up in whatever beat-up street car they stole ten minutes ago and burn that free slot forever. If you waste it and bring Paul Walker's Eclipse to Moses later, he charges you six thousand seven hundred and fifty dollars out of your BuckMe account. So do it in this exact order: steal the Eclipse first, finish Moses's intro mission, and hand him the Eclipse as your free registration. Just remember two quick catches: Moses refuses any car with a tracker, and you will need to buy a four-thousand-dollar garage space on your phone property app to store it safely.",
+      "visual_direction": "Show Moses mechanic garage scene + side-by-side price popup: 'FIRST REGISTRATION: FREE' vs 'LATER REGISTRATION: $6,750'.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=dpBIWMPm_28",
+        "http://www.youtube.com/watch?v=yBssT_OwdXs",
+        "http://www.youtube.com/watch?v=g6pNfpij-JE"
+      ],
+      "transcript_keywords": [
+        "Moses",
+        "register",
+        "free",
+        "6750"
+      ],
+      "local_broll_tags": [
+        "mechanic_garage",
+        "green_eclipse",
+        "in_game_phone"
+      ],
+      "overlay_graphics": [
+        "TRICK #2: FREE REGISTRATION ORDER = SAVE $6,750",
+        "NO TRACKER | ~$4,000 GARAGE SPACE NEEDED"
+      ],
+      "audio_sfx_cue": "Cash register ka-ching + green check chime",
+      "est_time_range_150wpm_ref_only": "01:40-02:33",
+      "cut_in_sec": 83.32,
+      "cut_out_sec": 129.14,
+      "source_clips": [
+        {
+          "video_id": "g6pNfpij-JE",
+          "start": "0:54",
+          "end": "1:16",
+          "scene": "Chapter 2 car registration & keeping Eclipse",
+          "url": "http://www.youtube.com/watch?v=g6pNfpij-JE"
+        },
+        {
+          "video_id": "dpBIWMPm_28",
+          "start": "0:30",
+          "end": "1:15",
+          "scene": "4K60 Eclipse showcase",
+          "url": "http://www.youtube.com/watch?v=dpBIWMPm_28"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat04_trick3_rydeme",
+      "section": "Trick #3: Instant Fast-Travel Hack with RydeMe",
+      "word_count": 96,
+      "sync_anchors": {
+        "start_phrase": "Now if you do not feel",
+        "end_phrase": "take cash out of your pocket."
+      },
+      "narration_text": "Now if you do not feel like driving all the way out to Vespucci Island in a slow junker, use trick number three. Open the RydeMe app on your in-game phone and book a ride straight across town. Once the driver pulls up, pay the extra one hundred dollars to skip the journey and teleport straight to the island instantly. Leave your old starter car behind\u2014you are driving back in the green Eclipse anyway. Just make sure your BuckMe account actually has money in it, because RydeMe will not take cash out of your pocket.",
+      "visual_direction": "Show in-game smartphone RydeMe app booking + instant fast-travel cut to Vespucci Island beach.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=zzJrBYsV39Y",
+        "http://www.youtube.com/watch?v=NuuGDSumo8Y",
+        "http://www.youtube.com/watch?v=K-uFahxraLM"
+      ],
+      "transcript_keywords": [
+        "RydeMe",
+        "fast travel",
+        "BuckMe"
+      ],
+      "local_broll_tags": [
+        "in_game_phone",
+        "vice_city_drive"
+      ],
+      "overlay_graphics": [
+        "TRICK #3: RYDEME + $100 SKIP = INSTANT FAST TRAVEL",
+        "REQUIRES BUCKME BALANCE (NO CASH)"
+      ],
+      "audio_sfx_cue": "Phone notification ping -> whoosh teleport cut",
+      "est_time_range_150wpm_ref_only": "02:33-03:12",
+      "cut_in_sec": 129.14,
+      "cut_out_sec": 158.48,
+      "source_clips": [
+        {
+          "video_id": "zzJrBYsV39Y",
+          "start": "10:18",
+          "end": "10:44",
+          "scene": "Exact $100 fast-travel skip ride",
+          "url": "http://www.youtube.com/watch?v=zzJrBYsV39Y"
+        },
+        {
+          "video_id": "NuuGDSumo8Y",
+          "start": "1:00",
+          "end": "1:35",
+          "scene": "4K Vice City driving B-roll",
+          "url": "http://www.youtube.com/watch?v=NuuGDSumo8Y"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat05_trick4_parrot",
+      "section": "Trick #4: The Talking Parrot $1,300+ Secret Cash Stash",
+      "word_count": 163,
+      "sync_anchors": {
+        "start_phrase": "Need instant pocket money right at",
+        "end_phrase": "thirteen hundred dollars in free cash."
+      },
+      "narration_text": "Need instant pocket money right at the start of the game? Trick number four is genuinely hilarious. Talk to your neighbor Shirley early on, and she sends you down to Three Sheets Liquor to pick up some rum. While you are inside buying the bottle, listen closely\u2014the shop owner yells at noisy animals locked in a back room. Deliver the rum to Shirley first, then head right back to Three Sheets Liquor. Whatever you do, do not try walking behind the counter, because the owner will immediately flip out. Instead, hop the fence around the side of the building and clear out the criminals hanging around out back. You will find a bright red talking parrot trapped in a cage\u2014and if you listen to what it squawks, it drops clues about cash and a generator. Walk right over to the generator, check the grate hidden in the wall next to it, and pull out over thirteen hundred dollars in free cash.",
+      "visual_direction": "Show Three Sheets Liquor storefront -> hopping side fence -> caged red talking parrot -> pulling $1,300+ from wall grate beside the generator.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=RpPmy591f2Y",
+        "http://www.youtube.com/watch?v=KrLUtGZw7lQ"
+      ],
+      "transcript_keywords": [
+        "parrot",
+        "Three Sheets Liquor",
+        "Shirley",
+        "generator"
+      ],
+      "local_broll_tags": [
+        "liquor_store",
+        "talking_parrot",
+        "hidden_cash"
+      ],
+      "overlay_graphics": [
+        "TRICK #4: THREE SHEETS LIQUOR TALKING PARROT",
+        "CHECK GRATE BY GENERATOR -> $1,300+ FREE CASH"
+      ],
+      "audio_sfx_cue": "Parrot squawk accent -> metal grate clank -> cash stack sound",
+      "est_time_range_150wpm_ref_only": "03:12-04:17",
+      "cut_in_sec": 158.48,
+      "cut_out_sec": 209.16,
+      "source_clips": [
+        {
+          "video_id": "RpPmy591f2Y",
+          "start": "0:07",
+          "end": "0:33",
+          "scene": "Shirley -> Three Sheets Liquor -> fence hop -> talking parrot -> generator grate +$1,392",
+          "url": "http://www.youtube.com/watch?v=RpPmy591f2Y"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat06_trick5_raceway",
+      "section": "Trick #5: $2,500 Every 2 Minutes at Gellhorn Raceway",
+      "word_count": 114,
+      "sync_anchors": {
+        "start_phrase": "Okay, thirteen hundred bucks pays Linda",
+        "end_phrase": "early-game money problems are completely solved."
+      },
+      "narration_text": "Okay, thirteen hundred bucks pays Linda off\u2014but what if you want fast repeatable cash for guns and a garage? Trick number five: drive your new Eclipse straight over to Gellhorn Raceway Motorsports Park. Pick the short loop race\u2014it is only three quick laps and takes just over two minutes from start to finish. You can rent a track car if you want, but bringing your own Eclipse skips the rental fee completely. Wait until the final corner, nudge the inside line to take first place, and you pocket two thousand five hundred dollars per win. Run it three or four times in ten minutes and your early-game money problems are completely solved.",
+      "visual_direction": "High-speed 4K racing footage at Gellhorn Raceway Motorsports Park with animated '+$2,500 / 2 MINS' counter.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=qIPDHfdegC0",
+        "http://www.youtube.com/watch?v=ArZq_WFh28Q",
+        "http://www.youtube.com/watch?v=lWv7v8EsrKc"
+      ],
+      "transcript_keywords": [
+        "Gellhorn Raceway",
+        "short loop",
+        "2500",
+        "fast cash"
+      ],
+      "local_broll_tags": [
+        "street_racing",
+        "green_eclipse",
+        "vice_city_drive"
+      ],
+      "overlay_graphics": [
+        "TRICK #5: GELLHORN RACEWAY SHORT LOOP",
+        "3 LAPS (~2 MINS) = $2,500 PER WIN"
+      ],
+      "audio_sfx_cue": "Race countdown beeps -> checkered flag synth hit",
+      "est_time_range_150wpm_ref_only": "04:17-05:02",
+      "cut_in_sec": 209.16,
+      "cut_out_sec": 246.58,
+      "source_clips": [
+        {
+          "video_id": "qIPDHfdegC0",
+          "start": "0:30",
+          "end": "1:15",
+          "scene": "Gellhorn Raceway circuit racing",
+          "url": "http://www.youtube.com/watch?v=qIPDHfdegC0"
+        },
+        {
+          "video_id": "ArZq_WFh28Q",
+          "start": "1:00",
+          "end": "1:40",
+          "scene": "4K Gellhorn Raceway run",
+          "url": "http://www.youtube.com/watch?v=ArZq_WFh28Q"
+        },
+        {
+          "video_id": "lWv7v8EsrKc",
+          "start": "0:20",
+          "end": "1:00",
+          "scene": "Gellhorn Raceway track",
+          "url": "http://www.youtube.com/watch?v=lWv7v8EsrKc"
+        }
+      ],
+      "_match": 0.75
+    },
+    {
+      "beat_id": "beat07_trick6_buckme",
+      "section": "Trick #6: Deposit Cash to BuckMe or Lose It All",
+      "word_count": 111,
+      "sync_anchors": {
+        "start_phrase": "Before you celebrate that racetrack money,",
+        "end_phrase": "not treat it like a tank."
+      },
+      "narration_text": "Before you celebrate that racetrack money, remember trick number six or you will learn it the hard way. In GTA Six, if you get wasted or busted by the cops, the cash sitting in your pocket is completely gone. On top of that, major early-game services like Moses's garage and the RydeMe app only accept digital BuckMe transfers, not paper cash. So after every race or stash pickup, stop at the nearest ATM or open your banking app and deposit everything immediately. Also keep one eye on the Eclipse's bumper\u2014it is insanely fast for escaping cops, but it takes crash damage quickly, so do not treat it like a tank.",
+      "visual_direction": "Show ATM / BuckMe banking deposit screen + police chase close-call warning banner.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=yBssT_OwdXs",
+        "http://www.youtube.com/watch?v=8-DRGbQ1IXc",
+        "http://www.youtube.com/watch?v=KrLUtGZw7lQ"
+      ],
+      "transcript_keywords": [
+        "BuckMe",
+        "ATM",
+        "deposit",
+        "arrested"
+      ],
+      "local_broll_tags": [
+        "in_game_phone",
+        "police_chase_night"
+      ],
+      "overlay_graphics": [
+        "TRICK #6: DEPOSIT TO BUCKME IMMEDIATELY",
+        "DEATH OR ARREST = POCKET CASH GONE"
+      ],
+      "audio_sfx_cue": "ATM beep -> warning siren fade",
+      "est_time_range_150wpm_ref_only": "05:02-05:47",
+      "cut_in_sec": 246.58,
+      "cut_out_sec": 285.16,
+      "source_clips": [
+        {
+          "video_id": "zzJrBYsV39Y",
+          "start": "12:14",
+          "end": "12:32",
+          "scene": "Cash loss on death/arrest & stashing cash",
+          "url": "http://www.youtube.com/watch?v=zzJrBYsV39Y"
+        },
+        {
+          "video_id": "8-DRGbQ1IXc",
+          "start": "0:45",
+          "end": "1:15",
+          "scene": "5-star police chase B-roll",
+          "url": "http://www.youtube.com/watch?v=8-DRGbQ1IXc"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat08_trick7_safecodes",
+      "section": "Trick #7: All 3 Port Gellhorn Safe Codes + The Wall Map Trick",
+      "word_count": 125,
+      "sync_anchors": {
+        "start_phrase": "Now let's grab easy heist money",
+        "end_phrase": "all three safe codes for you."
+      },
+      "narration_text": "Now let's grab easy heist money in Port Gellhorn with trick number seven: all three Chapter Two safe codes. Yes, you can blow locked safes open with Sticky Bombs, except explosions instantly alert every enemy nearby and bring the cops down on you. Instead, here are the exact silent codes you can punch in right now: Brooks Boatworks is six-eight-two-three, La Cascara Motel is six-nine-six-nine, and Kingpin Bowling is zero-three-zero-zero. Even better, if you want the game to auto-display all three codes on your HUD forever, sneak through the hole in the east fence at Brooks Boatworks. Head up the stairs of the gray building, walk inside, and hold L2 on the wall map\u2014and GTA Six automatically logs all three safe codes for you.",
+      "visual_direction": "Show Brooks Boatworks fence entry -> studying the wall map -> clean graphic card displaying all 3 Port Gellhorn safe codes (`6823`, `6969`, `0300`).",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=VZ9CtYNHvV0",
+        "http://www.youtube.com/watch?v=1GID4FmRVNo"
+      ],
+      "transcript_keywords": [
+        "Brooks Boatworks",
+        "6823",
+        "La Cascara Motel",
+        "6969",
+        "Kingpin Bowling",
+        "0300"
+      ],
+      "local_broll_tags": [
+        "safe_cracking",
+        "port_gellhorn"
+      ],
+      "overlay_graphics": [
+        "TRICK #7: PORT GELLHORN SAFE CODES",
+        "BROOKS: 6823 | LA CASCARA: 6969 | KINGPIN: 0300"
+      ],
+      "audio_sfx_cue": "Safe dial clicks -> metallic vault unlock chime",
+      "est_time_range_150wpm_ref_only": "05:47-06:37",
+      "cut_in_sec": 285.16,
+      "cut_out_sec": 332.58,
+      "source_clips": [
+        {
+          "video_id": "VZ9CtYNHvV0",
+          "start": "0:01",
+          "end": "0:30",
+          "scene": "Lucia at safe + 6969 La Cascara + 6823 Brooks Boatworks + Sticky Bomb",
+          "url": "http://www.youtube.com/watch?v=VZ9CtYNHvV0"
+        },
+        {
+          "video_id": "1GID4FmRVNo",
+          "start": "0:20",
+          "end": "0:55",
+          "scene": "16:9 safe unlocking gameplay",
+          "url": "http://www.youtube.com/watch?v=1GID4FmRVNo"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat09_trick8_shortcuts1",
+      "section": "Trick #8: Hidden Car Shortcuts Rockstar Never Tutorials",
+      "word_count": 114,
+      "sync_anchors": {
+        "start_phrase": "Next up, trick number eight: three",
+        "end_phrase": "out the window at bad drivers."
+      },
+      "narration_text": "Next up, trick number eight: three hidden driving shortcuts that even players a hundred and fifty hours deep are just discovering. Tired of opening a clunky radial menu just to shut off the car radio? Double-tap Left on the D-pad and Jason or Lucia toggles the radio instantly. Want to kill your headlights when hiding from cops at night? Double-tap Circle on PlayStation or B on Xbox to cycle between off, low beams, and high beams. And when Leonida's crazy NPC drivers cut you off in traffic, click the Right Stick in. Rockstar literally built in a secret road rage button so Jason and Lucia can yell straight out the window at bad drivers.",
+      "visual_direction": "4K first-person Vice City night driving with crisp controller overlay icons popping in for D-Pad Left x2, Circle/B x2, and R3 click.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=zzJrBYsV39Y",
+        "http://www.youtube.com/watch?v=zKgWV5JoeW4",
+        "http://www.youtube.com/watch?v=NuuGDSumo8Y"
+      ],
+      "transcript_keywords": [
+        "radio",
+        "headlights",
+        "D-pad",
+        "road rage"
+      ],
+      "local_broll_tags": [
+        "first_person_drive",
+        "vice_city_night_drive"
+      ],
+      "overlay_graphics": [
+        "TRICK #8: HIDDEN CAR SHORTCUTS",
+        "LEFT x2: RADIO | CIRCLE/B x2: LIGHTS | R3: ROAD RAGE"
+      ],
+      "audio_sfx_cue": "Controller button click SFX synced to each shortcut",
+      "est_time_range_150wpm_ref_only": "06:37-07:22",
+      "cut_in_sec": 332.58,
+      "cut_out_sec": 373.18,
+      "source_clips": [
+        {
+          "video_id": "ED4APpkviAU",
+          "start": "1:07",
+          "end": "1:20",
+          "scene": "Car menu, radio toggle, blinkers",
+          "url": "http://www.youtube.com/watch?v=ED4APpkviAU"
+        },
+        {
+          "video_id": "zzJrBYsV39Y",
+          "start": "3:50",
+          "end": "4:18",
+          "scene": "D-pad driving controls",
+          "url": "http://www.youtube.com/watch?v=zzJrBYsV39Y"
+        },
+        {
+          "video_id": "zKgWV5JoeW4",
+          "start": "0:40",
+          "end": "1:15",
+          "scene": "First-person 4K driving",
+          "url": "http://www.youtube.com/watch?v=zKgWV5JoeW4"
+        }
+      ],
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat10_trick9_shortcuts2",
+      "section": "Trick #9: Roll-Out Car Trap & Auto-Cruise Boat Trick",
+      "word_count": 103,
+      "sync_anchors": {
+        "start_phrase": "Wait\u2014Rockstar hid one more double-tap shortcut",
+        "end_phrase": "cruising across Vice City on autopilot."
+      },
+      "narration_text": "Wait\u2014Rockstar hid one more double-tap shortcut that actually wins gunfights, and that is trick number nine. While driving any car, double-tap Triangle on PlayStation or Y on Xbox to hop out while leaving the engine and radio running. Do that at full speed toward a gang hideout, and your character dives safely out the side while your car slams straight into the enemy barricade like a guided missile. And it works on water too: double-tap Triangle or Y while steering a boat, and you can stand up and walk around the deck while the boat keeps cruising across Vice City on autopilot.",
+      "visual_direction": "Show car ghost-riding/bailout action + cruising on a boat deck in Leonida ocean waters.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=ED4APpkviAU",
+        "http://www.youtube.com/watch?v=APhhOVif-3o",
+        "http://www.youtube.com/watch?v=o46Cdr9Vnq0"
+      ],
+      "transcript_keywords": [
+        "Triangle",
+        "boat",
+        "engine running",
+        "jump out"
+      ],
+      "local_broll_tags": [
+        "boat_ocean_cruise",
+        "police_chase_night"
+      ],
+      "overlay_graphics": [
+        "TRICK #9: DOUBLE-TAP TRIANGLE / Y",
+        "CAR: ENGINE-ON BAILOUT | BOAT: AUTOPILOT DECK WALK"
+      ],
+      "audio_sfx_cue": "Tire screech + ocean wave whoosh",
+      "est_time_range_150wpm_ref_only": "07:22-08:04",
+      "cut_in_sec": 373.18,
+      "cut_out_sec": 407.64,
+      "source_clips": [
+        {
+          "video_id": "ED4APpkviAU",
+          "start": "0:41",
+          "end": "0:59",
+          "scene": "Double-tap Triangle to keep car running & getaway",
+          "url": "http://www.youtube.com/watch?v=ED4APpkviAU"
+        },
+        {
+          "video_id": "APhhOVif-3o",
+          "start": "0:30",
+          "end": "0:55",
+          "scene": "Water / jetski cruising",
+          "url": "http://www.youtube.com/watch?v=APhhOVif-3o"
+        },
+        {
+          "video_id": "o46Cdr9Vnq0",
+          "start": "0:30",
+          "end": "1:00",
+          "scene": "Ocean boat cruising",
+          "url": "http://www.youtube.com/watch?v=o46Cdr9Vnq0"
+        }
+      ],
+      "_match": 0.78
+    },
+    {
+      "beat_id": "beat11_trick10_tourists",
+      "section": "Trick #10: The Unmarked Port Gellhorn Serial Killer Mission (Alvan West)",
+      "word_count": 260,
+      "sync_anchors": {
+        "start_phrase": "Finally, trick number ten\u2014easily the creepiest",
+        "end_phrase": "for more daily GTA Six discoveries!"
+      },
+      "narration_text": "Finally, trick number ten\u2014easily the creepiest hidden mission in Chapter Two, and almost everyone walks right past it. Inside the motel, you will spot missing-tourist posters that add a Port Gellhorn tipline to your phone\u2014except nobody picks up and zero markers appear on your map. To trigger it, drive to the warehouse bunker just east of Moses's shop in Port Gellhorn. The front shutter slams shut halfway, so crawl through the hole in the right-side wall to find a serial killer's shrine with three vague victim photos. Here are all three exact locations so you do not search for hours: victim one is inside the trunk of a bright pink car with a PRTYGRL plate at the junkyard east of the Port Gellhorn Pay 'n' Spray. Victim two is hidden beneath the floorboards of the first enterable trailer by the giant water tower north of town. Victim three is inside a submerged car in the alligator-packed lake west of Port Gellhorn near Wild Hog Point. Call the tipline at each body, then return to the bunker to meet Alvan West\u2014he tells you to check the fifth locker, where you find a photo of Jason and Lucia. After he hits you with chloroform, you switch to your partner, track him to an eerie mine, dig your partner out from under a pile of rocks, and take Alvan down for good. Which of these ten Chapter Two secrets did you miss on your first run? Drop it in the comments below and subscribe for more daily GTA Six discoveries!",
+      "visual_direction": "Dark atmospheric Port Gellhorn warehouse & swamp footage with clean 3-location checklist cards (Junkyard PRTYGRL -> North Water Tower Trailer -> Wild Hog Point Submerged Car) -> CTA outro.",
+      "primary_youtube_urls": [
+        "http://www.youtube.com/watch?v=RNCcXLpXchk",
+        "http://www.youtube.com/watch?v=skD4GeYV94g"
+      ],
+      "transcript_keywords": [
+        "Port Gellhorn",
+        "missing tourists",
+        "PRTYGRL",
+        "Alvan West"
+      ],
+      "local_broll_tags": [
+        "port_gellhorn_night",
+        "swamp_alligators",
+        "warehouse_bunker"
+      ],
+      "overlay_graphics": [
+        "TRICK #10: UNMARKED SERIAL KILLER (ALVAN WEST)",
+        "1. PRTYGRL JUNKYARD | 2. WATER TOWER TRAILER | 3. WILD HOG LAKE"
+      ],
+      "audio_sfx_cue": "Eerie low horror drone -> tense heartbeat -> upbeat outro swell",
+      "est_time_range_150wpm_ref_only": "08:04-09:48",
+      "cut_in_sec": 407.64,
+      "cut_out_sec": 494.686,
+      "source_clips": [
+        {
+          "video_id": "RNCcXLpXchk",
+          "start": "0:00",
+          "end": "0:20",
+          "scene": "Motel posters & bunker east of Moses",
+          "url": "http://www.youtube.com/watch?v=RNCcXLpXchk"
+        },
+        {
+          "video_id": "skD4GeYV94g",
+          "start": "0:57",
+          "end": "1:28",
+          "scene": "Victim #1: Junkyard pink PRTYGRL trunk + report",
+          "url": "http://www.youtube.com/watch?v=skD4GeYV94g"
+        },
+        {
+          "video_id": "skD4GeYV94g",
+          "start": "0:11",
+          "end": "0:44",
+          "scene": "Victim #2: Water tower trailer floorboards + report",
+          "url": "http://www.youtube.com/watch?v=skD4GeYV94g"
+        },
+        {
+          "video_id": "skD4GeYV94g",
+          "start": "1:45",
+          "end": "2:16",
+          "scene": "Victim #3: Swamp lake submerged car + flashlight skeleton",
+          "url": "http://www.youtube.com/watch?v=skD4GeYV94g"
+        }
+      ],
+      "_match": 0.96
+    }
+  ],
+  "voiceover_source": "user_manual_recording (accepts .mp3, .wav, .m4a)",
+  "est_runtime_150wpm_mmss": "09:48",
+  "vo_duration_sec": 494.686
+}

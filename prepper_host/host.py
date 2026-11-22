@@ -13,6 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 HOSTS = ROOT / "out" / "prepper_host" / "hosts"
 
 DALE = {
+    "voice": "Algenib",   # Flow's own voice (Voices tab: "Male, gravelly, low pitch"), the same in every clip
+    "voice_performance": "calm, warm, unhurried rancher in his late fifties, plain-spoken, a little dry humour",
     "name": "Dale",
     "tagline": "30 years on a working ranch",
     "look": ("Dale, a weathered American man in his late fifties, short grey hair, short salt-and-pepper beard, deep smile lines, "

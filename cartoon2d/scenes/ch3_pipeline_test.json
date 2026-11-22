@@ -1,0 +1,146 @@
+{
+ "voices": {
+  "lina": {
+   "voice": "en-US-AvaNeural",
+   "rate": "-4%",
+   "pitch": "+0Hz"
+  },
+  "nia": {
+   "voice": "en-US-AnaNeural",
+   "rate": "-2%",
+   "pitch": "-6Hz"
+  },
+  "poppy": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+2%",
+   "pitch": "+4Hz"
+  },
+  "tobi": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+8%",
+   "pitch": "-16Hz"
+  },
+  "rosie": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+6%",
+   "pitch": "+10Hz"
+  },
+  "fizz": {
+   "voice": "en-US-GuyNeural",
+   "rate": "+4%",
+   "pitch": "+18Hz"
+  },
+  "pip": {
+   "voice": "en-US-AnaNeural",
+   "rate": "+10%",
+   "pitch": "-24Hz"
+  },
+  "dot": {
+   "voice": "en-US-GuyNeural",
+   "rate": "-6%",
+   "pitch": "+8Hz"
+  }
+ },
+ "bpm": 104,
+ "lead_in": 0.6,
+ "gap": 0.45,
+ "tail": 22.0,
+ "lines": [
+  {
+   "who": "fizz",
+   "text": "Oh no! A little duckling is lost!",
+   "act": "hands_up",
+   "place": "gate",
+   "cam": "group",
+   "pic": "mama_duck",
+   "goal": true
+  },
+  {
+   "who": "tobi",
+   "text": "I want to find it! But the big slide is scary.",
+   "beat": "want",
+   "act": "wobble",
+   "cam": "kids"
+  },
+  {
+   "who": "lina",
+   "text": "Let's go and look, one little step at a time!",
+   "act": "open",
+   "cam": "host",
+   "title": "Test\nStory!"
+  },
+  {
+   "who": [
+    "lina",
+    "tobi",
+    "rosie",
+    "fizz"
+   ],
+   "text": "The big slide!",
+   "act": "run",
+   "also": {},
+   "place": "slide",
+   "title": "Slide\nTime!",
+   "cam": "group",
+   "chapter": "Slide Time!",
+   "sfx": "whoosh",
+   "gap_after": 0.5
+  },
+  {
+   "who": "rosie",
+   "text": "There it is, at the top of the slide!",
+   "find": {
+    "pic": "duckling",
+    "x": 0.306,
+    "y": 0.84,
+    "size": 0.11,
+    "on": "slide",
+    "who": "tobi"
+   },
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "tobi",
+   "text": "I'll climb up and bring it down! Wheee!",
+   "act": "cheer",
+   "game": {
+    "type": "slide",
+    "who": "tobi"
+   },
+   "cam": "group",
+   "gap_after": 0.8
+  },
+  {
+   "who": "tobi",
+   "text": "Got it! I did it!",
+   "found": "duckling",
+   "sfx": "ding_3",
+   "fx": "stars",
+   "act": "point",
+   "cam": "group"
+  },
+  {
+   "who": "lina",
+   "text": "Can you say brave? Brave!",
+   "act": "cheer",
+   "cam": "host",
+   "card": "BRAVE",
+   "gap_after": 2.2,
+   "your_turn": true
+  },
+  {
+   "who": [
+    "lina",
+    "tobi",
+    "rosie",
+    "fizz"
+   ],
+   "text": "Bye bye, friends!",
+   "act": "wave",
+   "cam": "group",
+   "endcard": "Bye bye!"
+  }
+ ],
+ "learn": []
+}

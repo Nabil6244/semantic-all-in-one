@@ -121,4 +121,11 @@ Flow voice (2026-11-21, Host mode "Flow voice"): every line on a host / split / 
 of the host saying it (pieces of up to 18 words; prepper_host/flowvoice.py). The speech is cut out of the clip, levelled and laid
 into the voice track; the other lines stay on the Edge voice. Lips match on those shots. One clip per host line, kept in
 out/prepper_host/library/say_*.mp4 and reused. A line Flow could not make stays on Edge. CLI: --flow-voice.
+Same voice everywhere: Flow has no named voice (the video model makes one per clip), so his Flow voice is copied instead.
+~20 s of speech from his spoken clips becomes out/prepper_host/hosts/<name>/flow_voice_sample.wav, and the Chatterbox clone
+(Voiceover tab engine) speaks every other line from it in one model load; a line the clone misses falls back to Edge.
+Flow's own voice (2026-11-21): the composer's "+" picker has a Voices tab (Algenib, Charon, Achird... the Gemini voice names).
+Dale is Algenib ("Male, gravelly, low pitch"), set in his host.json with a performance note; every clip attaches it.
+A clip costs 10 Flow credits (8 s, Veo 3.1 Lite); when an account has none left the agent says so in its chat and the engine
+stops at once and moves on.
 

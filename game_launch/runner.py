@@ -1157,6 +1157,8 @@ def short_spans(shots, vo, total) -> List[Dict[str, Any]]:
     starts = [at - 0.15 for _p, at in vo]
     ends = starts[1:] + [total]
     chap = [s for s in shots if s["kind"] == "chapter"]
+    if not chap:                                      # a countdown video: one Short per top-5 entry, from its rank card
+        chap = [s for s in shots if s["kind"] == "rank"][-5:]
     spans = []
     for k, c in enumerate(chap):
         first = c["line"]
@@ -1167,7 +1169,9 @@ def short_spans(shots, vo, total) -> List[Dict[str, Any]]:
         if b - a < 10.0:
             continue
         sub = next((s["right"] for s in shots if first <= s["line"] <= last and s["kind"] == "split" and s["right"]), "")
-        spans.append({"start": max(0.0, a), "end": b, "title": c["title"].upper(), "second": ("= " + sub) if sub else ""})
+        head = (f"{c['number']}  {c['title']}" if c["kind"] == "rank" and c.get("number") else c["title"]).upper()
+        sub = sub or (c.get("subtitle", "") if c["kind"] == "rank" else "")
+        spans.append({"start": max(0.0, a), "end": b, "title": head, "second": ("= " + sub) if sub and c["kind"] != "rank" else sub})
     return spans
 
 
@@ -1212,11 +1216,13 @@ def make_thumbnail(ctx: _Ctx, shots, out: Path, head: str, wd: Path) -> str:
         L.thumbnail(left, right, title.upper(), sub, "IN GAME", out)
         return str(out)
     guide = [s for s in shots if s["kind"] in P.GUIDE_KINDS and ctx.game(s)[0]]   # a guide video: two of its gameplay frames
+    if not guide:                                     # no splits, no guide shots: two plain gameplay shots instead
+        guide = [s for s in shots if s["kind"] == "game" and ctx.game(s)[0]][2:]
     if guide:
         a, b = guide[0], guide[min(len(guide) - 1, max(1, len(guide) // 2))]
         left = _frame(ctx.game(a)[0], a["game_at"] + 0.8, wd / "thumb_game.png")
         right = _frame(ctx.game(b)[0], b["game_at"] + 0.8, wd / "thumb_real.png")
         title = head or next((x["title"] for x in shots if x["kind"] in ("title", "chapter") and x["title"]), "") or "FULL GUIDE"
-        L.thumbnail(left, right, title.upper(), "", "GUIDE", out)
+        L.thumbnail(left, right, title.upper(), "", "GUIDE", out, right_tag="")
         return str(out)
     return ""

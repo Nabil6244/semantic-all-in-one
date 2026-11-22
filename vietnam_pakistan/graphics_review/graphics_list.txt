@@ -1,0 +1,133 @@
+#1	0:00	keyword_title	["FEWER", "RESOURCES"]
+#2	0:08	text_slam	NO INDUSTRIAL BASE
+#3	0:15	text_word_pop	THE WORLD'S BIGGEST TECH COMPANIES
+#4	0:18	three_rings	["SAMSUNG", "NIKE", "ADIDAS"]
+#5	0:26	chapter_serif	THE COUNTRY | VIETNAM
+#6	0:36	yellow_tag	GLOBAL TRADE ROUTES
+#7	0:42	text_typewriter	Global companies would come here
+#8	0:46	text_stamp	MILLIONS OF JOBS
+#9	0:54	text_slam	HOW DID VIETNAM GET SO FAR AHEAD?
+#10	1:02	tag_context	AFTER DECADES OF WAR
+#11	1:06	text_glow	A GLOBAL MANUFACTURING HUB
+#12	1:14	tag_headline	WHY IS PAKISTAN STRUGGLING?
+#13	1:19	text_split	NOT JUST CHEAP LABOUR
+#14	1:24	chapter_next	PART 1 | ONE DECISION
+#15	1:35	keyword_title	["CHEAP", "LAND", "CHEAP", "LABOUR"]
+#16	1:40	text_underline	You are missing something big
+#17	1:47	text_sweep	THE WHOLE SYSTEM
+#18	1:53	checklist_card	WHAT A FACTORY NEEDS | ["Electricity", "Raw materials", "Ports", "Transport", "Skilled workers", "Tax p
+#19	1:59	text_slam	THE SAME RULES FOR YEARS
+#20	2:06	fact_title	INVESTIGATION | THE FIRST BIG TRUTH
+#21	2:10	year_wipe	1986 | VIETNAM IN CRISIS
+#22	2:19	three_rings	["STATE CONTROL", "LOW OUTPUT", "HARDSHIP"]
+#23	2:24	text_box	ONE DECISION CHANGED EVERYTHING
+#24	2:31	chapter_serif	THE POLICY | DOI MOI
+#25	2:37	checklist_card	DOI MOI GOALS | ["Open the economy", "Private business", "Foreign investment", "World markets"]
+#26	2:50	text_stamp	NOT AT ALL
+#27	3:00	text_outline	NOT JUST CHEAP WORKERS
+#28	3:10	stat_countup	20 | YEARS OF PLANNING | THE TRUST COMPANIES NEED
+#29	3:17	name_bar	EXPORT PROCESSING ZONES | INDUSTRIAL PARKS, VIETNAM
+#30	3:25	side_panel	ONE INDUSTRIAL SYSTEM | ["Electricity", "Roads and water", "Ports", "Services in one place"]
+#31	3:29	lower_kicker	IMAGINE | A FOREIGN COMPANY | WANTS TO BUILD A FACTORY
+#32	3:40	checklist_card	THE OBSTACLES | ["Own electricity", "Land offices", "Import trouble", "Days to the port"]
+#33	3:44	text_slam	BILLIONS OF DOLLARS?
+#34	3:48	text_glow	THE DIFFERENCE
+#35	3:54	three_rings	["TEXTILES", "SPORTS GOODS", "SURGICAL TOOLS"]
+#36	4:05	lower_kicker	SIALKOT | SPORTS GOODS & SURGICAL INSTRUMENTS
+#37	4:11	name_bar	FAISALABAD | TEXTILE CENTRE
+#38	4:23	text_typewriter	Not starting from zero
+#39	4:26	tag_headline	THE BIG PROBLEM
+#40	4:34	three_rings	["ELECTRONICS", "MACHINERY", "AUTO PARTS"]
+#41	4:44	text_stamp	LEFT BEHIND
+#42	4:48	year_wipe	2000 | A NEW DESTINATION
+#43	4:57	text_word_pop	IT NEEDED A BIG DOOR
+#44	5:02	text_slam	INTERNATIONAL TRADE
+#45	5:05	lower_kicker	VIETNAM - USA | BILATERAL TRADE AGREEMENT
+#46	5:10	year_wipe	2007 | JOINS THE WTO
+#47	5:19	text_glow	A SIGNAL TO THE WORLD
+#48	5:26	timeline_strip	VIETNAM'S TRADE DOORS | [{"label": "1986", "text": "Doi Moi"}, {"label": "2007", "text": "WTO"}, {"label
+#49	5:38	yellow_tag	CPTPP
+#50	5:43	three_rings	["AMERICA", "EUROPE", "ASIA"]
+#51	5:48	text_underline	Better access to many markets
+#52	5:57	text_sweep	PART OF THE GLOBAL SUPPLY CHAIN
+#53	6:06	tag_headline	HOW DID VIETNAM GAIN SO MUCH?
+#54	6:12	text_slam	THE FACTORY OF THE WORLD
+#55	6:18	text_slam	THE US-CHINA TRADE WAR
+#56	6:26	text_typewriter	Looking outside China
+#57	6:32	text_stamp	VIETNAM WAS READY
+#58	6:38	checklist_card	WHY VIETNAM | ["Next to China", "Asian supply chain", "Seaports", "Industrial parks"]
+#59	6:52	lower_kicker	SHIFT | CHINA → VIETNAM | SAME SUPPLIERS
+#60	7:00	text_slam	THE REAL EXPLOSION
+#61	7:07	chapter_serif	THE BIGGEST EXAMPLE | SAMSUNG
+#62	7:13	three_rings	["PHONES", "ELECTRONICS", "NETWORK"]
+#63	7:24	text_outline	NOT ALONE
+#64	7:30	three_rings	["NIKE", "ADIDAS", "GLOBAL BRANDS"]
+#65	7:37	fact_title	THE MODEL | ONE FACTORY, A WHOLE INDUSTRY
+#66	7:43	text_split	MORE THAN A FEW THOUSAND JOBS
+#67	7:54	checklist_card	WHAT ONE BIG FACTORY NEEDS | ["Packaging", "Plastic parts", "Components", "Transport", "Repairs", "Local supp
+#68	8:03	text_glow	VIETNAM'S BIGGEST ADVANTAGE
+#69	8:10	text_sweep	A MANUFACTURING ECOSYSTEM
+#70	8:15	tag_headline	WHY NOT PAKISTAN?
+#71	8:20	chapter_next	PART 4 | BACK TO PAKISTAN
+#72	8:26	name_bar	SPECIAL ECONOMIC ZONES | INVESTMENT INCENTIVES
+#73	8:29	lower_kicker	CPEC | CHINA-PAKISTAN ECONOMIC CORRIDOR
+#74	8:36	text_stamp	BIG PROMISES
+#75	8:45	text_typewriter	Not just the tax break
+#76	9:01	checklist_card	WHAT AN INVESTOR ASKS | ["Cheap, steady power?", "Easy imports?", "Port on time?", "Stable tax rules?"]
+#77	9:07	text_underline	Can I safely reinvest?
+#78	9:10	text_box	THE ANSWERS KEPT CHANGING
+#79	9:20	three_rings	["IMPORT BANS", "DOLLAR SHORTAGE", "COSTLY POWER"]
+#80	9:26	yellow_tag	EXCHANGE RATE SWINGS
+#81	9:39	checklist_card	THE ORDER FOR EUROPE | ["Cotton", "Dye", "Machine parts", "Packaging"]
+#82	9:43	text_slam	HOW LONG CAN THE BUYER WAIT?
+#83	9:54	three_rings	["QUALITY", "PRICE", "ON TIME"]
+#84	9:58	text_stamp	WEAKER COMPETITION
+#85	10:02	name_bar	WORLD BANK | PAKISTAN DEVELOPMENT UPDATE 2025
+#86	10:07	year_wipe	1990S
+#87	10:11	stat_countup	16 | % OF GDP: EXPORTS IN THE 1990s | PAKISTAN
+#88	10:23	checklist_card	THE OBSTACLES | ["High tariffs", "Tough regulations", "Costly energy", "Logistics"]
+#89	10:33	chapter_next	BY CONTRAST | VIETNAM
+#90	10:41	stat_countup	4 | % OF GDP: EXPORTS IN 1988 | VIETNAM (OECD)
+#91	10:44	ring_percent	VIETNAM EXPORTS, 2023 | 87 | OF GDP | SOURCE: OECD
+#92	10:50	versus_numbers	EXPORTS AS % OF GDP | PAKISTAN 2024 | 10 | VIETNAM 2023 | 87 | %
+#93	10:54	text_glow	EXPORTS: THE ENGINE OF GROWTH
+#94	10:58	fact_title	ANOTHER SECRET | THE WORKFORCE
+#95	11:06	text_sweep	A TRAINED LABOUR FORCE
+#96	11:16	checklist_card	WHAT ELECTRONICS FIRMS NEED | ["Technicians", "Machine operators", "Quality control", "Global standards"]
+#97	11:26	three_rings	["SKILLS", "TRAINING", "TECH EDUCATION"]
+#98	11:31	text_stamp	MILLIONS OF WORKERS
+#99	11:44	text_stamp	NOT FAST ENOUGH
+#100	11:59	text_box	IMPORTED COMPONENTS
+#101	12:02	three_rings	["CHINA", "SOUTH KOREA", "OTHERS"]
+#102	12:10	year_wipe	2023
+#103	12:16	gold_stat	48 | % | 0 | FOREIGN VALUE ADDED
+#104	12:24	timeline_strip	VIETNAM'S PATH | [{"label": "1", "text": "Join the chain"}, {"label": "2", "text": "Learn"}, {"la
+#105	12:27	text_slam	A VERY BIG LESSON
+#106	12:33	text_word_pop	FIRST JOIN THE GLOBAL BUSINESS
+#107	12:37	three_rings	["TECHNOLOGY", "SKILLS", "LOCAL SUPPLIERS"]
+#108	12:41	tag_headline	PAKISTAN WENT THE OTHER WAY
+#109	12:47	checklist_card	PAKISTAN'S POLICY | ["Years of protection", "Higher tariffs", "Shielded from competition"]
+#110	13:01	text_stamp	THE WEAKNESSES SHOWED
+#111	13:08	text_glow	A VERY BIG OPPORTUNITY
+#112	13:21	chapter_serif	THE STRATEGY | CHINA PLUS ONE
+#113	13:24	text_outline	IT WON'T LAST FOREVER
+#114	13:29	checklist_card	THE RIVALS FOR INVESTMENT | ["India", "Indonesia", "Thailand", "Malaysia"]
+#115	13:35	tag_headline	WHAT IS PAKISTAN DOING?
+#116	13:46	text_typewriter	Will tax breaks be enough?
+#117	13:54	text_slam	NO NEED TO COPY VIETNAM
+#118	13:58	chapter_next	THE ANSWER | THREE LESSONS
+#119	14:06	fact_card	1 | LESSON | POLICY STABILITY | The same rules for years
+#120	14:15	three_rings	["TAX", "IMPORT", "EXPORT"]
+#121	14:19	fact_card	2 | LESSON | EXPORTS AT THE CENTRE | Compete in the world market
+#122	14:36	checklist_card	WHAT EXPORTERS NEED | ["Cheap, reliable energy", "Better logistics", "Easy raw materials"]
+#123	14:49	three_rings	["COMPONENTS", "PACKAGING", "SERVICES"]
+#124	14:56	text_stamp	THOUSANDS OF NEW JOBS
+#125	15:00	text_split	VIETNAM DIDN'T TAKE PAKISTAN'S JOBS
+#126	15:06	text_glow	VIETNAM GOT READY
+#127	15:12	text_box	PAKISTAN STAYED STUCK
+#128	15:19	text_split	TWO PATHS
+#129	15:31	chapter_serif	THE LESSON | TRUST BUILDS FACTORIES
+#130	15:39	text_outline	NOT THE BIGGEST PROMISES
+#131	15:48	three_rings	["RELIABLE", "ON TIME", "LONG-TERM PROFIT"]
+#132	15:53	text_slam	VIETNAM BUILT THAT SYSTEM
+#133	16:05	end_question	THE QUESTION | Will Pakistan join the race?

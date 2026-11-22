@@ -165,7 +165,7 @@ class Session:
                     break
         return {k: have(k) for k in jobs if have(k)}
 
-    def clips(self, jobs, refs=None, cancel=None, tries=2, timeout=1500):
+    def clips(self, jobs, refs=None, cancel=None, tries=2, timeout=1500, voice=None):
         """jobs: {key: prompt} -> {key: mp4 path}. One Flow video per job (uses credits); Ingredients mode with refs."""
         _img, vid, accounts, _mode = _settings()
         LIB.mkdir(parents=True, exist_ok=True)
@@ -182,6 +182,8 @@ class Session:
                       "folder": "prepper_host", "generationMode": "ui"}
                 if refs:
                     st["referenceImages"] = list(refs)
+                if voice and voice.get("name"):       # one of Flow's own voices, attached to every clip
+                    st["voice"] = {"name": voice["name"], "performance": voice.get("performance", "")}
                 self.log(f"prepper host: Flow is making a clip ({k}, try {attempt + 1})")
                 self._run([p], [f"ph_{k}"], st, accounts, timeout)
                 mp4s = sorted(run.rglob("*.mp4"), key=lambda q: q.stat().st_mtime)

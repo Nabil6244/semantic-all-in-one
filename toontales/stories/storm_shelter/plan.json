@@ -1,0 +1,1329 @@
+{
+ "id": "storm_shelter",
+ "title": "How a Backyard Becomes a Tornado Shelter",
+ "topic": "how an underground tornado shelter works: below-ground pit, reinforced concrete, buried roof, steel hatch, debris testing, air vent",
+ "hook_title": "HE VANISHED INTO THE LAWN?",
+ "keywords": [
+  "tornado",
+  "shelter",
+  "concrete",
+  "steel",
+  "hatch",
+  "debris",
+  "underground",
+  "vent",
+  "safe",
+  "sirens"
+ ],
+ "cast": [
+  "builder"
+ ],
+ "channel": "channel3",
+ "sources": [
+  "https://en.wikipedia.org/wiki/Storm_cellar",
+  "https://www.fema.gov/emergency-managers/risk-management/safe-rooms"
+ ],
+ "places": {
+  "yard": {
+   "world": "dio_backyard_tank",
+   "remove": [
+    "tank_floor",
+    "tank_back",
+    "tank_l",
+    "tank_r",
+    "pipe_a",
+    "pipe_b",
+    "pipe_c",
+    "pump",
+    "pump_pipe",
+    "water",
+    "lid",
+    "turf2"
+   ],
+   "prompt": "Backyard before: lawn, house, garden"
+  },
+  "dug": {
+   "world": "dio_backyard_tank",
+   "remove": [
+    "turf",
+    "plug_soil",
+    "plug_gravel",
+    "tank_floor",
+    "tank_back",
+    "tank_l",
+    "tank_r",
+    "pipe_a",
+    "pipe_b",
+    "pipe_c",
+    "pump",
+    "pump_pipe",
+    "water",
+    "lid",
+    "turf2"
+   ],
+   "prompt": "Backyard with an open pit"
+  },
+  "shell": {
+   "world": "dio_backyard_tank",
+   "remove": [
+    "turf",
+    "plug_soil",
+    "plug_gravel",
+    "pipe_a",
+    "pipe_b",
+    "pipe_c",
+    "pump",
+    "pump_pipe",
+    "water",
+    "lid",
+    "turf2"
+   ],
+   "add": [
+    {
+     "m": "ph:wooden_crate_01",
+     "at": [
+      1.9,
+      1.5,
+      -2.17
+     ],
+     "s": 0.7,
+     "rot": 5,
+     "id": "crate0"
+    },
+    {
+     "m": "ph:wooden_crate_01",
+     "at": [
+      2.6,
+      1.7,
+      -2.17
+     ],
+     "s": 0.7,
+     "rot": -10,
+     "id": "crate1"
+    },
+    {
+     "m": "@box",
+     "at": [
+      2.2,
+      2.2,
+      -1.95
+     ],
+     "size": [
+      1.6,
+      0.4,
+      0.08
+     ],
+     "mat": "planks",
+     "id": "bench"
+    },
+    {
+     "m": "ph:wooden_ladder",
+     "at": [
+      3.75,
+      1.2,
+      -2.17
+     ],
+     "s": 1.0,
+     "rot": 0,
+     "id": "ladder"
+    }
+   ],
+   "prompt": "Concrete walls in the pit, bench, ladder, supplies"
+  },
+  "shelter": {
+   "world": "dio_backyard_tank",
+   "remove": [
+    "turf",
+    "plug_soil",
+    "plug_gravel",
+    "pipe_a",
+    "pipe_b",
+    "pipe_c",
+    "pump",
+    "pump_pipe",
+    "water"
+   ],
+   "add": [
+    {
+     "m": "ph:wooden_crate_01",
+     "at": [
+      1.9,
+      1.5,
+      -2.17
+     ],
+     "s": 0.7,
+     "rot": 5,
+     "id": "crate0"
+    },
+    {
+     "m": "ph:wooden_crate_01",
+     "at": [
+      2.6,
+      1.7,
+      -2.17
+     ],
+     "s": 0.7,
+     "rot": -10,
+     "id": "crate1"
+    },
+    {
+     "m": "@box",
+     "at": [
+      2.2,
+      2.2,
+      -1.95
+     ],
+     "size": [
+      1.6,
+      0.4,
+      0.08
+     ],
+     "mat": "planks",
+     "id": "bench"
+    },
+    {
+     "m": "ph:wooden_ladder",
+     "at": [
+      3.75,
+      1.2,
+      -2.17
+     ],
+     "s": 1.0,
+     "rot": 0,
+     "id": "ladder"
+    },
+    {
+     "m": "@box",
+     "at": [
+      3.6,
+      1.0,
+      0.03
+     ],
+     "size": [
+      0.8,
+      0.8,
+      0.06
+     ],
+     "color": [
+      0.34,
+      0.36,
+      0.38
+     ],
+     "rough": 0.35,
+     "metal": 0.8,
+     "id": "hatch"
+    },
+    {
+     "m": "@beam",
+     "a": [
+      1.6,
+      2.0,
+      -0.3
+     ],
+     "b": [
+      1.6,
+      2.0,
+      0.8
+     ],
+     "t": 0.1,
+     "color": [
+      0.32,
+      0.33,
+      0.35
+     ],
+     "rough": 0.4,
+     "metal": 0.6,
+     "id": "vent"
+    }
+   ],
+   "prompt": "Finished underground shelter under the lawn: concrete roof, steel hatch, air vent"
+  },
+  "storm": {
+   "world": "dio_backyard_tank",
+   "remove": [
+    "turf",
+    "plug_soil",
+    "plug_gravel",
+    "pipe_a",
+    "pipe_b",
+    "pipe_c",
+    "pump",
+    "pump_pipe",
+    "water"
+   ],
+   "add": [
+    {
+     "m": "ph:wooden_crate_01",
+     "at": [
+      1.9,
+      1.5,
+      -2.17
+     ],
+     "s": 0.7,
+     "rot": 5,
+     "id": "crate0"
+    },
+    {
+     "m": "ph:wooden_crate_01",
+     "at": [
+      2.6,
+      1.7,
+      -2.17
+     ],
+     "s": 0.7,
+     "rot": -10,
+     "id": "crate1"
+    },
+    {
+     "m": "@box",
+     "at": [
+      2.2,
+      2.2,
+      -1.95
+     ],
+     "size": [
+      1.6,
+      0.4,
+      0.08
+     ],
+     "mat": "planks",
+     "id": "bench"
+    },
+    {
+     "m": "ph:wooden_ladder",
+     "at": [
+      3.75,
+      1.2,
+      -2.17
+     ],
+     "s": 1.0,
+     "rot": 0,
+     "id": "ladder"
+    },
+    {
+     "m": "@box",
+     "at": [
+      3.6,
+      1.0,
+      0.03
+     ],
+     "size": [
+      0.8,
+      0.8,
+      0.06
+     ],
+     "color": [
+      0.34,
+      0.36,
+      0.38
+     ],
+     "rough": 0.35,
+     "metal": 0.8,
+     "id": "hatch"
+    },
+    {
+     "m": "@beam",
+     "a": [
+      1.6,
+      2.0,
+      -0.3
+     ],
+     "b": [
+      1.6,
+      2.0,
+      0.8
+     ],
+     "t": 0.1,
+     "color": [
+      0.32,
+      0.33,
+      0.35
+     ],
+     "rough": 0.4,
+     "metal": 0.6,
+     "id": "vent"
+    }
+   ],
+   "prompt": "The finished shelter during the storm"
+  }
+ },
+ "shots": [
+  {
+   "beat": "hook",
+   "text": "A tornado is coming. Sam runs into the backyard and vanishes into the lawn.",
+   "set": "shelter",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "walk",
+       "at": 0.2,
+       "params": {
+        "to": [
+         -1.5,
+         0.0
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.0,
+     1.0,
+     -0.7
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "TORNADO"
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.3
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s01"
+  },
+  {
+   "beat": "hook",
+   "text": "So how does a hole in the yard beat a tornado?",
+   "set": "shelter",
+   "camera": "medium",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "point",
+       "at": 0.2,
+       "params": {
+        "dir": [
+         -0.7,
+         -0.4,
+         -0.6
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     3.6,
+     1.0,
+     0.2
+    ],
+    "dist": 4.4,
+    "yaw": -12,
+    "pitch": 10,
+    "lens": 32
+   },
+   "overlay": {
+    "type": "circle",
+    "text": "IN HERE?"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s02"
+  },
+  {
+   "beat": "concept",
+   "text": "The strongest tornadoes spin faster than two hundred miles an hour.",
+   "set": "yard",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "C",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.0,
+     1.0,
+     -0.7
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "overlay": {
+    "type": "chalk",
+    "text": "200+ MPH"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s03"
+  },
+  {
+   "beat": "concept",
+   "text": "They can rip a house right off its floor.",
+   "set": "yard",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [],
+   "look": {
+    "at": [
+     -3.6,
+     2.0,
+     1.2
+    ],
+    "dist": 7.0,
+    "yaw": -12,
+    "pitch": 6,
+    "lens": 28
+   },
+   "overlay": {
+    "type": "arrow",
+    "text": "WHOOSH"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s04"
+  },
+  {
+   "beat": "setup",
+   "text": "Most injuries come from flying junk, not the wind itself.",
+   "set": "yard",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look",
+       "at": 0.2,
+       "params": {
+        "yaw": 50,
+        "pitch": 30
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     5.0,
+     1.3,
+     0.9
+    ],
+    "dist": 4.6,
+    "yaw": -14,
+    "pitch": 6,
+    "lens": 32
+   },
+   "overlay": {
+    "type": "label",
+    "text": "DEBRIS"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s05"
+  },
+  {
+   "beat": "setup",
+   "text": "But the safest place is underground.",
+   "set": "yard",
+   "camera": "wide",
+   "move": "tilt_down",
+   "cast": [],
+   "look": {
+    "at": [
+     2.6,
+     1.2,
+     -1.6
+    ],
+    "dist": 8.2,
+    "yaw": -4,
+    "pitch": 4,
+    "lens": 30
+   },
+   "overlay": {
+    "type": "arrow",
+    "text": "SAFE"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s06"
+  },
+  {
+   "beat": "con",
+   "text": "So Sam digs, right beside the house.",
+   "set": "yard",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.2,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     1.05,
+     1.0,
+     0.8
+    ],
+    "dist": 4.8,
+    "yaw": -14,
+    "pitch": 6,
+    "lens": 32
+   },
+   "moves": [
+    {
+     "id": "turf",
+     "grow": "up",
+     "from": 1,
+     "to": 0,
+     "t0": 1.0,
+     "t1": 2.4
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.5
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s07"
+  },
+  {
+   "beat": "con",
+   "text": "Down through the soil.",
+   "set": "yard",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.0,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.3,
+     1.2,
+     -0.9
+    ],
+    "dist": 8.2,
+    "yaw": -4,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "turf",
+     "hide": 0.0
+    },
+    {
+     "id": "plug_soil",
+     "grow": "up",
+     "from": 1,
+     "to": 0,
+     "t0": 0.2,
+     "t1": 1.6
+    }
+   ],
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.3
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s08"
+  },
+  {
+   "beat": "con",
+   "text": "Past the gravel, deeper than he is tall.",
+   "set": "dug",
+   "camera": "close",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.0,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.3,
+     1.2,
+     -0.9
+    ],
+    "dist": 5.2,
+    "yaw": -4,
+    "pitch": 4,
+    "lens": 30
+   },
+   "overlay": {
+    "type": "label",
+    "text": "2 METERS"
+   },
+   "sfx": [
+    {
+     "name": "pick",
+     "at": 0.3
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s09"
+  },
+  {
+   "beat": "escalate",
+   "text": "Then thick concrete walls, packed with steel bars.",
+   "set": "shell",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "carry",
+       "at": 0.0,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.3,
+     1.2,
+     -0.9
+    ],
+    "dist": 8.2,
+    "yaw": -4,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "tank_back",
+     "grow": "up",
+     "from": 0.05,
+     "to": 1,
+     "t0": 0.2,
+     "t1": 2.0
+    },
+    {
+     "id": "crate0",
+     "hide": 99
+    },
+    {
+     "id": "crate1",
+     "hide": 99
+    },
+    {
+     "id": "bench",
+     "hide": 99
+    },
+    {
+     "id": "ladder",
+     "hide": 99
+    }
+   ],
+   "overlay": {
+    "type": "label",
+    "text": "CONCRETE + STEEL"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s10"
+  },
+  {
+   "beat": "escalate",
+   "text": "Inside, a bench, a ladder and supplies.",
+   "set": "shell",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "carry",
+       "at": 0.0
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.7,
+     1.3,
+     -1.6
+    ],
+    "dist": 3.6,
+    "yaw": -6,
+    "pitch": 3,
+    "lens": 34
+   },
+   "moves": [
+    {
+     "id": "bench",
+     "show": 0.3
+    },
+    {
+     "id": "ladder",
+     "show": 0.8
+    },
+    {
+     "id": "crate0",
+     "show": 1.2
+    },
+    {
+     "id": "crate1",
+     "show": 1.6
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.5
+    },
+    {
+     "name": "thud",
+     "at": 1.3
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s11"
+  },
+  {
+   "beat": "escalate",
+   "text": "Water, flashlights, a radio.",
+   "set": "shell",
+   "camera": "close",
+   "move": "push",
+   "cast": [],
+   "look": {
+    "at": [
+     2.2,
+     1.6,
+     -1.9
+    ],
+    "dist": 2.4,
+    "yaw": -6,
+    "pitch": 3,
+    "lens": 34
+   },
+   "overlay": {
+    "type": "chalk",
+    "text": "WATER + LIGHT + RADIO"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s12"
+  },
+  {
+   "beat": "escalate",
+   "text": "But an open pit is a trap. Debris could fall right in.",
+   "set": "shell",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "shock",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.0,
+     1.0,
+     -0.7
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "OPEN TOP"
+   },
+   "freeze": "WAIT...",
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s13"
+  },
+  {
+   "beat": "twist",
+   "text": "So he pours a concrete roof, then soil and grass on top.",
+   "set": "shelter",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "dig",
+       "at": 0.2,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.3,
+     1.2,
+     -0.9
+    ],
+    "dist": 8.2,
+    "yaw": -4,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "lid",
+     "show": 0.4
+    },
+    {
+     "id": "turf2",
+     "show": 1.6
+    },
+    {
+     "id": "hatch",
+     "hide": 99
+    },
+    {
+     "id": "vent",
+     "hide": 99
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.5
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s14"
+  },
+  {
+   "beat": "twist",
+   "text": "The way in is a steel hatch, bolted from the inside.",
+   "set": "shelter",
+   "camera": "close",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "hammer",
+       "at": 0.1,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     3.6,
+     1.0,
+     0.2
+    ],
+    "dist": 4.4,
+    "yaw": -12,
+    "pitch": 10,
+    "lens": 32
+   },
+   "moves": [
+    {
+     "id": "hatch",
+     "show": 0.5
+    }
+   ],
+   "sfx": [
+    {
+     "name": "thud",
+     "at": 0.6
+    },
+    {
+     "name": "thud",
+     "at": 1.2
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s15"
+  },
+  {
+   "beat": "twist",
+   "text": "Shelters are tested with planks fired at 100 mph.",
+   "set": "shelter",
+   "camera": "medium",
+   "move": "crash_zoom",
+   "cast": [],
+   "look": {
+    "at": [
+     3.6,
+     1.0,
+     0.2
+    ],
+    "dist": 3.2,
+    "yaw": -12,
+    "pitch": 10,
+    "lens": 32
+   },
+   "overlay": {
+    "type": "chalk",
+    "text": "100 MPH TEST"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s16"
+  },
+  {
+   "beat": "twist",
+   "text": "Last, a pipe so fresh air can get in.",
+   "set": "shelter",
+   "camera": "medium",
+   "move": "tilt_up",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "drill",
+       "at": 0.1,
+       "params": {
+        "face": 90
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     1.6,
+     1.8,
+     0.2
+    ],
+    "dist": 4.6,
+    "yaw": -4,
+    "pitch": 4,
+    "lens": 30
+   },
+   "moves": [
+    {
+     "id": "vent",
+     "grow": "up",
+     "from": 0.1,
+     "to": 1,
+     "t0": 0.4,
+     "t1": 2.0
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s17"
+  },
+  {
+   "beat": "payoff",
+   "text": "Then the sirens go off.",
+   "set": "storm",
+   "camera": "wide",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "look",
+       "at": 0.2,
+       "params": {
+        "yaw": 40,
+        "pitch": 30
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.0,
+     1.0,
+     -0.7
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "SIRENS"
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s18"
+  },
+  {
+   "beat": "payoff",
+   "text": "Sam climbs down and bolts the hatch.",
+   "set": "shelter",
+   "camera": "medium",
+   "move": "tilt_down",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "climb",
+       "at": 0.2,
+       "params": {
+        "up": -1.8
+       }
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     3.6,
+     1.2,
+     -1.0
+    ],
+    "dist": 4.0,
+    "yaw": -6,
+    "pitch": 3,
+    "lens": 34
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s19"
+  },
+  {
+   "beat": "payoff",
+   "text": "Up top, the wind howls and junk flies past.",
+   "set": "storm",
+   "camera": "wide",
+   "move": "pan_l",
+   "cast": [],
+   "look": {
+    "at": [
+     0.0,
+     2.0,
+     0.4
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "overlay": {
+    "type": "arrow",
+    "text": "DEBRIS"
+   },
+   "sfx": [
+    {
+     "name": "whoosh",
+     "at": 0.2
+    },
+    {
+     "name": "thud",
+     "at": 1.4
+    }
+   ],
+   "speaker": "narrator",
+   "props": [],
+   "transition": "cut",
+   "id": "s20"
+  },
+  {
+   "beat": "payoff",
+   "text": "Down below, under a metre of concrete and earth, he waits it out.",
+   "set": "shelter",
+   "camera": "medium",
+   "move": "push",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "B",
+     "acts": [
+      {
+       "do": "nod",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.7,
+     1.3,
+     -1.6
+    ],
+    "dist": 3.6,
+    "yaw": -6,
+    "pitch": 3,
+    "lens": 34
+   },
+   "overlay": {
+    "type": "stamp",
+    "text": "SAFE"
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s21"
+  },
+  {
+   "beat": "payoff",
+   "text": "That's how a backyard becomes a tornado shelter.",
+   "set": "shelter",
+   "camera": "wide",
+   "move": "pull",
+   "cast": [
+    {
+     "id": "builder",
+     "mark": "A",
+     "acts": [
+      {
+       "do": "cheer",
+       "at": 0.3
+      }
+     ]
+    }
+   ],
+   "look": {
+    "at": [
+     2.0,
+     1.0,
+     -0.7
+    ],
+    "dist": 9.0,
+    "yaw": -6,
+    "pitch": 6,
+    "lens": 28
+   },
+   "speaker": "narrator",
+   "props": [],
+   "sfx": [],
+   "transition": "cut",
+   "id": "s22"
+  }
+ ],
+ "est_total": 62.07
+}

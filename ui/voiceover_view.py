@@ -587,11 +587,17 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
                 if not ref.is_file():
                     raise RuntimeError(f"'{clone_name}' was added before Chatterbox; add it again from its recording to use Chatterbox")
                 if not cbx.ensure_env(lambda t: ui(view._vo_status_var.set, t)):
-                    raise RuntimeError("Chatterbox could not be set up (no internet, a download was blocked, or low disk space; it needs about 5 GB)")
+                    raise RuntimeError(f"Chatterbox could not be set up (no internet, a download was blocked, or low disk space; it needs about 5 GB). Details: {cbx.setup_log()}")
                 ui(view._vo_status_var.set, "Loading Chatterbox (the first time also downloads the model)...")
+                import hashlib
+
+                # spoken pieces are kept beside the output (one folder per voice), so a run that stops - Stop, a crash, a full
+                # disk - picks up where it left off next time; the folder goes once the voiceover is made
+                keep = Path(out).parent / f".{Path(out).stem}_pieces_{hashlib.md5(str(ref).encode('utf-8')).hexdigest()[:8]}"
                 res = cbx.synthesize(text, str(out), str(ref), speed=speed, ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"),
                                      progress=lambda d, t: ui(_progress, view, d, t, "Chatterbox: piece"),
-                                     cancel=view._vo_cancel.is_set)
+                                     cancel=view._vo_cancel.is_set, keep_dir=str(keep))
+                shutil.rmtree(keep, ignore_errors=True)
                 ui(_done, view, app, res, preview, ws is not None)
                 return
 

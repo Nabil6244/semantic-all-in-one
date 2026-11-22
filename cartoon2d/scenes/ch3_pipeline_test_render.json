@@ -1,0 +1,113 @@
+{
+ "timeline": "cartoon2d/build/ch3_pipeline_test/audio/timeline.json",
+ "build": "cartoon2d/build/ch3_pipeline_test",
+ "name": "ch3_pipeline_test",
+ "host": "lina",
+ "kids": [
+  "tobi",
+  "rosie"
+ ],
+ "start_place": "gate",
+ "places": {
+  "gate": {
+   "background": "cartoon2d/art/bg/ch3e1_gate.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.431,
+    "rosie": 0.6399,
+    "fizz": 0.8656,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "pip": -0.7,
+    "dot": 1.8499999999999999
+   }
+  },
+  "slide": {
+   "background": "cartoon2d/art/bg/ch3e1_hill.png",
+   "floor_y": 0.9,
+   "spots": {
+    "lina": 0.1681,
+    "tobi": 0.566,
+    "rosie": 0.7074,
+    "fizz": 0.8656,
+    "nia": -0.4,
+    "poppy": 1.5499999999999998,
+    "pip": -0.7,
+    "dot": 1.8499999999999999
+   }
+  }
+ },
+ "cast": {
+  "lina": {
+   "dir": "cartoon2d/cast/lina",
+   "height": 0.7,
+   "tilt": 0.35,
+   "hold_side": "sl",
+   "hop": 0.1,
+   "listen": 3.0
+  },
+  "nia": {
+   "dir": "cartoon2d/cast/nia",
+   "height": 0.55,
+   "tilt": 0.5,
+   "hold_side": "sl"
+  },
+  "poppy": {
+   "dir": "cartoon2d/cast/poppy",
+   "height": 0.55,
+   "tilt": 0.5,
+   "hold_side": "sr"
+  },
+  "tobi": {
+   "dir": "cartoon2d/cast/tobi",
+   "height": 0.4,
+   "tilt": 0.9,
+   "hold_side": "sr"
+  },
+  "rosie": {
+   "dir": "cartoon2d/cast/rosie",
+   "height": 0.38,
+   "tilt": 0.9,
+   "hold_side": "sl"
+  },
+  "fizz": {
+   "dir": "cartoon2d/cast/fizz",
+   "height": 0.5,
+   "tilt": 0.6,
+   "hold_side": "sr"
+  },
+  "pip": {
+   "dir": "cartoon2d/cast/pip",
+   "height": 0.42,
+   "tilt": 0.6,
+   "hold_side": "sr"
+  },
+  "dot": {
+   "dir": "cartoon2d/cast/dot",
+   "height": 0.52,
+   "tilt": 0.6,
+   "hold_side": "sl"
+  }
+ },
+ "music": {
+  "gate": "sunny",
+  "slide": "sunny"
+ },
+ "props": [
+  "cartoon2d/art/props"
+ ],
+ "script": "cartoon2d/scenes/ch3_pipeline_test.json",
+ "storycheck": true,
+ "adventure": true,
+ "goal": {
+  "pic": "duckling",
+  "n": 1
+ },
+ "hero": "tobi",
+ "giver": "mama_duck",
+ "collection": false,
+ "rules": {
+  "max_stay": 240
+ }
+}

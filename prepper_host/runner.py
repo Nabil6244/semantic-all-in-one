@@ -54,7 +54,7 @@ def _flow_voice(rows, spec, meta, edge_voice, size, title, use_flow, log, cancel
     if missing and use_flow and not (cancel and cancel()):
         try:
             with flow.Session(log=log) as fs:
-                fs.clips(missing, refs=_host.refs(meta), cancel=cancel)
+                fs.clips(missing, refs=_host.refs(meta), cancel=cancel, voice=fv.flow_voice(meta))
         except Exception as e:  # noqa: BLE001 - a missing clip leaves its line on the Edge voice
             log(f"prepper host: Flow trouble ({type(e).__name__}: {e}); those lines keep the Edge voice")
     clips = {k: flow.have(fv.clip_key(meta, r["line"]), "mp4") for k, r in enumerate(rows2) if r.get("say")}
@@ -62,10 +62,19 @@ def _flow_voice(rows, spec, meta, edge_voice, size, title, use_flow, log, cancel
     left = sum(1 for r in rows2 if r.get("say")) - len(clips)
     if left:
         log(f"prepper host: {left} host line(s) on the Edge voice (no Flow clip yet; Generate again to retry)")
-    vo = fv.build(rows2, clips, edge_voice, log=log)
+    cloned = {}
+    sample = fv.voice_sample(meta, list(clips.values()))   # this host's own spoken clips only
+    if sample:                # the other lines in the same voice: his Flow voice copied by the voice clone
+        try:
+            cloned = fv.clone_lines([r["line"] for k, r in enumerate(rows2) if k not in clips], sample, log=log, cancel=cancel)
+        except Exception as e:  # noqa: BLE001 - the Edge voice stands in
+            log(f"prepper host: voice clone not used ({e}); the other lines use the Edge voice")
+    else:
+        log("prepper host: not enough of his Flow voice yet to copy; the other lines use the Edge voice")
+    vo = fv.build(rows2, clips, edge_voice, log=log, cloned=cloned)
     spec = director.direct(rows2, vo["words"], vo["duration"], size=size, host_meta=meta, title=title or "")
     fv.attach(spec, rows2, vo["said"])
-    spec["flow_voice"] = {"lines": len(jobs), "spoken": len(clips)}
+    spec["flow_voice"] = {"lines": len(jobs), "spoken": len(clips), "cloned": len(cloned), "sample": str(sample or "")}
     return rows2, spec, vo
 
 

@@ -35,6 +35,11 @@ IMPORT_ACTIONS = {"import_csv", "overscaled_import_csv", "pakmap_import_csv", "h
 CLAUDE_HANDOFF = {"analyze", "vo_plan", "upload_claude_csv"}
 
 
+def is_delete_question(title: Any) -> bool:
+    """A yes/no dialog that would delete files ("Delete downloaded assets?"): autorun answers it No."""
+    return "delete" in str(title or "").lower()
+
+
 def _running(action: str) -> bool:
     return action == "none" or action.endswith("cancel")
 
@@ -175,13 +180,20 @@ class Runner:
 
         def ask(title: Any = "", message: Any = "", *a: Any, **k: Any) -> bool:
             text = f"{title}: {message}".strip()
+            if is_delete_question(title):
+                # "Delete downloaded assets?" after a render: a Yes removed every asset of the project (4.4 GB), so the
+                # next render of the same project fetched (and paid Flow for) them all again. Deleting is never needed
+                # to make a video: say No.
+                self.log(f"[AUTORUN] question answered No: {text}")
+                self.status.add("questions", text[:600])
+                return False
             self.log(f"[AUTORUN] question answered Yes: {text}")
             self.status.add("questions", text[:600])
             return True
 
         mb.showinfo, mb.showwarning, mb.showerror = info("info"), info("warning"), info("error")
         mb.askyesno = mb.askokcancel = mb.askyesnocancel = mb.askretrycancel = ask
-        mb.askquestion = lambda *a, **k: (ask(*a, **k) and "yes")
+        mb.askquestion = lambda *a, **k: ("yes" if ask(*a, **k) else "no")
         fd.askopenfilename = lambda *a, **k: self.answer_file(k.get("title", a[0] if a else ""), k.get("filetypes"))
         fd.askopenfilenames = lambda *a, **k: tuple(x for x in (self.answer_file(k.get("title", ""), k.get("filetypes")),) if x)
         fd.askdirectory = lambda *a, **k: (self.log(f"[AUTORUN] folder dialog '{k.get('title', '')}': cancelled") or "")

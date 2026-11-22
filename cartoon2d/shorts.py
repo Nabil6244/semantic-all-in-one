@@ -17,7 +17,7 @@ import hook  # noqa: E402
 import package  # noqa: E402
 import storycheck  # noqa: E402
 
-FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
+from fonts import FONT  # noqa: E402  (Arial Rounded on the Mac, a shipped font elsewhere)
 MIN_LEN, MAX_LEN = 25.0, 55.0
 FUNNY = {"silly", "tumble", "sneeze", "wobble", "spin"}
 

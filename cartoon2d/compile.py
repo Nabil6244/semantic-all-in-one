@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import package  # noqa: E402
 
 OUT = ROOT / "cartoon2d" / "episodes"
-FONT = "/System/Library/Fonts/Supplemental/Arial Rounded Bold.ttf"
+from fonts import FONT  # noqa: E402  (Arial Rounded on the Mac, a shipped font elsewhere)
 
 
 def _dur(f):
