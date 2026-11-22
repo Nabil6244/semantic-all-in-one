@@ -238,3 +238,14 @@ EXTRA_BLURBS[PREPPER_HOST] = ("A talking-host prepper explainer, 'the exact cart
                               "From a Prepper Host CSV or a script; the voice is free.")
 EXTRA_CARDS[PREPPER_HOST] = ("\u2302", "Talking-host prepper explainers", "A Prepper Host CSV or a script",
                              "90 days without power, what to buy, store carts, emergency food and water")
+
+
+# PK (ui/pk_section.py): the Normal video engine with the Pakistan documentary recipe (Hybrid graphics + sound, CSV graphics, English
+# on-screen text for Urdu narration, levelled voice and music); appended here so nothing above changes
+from . import pk_section as _pk
+
+PK = _pk.STYLE
+BUILT_ON[PK] = "Normal video"
+GROUPS = tuple((title, tuple(x for n in names for x in ((n, PK) if n == "Normal video" else (n,)))) for title, names in GROUPS)
+EXTRA_BLURBS[PK] = _pk.BLURB
+EXTRA_CARDS[PK] = _pk.CARD

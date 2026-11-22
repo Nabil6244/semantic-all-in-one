@@ -31,7 +31,11 @@ ENVIRONMENT: Dict[str, List[Term]] = {
               ("प्रदर्शन", 0.8), ("रैली", 1.0), ("मेला", 1.0), ("जुलूस", 1.0)],
     "nature": [("forest", 1.0), ("mountain", 0.9), ("mountains", 0.9), ("meadow", 1.0), ("wildlife", 1.0), ("jungle", 1.0), ("valley", 0.9),
                ("desert", 0.9), ("field", 0.5), ("fields", 0.6), ("farm", 0.6), ("hills", 0.8), ("lawn", 0.7), ("garden", 0.7), ("trees", 0.7),
-               ("birds", 0.8), ("bird", 0.7), ("wind", 0.6), ("countryside", 1.0), ("wilderness", 1.0), ("जंगल", 1.0), ("पहाड़", 0.9), ("घाटी", 0.9),
+               ("birds", 0.8), ("bird", 0.7), ("wind", 0.6), ("countryside", 1.0), ("wilderness", 1.0),
+               # farms and villages: without these a rice-field or village shot fell back to the indoor room bed
+               ("paddy", 1.0), ("paddies", 1.0), ("rice field", 1.0), ("rice fields", 1.0), ("rural", 0.9), ("village", 0.9), ("villages", 0.9),
+               ("farmland", 0.9), ("farms", 0.6), ("farmers", 0.6), ("crops", 0.6), ("harvest", 0.6), ("plantation", 0.8), ("orchard", 0.8),
+               ("گاؤں", 0.6), ("کھیت", 0.6), ("دیہات", 0.8), ("دیہی", 0.8), ("जंगल", 1.0), ("पहाड़", 0.9), ("घाटी", 0.9),
                ("रेगिस्तान", 0.9), ("खेत", 0.6), ("पक्षी", 0.8), ("बगीचा", 0.7), ("मैदान", 0.6), ("हवा", 0.3), ("पेड़", 0.7), ("गाँव", 0.6), ("गांव", 0.6)],
     "technology": [("computer", 1.0), ("computers", 1.0), ("server", 1.0), ("servers", 1.0), ("laboratory", 1.0), ("lab", 0.9), ("circuit", 1.0),
                    ("circuits", 1.0), ("chip", 0.8), ("chips", 0.8), ("robot", 0.9), ("robots", 0.9), ("data center", 1.0), ("machine", 0.6),

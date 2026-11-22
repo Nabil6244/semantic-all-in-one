@@ -102,6 +102,25 @@ def _doc_slots(look: str, params: dict, text: str, t0: float, t1: float) -> Tupl
     raise KeyError(look)
 
 
+_ONE_LINE_TEXT = ("text_slam", "text_glow", "text_outline")  # one big line: wider than this many characters runs off both edges
+_ONE_LINE_MAX = 22
+_HEADLINE_MAX = 42  # tag_headline wraps a line up to this long
+
+
+def _fit_text_template(tid: str, spec: dict, data: dict, notes: Optional[List[str]], scene: Any) -> str:
+    """A CSV line too long for a one-line text look ("HOW DID VIETNAM GET SO FAR AHEAD?" as text_slam) is shown with a look that
+    wraps instead: tag_headline up to 42 characters, text_word_pop beyond. The words stay the same."""
+    text = str(spec.get("text") or "")
+    if tid not in _ONE_LINE_TEXT or len(text) <= _ONE_LINE_MAX:
+        return tid
+    for alt in (("tag_headline",) if len(text) <= _HEADLINE_MAX else ()) + ("text_word_pop",):
+        if alt in data["templates"] and data["templates"][alt].get("mode") != "excluded":
+            if notes is not None:
+                notes.append(f"scene {scene}: {tid} text is {len(text)} characters, shown as {alt} so it fits the screen")
+            return alt
+    return tid
+
+
 def csv_events(rows: Sequence[dict], display_timeline: Sequence[Tuple[float, float]], words: Sequence[Tuple[str, float, float]],
                data: Optional[dict] = None, *, notes: Optional[List[str]] = None) -> List[Dict[str, Any]]:
     """Events for the rows whose `gfx` cell names a template: {"t": "<template id>", "span": <scenes, default 1>, "<slot>": ...}.
@@ -118,6 +137,7 @@ def csv_events(rows: Sequence[dict], display_timeline: Sequence[Tuple[float, flo
             spec = json.loads(raw)
             tid = str(spec.pop("t"))
             span = max(1, int(spec.pop("span", 1)))
+            tid = _fit_text_template(tid, spec, data, notes, (rows[i] or {}).get("scene_number"))
             if tid not in data["templates"] or data["templates"][tid].get("mode") == "excluded":
                 raise KeyError(f"template {tid!r} is not allowed in a Normal Video")
             t0 = float(display_timeline[i][0]) + 0.3

@@ -34,7 +34,7 @@ TEXT_EFFECT_PRESETS = (
 
 INTENSITY_LEVELS = ("low", "medium", "high")
 MODES = ("smart", "automatic")
-SMART_EDITING_VERSION = 17  # 17: ambience from the semantic engine (context, picture + narration, AI only for conflicts), event sounds; 16: text pops dedupe on the spoken word ("1822," == "1822"); 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
+SMART_EDITING_VERSION = 18  # 18: ambience lexicon knows farms/villages/paddies; 17: ambience from the semantic engine (context, picture + narration, AI only for conflicts), event sounds; 16: text pops dedupe on the spoken word ("1822," == "1822"); 15: whooshes sit WHOOSH_TRIM lower; 14: transitions follow Visual Transitions Low/Medium/High
 
 SFX_CATEGORIES = (
     "whoosh",
@@ -2843,9 +2843,15 @@ def mix_sfx_with_narration(
     ambience_beds: Optional[Sequence[dict]] = None,
     stats: Optional[Dict[str, Any]] = None,
 ) -> Path:
-    narration_path = Path(narration_path)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:   # the narration at the standard level first (audio_level.py): effect and ambience levels assume an ordinary voice, not a -8 LUFS phone recording
+        import audio_level
+
+        narration_path = audio_level.level_narration(narration_path, output_path.parent)
+    except Exception:
+        pass
+    narration_path = Path(narration_path)
     root = Path(sfx_root or sfx_library_root())
 
     usable: List[tuple[Path, dict, str]] = []

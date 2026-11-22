@@ -414,3 +414,24 @@ def test_autorun_never_says_yes_to_deleting_files():
     assert is_delete_question("Delete downloaded assets?")
     assert not is_delete_question("Visual QA")
     assert not is_delete_question("")
+
+
+def test_old_final_video_is_not_this_runs_result(tmp_path):
+    """A video an earlier run left in final/ was handed back as the new film without rendering (Vietnam vs Pakistan v9)."""
+    import os, time
+    from types import SimpleNamespace
+    from autorun.driver import Runner
+
+    final = tmp_path / "final"
+    final.mkdir()
+    old = final / "Film.mp4"
+    old.write_bytes(b"x" * 10)
+    past = time.time() - 3600
+    os.utime(old, (past, past))
+    r = Runner.__new__(Runner)
+    r.ws = SimpleNamespace(final_dir=str(final))
+    r.run_started = time.time()
+    assert r.final_video() == (None, False)
+    new = final / "Film2.mp4"
+    new.write_bytes(b"y" * 10)
+    assert r.final_video()[0] == new

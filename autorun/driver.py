@@ -55,6 +55,7 @@ class Runner:
         self.style: dict = {}
         self.errors_seen = 0
         self.ws = None
+        self.run_started = time.time()      # only a video written after this counts as this run's video
         self.explainer_before: Optional[bool] = None
         self.presses: Dict[str, int] = {}
         self.pressed_at = 0.0
@@ -356,7 +357,9 @@ class Runner:
         the button again (that would render it a second time)."""
         if self.ws is None:
             return None, False
-        vids = [p for p in Path(self.ws.final_dir).glob("*.mp4") if p.stat().st_size > 0 and ".part" not in p.name and not p.name.startswith(".")]
+        # A video an earlier run left in final/ is not this run's result: counting it handed back the old film without rendering.
+        vids = [p for p in Path(self.ws.final_dir).glob("*.mp4") if p.stat().st_size > 0 and ".part" not in p.name and not p.name.startswith(".")
+                and p.stat().st_mtime >= self.run_started - 1.0]
         if not vids:
             return None, False
         v = max(vids, key=lambda p: p.stat().st_mtime)

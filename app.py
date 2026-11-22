@@ -8967,6 +8967,10 @@ class VideoGeneratorApp(ctk.CTk):
             from ancient_texts.integration import smart_editing_settings as enoch_settings
 
             settings = enoch_settings(settings)
+        from ui import pk_section as _pk
+
+        if getattr(self, "generation_mode", "normal") == "normal" and _pk.is_active(self):   # PK: no word pop-ups, effects high (ui/pk_section.py)
+            settings = _pk.smart_settings(settings)
         if self._normal_hybrid_style_on() and not settings.graphics:
             settings = dataclasses.replace(settings, graphics=True)   # Hybrid Map graphics need the Graphics switch; this render only, the saved switch is untouched
         return settings
@@ -11953,6 +11957,10 @@ class VideoGeneratorApp(ctk.CTk):
         """The app-wide "Doc Style" switch (Audio & Effects > Smart editing), saved in settings.json: graphics drawn in the News Doc look."""
         if self._story_motion_picked():   # Story Motion owns its look: no News Doc graphics over the glued pictures
             return False
+        from ui import pk_section as _pk   # PK: its recipe decides (ui/pk_section.py)
+
+        if _pk.is_active(self):
+            return bool(_pk.RECIPE["doc_style"])
         return bool(self._settings.get("doc_style"))
 
     def _set_doc_style(self, on: bool) -> None:
@@ -11964,6 +11972,10 @@ class VideoGeneratorApp(ctk.CTk):
         default): a Normal Video drawn with Hybrid Map's graphics look and sound design. Not used by the Enoch Template or Modern Tech News."""
         if self._story_motion_picked():   # Story Motion owns its joins and sound: no glitch cuts, template graphics or Hybrid sound design
             return False
+        from ui import pk_section as _pk   # PK: Hybrid graphics + sound always (ui/pk_section.py)
+
+        if _pk.is_active(self):
+            return bool(_pk.RECIPE["normal_hybrid_style"]) and not self._modern_tech_on() and not _enoch_template_active(self)
         return bool(self._settings.get("normal_hybrid_style", False)) and not self._modern_tech_on() and not _enoch_template_active(self)
 
     def _set_normal_hybrid_style(self, on: bool) -> None:
@@ -15865,6 +15877,10 @@ class VideoGeneratorApp(ctk.CTk):
                 print(f"[EN TEXT] English on-screen text skipped ({_en_exc})")
             # settings.json "normal_hybrid_fill": Hybrid graphics also fill the footage clips with text cards (normal_gfx/planner._fill_on)
             os.environ["SYT_NORMAL_GFX_FILL"] = "1" if self._settings.get("normal_hybrid_fill") else "0"
+            from ui import pk_section as _pk
+
+            if _pk.is_active(self):   # PK: its recipe decides (ui/pk_section.py)
+                os.environ["SYT_NORMAL_GFX_FILL"] = "1" if _pk.RECIPE["normal_hybrid_fill"] else "0"
 
             visual_plan = getattr(self, "_visual_plan", None)
             resolved_style = self._resolve_project_style(
@@ -16077,6 +16093,9 @@ class VideoGeneratorApp(ctk.CTk):
             bg_volume = 0.15
             music_cues_for_qa: list = []
             if bg_path:
+                import audio_level   # every music track at one standard loudness first (audio_level.py): a -9 LUFS bed blasted the opening
+
+                bg_path = audio_level.level_music(bg_path, work_dir)
                 music_plan = build_music_plan(
                     editorial_plan,
                     music_path=bg_path,
@@ -16105,9 +16124,22 @@ class VideoGeneratorApp(ctk.CTk):
                     else:
                         print("[EDITORIAL] Music ducking failed — using flat bed volume.")
                         bg_volume = 0.15
+                # settings.json "music_boost_db": the background music louder (or quieter) than the Music Director's level, in dB.
+                # A loud narration (a phone recording near -8 LUFS) buried the music about 30 dB down.
+                _music_boost_db = float(self._settings.get("music_boost_db") or 0.0)
+                from ui import pk_section as _pk   # PK sets its own music level (ui/pk_section.py RECIPE)
+
+                if _pk.is_active(self):
+                    _music_boost_db = float(_pk.RECIPE["music_boost_db"] or 0.0)
+                if _music_boost_db:
+                    bg_volume = bg_volume * (10 ** (_music_boost_db / 20.0))
+                    print(f"[EDITORIAL] Music {_music_boost_db:+.1f} dB (music_boost_db): volume x{bg_volume:.2f}.")
 
             scene_text_fx = None
             render_audio = str(config["audio_path"])
+            import audio_level   # the narration at -16 LUFS before effects and music go on (audio_level.py); same length, gain only
+
+            render_audio = audio_level.level_narration(render_audio, work_dir)
             smart_plan = None
             if smart_cfg.enabled():
                 smart_plan = build_plan(
@@ -16205,6 +16237,11 @@ class VideoGeneratorApp(ctk.CTk):
                 if config.get("hybrid_style") and self._settings.get("hybrid_keep_sfx"):
                     sfx_for_mix = _sfx_before_hybrid   # settings.json "hybrid_keep_sfx": the normal effects play too, under the Hybrid sound design
                     print(f"[SMART] Keeping {len(sfx_for_mix)} normal sound effect(s) with the Hybrid sound design.")
+                from ui import pk_section as _pk
+
+                if config.get("hybrid_style") and _pk.is_active(self) and not self._settings.get("hybrid_keep_sfx"):
+                    sfx_for_mix = _sfx_before_hybrid   # PK: the normal effects play too, under the Hybrid sound design (ui/pk_section.py)
+                    print(f"[SMART] PK: keeping {len(sfx_for_mix)} normal sound effect(s) with the Hybrid sound design.")
                 needs_audio_mix = bool(sfx_for_mix) or bool(ambience_for_mix)
                 if needs_audio_mix:
                     mixed = work_dir / "narration_with_sfx.wav"

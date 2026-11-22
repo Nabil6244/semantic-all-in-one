@@ -57,3 +57,21 @@ def test_csv_graphics_land_on_their_own_scene():
     evs = planner.csv_events(rows, [(0.0, 4.0), (4.0, 8.0), (8.0, 12.0)], [], notes=notes)
     assert len(evs) == 1 and evs[0]["template"]["id"] == "text_slam" and 0.0 < evs[0]["t_in"] < 4.0
     assert any("scene 3" in n for n in notes)
+
+
+def test_csv_long_one_line_text_wraps():
+    from normal_gfx import planner
+    rows = [{"scene_number": "1", "gfx": '{"t": "text_slam", "text": "HOW DID VIETNAM GET SO FAR AHEAD?"}'},
+            {"scene_number": "2", "gfx": ""},
+            {"scene_number": "3", "gfx": '{"t": "text_slam", "text": "NO INDUSTRIAL BASE"}'}]
+    notes = []
+    evs = planner.csv_events(rows, [(0.0, 4.0), (4.0, 8.0), (8.0, 12.0)], [], notes=notes)
+    assert [e["template"]["id"] for e in evs] == ["tag_headline", "text_slam"]
+    assert any("fits the screen" in n for n in notes)
+
+
+def test_village_and_paddy_shots_get_nature_bed():
+    from semantic_intel import ambience as A, lexicon as L
+    rows = [{"scene_number": "1", "script_segment": "", "prompt": "aerial over green rice paddies and a small rural village at sunrise"},
+            {"scene_number": "2", "script_segment": "", "prompt": "Vietnam rural village farmers"}]
+    assert [o["profile"] for o in A.decide(rows, rows, set(L.ENVIRONMENT))] == ["nature", "nature"]

@@ -20,6 +20,7 @@ _RT = "reptheory/"
 # command-line name -> the style. Every card of the app's style picker (ui/style_registry.py).
 STYLES: Dict[str, Dict[str, Any]] = {
     "normal": _s("Normal video", "required", "composition_styles/normal_csv_prompt.txt", fields={"music": "bg_var"}),   # --music fills "Background music"
+    "pk": _s("PK", "required", "composition_styles/normal_csv_prompt.txt", fields={"music": "bg_var"}),   # Normal video + the PK recipe (ui/pk_section.py)
     "story-motion": _s("Story Motion", "required", "composition_styles/normal_csv_prompt.txt"),
     "modern-tech-news": _s("Modern Tech News", "required", "composition_styles/normal_csv_prompt.txt"),
     "overscaled": _s("Overscaled", "required", "composition_styles/overscaled_csv_prompt.txt"),

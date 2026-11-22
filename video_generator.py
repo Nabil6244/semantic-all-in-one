@@ -2818,7 +2818,10 @@ def render_video(
             gfx_specs_all_once = list(gfx_specs_all_once) + doc_extras
         except Exception as exc:
             print(f"[3/4] Doc Style extras skipped: {exc}")
-    if gfx_specs_all_once and any(str((r or {}).get("gfx") or "").strip() for r in aligned_rows):
+    _csv_has_gfx = any(str((r or {}).get("gfx") or "").strip() for r in aligned_rows)
+    if _csv_has_gfx and any(per_scene_fx):
+        print("[3/4] The CSV has its own graphics: Smart Text word pop-ups are left out (one text at a time).")
+    if gfx_specs_all_once and _csv_has_gfx:
         # The scene CSV has its own graphics (`gfx` column, drawn as animated templates): the editorial planner's still
         # lower-thirds, captions and chapter cards came on top of them (two texts at once, sentence fragments). The CSV wins.
         _kept = [s for s in gfx_specs_all_once if str(getattr(s, "decision", "")) == "WATERMARK"]
@@ -2965,6 +2968,10 @@ def render_video(
         smart_fx_list = list(per_scene_fx[i] or [])
         # Pillow here has no text shaping (no raqm): Urdu/Arabic text comes out as empty boxes or loose reversed letters.
         # Those Smart Text pop-ups and Pillow graphics are left out; the browser-drawn template graphics show Urdu properly.
+        if smart_fx_list and _csv_has_gfx:
+            # the CSV's own graphics are the on-screen text: Smart Text's word pop-ups ("Samsung", "smartphones" for half a
+            # second each) came on top of them
+            smart_fx_list = []
         _urdu_fx = [fx for fx in smart_fx_list if _has_arabic_text(fx)]
         if _urdu_fx:
             smart_fx_list = [fx for fx in smart_fx_list if fx not in _urdu_fx]

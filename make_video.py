@@ -32,6 +32,7 @@ HERE = Path(__file__).resolve().parent
 APP_NAME = "Semantic YT Studio"
 STYLES = {   # kept in step with autorun/job.py (test_autorun.py checks it): name -> (csv, voice, prompt file, card name in the app)
     "normal": ("required", "required", "composition_styles/normal_csv_prompt.txt", "Normal video"),
+    "pk": ("required", "required", "composition_styles/normal_csv_prompt.txt", "PK"),
     "story-motion": ("required", "required", "composition_styles/normal_csv_prompt.txt", "Story Motion"),
     "modern-tech-news": ("required", "required", "composition_styles/normal_csv_prompt.txt", "Modern Tech News"),
     "overscaled": ("required", "required", "composition_styles/overscaled_csv_prompt.txt", "Overscaled"),

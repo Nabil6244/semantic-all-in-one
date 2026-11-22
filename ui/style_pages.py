@@ -209,7 +209,15 @@ def active_variant(app: Any, mode: str) -> str:
         return EXPLAINER
     if mode == "normal" and _story_active(app):   # ui/story_motion_section.py: saved in the project
         return "Story Motion"
+    if mode == "normal" and _pk_active(app):   # ui/pk_section.py: saved in the project
+        return "PK"
     return ""
+
+
+def _pk_active(app: Any) -> bool:
+    from . import pk_section as _pk
+
+    return _pk.is_active(app)
 
 
 def _story_active(app: Any) -> bool:
@@ -238,6 +246,11 @@ def pick_variant(app: Any, choice: str):
     from . import story_motion_section as _sm
 
     _sm.remember(app, app._story_motion_active)
+    from . import pk_section as _pk
+
+    _pk.remember(app, choice == "PK")
+    if choice == "PK":   # the Normal video engine with PK's recipe: the app's own Normal video step runs (it clears the other looks)
+        return "Normal video", False
     if choice == "Story Motion":   # Normal video with the story pipeline on (ui/story_motion_section.py)
         return ("Normal video", False) if getattr(app, "generation_mode", "normal") != "normal" else (choice, True)
     if choice not in _PAIRS:
