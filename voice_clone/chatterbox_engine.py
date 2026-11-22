@@ -63,6 +63,9 @@ def _child_env() -> dict:
             env.pop(k, None)
     env.setdefault("UV_PYTHON_INSTALL_DIR", str(engine.data_dir() / "uv_python"))   # uv's Python 3.11 lives with the env
     env.setdefault("UV_CACHE_DIR", str(engine.data_dir() / "uv_cache"))
+    # librosa's numba functions cache their compiled code next to the package; where that folder can't be written (a locked
+    # or read-only install) every line failed with "cannot cache function '_localmax': no locator available". A temp cache.
+    env.setdefault("NUMBA_CACHE_DIR", str(Path(tempfile.gettempdir()) / "svs_numba_cache"))
     env["PYTHONUTF8"] = "1"      # the worker's messages and paths read the same on a Windows code page
     env["PYTHONIOENCODING"] = "utf-8"
     return env
