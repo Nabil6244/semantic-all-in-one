@@ -47,7 +47,7 @@ def state():
 inst.update_idletasks()
 def page():  # (active, picker grid shown, page header shown)
     inst._sync_style_picker(); inst.update_idletasks(); return (inst._active_style(), shown(inst._style_grid), shown(inst._style_page_head))
-emit("starts_on_the_grouped_picker", page() == ("Normal video", True, False) and {"General", "Maps", "Space", "Explainers"} <= set(inst._style_group_labels), str(page()))
+emit("starts_on_the_grouped_picker", page() == ("Normal video", True, False) and {"General", "History & Maps", "Space & Science", "Theory Explainers", "Kids"} <= set(inst._style_group_labels), str(page()))
 emit("new_cards_exist", {"StarMap Cinema", "Explainer"} <= set(inst._style_cards), str(sorted(inst._style_cards)))
 inst._on_style_pick("Hybrid Map")
 emit("hybrid_page_without_explainer", page() == ("Hybrid Map", False, True) and not inst._hybrid_explainer_var.get()

@@ -102,23 +102,23 @@ def _resolve(mode: str) -> str:
 # ---------------------------------------------------------------------------
 
 DARK = {
-    "background": "#090A0D",
-    "surface": "#101217",
-    "surface_alt": "#0C0E12",
-    "surface_elevated": "#15181F",
-    "surface_elevated_hover": "#1C2029",
-    "row_alt": "#12151B",
-    "border": "#232833",
-    "border_strong": "#323949",
-    "text_primary": "#ECEEF3",
-    "text_secondary": "#9CA4B5",
-    "text_tertiary": "#828B9E",
-    "accent": "#4E5EF5",
-    "accent_hover": "#3F4FE3",
+    "background": "#0A0B0F",
+    "surface": "#111318",
+    "surface_alt": "#0D0F13",
+    "surface_elevated": "#181B22",
+    "surface_elevated_hover": "#20242D",
+    "row_alt": "#14171D",
+    "border": "#262A35",
+    "border_strong": "#363C4B",
+    "text_primary": "#F1F2F6",
+    "text_secondary": "#A3AABB",
+    "text_tertiary": "#8A92A5",
+    "accent": "#6548F0",
+    "accent_hover": "#5638DC",
     "accent_on_accent": "#FFFFFF",
-    "accent_text": "#8D99FF",
-    "selected": "#1A1F3D",
-    "accent_border": "#3B4586",
+    "accent_text": "#A898FF",
+    "selected": "#1F1B40",
+    "accent_border": "#4A3F96",
     "success": "#3DD68C",
     "success_bg": "#0F2419",
     "processing": "#5AA9FF",
@@ -129,9 +129,9 @@ DARK = {
     "error_bg": "#2A1517",
     "skipped": "#6B7280",
     "stepper_done": "#2F9E72",
-    "hover": "#1C2029",
-    "disabled": "#383F4D",
-    "timeline_bg": "#0C0E12",
+    "hover": "#20242D",
+    "disabled": "#3A4050",
+    "timeline_bg": "#0D0F13",
     "track": "#161B22",
     "track_alt": "#12161C",
     "clip_video": "#3D5080",
@@ -143,26 +143,34 @@ DARK = {
     "clip_music": "#B08900",
     "clip_voiceover": "#4F6BF6",
     "playhead": "#F26D6D",
+    "family_general": "#1A2338",
+    "family_history": "#2A2417",
+    "family_space": "#1D1A38",
+    "family_theory": "#2C1F1A",
+    "family_stories": "#2C1A27",
+    "family_kids": "#16291F",
+    "family_products": "#13262E",
+    "family_more": "#1F2129",
 }
 
 LIGHT = {
-    "background": "#ECEEF2",
-    "surface": "#FAFAFB",
-    "surface_alt": "#F3F4F7",
+    "background": "#EEF0F4",
+    "surface": "#FAFAFC",
+    "surface_alt": "#F3F4F8",
     "surface_elevated": "#FFFFFF",
-    "surface_elevated_hover": "#EEF0F5",
-    "row_alt": "#F7F8FA",
-    "border": "#DDE1E8",
-    "border_strong": "#C5CBD6",
-    "text_primary": "#151922",
-    "text_secondary": "#4A5162",
-    "text_tertiary": "#636B7A",
-    "accent": "#4454EE",
-    "accent_hover": "#3443D6",
+    "surface_elevated_hover": "#EFF0F6",
+    "row_alt": "#F7F8FB",
+    "border": "#DEE1EA",
+    "border_strong": "#C6CBD8",
+    "text_primary": "#14161F",
+    "text_secondary": "#474E60",
+    "text_tertiary": "#5F6678",
+    "accent": "#5B3DF0",
+    "accent_hover": "#4A2DD6",
     "accent_on_accent": "#FFFFFF",
-    "accent_text": "#3F4FE6",
-    "selected": "#E7EAFF",
-    "accent_border": "#AFB8F5",
+    "accent_text": "#5132E6",
+    "selected": "#ECE8FF",
+    "accent_border": "#B9ADF7",
     "success": "#0A7A55",
     "success_bg": "#E3F6EE",
     "processing": "#2F80D6",
@@ -173,9 +181,9 @@ LIGHT = {
     "error_bg": "#FBEAEA",
     "skipped": "#9AA1AD",
     "stepper_done": "#1F8F5E",
-    "hover": "#EEF0F5",
+    "hover": "#EFF0F6",
     "disabled": "#C7CCD6",
-    "timeline_bg": "#F3F4F7",
+    "timeline_bg": "#F3F4F8",
     "track": "#FFFFFF",
     "track_alt": "#F5F6F8",
     "clip_video": "#AAB8F0",
@@ -187,6 +195,14 @@ LIGHT = {
     "clip_music": "#F0D98C",
     "clip_voiceover": "#AAB8F0",
     "playhead": "#D64545",
+    "family_general": "#E4EAFB",
+    "family_history": "#F6ECD9",
+    "family_space": "#ECE6FC",
+    "family_theory": "#F9E7E0",
+    "family_stories": "#F8E3EF",
+    "family_kids": "#DFF3E7",
+    "family_products": "#DCEFF5",
+    "family_more": "#E9EAEE",
 }
 
 _TABLES = {"dark": DARK, "light": LIGHT}
@@ -517,8 +533,8 @@ STATUSBAR_HEIGHT = 28
 PAD = 12
 PAD_SM = 6
 PAD_LG = 18
-RADIUS = 6
-RADIUS_LG = 10
+RADIUS = 8
+RADIUS_LG = 12
 # Readable measure for form/dashboard pages: wider windows centre the content
 # instead of stretching labels and values to opposite edges of the screen.
 CONTENT_MAX_W = 1040
@@ -552,6 +568,7 @@ FONT_STATUS = (11, "normal")
 FONT_EMPTY_TITLE = (16, "bold")
 FONT_DISPLAY = (20, "bold")
 FONT_EMPTY_ICON = (20, "normal")
+FONT_STYLE_ICON = (28, "normal")   # the big glyph on a Visual Director style card
 
 CONTROL_H_SM = 26
 CONTROL_H = 32

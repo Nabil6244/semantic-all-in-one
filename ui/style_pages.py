@@ -40,6 +40,9 @@ def build(app: Any, block: Any) -> None:
     app._style_back_btn = make_button(block, "Back", lambda: back(app), size="sm", width=140)
     app._style_browsing, app._style_browse_auto, app._style_back = True, True, False
     app._style_pages_project = object()   # no project seen yet: the first sync decides
+    from . import visual_director   # the new look: searchable family gallery + hero page header (same cards dict, same handlers)
+
+    visual_director.install(app, block)
 
 
 def layout(app: Any, width: int) -> bool:
@@ -48,6 +51,10 @@ def layout(app: Any, width: int) -> bool:
     cards = getattr(app, "_style_cards", None)
     if grid is None or not cards:
         return False
+    if getattr(app, "_vd_installed", False):
+        from . import visual_director
+
+        return visual_director.layout(app, width)
     cols = 6 if width >= 1250 else 3 if width >= 620 else 2
     if getattr(app, "_style_grouped_cols", None) == cols:
         return True
@@ -116,6 +123,9 @@ def sync(app: Any, active: str) -> None:
         app._style_page_blurb.configure(text=app.STYLE_BLURBS.get(active, ""))
         app._style_page_head.grid(row=0, column=0, sticky="ew", padx=16, pady=(16, 0))
         app._style_next.grid_configure(row=1, pady=(12, 16))
+        from . import visual_director
+
+        visual_director.sync_page_head(app, active)
     base_block = {STARMAP_CINEMA: "_starmap_block", EXPLAINER: "_hybrid_block"}.get(active)   # the engine's own controls
     if base_block and getattr(app, base_block, None) is not None:
         getattr(app, base_block).grid()

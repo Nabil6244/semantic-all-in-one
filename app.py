@@ -3362,6 +3362,15 @@ class VideoGeneratorApp(ctk.CTk):
             self._weather_deactivate()
         if choice != "What If":
             self._whatif_deactivate()
+        # every other own-page style off first: the chain below returns at the chosen style, so a style listed later in it
+        # (Game Launch, Ocean Predators, Kids Learn, Roblox Cinema) stayed on after picking one listed earlier (Aviation)
+        for _sec_name, _sec in (("Product Trailer", _pt_section), ("Rules Horror", _rh_section), ("Voxel Map", _vm_section),
+                                ("City Timelapse", _ct_section), ("Toon Tales", _tt_section), ("Toy Vehicles", _tv_section),
+                                ("Kids Stories", _ks_section), ("Stickman", _sm_section), ("Prepper Host", _ph_section),
+                                ("Aviation", _av_section), ("Game Launch", _gl_section), ("Ocean Predators", _oc_section),
+                                ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section)):
+            if choice != _sec_name:
+                _sec.deactivate(self)
         if choice != "Product Trailer":
             _pt_section.deactivate(self)
         if choice == "Product Trailer":   # its own page (ui/product_trailer_section.py); nothing runs until Generate
