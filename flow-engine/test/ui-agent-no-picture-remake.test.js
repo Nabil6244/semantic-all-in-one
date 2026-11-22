@@ -63,10 +63,18 @@ test("a later Generate re-makes such a still without Retry; videos and known med
   assert.equal(l.decide("img", { accountId: "B", runId: "r2" }).action, "submit");
   l.put("vid", { state: LedgerState.SUBMITTED_UNKNOWN, mediaKind: "video", accountId: "A", noMediaSeen: true });
   assert.equal(l.decide("vid", { accountId: "A", runId: "r2" }).action, "block");
-  l.put("plain", { state: LedgerState.SUBMITTED_UNKNOWN, mediaKind: "image", accountId: "A" });
-  assert.equal(l.decide("plain", { accountId: "A", runId: "r2" }).action, "block");
-  l.put("stop", { state: LedgerState.SUBMITTING, mediaKind: "image", accountId: "A", noMediaSeen: true });
+  l.put("plain", { state: LedgerState.SUBMITTED_UNKNOWN, mediaKind: "image", accountId: "A", runId: "r2" });
+  assert.equal(l.decide("plain", { accountId: "A", runId: "r2" }).action, "block", "same run: may still be in flight");
+  l.put("stop", { state: LedgerState.SUBMITTING, mediaKind: "image", accountId: "A", noMediaSeen: true, runId: "r2" });
   assert.equal(l.decide("stop", { accountId: "A", runId: "r2" }).action, "block", "only a finished wait with nothing seen counts");
+  // An earlier run that is over: its unconfirmed stills are made again without Retry (owner, 2026-11-22); videos are not.
+  assert.equal(l.decide("plain", { accountId: "A", runId: "r3" }).action, "submit");
+  assert.equal(l.decide("stop", { accountId: "B", runId: "r3" }).action, "submit");
+  assert.equal(l.decide("stop", { accountId: "B", runId: "r3", runIsShared: false }).action, "block", "no engine run id: cannot tell runs apart");
+  l.put("known", { state: LedgerState.SUBMITTED_UNKNOWN, mediaKind: "image", accountId: "A", runId: "r1", mediaId: "m1" });
+  assert.equal(l.decide("known", { accountId: "A", runId: "r3" }).action, "block", "media seen on Flow: Retry only");
+  l.put("vid2", { state: LedgerState.SUBMITTING, mediaKind: "video", accountId: "A", runId: "r1" });
+  assert.equal(l.decide("vid2", { accountId: "A", runId: "r3" }).action, "block", "videos stay Retry-only");
 });
 
 test("any picture on the page (a chat copy too), a refusal, or a missing count keeps the old needs-action rule", async () => {

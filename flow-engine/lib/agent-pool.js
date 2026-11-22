@@ -18,7 +18,7 @@
 import { agent as agentConfig } from "../config.js";
 import { splitSharedForUiAgent, splitSharedStyle } from "./agent-api.js";
 import { planAgentBatches } from "./agent-runner.js";
-import { LedgerState } from "./generation-ledger.js";
+import { isEndedRunStill, LedgerState } from "./generation-ledger.js";
 
 const NOTHING_CREATED = new Set([LedgerState.FAILED_BEFORE_SUBMISSION, LedgerState.REJECTED]);
 const RESUMABLE = new Set([LedgerState.ACCEPTED, LedgerState.MEDIA_ID_KNOWN, LedgerState.DOWNLOAD_FAILED]);
@@ -28,12 +28,14 @@ const RESUMABLE = new Set([LedgerState.ACCEPTED, LedgerState.MEDIA_ID_KNOWN, Led
  * owner account fetches it) or "other" (already saved, or uncertain and blocked). A confirmed Retry makes a scene new
  * unless its file is already saved.
  */
-export function sceneStanding(entry, { confirmed = false } = {}) {
+export function sceneStanding(entry, { confirmed = false, runId = null } = {}) {
   if (!entry || NOTHING_CREATED.has(entry.state)) return "new";
   if (RESUMABLE.has(entry.state)) return "download";
   if (entry.state === LedgerState.COMPLETED_LOCAL) return confirmed ? "new" : "other";
   // A still request after which no picture appeared anywhere: nothing exists on Flow, so it is new (GenerationLedger.decide).
   if (entry.state === LedgerState.SUBMITTED_UNKNOWN && entry.noMediaSeen && entry.mediaKind === "image" && !entry.mediaId) return "new";
+  // A still an earlier (ended) run left unconfirmed is new too (GenerationLedger.decide).
+  if (isEndedRunStill(entry, runId)) return "new";
   return confirmed ? "new" : "other";
 }
 
@@ -56,7 +58,7 @@ export function planImageJob({ prompts, promptKeys = null, settings = {}, ledger
       return;
     }
     const entry = ledger.get(key);
-    const standing = sceneStanding(entry, { confirmed: promptKey != null && confirmed.has(String(promptKey)) });
+    const standing = sceneStanding(entry, { confirmed: promptKey != null && confirmed.has(String(promptKey)), runId: settings._runId || null });
     if (standing === "new") fresh++;
     poolItems.push({ index, prompt, promptKey, owner: standing === "download" ? entry.accountId : null });
   });

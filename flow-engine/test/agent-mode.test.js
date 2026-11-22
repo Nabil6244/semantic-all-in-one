@@ -237,17 +237,21 @@ test("a refused request (4xx) goes entirely to the standard path", async () => {
   assert.deepEqual(flow.calls.standard, SCENES);
 });
 
-test("no answer after sending: Needs action, never sent again by either path", async () => {
+test("no answer after sending: Needs action in that run; a later run (the first one is over) makes the stills again", async () => {
   const { out, ledger } = setup();
   const flow = fakeFlow({ sendErrors: [tagSubmission(new Error("The agent did not finish in time"), Submission.UNKNOWN)] });
-  const { results } = await run({ flow, ledger, prompts: SCENES, out });
+  const { results } = await run({ flow, ledger, prompts: SCENES, out, runId: "run-1" });
   assert.equal(flow.calls.sends, 1);
   assert.deepEqual(flow.calls.standard, []);
   assert.ok(results.every((r) => r.status === "failed" && r.needsAction));
+  const same = fakeFlow({ replies: [agentReply(SCENES)] });
+  const sameRun = await run({ flow: same, ledger, prompts: SCENES, out, runId: "run-1" });
+  assert.equal(same.calls.sends, 0, "the same run never resends a batch whose outcome is unknown");
+  assert.ok(sameRun.results.every((r) => r.needsAction));
   const again = fakeFlow({ replies: [agentReply(SCENES)] });
   const second = await run({ flow: again, ledger, prompts: SCENES, out, runId: "run-2" });
-  assert.equal(again.calls.sends, 0, "an automatic run never resends a batch whose outcome is unknown");
-  assert.ok(second.results.every((r) => r.needsAction));
+  assert.equal(again.calls.sends, 1, "stills an ended run left unconfirmed are made again without Retry (owner, 2026-11-22)");
+  assert.ok(second.results.every((r) => r.status === "done"));
 });
 
 test("Retry (confirmed) may send a scene whose earlier outcome was unknown", async () => {

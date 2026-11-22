@@ -25,6 +25,7 @@
  *   COMPLETED_LOCAL, confirmed (Regenerate)                   -> submit (the user asked for a new one)
  *   ACCEPTED / MEDIA_ID_KNOWN / DOWNLOAD_FAILED, same account -> resume; only after a CONFIRMED run already failed to resume
  *                                                                does a further confirmed request submit a new one
+ *   SUBMITTING / SUBMITTED_UNKNOWN still image from an EARLIER run (that run is over) -> submit (owner, 2026-11-22)
  *   ACCEPTED / MEDIA_ID_KNOWN / DOWNLOAD_FAILED, other account, SUBMITTING, SUBMITTED_UNKNOWN, FAILED_ON_FLOW
  *                                                             -> block unless confirmed
  *
@@ -76,6 +77,17 @@ export function generationKey({ mediaKind, prompt, settings = {}, slot = 0, scop
   if (settings.referenceKey) picked.push(["referenceKey", settings.referenceKey]);
   const raw = JSON.stringify([scope, mediaKind, String(prompt).trim(), picked, slot]);
   return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 32);
+}
+
+const UNCONFIRMED = new Set([LedgerState.SUBMITTING, LedgerState.SUBMITTED_UNKNOWN]);
+
+/**
+ * A still request whose result was never confirmed, made by an earlier run than `runId`. The engine runs one run at a time,
+ * so an earlier run is over and nothing of it is still in flight. Same run = another slice may be sending it right now.
+ */
+export function isEndedRunStill(entry, runId) {
+  return !!entry && !!runId && UNCONFIRMED.has(entry.state) && entry.mediaKind === "image" && !entry.mediaId &&
+    !entry.workflowId && entry.runId !== runId;
 }
 
 export class GenerationLedger {
@@ -132,11 +144,11 @@ export class GenerationLedger {
   /**
    * What to do with a generation identity before submitting it.
    * @param {string} key
-   * @param {{ accountId: string, runId: string, confirmed?: boolean, validFile?: (path: string) => boolean }} ctx
+   * @param {{ accountId: string, runId: string, confirmed?: boolean, validFile?: (path: string) => boolean, runIsShared?: boolean }} ctx
    * @returns {{ action: "submit" } | { action: "reuse", entry: object } | { action: "resume", entry: object } |
    *           { action: "block", entry: object, reason: string }}
    */
-  decide(key, { accountId, runId, confirmed = false, validFile = () => false }) {
+  decide(key, { accountId, runId, confirmed = false, validFile = () => false, runIsShared = true }) {
     const e = this.get(key);
     if (!e || NOTHING_CREATED.has(e.state)) return { action: "submit" };
     if (e.state === LedgerState.COMPLETED_LOCAL) {
@@ -167,6 +179,11 @@ export class GenerationLedger {
     // is nothing on Flow to download, so it may be made again without a Retry (owner's decision, 2026-11-04). Videos and any
     // request where Flow did show media keep the Retry-only rule.
     if (e.state === LedgerState.SUBMITTED_UNKNOWN && e.noMediaSeen && e.mediaKind === "image" && !e.mediaId) return { action: "submit" };
+    // A still left unconfirmed by a run that is over (stopped, cut off, crashed, timed out) may be made again by a new run
+    // without a Retry: a rare duplicate still costs little, 26 scenes stuck behind Retry did not (owner's decision,
+    // 2026-11-22). Videos keep the Retry-only rule.
+    // runIsShared = false: the caller made its own run id (no engine run id), so "another run" cannot be told apart.
+    if (runIsShared && isEndedRunStill(e, runId)) return { action: "submit" };
     if (e.state === LedgerState.FAILED_ON_FLOW) {
       return { action: "block", entry: e, reason: "Flow reported this generation as failed. Click Retry on this scene to generate it again" };
     }

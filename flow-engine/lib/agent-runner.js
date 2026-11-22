@@ -249,7 +249,7 @@ export async function runAgentSlice(params) {
     }
     it.key = agentSceneKey({ prompt, promptKey, index: abs, settings: standardSettings });
     it.confirmed = promptKey != null && confirmedKeys.has(String(promptKey));
-    const decision = ledger.decide(it.key, { accountId: owner, runId, confirmed: it.confirmed, validFile: (p) => isValidOutput(p, "image") });
+    const decision = ledger.decide(it.key, { accountId: owner, runId, confirmed: it.confirmed, validFile: (p) => isValidOutput(p, "image"), runIsShared: !!standardSettings._runId });
     if (decision.action === "block") {
       fail(it, `Not submitted: ${decision.reason}.`, { needsAction: true, ledgerState: decision.entry.state });
     } else if (decision.action === "reuse") {

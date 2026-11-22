@@ -298,7 +298,7 @@ export async function runBatchSlice({
     const confirmed = promptKey != null && confirmedKeys.has(String(promptKey));
     const name = count > 1 ? `${pad(abs + 1)}-${slot + 1}.${ext}` : `${pad(abs + 1)}.${ext}`;
     const dest = path.join(outDir, name);
-    const decision = ledger.decide(key, { accountId: owner, runId, confirmed, validFile: (p) => isValidOutput(p, mediaKind) });
+    const decision = ledger.decide(key, { accountId: owner, runId, confirmed, validFile: (p) => isValidOutput(p, mediaKind), runIsShared: !!settingsLocal._runId });
     if (decision.action === "block") {
       throw new NeedsActionError(`Not submitted: ${decision.reason}.`, { ledgerState: decision.entry.state, key });
     }
