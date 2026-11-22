@@ -56,6 +56,8 @@ STYLES: Dict[str, Dict[str, Any]] = {
                    fields={"script": "_sm_script_var", "csv": "_sm_csv_var", "voice": "_sm_voice_var"}),
     "prepper-host": _s("Prepper Host", "optional", "prepper_host/csv_prompt.txt", voice="optional",
                        fields={"script": "_ph_script_var", "csv": "_ph_csv_var", "voice": "_ph_voice_var"}),
+    "food-files": _s("Food Files", "optional", "foodfiles/csv_prompt.txt", voice="optional",
+                     fields={"script": "_ff_script_var", "csv": "_ff_csv_var", "voice": "_ff_voice_var"}),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 
@@ -87,6 +89,8 @@ def make_job(style: str, voice: str = "", script: str = "", csv: str = "", title
         raise JobError("the stickman style needs the script (--script) or a Stickman CSV (--csv)")
     if style == "prepper-host" and c is None and s is None:
         raise JobError("the prepper-host style needs a Prepper Host CSV (--csv) or the script (--script)")
+    if style == "food-files" and c is None and s is None:
+        raise JobError("the food-files style needs a Food Files CSV (--csv) or the script (--script)")
     if c is None and STYLES[style]["csv"] == "required":
         raise JobError(f"the {style} style needs a CSV (--csv); write it with: make_video.py prompt --style {style}")
     o = Path(out).expanduser().resolve() if out else None

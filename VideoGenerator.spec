@@ -215,6 +215,13 @@ for _p in sorted((ROOT / "prepper_host" / "hosts").rglob("*")):
         datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
 hiddenimports += ["prepper_host", "prepper_host.runner", "prepper_host.csvplan", "prepper_host.director", "prepper_host.flow",
                   "prepper_host.host", "prepper_host.render", "prepper_host.voice", "prepper_host.flowvoice"]
+# Food Files: foodfiles/ (CSV + script prompts, samples, the Anton font) on the Prepper Host spine; imported inside its page's handlers
+for _p in sorted((ROOT / "foodfiles").rglob("*")):
+    if _p.is_file() and _p.suffix in (".txt", ".csv", ".ttf"):
+        datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
+hiddenimports += ["foodfiles", "foodfiles.runner", "foodfiles.csvplan", "foodfiles.director", "foodfiles.check", "foodfiles.cards",
+                  "foodfiles.icons", "foodfiles.maps", "foodfiles.look", "foodfiles.host", "foodfiles.render",
+                  "foodfiles.wall_moments", "foodfiles.scene2d", "foodfiles.sources", "foodfiles.scriptcheck"]
 # Kids Stories: cartoon2d/ (the 2D cartoon engine) loaded by path from the page's handlers; every piece of a render runs as
 # `<app> --run-script cartoon2d/render.py ...` (script_runner.dispatch), so its .py files ship as files, with the cast, props,
 # hands, brand art and the packed stories. Backgrounds travel inside each .kidstory file, so art/bg does not ship.

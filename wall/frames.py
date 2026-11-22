@@ -75,6 +75,8 @@ class Frames:
                 tmp.mkdir(parents=True, exist_ok=True)
                 w, h = self.res
                 head = ["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0.0, self.a):.3f}", "-t", f"{max(0.04, self.b - self.a):.3f}", "-i", self.path]
+                if Path(self.path).suffix.lower() in (".png", ".jpg", ".jpeg", ".webp"):   # a still picture (Food Files): looped
+                    head = ["ffmpeg", "-v", "error", "-y", "-loop", "1", "-t", f"{max(0.04, self.b - self.a):.3f}", "-i", self.path]
                 if self.graph:     # the style's own look of the shot ([0:v] -> [o]), then the print's size
                     body = ["-filter_complex", f"{self.graph};[o]scale={w}:{h},fps={FPS},setsar=1[q]", "-map", "[q]"]
                 else:

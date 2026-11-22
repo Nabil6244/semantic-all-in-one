@@ -17,6 +17,7 @@ from prepper_host import director, voice as pv
 
 SAY_KINDS = ("host", "split", "pip")
 MAX_WORDS = 18
+CLIP_PAUSE = 0.42   # tight mode: a pause inside a Flow clip longer than this is cut (and jump-cut on screen)
 SR = 24000
 TARGET_RMS_DB = -20.0
 CACHE = pv.CACHE
@@ -98,7 +99,7 @@ def _read(path):
     return np.frombuffer(raw, dtype="<f4").astype(np.float32)
 
 
-def speech_span(y, frame=0.02):
+def speech_span(y, frame=0.02, tail=0.12, head=0.06):
     """(start, end) seconds of the speech in a clip's sound: first/last 20 ms frame within 30 dB of the loudest."""
     n = int(SR * frame)
     if len(y) < n:
@@ -108,9 +109,49 @@ def speech_span(y, frame=0.02):
     on = np.where(db > max(-45.0, db.max() - 30.0))[0]
     if not len(on):
         return 0.0, len(y) / SR
-    a = max(0.0, on[0] * frame - 0.06)
-    b = min(len(y) / SR, (on[-1] + 1) * frame + 0.12)
+    a = max(0.0, on[0] * frame - head)
+    b = min(len(y) / SR, (on[-1] + 1) * frame + tail)
     return a, b
+
+
+def pauses(y, frame=0.02, longer=0.32):
+    """[(start, end)] seconds of the silences inside speech that last longer than `longer` (30 dB under the loudest)."""
+    n = int(SR * frame)
+    if len(y) < n * 4:
+        return []
+    fr = y[: len(y) // n * n].reshape(-1, n)
+    db = 20 * np.log10(np.sqrt((fr ** 2).mean(axis=1)) + 1e-9)
+    quiet = db < max(-45.0, db.max() - 30.0)
+    out, i = [], 0
+    while i < len(quiet):
+        if quiet[i]:
+            j = i
+            while j < len(quiet) and quiet[j]:
+                j += 1
+            if 0 < i and j < len(quiet) and (j - i) * frame > longer:
+                out.append((i * frame, j * frame))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def squeeze(y, keep=0.14, longer=0.32, spare=()):
+    """The speech with every long pause cut down to `keep` s -> (audio, [(time in the new audio, seconds removed)]).
+    `spare`: indexes of pauses to leave as they are (their jump cut would make a flicker on screen)."""
+    cuts, parts, pos, t_new = [], [], 0, 0.0
+    for n, (a, b) in enumerate(pauses(y, longer=longer)):
+        if n in spare:
+            continue
+        s0, s1 = int(a * SR), int(b * SR)
+        parts.append(y[pos:s0])                       # the speech up to the pause
+        k = int(keep * SR)
+        parts.append(y[s0:s0 + k])                    # a short breath of the pause stays
+        t_new += (s0 - pos + k) / SR
+        cuts.append((round(t_new, 4), round((s1 - s0 - k) / SR, 4)))
+        pos = s1
+    parts.append(y[pos:])
+    return (np.concatenate(parts) if parts else y), cuts
 
 
 def _level(y):
@@ -202,21 +243,34 @@ def _write(y, path):
         w.writeframes(pcm.tobytes())
 
 
-def build(rows, clips, edge_voice, log=print, cloned=None):
-    """rows from split_rows, clips {row index: mp4} -> {"path","duration","words","said": {row: (clip, clip_at)}}."""
-    sig = hashlib.sha1(json.dumps([[r["line"], clips.get(k, ""), str((cloned or {}).get(r["line"], ""))] for k, r in enumerate(rows)] + [edge_voice]).encode()).hexdigest()[:16]
+def build(rows, clips, edge_voice, log=print, cloned=None, tight=False, spare=None):
+    """rows from split_rows, clips {row index: mp4} -> {"path","duration","words","said": {row: (clip, clip_at)}}.
+
+    tight (Food Files: fast, no dead air): trailing breaths trimmed, 0.05 s between lines, and long pauses inside a line cut
+    to 0.14 s. Inside a Flow clip each cut is listed in "cuts" {row: [(voice time, seconds skipped)]} so the picture can
+    jump the same amount there (a jump cut) and his lips stay in sync."""
+    sig = hashlib.sha1(json.dumps([[r["line"], clips.get(k, ""), str((cloned or {}).get(r["line"], ""))] for k, r in enumerate(rows)]
+                                  + [edge_voice] + (["tight", sorted((k, sorted(v)) for k, v in (spare or {}).items())] if tight else [])
+                                  ).encode()).hexdigest()[:16]
     out = CACHE / f"flowvoice_{sig}.wav"
     CACHE.mkdir(parents=True, exist_ok=True)
-    gap = np.zeros(int(SR * pv.GAP), dtype=np.float32)
-    parts, words, said, t = [], [], {}, 0.0
+    gap = np.zeros(int(SR * (0.05 if tight else pv.GAP)), dtype=np.float32)
+    span = (lambda y: speech_span(y, tail=0.04, head=0.03)) if tight else speech_span
+    parts, words, said, cuts, t = [], [], {}, {}, 0.0
     for k, r in enumerate(rows):
         clip = clips.get(k)
         seg = None
         if clip:
             try:
                 y = _read(clip)
-                a, b = speech_span(y)
+                a, b = span(y)
                 seg = _level(y[int(a * SR): int(b * SR)])
+                if tight:   # only real dead air: shorter pauses inside a clip stay (each cut is a jump cut on screen)
+                    keep_ix = (spare or {}).get(k, ())
+                    seg, cut = squeeze(seg, longer=CLIP_PAUSE, spare=keep_ix)
+                    if cut:
+                        ix = [n for n in range(len(cut) + len(keep_ix)) if n not in keep_ix][:len(cut)]
+                        cuts[k] = [(round(t + ct, 4), skip, n) for (ct, skip), n in zip(cut, ix)]
                 words += _spread(r["line"], t, t + len(seg) / SR)
                 said[k] = (str(clip), round(a, 3), round(t, 3))
             except Exception as e:  # noqa: BLE001 - that line keeps the Edge voice
@@ -225,21 +279,28 @@ def build(rows, clips, edge_voice, log=print, cloned=None):
         if seg is None and (cloned or {}).get(r["line"]):
             try:
                 y = _read(cloned[r["line"]])
-                a, b = speech_span(y)
+                a, b = span(y)
                 seg = _level(y[int(a * SR): int(b * SR)])
+                if tight:
+                    seg, _ = squeeze(seg)      # no picture to keep in step: just shorter pauses
                 words += _spread(r["line"], t, t + len(seg) / SR)
             except Exception as e:  # noqa: BLE001
                 log(f"prepper host: cloned line not usable ({e}); Edge voice for: {r['line'][:60]}")
                 seg = None
         if seg is None:
             ev = pv.edge(r["line"], edge_voice, log=lambda m: None)
-            seg = _level(_read(ev["path"]))
-            words += [{"word": w["word"], "start": round(w["start"] + t, 4), "end": round(w["end"] + t, 4)} for w in ev["words"]]
+            y = _read(ev["path"])
+            a = 0.0
+            if tight:                        # trim the Edge piece's lead-in / tail too; its word times move with it
+                a, b = span(y)
+                y = y[int(a * SR): int(b * SR)]
+            seg = _level(y)
+            words += [{"word": w["word"], "start": round(w["start"] - a + t, 4), "end": round(w["end"] - a + t, 4)} for w in ev["words"]]
         parts += [seg, gap]
         t += (len(seg) + len(gap)) / SR
     y = np.concatenate(parts) if parts else np.zeros(SR, dtype=np.float32)
     _write(y, out)
-    return {"path": str(out), "duration": len(y) / SR, "words": words, "said": said}
+    return {"path": str(out), "duration": len(y) / SR, "words": words, "said": said, "cuts": cuts}
 
 
 def attach(spec, rows, said):

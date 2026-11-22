@@ -1,0 +1,62 @@
+You are writing the voiceover for a Food Files video: a host-led countdown of REAL food stories, spoken by our host
+Theo (casual, quick, curious, a little dry). Spec: docs/food_files/SCRIPT_STUDY.md (from the 8 top videos of the
+format). Write our own stories and our own words; never reuse another channel's lines or jokes.
+
+TOPIC: {topic}
+LENGTH: {minutes} minutes  ->  about {minutes} x 172 words (2,500-3,100 words for 15-18 min)
+
+PICK THE STORIES FIRST
+Collect 15-20 real candidates, score each (1 point each), keep the 8-12 with 5+ points:
+  a product people know | a specific case (date, place, a person with an age) | an easy-to-picture consequence |
+  a mechanism we can explain in 2-3 steps | a fallout (recall, lawsuit, ban, prison, new law) | a twist (cover-up,
+  irony, it happened again) | something we can show (photo, recall notice, news clip) | kids involved or a kids' food
+Order: item 1 = the most recent / viral / recognisable story. Then change the KIND of danger every item (injury, crime,
+mystery, legal oddity, choking, poison, gross-out, corporate cover-up). Keep 2-3 of the strongest for the last third.
+Mix eras (1850s to this year).
+
+COLD OPEN (15-25 s, nothing before it: no welcome, no channel talk)
+  "From [a later item + its shocking consequence, 7-12 words] to [another later item + consequence], these are the
+  [deadliest X ever sold]. But first, we're starting with [item 1], because [why it's interesting]."
+  The two teasers are NOT item 1.
+
+EVERY ITEM (~90 s, 220-420 words), in this order
+  1. Name it: "This is [product]" / "We're talking about [product]", and what it is in one breath.
+  2. Make it familiar: a memory, a scale, one quirky detail.
+  3. Set the trap: why it seemed fine. A question to the viewer ("still edible, right?") then "Well, ..."
+  4. The case: year + place + a named person (or a specific group) + age, told as a mini story, then what happened.
+  5. The why: the mechanism in 2-3 plain steps, with one comparison for scale ("to put that in perspective...").
+  6. The twist: "But here's the part..." / "here's the twist" / "somehow it gets worse" - a second fact that raises it.
+  7. The fallout: recall, lawsuit, ban, sentence, how many sick / dead ("In the end..." / "As a result...").
+  8. The button: ONE short dry line of opinion or irony (5-8 words).
+  9. The bridge to the next item, one of:
+       "But while [this one did X], this next [one did Y]."
+       "But at least [this one had a saving grace], because this next [one was worse]."
+       "If only this next [one] came with [what was missing]."
+       "Unlike this next [one], which [hook]."
+       "Kind of like this next [one]..."
+       "Speaking of [a word from this item], this next..."
+     The bridge says what KIND of danger is coming; the product is named in the very next sentence.
+
+MID-VIDEO RE-HOOK (between 40 % and 60 % of the script)
+  "But if you think [this item] is as bad as it gets, we still got [two teasers from the last third]."
+
+OUTRO (last ~20 s)
+  "So the next time you [topic habit], [one line of advice]. And the next time you [related habit], be careful there
+  too, because these are the deadliest [another of our topics] ever sold, and one so dangerous it [teaser]. So click
+  this video right here, and I'll catch you in the next one."
+  No recap, no "thanks for watching".
+
+VOICE
+- Short sentences (12-17 words on average). About 4 in 10 sentences start with "And", "But" or "So".
+- 4-6 numbers a minute: dates, ages, counts, money, comparisons. Numbers as people say them ("seventy million").
+- First person, contractions, "cuz" now and then, small jokes - never at a victim's expense.
+- "Allegedly" / "according to reports" for anything a court didn't settle. No gore: the fact, the age, the outcome.
+
+FACTS
+- Only real, checkable events. If you are not sure of a detail, leave it out rather than guess.
+
+OUTPUT
+1. The script as plain paragraphs: the cold open, then one paragraph per item (the bridge ends the paragraph), then the
+   outro.
+2. "SOURCES:" - for every item: its claims and where each comes from (outlet + date, or the official notice / court
+   record), plus what we can show (a Commons photo search, a recall-notice URL, a news clip search).

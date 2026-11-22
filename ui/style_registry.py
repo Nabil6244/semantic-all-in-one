@@ -240,6 +240,18 @@ EXTRA_CARDS[PREPPER_HOST] = ("\u2302", "Talking-host prepper explainers", "A Pre
                              "90 days without power, what to buy, store carts, emergency food and water")
 
 
+# Food Files (ui/foodfiles_section.py, foodfiles/): appended here so nothing above changes
+FOOD_FILES = "Food Files"
+STANDALONE = STANDALONE + (FOOD_FILES,)
+GROUPS = tuple((title, names + (FOOD_FILES,) if title == "Explainers" else names) for title, names in GROUPS)
+EXTRA_BLURBS[FOOD_FILES] = ("A host-led countdown of real food stories, 'The Deadliest Candy Ever Sold': the same AI host (Theo) in every "
+                            "clip, speaking his own lines in his Flow voice, #N item cards, maps that light up the place, rubber stamps, "
+                            "case folders, headlines, big numbers that count up, flat icon explainers and word captions. From a Food "
+                            "Files CSV or a script.")
+EXTRA_CARDS[FOOD_FILES] = ("\u26a0", "Deadliest-food countdowns", "A Food Files CSV or a script",
+                           "Deadliest candy, snacks, energy drinks, recalls, banned foods, chains that destroyed themselves")
+
+
 # PK (ui/pk_section.py): the Normal video engine with the Pakistan documentary recipe (Hybrid graphics + sound, CSV graphics, English
 # on-screen text for Urdu narration, levelled voice and music); appended here so nothing above changes
 from . import pk_section as _pk

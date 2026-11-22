@@ -1,0 +1,75 @@
+Turn this Food Files script into a Food Files CSV. One row per spoken sentence (or half-sentence when a card should
+change mid-sentence), in order, every word of the script kept exactly (the lines ARE the voiceover).
+
+Columns: line,shot,item,title,name,year,place,visual,stamp,note,rows,source,find,url
+
+REAL FIRST: every item should show the real thing. Give each number row a `find` (the product's real name, as it would
+be titled on Wikimedia Commons: "Everlasting Gobstopper", "black liquorice", "Warheads candy"); photo rows then show a
+real photo of it. Use `url` for real pages (recall notices, news articles) and `clip` rows for real TV / news moments.
+`visual` (Flow) is only for things that are fine to illustrate: a kitchen, a factory floor, a crowd, a 1850s street.
+Never ask Flow to fake a real person or a real event.
+
+shot (leave empty to let the app decide):
+  host      the host talking (about 35-40 % of the time; never more than 2 host rows in a row)
+  title     the title card, right after the cold-open teaser: title = "THE DEADLIEST | CANDY | EVER SOLD"
+  number    the first row of every item: item = 1..10, title = small line above ("THE CANDY AISLE CLASSIC"),
+            name = the product ("WONKA EVERLASTING GOBSTOPPER"), year = "2003"
+  next      the bridge line before each new item: title = a 2-4 word teaser ("A SPLIT SECOND...")
+  photo     a framed real photo: find = what to search for on Wikimedia Commons (empty = the item's name), rows = caption
+            pill; visual = a Flow prompt used only when Commons has nothing
+  scene     a full-screen picture with a slow camera move: visual = the prompt
+  map       a year + place line: place = "Starke, Florida" / "Japan" / "Bradford, England", year = "2003",
+            rows = a label pill ("9-YEAR-OLD GIRL")
+  folder    a lawsuit / case: title = "THE LAWSUIT", rows = "FILED BY = ...; AGAINST = ...; OUTCOME = ...", stamp = "SETTLED"
+  headline  a real news story: title = "OUTLET · MON YEAR", rows = the headline with *stars* on the key words,
+            url = the article (then the real page is shown, headline highlighted), find = a matching real photo
+  page      the real page itself: url = a recall notice / article / company statement, title = the outlet
+  clip      a few seconds of a real TV / news video: find = words that find it on YouTube ("MythBusters exploding
+            jawbreaker"), title = "OUTLET · YEAR"; the clip is cut where its transcript says this row's words
+  quote     a real statement: rows = the words with *stars* on the key words, title = who said it + date
+  tweet     a real social post: name = display name, title = @handle, year = date, rows = the text, note = "2,300+ REPLIES"
+  big       one or two numbers: rows = "141,850,885 = BOXES RECALLED" or "~20 = DEAD; 200+ = SERIOUSLY ILL"
+  flow      2-4 boxes with arrows: rows = "SUGAR = EXPENSIVE; BULK IT UP; DAFF = CHEAP FILLER"
+  explain   the science in 2-5 flat icons: rows = "fridge = REFRIGERATED; sun = LEFT IN THE SUN; fridge = BACK IN THE FRIDGE"
+            ("+" before a step puts an equals sign before it: "turkey = FROZEN SOLID; +bowling = BOWLING BALL")
+            icons we draw: fridge sun fire candy lollipop jawbreaker ball bowling bottle can cup burger fries cereal milk
+            turkey egg apple pill heart kidney tooth brain skull warning factory truck store house court gavel money kid
+            man woman doctor badge flask microscope clock calendar phone letter box microwave jar bag drop germ barrel
+            scale x check car plate cake pizza chocolate gummy cross hospital document up down ice energy
+            (any other word is made once as a flat sticker)
+  timeline  dates: rows = "2003 = FIRST CASE; 2004 = TESTED ON TV; 2005 = SETTLED"
+  compare   two coloured halves: rows = "FRANCHISE OWNERS = man; CORPORATE = money" (label = icon or a number)
+  evidence  2-3 tagged evidence bags: title = "FOUND INSIDE THE HOME", rows = "METH = pill; MARIJUANA = germ"
+  symptoms  a person + red-cross symptom pills: name = the icon (kid / man / woman), rows = "SHORTNESS OF BREATH; NAUSEA"
+  states    several places lit one by one: place = "Illinois; Connecticut; Texas", rows = one label per place, title = header
+  browser   a web page mock: title = the site ("company website · FAQ"), name = the page heading, rows = the real text
+            with *stars* on the key words (use page + url when the real page can be shown instead)
+  scale     the thing on a scale, the dial swings: find = a real photo of it (or name = an icon), rows = "A LOT HEAVIER"
+  beforeafter two photos with a wipe: find = "THEN SEARCH | NOW SEARCH", rows = "BEFORE; AFTER"
+  tally     icons count up one by one: rows = "kid x 4 = KIDS HOSPITALIZED" (up to 12)
+  split     host on the left, a picture on the right: visual = the prompt
+  pip       a full picture with a round host cam: visual = the prompt
+
+Other columns on any row:
+  stamp   a red rubber stamp at that word ("ALLEGEDLY EXPLODED", "RECALLED", "NO ONE JAILED") - about one per item
+  title   on a host row: a red banner across the top ("BUT IT STILL WASN'T ENOUGH") - for turns in the story
+  note    a handwritten side note on a host row ("DOESN'T LAST FOREVER", "...KINDA") - 1-3 per item
+  name    on a host row: a person's name bar "WILLIAM HARDAKER | candy stall owner, Bradford"
+  source  only for quote / tweet / typed rows ("Source: FDA recall notice, 2023"); real photos, pages and clips credit
+          themselves
+  find    on number / photo / headline / clip rows: the words that find the real thing
+  url     on page / headline rows: the real page
+  visual  write {host} where the host himself is in the picture
+
+Variety: use each card type where the story calls for it (a lawsuit -> folder, two sides -> compare, symptoms ->
+symptoms, several places -> states, people hurt -> tally, a company's own words -> browser or page) and never the same
+card type twice in a row.
+
+Rhythm: a new row (shot) every 4-5 seconds of speech (10-14 words). Every item: number -> 2-4 cards/pictures around the
+case -> host lines with notes -> a stamp on the fallout -> next. End with one thumbnail row:
+  "",thumbnail,,"DEADLIEST | CANDY",,,,"{host} looking shocked, holding up a jawbreaker",,,,
+
+Output only the CSV, with the header row, every cell with a comma in "double quotes".
+
+SCRIPT:
+{script}

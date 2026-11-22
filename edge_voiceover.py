@@ -24,6 +24,7 @@ DEFAULT_VOICE = "en-US-AndrewNeural"
 MAX_CHUNK_CHARS = 500     # small pieces + many at once: Edge makes each piece at only ~1x real time (2026-11-17)
 PARALLEL = 12            # 1500 chars x 4 = 3.1x real time; 400 x 15 = 9.5x, no failures (fresh text, 2026-11-17)
 RETRIES = 3
+PIECE_TIMEOUT = 60.0     # seconds for one try at one piece before it is tried again (a hung connection never ends)
 PAUSE_SEC = 0.25
 
 
@@ -115,16 +116,22 @@ async def _fetch_piece(edge_tts, text, voice, speed, pitch_hz, path):
             except TypeError:   # older edge-tts has no boundary option (word timings are then empty)
                 comm = edge_tts.Communicate(text, voice, **kw)
             words = []
-            with open(path, "wb") as f:
-                async for ev in comm.stream():
-                    if ev["type"] == "audio":
-                        f.write(ev["data"])
-                    elif ev["type"] == "WordBoundary":
-                        words.append({
-                            "word": ev["text"],
-                            "start": ev["offset"] / 1e7,
-                            "end": (ev["offset"] + ev["duration"]) / 1e7,
-                        })
+
+            async def _stream():
+                with open(path, "wb") as f:
+                    async for ev in comm.stream():
+                        if ev["type"] == "audio":
+                            f.write(ev["data"])
+                        elif ev["type"] == "WordBoundary":
+                            words.append({
+                                "word": ev["text"],
+                                "start": ev["offset"] / 1e7,
+                                "end": (ev["offset"] + ev["duration"]) / 1e7,
+                            })
+
+            # a hung Edge connection used to wait forever (2026-11-22: a 158-sentence run stalled 25 min):
+            # give each try a time limit, then the retry loop tries again
+            await asyncio.wait_for(_stream(), timeout=PIECE_TIMEOUT)
             if os.path.getsize(path) == 0:
                 raise RuntimeError("empty audio")
             return words

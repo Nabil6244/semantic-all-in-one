@@ -32,6 +32,7 @@ STYLE_LABELS["game_launch"] = "Game Launch"   # ui/game_launch_section.py
 STYLE_LABELS["toy_vehicles"] = "Toy Vehicles"   # ui/toy_vehicles_section.py
 STYLE_LABELS["stickman"] = "Stickman"   # ui/stickman_section.py
 STYLE_LABELS["prepper_host"] = "Prepper Host"   # ui/prepper_host_section.py
+STYLE_LABELS["foodfiles"] = "Food Files"   # ui/foodfiles_section.py
 
 
 def run_outcome(error: str, output_path=None, stopped: bool = False) -> str:

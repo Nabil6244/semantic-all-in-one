@@ -113,6 +113,7 @@ from ui import toy_vehicles_section as _tv_section   # Toy Vehicles (ui/toy_vehi
 from ui import kids_stories_section as _ks_section   # Kids Stories (ui/kids_stories_section.py, cartoon2d/): .kidstory files
 from ui import stickman_section as _sm_section   # Stickman (ui/stickman_section.py, stickman/)
 from ui import prepper_host_section as _ph_section   # Prepper Host (ui/prepper_host_section.py, prepper_host/)
+from ui import foodfiles_section as _ff_section   # Food Files (ui/foodfiles_section.py, foodfiles/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import game_launch_section as _gl_section   # Game Launch (ui/game_launch_section.py, game_launch/)
 from ui import ocean_section as _oc_section   # Ocean Predators (ui/ocean_section.py, ocean/)
@@ -3248,6 +3249,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Stickman"
         if getattr(self, "_ph_active", False):   # Prepper Host (ui/prepper_host_section.py): opt-in, per session
             return "Prepper Host"
+        if getattr(self, "_ff_active", False):   # Food Files (ui/foodfiles_section.py): opt-in, per session
+            return "Food Files"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
             return "Aviation"
         if getattr(self, "_gl_active", False):   # Game Launch (ui/game_launch_section.py): opt-in, per session
@@ -3367,7 +3370,7 @@ class VideoGeneratorApp(ctk.CTk):
         for _sec_name, _sec in (("Product Trailer", _pt_section), ("Rules Horror", _rh_section), ("Voxel Map", _vm_section),
                                 ("City Timelapse", _ct_section), ("Toon Tales", _tt_section), ("Toy Vehicles", _tv_section),
                                 ("Kids Stories", _ks_section), ("Stickman", _sm_section), ("Prepper Host", _ph_section),
-                                ("Aviation", _av_section), ("Game Launch", _gl_section), ("Ocean Predators", _oc_section),
+                                ("Food Files", _ff_section), ("Aviation", _av_section), ("Game Launch", _gl_section), ("Ocean Predators", _oc_section),
                                 ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section)):
             if choice != _sec_name:
                 _sec.deactivate(self)
@@ -3431,6 +3434,12 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if choice != "Prepper Host":
             _ph_section.deactivate(self)
+        if choice != "Food Files":
+            _ff_section.deactivate(self)
+        if choice == "Food Files":   # its own page (ui/foodfiles_section.py); nothing runs until Generate
+            _ff_section.activate(self)
+            self._sync_primary_cta()
+            return
         if choice == "Prepper Host":   # its own page (ui/prepper_host_section.py); nothing runs until Generate
             _ph_section.activate(self)
             self._sync_primary_cta()
@@ -7587,6 +7596,8 @@ class VideoGeneratorApp(ctk.CTk):
             _sm_section.cta(self, action)
         elif action in ("ph_generate", "ph_render", "ph_cancel"):
             _ph_section.cta(self, action)
+        elif action in ("ff_generate", "ff_render", "ff_cancel"):
+            _ff_section.cta(self, action)
         elif action in ("av_generate", "av_render", "av_cancel"):
             _av_section.cta(self, action)
         elif action in ("gl_generate", "gl_render", "gl_cancel"):
@@ -8422,6 +8433,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _sm_section.sync_cta(self)
         if getattr(self, "_ph_active", False) and getattr(self, "_ph_block", None) is not None:   # Prepper Host owns the button while its page is up
             return _ph_section.sync_cta(self)
+        if getattr(self, "_ff_active", False) and getattr(self, "_ff_block", None) is not None:   # Food Files owns the button while its page is up
+            return _ff_section.sync_cta(self)
         if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
             return _av_section.sync_cta(self)
         if getattr(self, "_gl_active", False) and getattr(self, "_gl_block", None) is not None:   # Game Launch owns the button while its page is up
@@ -9278,6 +9291,7 @@ class VideoGeneratorApp(ctk.CTk):
         _ks_section.deactivate(self, remember=False)   # Kids Stories likewise, until resume_on_open below
         _sm_section.deactivate(self, remember=False)   # Stickman likewise, until resume_on_open below
         _ph_section.deactivate(self, remember=False)   # Prepper Host likewise, until resume_on_open below
+        _ff_section.deactivate(self, remember=False)   # Food Files likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _gl_section.deactivate(self, remember=False)   # Game Launch likewise, until resume_on_open below
         _oc_section.deactivate(self, remember=False)   # Ocean Predators likewise, until resume_on_open below
@@ -9290,6 +9304,7 @@ class VideoGeneratorApp(ctk.CTk):
         _ks_section.resume_on_open(self)   # a project left on the Kids Stories page opens on it again; nothing runs until Generate
         _sm_section.resume_on_open(self)   # a project left on the Stickman page opens on it again; nothing runs until Generate
         _ph_section.resume_on_open(self)   # a project left on the Prepper Host page opens on it again; nothing runs until Generate
+        _ff_section.resume_on_open(self)   # a project left on the Food Files page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         _gl_section.resume_on_open(self)   # a project left on the Game Launch page opens on it again; nothing runs until Generate
         _oc_section.resume_on_open(self)   # a project left on the Ocean Predators page opens on it again; nothing runs until Generate

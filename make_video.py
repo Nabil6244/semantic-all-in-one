@@ -61,6 +61,7 @@ STYLES = {   # kept in step with autorun/job.py (test_autorun.py checks it): nam
     "aviation": ("optional", "required", "aviation/data/aviation_csv_prompt.txt", "Aviation"),
     "stickman": ("optional", "optional", "stickman/csv_prompt.txt", "Stickman"),
     "prepper-host": ("optional", "optional", "prepper_host/csv_prompt.txt", "Prepper Host"),
+    "food-files": ("optional", "optional", "foodfiles/csv_prompt.txt", "Food Files"),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 
@@ -121,6 +122,8 @@ def check_args(a) -> str:
         return "the stickman style needs --script (the narration) or --csv (a Stickman CSV)"
     if a.style == "prepper-host" and not a.csv and not a.script:
         return "the prepper-host style needs --csv (a Prepper Host CSV) or --script (the narration)"
+    if a.style == "food-files" and not a.csv and not a.script:
+        return "the food-files style needs --csv (a Food Files CSV) or --script (the narration)"
     if csv_need == "required" and not a.csv:
         return f"the {a.style} style needs --csv (write it with: make_video.py prompt --style {a.style})"
     if a.out and not a.out.lower().endswith(".mp4"):
