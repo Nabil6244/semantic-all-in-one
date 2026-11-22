@@ -839,6 +839,8 @@ def split_for_numbers(scenes: List[dict]) -> int:
 PLATE_GAP_S = 120.0      # was 30 s: one plate every half minute still filled a 15-minute video with the same forearm
 PLATE_PARTS = {"anat_forearm_v1": re.compile(r"\b(forearms?|wrists?|hands?|fingers?|grip|palms?|flexors?|pulleys?)\b", re.I)}      # a plate shows only the part it is a picture of      # an anatomy plate shown in the last 30 s is not shown again as it was: the scene gets a new look (render 053: one forearm plate filled 36% of the video)
 TEXT_LOOKS = {"stock", "takeaway", "figure", "callout", "stat"}      # an opening shown as words or a ring: replaced by the hook picture
+FLOW_TARGET = 0.6      # Rep Theory (base theme): share of narration time on Flow pictures the director steers to (haseeb renders 2026-11-22: 11 pictures in 55 scenes = one per 32 s; the figure, poses and 3D won every close call)
+FLOW_CATCHUP = 0.75      # added to a picture's score while the pictures so far are under FLOW_TARGET: a fresh card (about 0.85 + 0.7 novelty) then loses unless it is a measured result or the pictures are on target
 RECENT_W = 0.25      # per recent video that had this look at this place in its opening (channel memory, Rule 3)
 JITTER = 0.5      # how far a script's own seed moves a look's score: enough to change close calls, never to pick a look the words do not support
 
@@ -847,6 +849,8 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
     join_for_diagrams(scenes); join_short(scenes); bands_across(scenes); split = split_for_cards(scenes) + split_long(scenes) + split_for_numbers(scenes); absorb_slot_items(scenes)
     total = float(total_s or (scenes[-1]["end"] if scenes else 0)); b = budget or {}; gap3 = b.get("three_d_gap_s", min(20.0, max(6.0, total / 4))); max_flow = b.get("max_flow") or 10 ** 9      # no picture limit unless a caller sets one
     plate_seen: Dict[str, float] = {}; keyline_parts: set = set()      # chapters that already had their one key-line card
+    from . import theme as T
+    t0 = float(scenes[0]["start"]) if scenes else 0.0; flow_time = 0.0      # narration time already on pictures (FLOW_TARGET)
     hist: List[str] = list(history or []); last3 = -1e9; flows = 0; style_i = 0; roles = roles or {}; n0 = len(hist)
     import zlib; seed = zlib.crc32(" ".join(sc.get("text", "") for sc in scenes).encode())      # each script its own mix (same script, same video)
     jit = lambda i, look: ((zlib.crc32(f"{seed}:{i}:{look}".encode()) % 1000) / 1000 - 0.5) * JITTER
@@ -854,11 +858,11 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         k = sc["kind"]
         if i == 0 and flow and not (sc.get("directed_look") and sc.get("look") in ("flow", "3d")) and k not in ("tier", "equation") and not SYNTH_RX.search(sc.get("text", "")):      # the opening is the hook picture, never words (a CSV text look on row 1 included)
             if sc.get("directed_look"): sc["decisions"].append(f"opening: CSV look {sc.get('look')} replaced by the hook picture")
-            sc["directed_look"] = True; sc["look"] = "flow"; sc["hook"] = True; sc.pop("look_payload", None); flows += 1; hist.append("flow"); sc["decisions"].append("variety: the opening is the hook picture"); continue
+            sc["directed_look"] = True; sc["look"] = "flow"; sc["hook"] = True; sc.pop("look_payload", None); flows += 1; flow_time += sc["end"] - sc["start"]; hist.append("flow"); sc["decisions"].append("variety: the opening is the hook picture"); continue
         if sc.get("directed_look"):      # the scenes CSV chose this scene's look (reptheory/direction.py): it is used as asked and counts toward the spacing of the others
             look = sc["look"]; hist.append(look)
             if look == "3d": sc["want3d"] = True; sc["cam3d"] = C3.STYLES[style_i % len(C3.STYLES)]; style_i += 1; last3 = sc["end"]
-            elif look == "flow": flows += 1
+            elif look == "flow": flows += 1; flow_time += sc["end"] - sc["start"]
             else:
                 from .direction import build_card
                 build_card(sc)
@@ -887,6 +891,8 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
             if look == "flow":      # a new picture each time, so a run of them is allowed, but it is one look in the rotation: a pose for the action, the figure with the part lit,
                 # the plate and the cards still win where the words support them and were not just used (render final 2 lost them all to pictures)
                 score = base + (0.3 if "flow" not in hist[-2:] else 0.05) - (0.25 if hist[-3:] == ["flow"] * 3 else 0.0) + jit(i, look)
+                if not T.THEME and flow_time < FLOW_TARGET * max(1e-6, sc["start"] - t0) and not any(lk in FULL_CARDS and lk != "takeaway" and v[0] >= 0.75 for lk, v in ev.items()): score += FLOW_CATCHUP      # behind on pictures: the picture wins this scene, except over a line that acts out its own diagram / full card (census: calendar, checklist, formula, road must not be lost)
+                if not T.THEME: score -= min(FLOW_CATCHUP, RECENT_W * sum(1 for op in (recent or []) if i < len(op) and str(op[i]).startswith("flow")))      # channel memory (Rule 3) holds for pictures too: the pull toward pictures must not give every opening the same shape
                 if _elder() and hist[-2:] != ["flow", "flow"]: score += ELDER_FLOW_BOOST      # Elder: pictures carry the video, a card only after two pictures (1-minute render 2026-11-11: 2 pictures in 14 scenes)
                 scored.append((score, -list(ev).index(look), look, payload)); continue
             if hist[-2:] == [look, look] or (look == "sketch" and hist[-1:] == ["sketch"]): continue      # never a third in a row; a line figure never twice running
@@ -895,7 +901,7 @@ def direct(scenes: List[dict], *, total_s: Optional[float] = None, three_d: bool
         _, _, look, payload = max(scored); sc["look"] = look; hist.append(look)
         if look == "3d": sc["want3d"] = True; sc["cam3d"] = C3.STYLES[style_i % len(C3.STYLES)]; style_i += 1; last3 = sc["end"]; sc["decisions"].append("variety: 3D body clip")
         elif look == "flow":
-            flows += 1; nb = _neighbour_picture(scenes, i)
+            flows += 1; flow_time += sc["end"] - sc["start"]; nb = _neighbour_picture(scenes, i)
             if nb: sc["flow_prompt"] = nb["flow_prompt"]; sc["reuses_picture"] = nb["no"]; sc["decisions"].append(f"variety: a vague line keeps the picture of scene {nb['no']}, re-framed (no new picture drawn from it)")
             else: sc["decisions"].append("variety: Flow picture from the narration")
         elif look == "pose":
