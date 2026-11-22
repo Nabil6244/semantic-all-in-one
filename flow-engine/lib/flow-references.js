@@ -214,6 +214,29 @@ export async function closePicker(page) {
   return !(await box.isVisible().catch(() => false));
 }
 
+// A Google dialog or menu left in Flow's overlay layer (a promo/notice card with the Google logo, live 2026-11-22) sat over
+// the page and took every Settings click (settings_trigger_click_no_transition, the clip never sent). Read what it says for
+// the log, then close it: its own close/dismiss button, then Escape, then a click on its backdrop.
+export async function clearBlockingOverlay(page) {
+  const pane = page.locator(".cdk-overlay-container .cdk-overlay-pane").filter({ visible: true });
+  const n = await pane.count().catch(() => 0);
+  if (!n) return null;
+  const text = ((await pane.first().innerText().catch(() => "")) || "").replace(/\s+/g, " ").slice(0, 200);
+  const btn = page.locator(".cdk-overlay-container").getByRole("button",
+    { name: /^(close|dismiss|got it|no thanks|not now|ok|okay|skip|maybe later|continue|done)$/i }).filter({ visible: true }).first();
+  if (await btn.isVisible().catch(() => false)) { await btn.click({ timeout: 3000 }).catch(() => {}); await wait(600); }
+  for (let i = 0; i < 2 && (await pane.count().catch(() => 0)); i++) {
+    try { await page.keyboard.press("Escape"); } catch {}
+    await wait(500);
+  }
+  const back = page.locator(".cdk-overlay-backdrop").filter({ visible: true }).first();
+  if ((await pane.count().catch(() => 0)) && (await back.isVisible().catch(() => false))) {
+    await back.click({ timeout: 2000, force: true }).catch(() => {});
+    await wait(500);
+  }
+  return { text, cleared: !(await pane.count().catch(() => 0)) };
+}
+
 export async function attachVoice(page, name, { performance = "", timeoutMs = 15000, settleMs = 600 } = {}) {
   const voice = String(name || "").trim();
   if (!voice) return null;

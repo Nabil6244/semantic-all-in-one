@@ -25,6 +25,7 @@ import { generateOneMedia as realGenerateOneMedia, resolveGenerationMode } from 
 import { canonicalImageModel, defaults } from "../config.js";
 import { AccountLifecycle, isMissingMediaIdError, logFlowAccount } from "./account-lifecycle.js";
 import { accountDownloadDir } from "./paths.js";
+import { AGENT_VIDEO_MAX, generateAgentVideos as realGenerateAgentVideos } from "./agent-video.js";
 import {
   Submission,
   submissionOf,
@@ -164,6 +165,7 @@ export async function runBatchSlice({
     checkFlowReady: realCheckFlowReady,
     flowReload: realFlowReload,
     flowGoto: realFlowGoto,
+    generateAgentVideos: realGenerateAgentVideos,
     sleep,
     ...deps,
   };
@@ -399,6 +401,39 @@ export async function runBatchSlice({
     }
     ledger.put(key, { state: LedgerState.COMPLETED_LOCAL, savedPath, mediaId: job.mediaId });
     return { mediaId: job.mediaId, savedPath, submitted };
+  }
+
+  // Agent-mode video (settings.agentVideoBatch): up to AGENT_VIDEO_MAX clips per agent message instead of one message per clip.
+  // The clips come back in arrival order, not prompt order: each result says `unordered: true` and the caller maps clips to lines.
+  if (settingsLocal.mediaKind === "video" && settingsLocal.agentVideoBatch && prompts.length) {
+    const refs = Array.isArray(settingsLocal.referenceImages) ? settingsLocal.referenceImages.filter(Boolean) : [];
+    for (let i0 = 0; i0 < prompts.length && !shouldStop?.(); i0 += AGENT_VIDEO_MAX) {
+      const part = prompts.slice(i0, i0 + AGENT_VIDEO_MAX);
+      const idx = promptIndices.slice(i0, i0 + AGENT_VIDEO_MAX);
+      const names = idx.map((abs) => `${pad(abs + 1)}.mp4`);
+      emit("BATCH_PROGRESS", { index: idx[0], total: totalAbsolute, status: "running",
+        message: `Agent: ${part.length} clip(s) in one message (${i0 + 1}-${i0 + part.length} of ${prompts.length})` });
+      let res = { videos: [] };
+      let err = null;
+      try {
+        res = await withAccountLock(owner || life.label, () => d.generateAgentVideos(page, {
+          prompts: part, referenceImages: refs, voice: settingsLocal.voice || null, outputDir: outDir, names, shouldStop,
+          log: (m) => emit("status", { message: m }),
+        }));
+      } catch (e) { err = e; }
+      res.videos.forEach((v, k) => {
+        completed++;
+        emit("PROMPT_RESULT", { index: idx[k], prompt: part[k], status: "done", mediaIds: [v.mediaId], path: v.path,
+          submitted: true, unordered: true, batch: idx });
+      });
+      for (let k = res.videos.length; k < part.length; k++) {
+        const why = err ? (err.notSent ? `Not sent: ${err.message}` : `Agent request failed after sending: ${err.message}`)
+          : `The agent made ${res.videos.length} of ${part.length} clips in this message`;
+        failPrompt(idx[k], part[k], why, { submitted: !(err && err.notSent), needsAction: !(err && err.notSent), batch: idx });
+      }
+    }
+    emit("BATCH_DONE", { completed, failed, total: totalAbsolute, sliceTotal: prompts.length, folder: outDir, reassign });
+    return { completed, failed, folder: outDir, reassign, authExpired, restricted };
   }
 
   for (let i = 0; i < prompts.length && !stopBatch; i++) {

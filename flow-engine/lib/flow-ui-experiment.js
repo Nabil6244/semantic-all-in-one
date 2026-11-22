@@ -28,7 +28,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { waitForFlowReady, MissingMediaIdError } from "./flow-api.js";
 import { Submission, tagSubmission } from "./generation-state.js";
-import { attachReferenceImages, attachVoice, closePicker } from "./flow-references.js";
+import { attachReferenceImages, attachVoice, clearBlockingOverlay, closePicker } from "./flow-references.js";
 import { collectAllStillUrls, collectAllVideoUrls, readPromptsForStillUrls } from "./flow-ui-agent.js";
 import { wordsOf } from "./agent-api.js";
 
@@ -228,6 +228,10 @@ async function openSettingsPanelWithRetry(page, diag, { maxAttempts = 3, perAtte
       await locator.click({ timeout: perAttemptTimeoutMs });
     } catch (e) {
       clickError = e?.message || String(e);
+      if (/intercepts pointer events/.test(clickError)) {   // something sits over the page: close it, the next try clicks
+        const ov = await clearBlockingOverlay(page).catch(() => null);
+        if (ov) (diag.overlaysCleared = diag.overlaysCleared || []).push(ov);
+      }
     }
 
     let imageRadioVisibleAfter = false;
@@ -389,6 +393,7 @@ async function runUiGeneration(page, prompt, opts = {}) {
     diag.agentToggleWasOn = await turnAgentModeOff(page);
     // An asset picker left open by the last clip (a voice stays selected in it) takes the Settings click: close it first.
     await closePicker(page).catch(() => {});
+    { const ov = await clearBlockingOverlay(page).catch(() => null); if (ov) diag.overlayBefore = ov; }
 
     // A video with reference pictures (a host who keeps his face) is Flow's "Ingredients" video mode.
     const refs = Array.isArray(opts.referenceImages) ? opts.referenceImages.filter(Boolean) : [];
