@@ -87,6 +87,11 @@ else:
 # Chatterbox voice clone (Voiceover tab): the packaged app builds Chatterbox's own Python 3.11 env on first use with a
 # bundled `uv` (from the `uv` pip package in requirements-build.txt), then runs this worker script with that env's Python.
 datas.append((str(ROOT / "voice_clone" / "chatterbox_worker.py"), "voice_clone"))
+# OpenVoice clone: the app carries no PyTorch, so OpenVoice runs in its own uv env from these plain source files
+for _f in ("__init__.py", "engine.py", "chatterbox_engine.py", "openvoice_worker.py"):
+    datas.append((str(ROOT / "voice_clone" / _f), "voice_clone"))
+for _f in sorted((ROOT / "voice_clone" / "ov").glob("*.py")):
+    datas.append((str(_f), "voice_clone/ov"))
 try:
     import uv as _uv
     binaries += [(str(_uv.find_uv_bin()), "bin")]

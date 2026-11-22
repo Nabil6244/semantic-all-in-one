@@ -202,6 +202,164 @@ class Cloner:
             outs.append(o.data.cpu().float().numpy())
         return np.concatenate(outs) if outs else audio
 
+    def save_embedding(self, audio: np.ndarray, path: str) -> None:
+        self.torch.save(self.embedding(audio).cpu(), str(path))
+
+    def converter(self, se_path: str, tau: float = DEFAULT_TAU) -> Callable[[str, str], None]:
+        tgt = self.torch.load(se_path, map_location="cpu", weights_only=True)
+        state: dict = {"src": None}
+
+        def convert(src_mp3: str, dst_mp3: str) -> None:
+            audio = read_audio(src_mp3, self.ffmpeg)
+            if state["src"] is None:
+                state["src"] = self.embedding(audio[: int(GOOD_SAMPLE_SEC * SR)])
+            write_mp3(self.convert(audio, state["src"], tgt, tau), dst_mp3, self.ffmpeg)
+
+        return convert
+
+    def close(self) -> None:
+        pass
+
+
+# ---- OpenVoice in its own Python (packaged builds carry no PyTorch) ------------------------------------------------------
+
+OV_PACKAGES = ["torch", "numpy"]
+OV_CHECK = "import torch, numpy"
+
+
+def ov_env_dir() -> Path:
+    return data_dir() / "openvoice_env"
+
+
+def _env_python(d: Path) -> Path:
+    return d / "Scripts" / "python.exe" if sys.platform == "win32" else d / "bin" / "python"
+
+
+def ov_worker_path() -> Path:
+    return Path(__file__).with_name("openvoice_worker.py")
+
+
+def _imports_torch(py: Path) -> bool:
+    from . import chatterbox_engine as cbx
+    if not py.is_file():
+        return False
+    try:
+        r = subprocess.run([str(py), "-c", OV_CHECK], capture_output=True, timeout=600, stdin=subprocess.DEVNULL, env=cbx._child_env())
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return r.returncode == 0
+
+
+def ensure_ov_env(say: Optional[Callable[[str], None]] = None) -> Optional[str]:
+    """A Python with PyTorch for the OpenVoice worker: Chatterbox's env when it is already set up, else a small env of its own
+    (Python 3.11 + CPU PyTorch, about 1 GB, made once with the bundled uv). None when it cannot be made (see setup_log())."""
+    from . import chatterbox_engine as cbx
+    for py in (cbx.env_python(), _env_python(ov_env_dir())):
+        if _imports_torch(py):
+            return str(py)
+    uv = cbx.uv_command()
+    if not uv:
+        return None
+    if say:
+        say("Setting up the voice cloner (one time, about 1 GB, a few minutes)...")
+    d, py = ov_env_dir(), _env_python(ov_env_dir())
+    if not py.is_file() and not cbx._run(uv + ["venv", "--python", cbx.PY_VERSION, "--python-preference", "only-managed", str(d)], 1800):
+        return None
+    install = uv + ["pip", "install", "--python", str(py), *OV_PACKAGES]
+    # the converter runs on the processor, so the CPU-only PyTorch is enough (much smaller on Windows/Linux); older uv lacks the flag
+    if not (sys.platform != "darwin" and cbx._run(install + ["--torch-backend", "cpu"], 3600)):
+        if not cbx._run(install, 3600):
+            return None
+    return str(py) if _imports_torch(py) else None
+
+
+class WorkerCloner:
+    """Same use as Cloner, but the model runs in openvoice_worker.py under its own Python. Call close() when done."""
+
+    def __init__(self, python: str, ffmpeg: str = "ffmpeg"):
+        import threading
+        import uuid
+        from . import chatterbox_engine as cbx
+        self.ffmpeg, self._lock, self._uuid = ffmpeg, threading.Lock(), uuid
+        self._log = open(cbx.setup_log(), "a", encoding="utf-8")
+        self._log.write(f"$ {python} {ov_worker_path()} (OpenVoice worker)\n")
+        self._log.flush()
+        self.proc = subprocess.Popen([python, str(ov_worker_path()), ffmpeg], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                     stderr=self._log, text=True, encoding="utf-8", errors="replace", env=cbx._child_env())
+        first = self._read()
+        if "ready" not in first:
+            self.close()
+            raise RuntimeError(f"the voice cloner did not start: {first.get('error', 'no answer')} (details: {cbx.setup_log()})")
+
+    def _read(self) -> dict:
+        line = self.proc.stdout.readline()
+        if not line:
+            return {"error": "the cloner process stopped"}
+        try:
+            return json.loads(line)
+        except ValueError:
+            return {"error": line.strip()[:200]}
+
+    def _ask(self, req: dict) -> None:
+        with self._lock:
+            try:
+                self.proc.stdin.write(json.dumps(req) + "\n")
+                self.proc.stdin.flush()
+            except OSError as exc:
+                raise RuntimeError(f"the cloner process stopped ({exc})") from exc
+            r = self._read()
+        if "error" in r:
+            raise RuntimeError("voice cloner: " + r["error"])
+
+    def save_embedding(self, audio: np.ndarray, path: str) -> None:
+        tmp = str(path) + ".sample.wav"
+        write_wav(audio, tmp)
+        try:
+            self._ask({"op": "embed", "wav": tmp, "out": str(path)})
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+    def converter(self, se_path: str, tau: float = DEFAULT_TAU) -> Callable[[str, str], None]:
+        job = self._uuid.uuid4().hex
+
+        def convert(src_mp3: str, dst_mp3: str) -> None:
+            self._ask({"op": "convert", "src": src_mp3, "dst": dst_mp3, "tgt": str(se_path), "tau": tau, "job": job})
+
+        return convert
+
+    def close(self) -> None:
+        try:
+            if self.proc.stdin:
+                self.proc.stdin.close()
+            self.proc.wait(timeout=30)
+        except Exception:  # noqa: BLE001
+            self.proc.kill()
+        try:
+            self._log.close()
+        except OSError:
+            pass
+
+
+def get_cloner(ffmpeg: str = "ffmpeg", say: Optional[Callable[[str], None]] = None):
+    """A ready cloner (Cloner or WorkerCloner), or None when PyTorch can be had neither here nor in its own env.
+    The model files must already be downloaded (ensure_models)."""
+    try:
+        import torch  # noqa: F401
+        return Cloner(ffmpeg)
+    except ImportError:
+        pass
+    if not getattr(sys, "frozen", False) and ensure_torch(say):
+        return Cloner(ffmpeg)
+    py = ensure_ov_env(say)
+    if not py:
+        return None
+    if say:
+        say("Loading the cloner...")
+    return WorkerCloner(py, ffmpeg)
+
 
 # ---- saved voices -------------------------------------------------------------------------------------------------------
 
@@ -251,7 +409,7 @@ def make_voice(name: str, audio: np.ndarray, cloner: "Cloner", source: str = "",
     if source:
         from . import chatterbox_engine
         chatterbox_engine.save_reference(source, d / "sample.wav", ffmpeg)
-    cloner.torch.save(cloner.embedding(audio).cpu(), str(d / "se.pt"))
+    cloner.save_embedding(audio, str(d / "se.pt"))
     (d / "voice.json").write_text(json.dumps({"name": name, "sample_seconds": round(audio.size / SR, 1)}), encoding="utf-8")
     return str(d / "se.pt")
 
@@ -264,13 +422,4 @@ def delete_voice(name: str) -> None:
 def make_converter_for(se_path: str, cloner: "Cloner", tau: float = DEFAULT_TAU) -> Callable[[str, str], None]:
     """A function (piece_mp3 -> converted_mp3, in place of the piece) for edge_voiceover.synthesize(convert=...).
     The source embedding is taken from the narration itself (the first piece), so any Edge voice in any language works."""
-    tgt = cloner.torch.load(se_path, map_location="cpu", weights_only=True)
-    state: dict = {"src": None}
-
-    def convert(src_mp3: str, dst_mp3: str) -> None:
-        audio = read_audio(src_mp3, cloner.ffmpeg)
-        if state["src"] is None:
-            state["src"] = cloner.embedding(audio[: int(GOOD_SAMPLE_SEC * SR)])
-        write_mp3(cloner.convert(audio, state["src"], tgt, tau), dst_mp3, cloner.ffmpeg)
-
-    return convert
+    return cloner.converter(se_path, tau)

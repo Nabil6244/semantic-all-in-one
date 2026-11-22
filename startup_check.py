@@ -134,6 +134,11 @@ def run(report_path: str, ffmpeg: Optional[Callable[[], Optional[Path]]] = None)
                 failures.append(f"chatterbox uv: {problem}")
             if not cbx.worker_path().is_file():
                 failures.append(f"chatterbox worker missing: {cbx.worker_path()}")
+            from voice_clone import engine as vce
+            ov_files = [vce.ov_worker_path(), vce.ov_worker_path().with_name("engine.py"), vce.ov_worker_path().parent / "ov" / "models.py"]
+            missing = [str(p) for p in ov_files if not p.is_file()]
+            if missing:
+                failures.append(f"openvoice worker files missing: {missing}")
             leaked = [k for k in ("PYTHONHOME", "PYTHONPATH") if k in cbx._child_env()]
             if leaked:
                 failures.append(f"chatterbox env leaks {leaked}")

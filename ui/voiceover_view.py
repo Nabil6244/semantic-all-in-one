@@ -321,14 +321,21 @@ def _add_clone(view: Any, app: Any) -> None:
             if not ok:
                 ui(finish, msg)
                 return
-            if not engine.ensure_torch(lambda t: ui(view._vo_clone_status.set, t)):
-                ui(finish, "The voice cloner could not be set up (no internet, pip is blocked, or this is a packaged build).")
-                return
-            if not engine.ensure_models(lambda t: ui(view._vo_clone_status.set, t)):
+            say = lambda t: ui(view._vo_clone_status.set, t)  # noqa: E731
+            if not engine.ensure_models(say):
                 ui(finish, "The voice model could not be downloaded. Check the internet connection and try again.")
                 return
+            cloner = engine.get_cloner(ff, say)
+            if cloner is None:
+                from voice_clone import chatterbox_engine as cbx
+                ui(finish, "The voice cloner could not be set up (no internet, a download was blocked, or low disk space; "
+                           f"it needs about 1 GB). Details: {cbx.setup_log()}")
+                return
             ui(view._vo_clone_status.set, "Learning the voice...")
-            engine.make_voice(name, audio, engine.Cloner(ff), source=path, ffmpeg=ff)
+            try:
+                engine.make_voice(name, audio, cloner, source=path, ffmpeg=ff)
+            finally:
+                cloner.close()
             ui(finish, f"Saved the voice '{name}'. {msg} Pick it under 'Narrate in', then Generate.", name)
         except Exception as exc:  # noqa: BLE001
             import traceback
@@ -601,26 +608,33 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
                 ui(_done, view, app, res, preview, ws is not None)
                 return
 
-            convert = None
+            convert = cloner = None
             if clone_name:
                 from voice_clone import engine
 
                 se = dict(engine.list_voices()).get(clone_name)
                 if not se:
                     raise RuntimeError(f"the saved voice '{clone_name}' is missing; add it again")
-                if not engine.ensure_torch(lambda t: ui(view._vo_status_var.set, t)) or not engine.ensure_models(lambda t: ui(view._vo_status_var.set, t)):
-                    raise RuntimeError("the voice cloner could not be set up")
+                say = lambda t: ui(view._vo_status_var.set, t)  # noqa: E731
+                cloner = engine.get_cloner(_find("ffmpeg"), say) if engine.ensure_models(say) else None
+                if cloner is None:
+                    from voice_clone import chatterbox_engine as cbx
+                    raise RuntimeError(f"the voice cloner could not be set up (no internet, a download was blocked, or low disk space). Details: {cbx.setup_log()}")
                 ui(view._vo_status_var.set, "Loading the cloner...")
-                convert = engine.make_converter_for(se, engine.Cloner(_find("ffmpeg")))
+                convert = engine.make_converter_for(se, cloner)
 
             def cprogress(done, total):
                 if view._vo_cancel.is_set():
                     raise RuntimeError("stopped")
                 ui(_progress, view, done, total, "Copying the voice: piece")
 
-            res = ev.synthesize(text, str(out), voice=voice, speed=speed, pitch_hz=pitch,
-                                ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"), progress=progress,
-                                convert=convert, convert_progress=cprogress)
+            try:
+                res = ev.synthesize(text, str(out), voice=voice, speed=speed, pitch_hz=pitch,
+                                    ffmpeg=_find("ffmpeg"), ffprobe=_find("ffprobe"), progress=progress,
+                                    convert=convert, convert_progress=cprogress)
+            finally:
+                if clone_name and cloner is not None:
+                    cloner.close()
             ui(_done, view, app, res, preview, ws is not None)
         except ImportError:
             ui(_fail, view, "The voices could not be set up (no internet, or pip is blocked). Connect and try again, or load your own audio on Audio & Effects.")
