@@ -7,7 +7,9 @@
     python3 make_video.py status <job.json>                        where a running job is
     python3 make_video.py batch videos.csv                         several videos one after another (overnight): one failure never
                                                                    stops the rest; the computer is kept awake; a report is written
-                                                                   after every video (columns: style,voice,script,csv,music,title,out)
+                                                                   after every video (columns: style,voice,script,csv,music,title,out;
+                                                                   optional channel,description,tags,thumbnail,publish_at: the made video
+                                                                   is queued for upload_videos.py)
 
 `run` writes a job file, starts the app with SYT_AUTORUN=<job> and waits: the app opens, makes a new project, and presses its own buttons
 (Direct with Explainer / Load CSV, Generate for the scenes, Generate again to render). Progress is printed and kept in <job>.status.json
@@ -231,6 +233,23 @@ def cmd_run(a) -> int:
 
 
 JOB_FIELDS = ("style", "voice", "script", "csv", "music", "title", "out", "project")
+UPLOAD_FIELDS = ("channel", "description", "tags", "thumbnail", "publish_at")    # optional: a made video goes to that channel's upload queue
+
+
+def queue_upload(row: dict, video: str, say) -> str:
+    """Puts a finished video in its channel's queue (upload_videos.py, next to this file). Returns a line for the report."""
+    if not row.get("channel") or not video:
+        return ""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import upload_videos as U
+        kit = U.enqueue(U.find_root(), row["channel"], video, row.get("title", ""), row.get("description", ""),
+                        row.get("tags", ""), row.get("thumbnail", ""), publish_at=row.get("publish_at", ""))
+        say(f"queued for upload to '{row['channel']}': {kit}")
+        return f"queued for upload to {row['channel']}"
+    except Exception as exc:
+        say(f"could not queue the video for '{row['channel']}': {exc}")
+        return f"NOT queued for upload: {exc}"
 
 
 def read_batch(path: Path) -> list:
@@ -246,10 +265,10 @@ def read_batch(path: Path) -> list:
         rows = list(_csv.DictReader(text.splitlines()))
     out = []
     for r in rows:
-        r = {k: str((r or {}).get(k) or "").strip() for k in JOB_FIELDS}
-        if not any(r.values()):
+        r = {k: str((r or {}).get(k) or "").strip() for k in JOB_FIELDS + UPLOAD_FIELDS}
+        if not any(r[k] for k in JOB_FIELDS):
             continue
-        for k in ("voice", "script", "csv", "music", "out", "project"):
+        for k in ("voice", "script", "csv", "music", "out", "project", "thumbnail"):
             if r[k] and not Path(r[k]).expanduser().is_absolute():
                 r[k] = str((path.parent / r[k]).resolve())
         out.append(r)
@@ -296,6 +315,8 @@ def write_report(report: Path, started: float, results: list, total: int) -> Non
         lines.append(f"{i}. {r['title']} ({r['style']}): " + ("DONE" if r["state"] == "done" else "FAILED") + (f" in {mins:.0f} min" if mins else ""))
         if r["state"] == "done":
             lines.append(f"   video: {r.get('video')}")
+            if r.get("upload"):
+                lines.append(f"   upload: {r['upload']}")
             lines += [f"   skipped (still missing after the retries): {s}" for s in (r.get("skipped_scenes") or [])[:20]]
         else:
             lines.append(f"   why: {r.get('message')}")
@@ -321,7 +342,7 @@ def cmd_batch(a) -> int:
     if not rows:
         print("make_video: the batch file lists no videos", file=sys.stderr)
         return 2
-    jobs = [argparse.Namespace(**r, app=a.app, jobs_dir=a.jobs_dir, detach=False) for r in rows]
+    jobs = [argparse.Namespace(**{k: r[k] for k in JOB_FIELDS}, app=a.app, jobs_dir=a.jobs_dir, detach=False) for r in rows]
     problems = [(i, check_args(j)) for i, j in enumerate(jobs, 1)]
     problems = [(i, p) for i, p in problems if p]
     for i, p in problems:
@@ -359,6 +380,10 @@ def cmd_batch(a) -> int:
                             "project": st.get("project", ""), "failed_scenes": st.get("failed_scenes") or [], "skipped_scenes": st.get("skipped_scenes") or [], "minutes": (time.time() - t0) / 60,
                             "log": str(job.with_name(job.stem + ".log"))})
             say(f"video {i}: " + (f"DONE {st.get('video')}" if st.get("state") == "done" else f"FAILED {st.get('message')}"))
+            if st.get("state") == "done":
+                up = queue_upload(rows[i - 1], st.get("video", ""), say)
+                if up:
+                    results[-1]["upload"] = up
             write_report(report, started, results, len(jobs))
             if i < len(jobs):
                 time.sleep(10)                           # the app has closed; Flow's browsers are let go before the next start
