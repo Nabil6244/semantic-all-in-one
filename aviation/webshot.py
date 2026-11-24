@@ -50,7 +50,8 @@ def shot(url: str, cache_dir: Any, timeout_s: float = 40.0, width: int = 1280, h
         json.dump({"url": url, "out": str(png), "width": width, "height": height, "timeout_ms": int(timeout_s * 600)}, fh)
         spec = fh.name
     try:
-        p = subprocess.run(["node", str(HERE / "webshot.mjs"), spec], capture_output=True, text=True, timeout=timeout_s + 20)
+        p = subprocess.run(["node", str(HERE / "webshot.mjs"), spec], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=timeout_s + 20)   # node writes UTF-8; Windows' default cp1252 crashed the read
         lines = (p.stdout or "").strip().splitlines()
         r = json.loads(lines[-1]) if lines else {"ok": False, "reason": (p.stderr or "no output")[-300:]}
     except subprocess.TimeoutExpired:

@@ -130,8 +130,9 @@ class IsolationTests(unittest.TestCase):
     def test_nothing_outside_the_pack_imports_it(self):
         offenders = []
         for p in ROOT.glob("*.py"):
-            if p.name == Path(__file__).name or p.name.startswith("test_war_"):
-                continue   # the pack's own tests (the war package lives inside cinematic_explainer/)
+            if p.name.startswith("test_"):
+                continue   # tests: the pack's own (war lives inside cinematic_explainer/) and those of styles that reuse its renderer
+                           # (Aviation, Wall Moments, Flow shared engine) - the rule is about app code, which tests never ship in
             if p.name == "app.py":   # the one approved, additive style-picker hook: lazy imports only, never at module level
                 text = p.read_text(encoding="utf-8", errors="ignore")
                 self.assertNotIn("\nimport cinematic_explainer", text)

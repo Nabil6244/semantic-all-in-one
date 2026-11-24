@@ -62,7 +62,8 @@ def test_news_number_cards_rotate_skins():
              "Estimates of the Air France deal range between $1.2 billion and $2.7 billion.",
              "Air France ordered 26 aircraft in the first batch in 2016.",
              "Air France said profit rose from $5 million to $9 million in 2017."]
-    pl = P.plan(_scenes(lines, has_clip=False, mode="news"), [{"mode": "news"}] * 4)
+    # lines with their own clips (clipless ones go on the sticker stage since 2026-11-17)
+    pl = P.plan(_scenes(lines, has_clip=True, mode="news"), [{"mode": "news"}] * 4)
     layers = [s["layer"] for s in pl.shots if s.get("layer", "").startswith(("dossier.", "gfx_air."))]
     assert any(x.startswith("dossier.") for x in layers) and any(x.startswith("gfx_air.") for x in layers)
 

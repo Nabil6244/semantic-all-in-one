@@ -40,7 +40,9 @@ while True:
     except queue.Empty: break
 errors = [e for e in events if e[0] == "error"]
 emit("setup_failure_reports_error", errors and "No space left" in str(errors[-1][1]), events[-3:])
-emit("stdout_is_restored", sys.stdout is real_stdout, type(sys.stdout).__name__)
+# the app keeps one permanent stdout router (per-thread job logs): restored = it writes to the real stream again, no job routed
+restored = sys.stdout is real_stdout or (getattr(sys.stdout, "base", None) is real_stdout and not _app._ROUTE_STACK)
+emit("stdout_is_restored", restored, type(sys.stdout).__name__)
 os._exit(0)
 '''
 

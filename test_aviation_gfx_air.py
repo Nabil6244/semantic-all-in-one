@@ -66,19 +66,23 @@ class TriggerTests(unittest.TestCase):
         return {s["layer"] for s in p.shots if str(s.get("layer", "")).startswith("gfx_air.")}, p
 
     def test_numbers_bring_their_graphic(self):
-        # number lines rotate between the blue news skin and the dossier skin (J-11 study), so both appear in one film
-        k, _ = self.kinds(EMIRATES[:4], has_clip=False)
+        # number lines with their own clips bring graphics between the clips (the balance director spaces them out, never the
+        # same one twice); number lines with nothing filmed go on the sticker stage with a dossier card (owner, 2026-11-17)
+        k, _ = self.kinds(EMIRATES[:4], has_clip=True)
         old = [w for w in ("gfx_air.lay_fleet", "gfx_air.lay_network", "gfx_air.lay_seats", "gfx_air.lay_change", "gfx_air.lay_big_number")
                if w in k]
-        self.assertGreaterEqual(len(old), 4)
+        self.assertGreaterEqual(len(old), 2)
         sc = scenes(EMIRATES[:4])
         for x in sc:
             x["has_clip"] = False
-        self.assertTrue(any(str(s.get("layer", "")).startswith("dossier.") for s in P.plan(sc).shots))
+        shots = P.plan(sc).shots
+        self.assertTrue(any(str(s.get("layer", "")).startswith("dossier.") for s in shots))
+        self.assertTrue(any(s.get("layer") == "stage.lay_stage" for s in shots))
 
     def test_history_line_gets_the_timeline(self):
         # a flight line (EK600 leaving Dubai) gets the route map; a history line in the business story gets the timeline
-        k, _ = self.kinds([EMIRATES[0], "The airline started in 1985 with two borrowed planes and ten million dollars."], has_clip=False)
+        # (lines with clips: a line with nothing filmed goes on the sticker stage, whose own timeline piece tells the history)
+        k, _ = self.kinds([EMIRATES[0], "The airline started in 1985 with two borrowed planes and ten million dollars."], has_clip=True)
         self.assertIn("gfx_air.lay_timeline", k)
 
     def test_a_line_without_a_clip_never_borrows_a_picture(self):

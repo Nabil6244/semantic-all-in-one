@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run every test_*.py module in its own process, in parallel.
 
-Same tests as ``python -m unittest discover -s . -p "test_*.py"`` — just one
+Same tests as ``python -m unittest discover -s . -p "test_*.py"`` (pytest-style modules run under pytest) — just one
 subprocess per module across all CPU cores, which cuts CI test time several
 times over. Exits non-zero if any module fails, and prints each failing
 module's full output.
@@ -24,6 +24,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 _SUMMARY_RE = re.compile(r"^Ran (\d+) tests? in", re.MULTILINE)
+_PYTEST_RE = re.compile(r"(\d+) (?:passed|failed|errors?)\b")
 _TIMEOUT_S = 1200
 # Modules that normally finish in about a minute but can hang on a headless Windows runner (a window waiting for input): a short limit
 # cuts the hang off early, so the retry alone still fits in the step's time budget. A real failure still fails the run.
@@ -86,7 +87,7 @@ def _run(module: str) -> tuple[str, int, str, float, int]:
     # pipes to close, which never happens while a program the module started is still running, so the whole job hung.
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as log:
         proc = subprocess.Popen(
-            [sys.executable, "-m", "unittest", module],
+            _command(module),
             cwd=ROOT, env=env, stdout=log, stderr=subprocess.STDOUT, text=True,
             start_new_session=(os.name != "nt"),
         )
@@ -101,10 +102,35 @@ def _run(module: str) -> tuple[str, int, str, float, int]:
     if timed_out:
         out = f"TIMEOUT after {_MODULE_TIMEOUT_S.get(module, _TIMEOUT_S)}s (the module and the programs it started were stopped)\n{out}"
     match = _SUMMARY_RE.search(out)
-    return module, code, out, time.monotonic() - start, int(match.group(1)) if match else 0
+    if match:
+        ran = int(match.group(1))
+    else:                                    # pytest's summary: "12 passed, 1 failed, 2 skipped in 3.4s"
+        ran = sum(int(n) for n in _PYTEST_RE.findall(out[-3000:]))
+    return module, code, out, time.monotonic() - start, ran
+
+
+def _is_pytest_style(module: str) -> bool:
+    """Plain `def test_...` functions (no unittest.TestCase): unittest finds 0 tests in them and the module failed with
+    'NO TESTS RAN', and pytest fixtures/raises need pytest itself. Those modules run under pytest."""
+    try:
+        src = (ROOT / f"{module}.py").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return "TestCase" not in src and ("import pytest" in src or "\ndef test_" in src)
+
+
+def _command(module: str) -> list:
+    if _is_pytest_style(module):
+        return [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"{module}.py"]
+    return [sys.executable, "-m", "unittest", module]
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):   # a module's output with "→" crashed the runner on a cp1252 Windows console
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     parser = argparse.ArgumentParser()
     parser.add_argument("--workers", type=int, default=max(2, (os.cpu_count() or 2)))
     args = parser.parse_args()

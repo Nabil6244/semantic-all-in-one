@@ -318,7 +318,10 @@ class TestGracefulDegradation(unittest.TestCase):
         out = tmp / "mixed.wav"
         result = build_exp_solar_audio_mix(sg, layout, voiceover_path=voiceover, output_path=out, sfx_root=missing_root)
         self.assertTrue(result.is_file())
-        self.assertEqual(result.read_bytes(), voiceover.read_bytes())  # exact fallback copy
+        # exact fallback copy of the narration as the mixer uses it: levelled to the standard loudness first (audio_level.py)
+        import audio_level
+        levelled = Path(audio_level.level_narration(voiceover, out.parent))
+        self.assertEqual(result.read_bytes(), levelled.read_bytes())
 
 
 class TestNarrationTimingUnchanged(unittest.TestCase):

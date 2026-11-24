@@ -64,7 +64,8 @@ class PointBareMaps(unittest.TestCase):
                       ("Part one. The talks in Abu Dhabi.", 2.4),
                       ("On the tenth and eleventh of November, the United States hosted a new round of three-way talks in Abu Dhabi.", 8.2)])
         plan, counts = self._point(rows, [_bare_map(10.5, 18.6)])
-        self.assertEqual(_pins(plan.layers[0]), [])
+        # the map over the Abu Dhabi lines points at Abu Dhabi itself (its own place), never at the earlier Saint Petersburg
+        self.assertFalse([n for n in _pins(plan.layers[0]) if "Petersburg" in n], _pins(plan.layers[0]))
         # control: the same map placed over the Saint Petersburg line still gets its own pin
         plan2, _ = self._point(rows, [_bare_map(0.5, 7.5)])
         self.assertTrue(any("Petersburg" in n for n in _pins(plan2.layers[0])), _pins(plan2.layers[0]))

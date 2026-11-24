@@ -3242,7 +3242,7 @@ def _fold_slivers(plan: Any, counts: Dict[str, int], hook_end: float = 0.0) -> N
     plan.shots[:] = shots
 
 
-def _fold_glimpses(plan: Any, counts: Dict[str, int]) -> None:
+def _fold_glimpses(plan: Any, counts: Dict[str, int], hook_end: float = 0.0) -> None:
     """A clip seen for under MIN_SHOT_S after a full-frame graphic ends, right before the next clip, is a flash (Spiderweb render 2026-11-09:
     0.24 s of the previous clip after a map, 1.36 s of a clip after the kinetic card). The next clip starts as the graphic ends instead; the
     hidden clip keeps only its covered part, or goes when nothing of it is left."""
@@ -3251,7 +3251,7 @@ def _fold_glimpses(plan: Any, counts: Dict[str, int]) -> None:
     i = 0
     while i < len(shots) - 1:
         s, nxt = shots[i], shots[i + 1]
-        if abs(nxt.start - s.end) >= 0.05 :
+        if abs(nxt.start - s.end) >= 0.05 or nxt.start <= hook_end + 0.05:    # the montage hook's cuts are deliberate (as _fold_slivers)
             i += 1
             continue
         c = max((ly.end for ly in full if s.start - 0.05 <= ly.end < s.end and ly.start < s.start + 0.05 or s.start < ly.end < s.end),
@@ -3516,7 +3516,7 @@ def _final_coverage(plan: Any, total: float, counts: Dict[str, int], hook_end: f
     if total <= 0:
         return
     _fold_slivers(plan, counts, hook_end)
-    _fold_glimpses(plan, counts)
+    _fold_glimpses(plan, counts, hook_end)
     full = sorted((ly for ly in plan.layers if _opaque(ly)), key=lambda x: x.start)
     # 1 a clip glimpsed between two graphics: the graphic before it holds instead of a flash
     for i, a in enumerate(full[:-1]):

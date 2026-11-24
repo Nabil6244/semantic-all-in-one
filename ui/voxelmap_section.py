@@ -214,7 +214,8 @@ def _restore(app: Any) -> None:
 def resume_on_open(app: Any) -> None:
     """A project that was left on this page opens on it again."""
     if _read_settings(app).get("active"):
-        app.ui_call(lambda: app._on_style_pick(STYLE))
+        call = getattr(app, "ui_call", None) or (lambda fn: app.after(0, fn))
+        call(lambda: app._on_style_pick(STYLE))
 
 
 def _browse(app: Any, kind: str) -> None:

@@ -153,6 +153,7 @@ jobs:
         # PATH (an env: PATH built from ${{ env.PATH }} was only bin/: the env context has no PATH, so git and node were missing).
         run: |
           export PATH="$GITHUB_WORKSPACE/bin:$PATH"
+          python -m pip install pytest   # pytest-style test modules (plain def test_ functions) run under it
           python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (macOS ${{ matrix.arch }})
@@ -400,6 +401,7 @@ jobs:
         timeout-minutes: 70   # the full suite takes ~40-45 min on a hosted Windows runner
         run: |
           $env:PATH = "$PWD\bin;" + $env:PATH
+          python -m pip install pytest   # pytest-style test modules (plain def test_ functions) run under it
           python scripts/run_tests_parallel.py
 
       - name: Bundle portable Node.js runtime (Windows x64)

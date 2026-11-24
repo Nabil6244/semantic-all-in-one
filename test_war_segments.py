@@ -292,8 +292,8 @@ class IsolationTests(unittest.TestCase):
     def test_nothing_outside_the_pack_imports_the_war_package(self):
         offenders = []
         for p in ROOT.glob("*.py"):
-            if p.name.startswith("test_war") or p.name.startswith("test_cinematic"):
-                continue
+            if p.name.startswith("test_"):
+                continue   # tests (the pack's own, and those of styles reusing its renderer) - the rule is about app code
             if p.name == "app.py":
                 continue   # the one lazy, additive style-picker hook (checked by test_war_app_section.py)
             if p.name == "make_video.py":   # names the War CSV prompt file by its path; never imports the package

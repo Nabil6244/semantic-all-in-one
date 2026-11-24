@@ -453,11 +453,13 @@ class CsvGraphicColumn(unittest.TestCase):
     def test_each_asked_graphic_is_placed_in_its_scene(self):
         sc, p = self.plan()
         self.assertNotIn("error", p.stats["direction"])
-        got = {int(ly.start // 7) + 1: ly.kind for ly in p.layers if (ly.params or {}).get("csv_graphic")}
+        # by where the card sits, not its first frame: a card may come in a moment early to cover a split-second clip (_fold_glimpses)
+        got = {int(((ly.start + ly.end) / 2) // 7) + 1: ly.kind for ly in p.layers if (ly.params or {}).get("csv_graphic")}
         # 2026-11-08, the owner: the script's numbers are the source of truth, so a CSV 'number' on "rose from 2000 in March to 46000 by
         # December" is shown (46000 BY DECEMBER) instead of being held back for want of a named claimant
         self.assertEqual(got, {1: "kit_title", 2: "kit_datecard", 3: "kit_quote", 4: "lay_equipment_hero", 5: "kit_bignum", 6: "kit_recap",
-                               7: "kit_radar", 8: "tac_map", 10: "kit_dossier"})
+                               7: "kit_radar", 8: "tac_map", 9: "sat_map", 10: "kit_dossier"})
+        # (scene 9 asked for a 'number' it has none of: the automatic map stays - see the fallback test below)
         q = next(ly for ly in p.layers if ly.kind == "kit_quote")
         self.assertEqual(q.params["quote"], "I need ammunition, not a ride.")
         d = next(ly for ly in p.layers if ly.kind == "kit_datecard")

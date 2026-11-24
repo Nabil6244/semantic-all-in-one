@@ -581,6 +581,11 @@ def _cap_holds(out: Plan, scenes, cls, rows) -> None:
                     gaps.append((gap0, t))
                 gap0 = None
             t += step
+        # a gap over lines with nothing filmed of their own stays on the stage: filling it would borrow a neighbour's clip
+        # (owner, 2026-11-17 - the same rule the hold cut below keeps)
+        gaps = [(ga, gb) for ga, gb in gaps
+                if not all(scenes[k_].get("has_clip") is False for k_ in range(len(scenes))
+                           if float(scenes[k_]["start"]) < gb - 1e-3 and float(scenes[k_]["end"]) > ga + 1e-3)]
         if not gaps:
             continue
         cues = list(sh.get("cues") or [])

@@ -27,7 +27,10 @@ class TableTest(unittest.TestCase):
         from ui import style_registry as R
         choices = ast.literal_eval(re.search(r"STYLE_CHOICES = (\(.*?\))", (ROOT / "app.py").read_text(encoding="utf-8")).group(1))
         cards = set(R.with_extras(choices)) | {"Weather"}
-        self.assertEqual({s["pick"] for s in J.STYLES.values()}, cards)
+        # Styles added after make_video's table that it cannot drive yet (their own import / episode pages). Listed here so a NEW
+        # card still fails this test until it is either added to autorun or named here.
+        not_automated = {"Motivation", "Game Launch", "Toon Tales", "Toy Vehicles", "Kids Stories", "Ocean Predators"}
+        self.assertEqual({s["pick"] for s in J.STYLES.values()}, cards - not_automated)
         for k, s in J.STYLES.items():
             self.assertTrue((ROOT / s["csv_prompt"]).is_file(), k)
 
@@ -117,8 +120,11 @@ class BatchTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d).resolve()
             (d / "b.json").write_text(json.dumps({"videos": [{"style": "war", "voice": "a/vo.mp3"}, {}]}), encoding="utf-8")
-            self.assertEqual(MV.read_batch(d / "b.json"), [{"style": "war", "voice": str(d / "a" / "vo.mp3"), "script": "", "csv": "", "music": "",
-                                                            "title": "", "out": ""}])
+            rows = MV.read_batch(d / "b.json")
+            self.assertEqual(len(rows), 1)                 # the empty entry is skipped
+            # the job columns (the upload columns - channel, description, tags ... - are checked by the uploader's own tests)
+            self.assertEqual({k: rows[0][k] for k in ("style", "voice", "script", "csv", "music", "title", "out")},
+                             {"style": "war", "voice": str(d / "a" / "vo.mp3"), "script": "", "csv": "", "music": "", "title": "", "out": ""})
 
 
 class _Var:
