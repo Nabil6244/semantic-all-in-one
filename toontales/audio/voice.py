@@ -28,7 +28,7 @@ def _tts(text, voice, rate, pitch, mp3, tries=8):
     import edge_tts
     for k in range(tries):
         try:
-            asyncio.run(edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(mp3)))
+            asyncio.run(asyncio.wait_for(edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(mp3)), 60))  # a hung request retries
             if Path(mp3).exists() and Path(mp3).stat().st_size > 0:
                 return
         except Exception as e:  # NoAudioReceived, connection resets
@@ -42,6 +42,9 @@ def line(text, voice, rate="+10%", out_dir=".", pitch="+0Hz"):
     out.mkdir(parents=True, exist_ok=True)
     key = hashlib.sha1(f"{voice}|{rate}|{pitch}|{text}".encode()).hexdigest()[:12]
     wav, cues_p = out / f"line_{key}.wav", out / f"line_{key}.json"
+    for f in (wav, cues_p):  # a full disk once left empty files here; treat them as missing
+        if f.exists() and f.stat().st_size == 0:
+            f.unlink()
     if not wav.exists():
         mp3 = out / f"line_{key}.mp3"
         _tts(text, voice, rate, pitch, mp3)
@@ -98,7 +101,7 @@ def words(text, voice, rate="+0%", out_dir=".", pitch="+0Hz", dur=None, tries=8)
 
     for k in range(tries):
         try:
-            ws = asyncio.run(go())
+            ws = asyncio.run(asyncio.wait_for(go(), 60))  # a hung request retries instead of stalling the render
             if ws:
                 break
         except Exception as e:

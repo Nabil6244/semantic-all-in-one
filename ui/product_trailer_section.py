@@ -449,7 +449,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
                 end(error)
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name=name, daemon=True).start()
 
@@ -461,7 +461,7 @@ def _progress_cb(app: Any, export: bool = False):
         text = (f"{int(float(frac) * 100) if float(frac) <= 1 else int(frac)}%  " if frac is not None else "") + (msg or "")
         try:
             k = float(frac) if frac is not None else None
-            app.after(0, lambda: (app._pt_status_var.set(text.strip()),
+            app.ui_latest("style_progress", lambda: (app._pt_status_var.set(text.strip()),
                                   k is not None and app.progress.set(k if k <= 1 else k / 100.0),
                                   export and k is not None and app._export_progress(k if k <= 1 else k / 100.0, msg or "")))
         except Exception:
@@ -511,19 +511,19 @@ def on_generate(app: Any) -> None:
 
             words = None
             if (review_film or o["film_type"] == "UI Film") and o["voiceover"]:   # a Review or UI Film is timed to the narrator: read the voice-over's word times (cached, else Whisper)
-                app.after(0, lambda: app._pt_status_var.set("Reading the voice-over…"))
+                app.ui_call(lambda: app._pt_status_var.set("Reading the voice-over…"))
                 try:
                     words = app._pakmap_get_words(Path(o["voiceover"]), whisper_model, getattr(app._workspace, "state_dir", None),
-                                                  lambda m: app.after(0, lambda m=m: app._append_log(f"{TAG} {m}\n")))
+                                                  lambda m: app.ui_call(lambda m=m: app._append_log(f"{TAG} {m}\n")))
                 except Exception as exc:  # noqa: BLE001 -- the lines are then spread evenly over the voice-over's length
-                    app.after(0, lambda exc=exc: app._append_log(f"{TAG} Could not read the voice-over words ({exc}); lines spread evenly.\n"))
+                    app.ui_call(lambda exc=exc: app._append_log(f"{TAG} Could not read the voice-over words ({exc}); lines spread evenly.\n"))
             r = studio.plan_film(o["film_type"], out_dir=out_dir, csv=o["csv"] or None, script=o["script"], phone=o["phone"], colour=o["colour"],
                                  music=o["music"] or None, disclaimer=o["disclaimer"], disclaimer_on=o["disclaimer_on"], width=o["width"],
                                  height=o["height"], fps=o["fps"], use_ai=o["use_ai"], voiceover=o["voiceover"] or None, words=words, style=o["style"],
                                  subtitles=None if o.get("captions", True) else False,
                                  footage_chosen=footage_chosen, **_ai_args(app, o))
             planned.update(r)
-            app.after(0, lambda: app._pt_status_var.set(r["summary"]))
+            app.ui_call(lambda: app._pt_status_var.set(r["summary"]))
             for n in r.get("notes", [])[:20]:
                 app._append_log(f"{TAG} {n}\n")
             return r["spec_path"]
@@ -606,7 +606,7 @@ def _ai_args(app: Any, o: Dict[str, Any]) -> Dict[str, Any]:
     if o.get("style") != "mixed":
         return {}
     settings = dict(getattr(app, "_settings", {}) or {})
-    out: Dict[str, Any] = {"log": lambda m: app.after(0, lambda m=m: app._append_log(f"{TAG} {m}\n"))}
+    out: Dict[str, Any] = {"log": lambda m: app.ui_call(lambda m=m: app._append_log(f"{TAG} {m}\n"))}
     try:
         from product_trailer import llm_director
 

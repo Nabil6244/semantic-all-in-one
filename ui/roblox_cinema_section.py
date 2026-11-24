@@ -91,7 +91,7 @@ def _fetch_cards(app: Any, base: str, src: dict, after) -> None:
             visual_bridge.clear(app, OWNER)
         after()
         return
-    log = lambda m: app.after(0, lambda: app._append_log(f"{TAG} {m}\n"))
+    log = lambda m: app.ui_call(lambda: app._append_log(f"{TAG} {m}\n"))
     holder: dict = {"rows": cards.table_rows(reqs)}
     planned_msg = app._rc_status_var.get()
 
@@ -122,7 +122,7 @@ def _card_pictures(app: Any, plan: dict) -> Optional[str]:
         recs = visual_bridge.records(_assets_dir(app), visual_bridge.rows(app, OWNER) or cards.table_rows(reqs))
         return cards.write_pictures(plan["base"] + ".cards.json", reqs, recs)
     except Exception as exc:  # noqa: BLE001
-        app.after(0, lambda: app._append_log(f"{TAG} picture cards: using the code-made ones ({type(exc).__name__}: {exc})\n"))
+        app.ui_call(lambda: app._append_log(f"{TAG} picture cards: using the code-made ones ({type(exc).__name__}: {exc})\n"))
         return None
 
 
@@ -435,8 +435,8 @@ def _progress(app: Any):
         import time as _time
         if _time.monotonic() - last["t"] >= 30:      # a real log line every 30 s: shows the work is moving and keeps the stall watchdog quiet
             last["t"] = _time.monotonic()
-            app.after(0, lambda m=f"{int(frac * 100)}% {msg}".strip(): app._append_log(f"{TAG} {m}\n"))
-        app.after(0, lambda: (app._rc_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
+            app.ui_call(lambda m=f"{int(frac * 100)}% {msg}".strip(): app._append_log(f"{TAG} {m}\n"))
+        app.ui_latest("style_progress", lambda: (app._rc_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
                               app._export_progress(max(0.0, min(1.0, frac)), msg or "")))
     return cb
 
@@ -467,7 +467,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
                 end(error)
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name=name, daemon=True).start()
 
@@ -496,7 +496,7 @@ def on_generate(app: Any) -> None:
 
     def job():
         return rc.plan(base, voiceover=o["voice"] or None, resolution=o["res"], genre=o["genre"], progress=_progress(app), cancel=app._rc_cancel.is_set,
-                       log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **src)
+                       log=lambda m: app.ui_call(lambda: app._append_log(m + "\n")), **src)
 
     def done(r) -> None:
         app._rc_planned = {"src": src, "voice": o["voice"], "res": o["res"], "music": o["music"], "base": base, "genre": o["genre"]}
@@ -557,7 +557,7 @@ def on_render(app: Any) -> None:
 
     def job():
         return rc.render(plan["base"], voiceover=plan["voice"] or None, output=str(out_path), resolution=plan["res"], music=plan["music"], genre=plan.get("genre", "history"), cards=_card_pictures(app, plan),
-                         progress=_progress(app), cancel=app._rc_cancel.is_set, log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **plan["src"])
+                         progress=_progress(app), cancel=app._rc_cancel.is_set, log=lambda m: app.ui_call(lambda: app._append_log(m + "\n")), **plan["src"])
 
     def done(r) -> None:
         mix = (r.get("mix") or {}).get("final_file") or {}

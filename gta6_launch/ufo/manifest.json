@@ -1,0 +1,420 @@
+{
+  "project": "gta6_ufo_mission_3214_alien_lab",
+  "title": "GTA 6's Secret UFO Mission: Lucia's Dream, Code 3214 & The Alien Lab",
+  "alt_title": "How to Unlock GTA 6's Underground Alien Lab & Secret UFO Trophy",
+  "source_narration_file": "gta6_ufo_mission_3214_narration_only.txt",
+  "voiceover_audio_file": "manual_vo.mp3",
+  "trailer_clips_allowed": false,
+  "vertical_clips_allowed": false,
+  "verified_spoken_word_count": 1074,
+  "est_runtime_150wpm_mmss": "07:10",
+  "vo_sync_strategy": {
+    "mode": "whisper_forced_alignment_on_manual_vo",
+    "mac_ffmpeg_encoder": "-c:v h264_videotoolbox -b:v 8M",
+    "instructions": "1) Master manual_vo.mp3 to -14 LUFS. 2) Run local Whisper (word_timestamps=True) on manual_vo to lock each beat's cut_in_sec / cut_out_sec via sync_anchors.start_phrase & end_phrase. 3) Download ONLY the exact verified 16:9 source_clips ranges (zero YouTube caption scraping, zero vertical clips, >=1.3x buffer per beat). 4) Render shots in parallel (4 workers) with h264_videotoolbox and verify a 15s contact sheet before final export."
+  },
+  "beats": [
+    {
+      "beat_id": "beat01_hook",
+      "section": "Hook: GTA 6's Playable UFO & Underground Alien Lab",
+      "word_count": 128,
+      "est_time_range_150wpm_ref_only": "00:00-00:51",
+      "est_voice_dur_150wpm_sec": 51.2,
+      "total_source_clip_sec": 93,
+      "clip_to_voice_ratio": 1.82,
+      "cut_in_sec": 0.0,
+      "cut_out_sec": 52.36,
+      "sync_anchors": {
+        "start_phrase": "Every GTA game has UFO Easter",
+        "end_phrase": "upgrades, and find the UFO house."
+      },
+      "narration_text": "Every GTA game has UFO Easter eggs floating miles up in the sky where you can never touch them. In Grand Theft Auto Six, Rockstar flipped the script\u2014and hid a full three-part playable alien abduction mission. If you drive down the wrong rural road after two in the morning, a glowing UFO drops out of the fog and abducts Jason or Lucia. That abduction triggers a playable white-void dream with a secret four-digit keypad code, leading straight into an underground Grassrivers alien lab. Even crazier, players just solved Rockstar's five-year-old San Andreas UFO house mystery inside Belville\u2014and the garage hides a disturbing secret. Here is the exact step-by-step guide to trigger the abduction, unlock the lab, claim four permanent stat upgrades, and find the UFO house.",
+      "visual_direction": "Fast 16:9 montage: UFO hovering over forest trees, glowing night meteorite/woods, underground secret facility interior, and the cream Belville UFO house.",
+      "source_clips": [
+        {
+          "video_id": "5-OQPwar3oQ",
+          "start": "7:53",
+          "end": "8:19",
+          "scene": "UFO abduction in woods + Lucia dream void",
+          "duration_sec": 26,
+          "url": "http://www.youtube.com/watch?v=5-OQPwar3oQ"
+        },
+        {
+          "video_id": "7N2Q31-Uci8",
+          "start": "0:22",
+          "end": "0:46",
+          "scene": "Night forest glowing alien anomaly",
+          "duration_sec": 24,
+          "url": "http://www.youtube.com/watch?v=7N2Q31-Uci8"
+        },
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "3:28",
+          "end": "3:52",
+          "scene": "Entering secret underground/underwater lab interior",
+          "duration_sec": 24,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        },
+        {
+          "video_id": "5-OQPwar3oQ",
+          "start": "1:02",
+          "end": "1:21",
+          "scene": "2021 San Andreas UFO house in GTA 6",
+          "duration_sec": 19,
+          "url": "http://www.youtube.com/watch?v=5-OQPwar3oQ"
+        }
+      ],
+      "overlay_graphics": [
+        "SECRET 3-PART UFO MISSION",
+        "CODE 3214 | UNDERGROUND ALIEN LAB | 4 PERMANENT UPGRADES"
+      ],
+      "audio_sfx_cue": "Eerie sci-fi low synth hum -> sharp UFO beam swell",
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat02_part1_forest",
+      "section": "Part 1: The 2 AM Forest Abduction & Secret Trophy",
+      "word_count": 183,
+      "est_time_range_150wpm_ref_only": "00:51-02:04",
+      "est_voice_dur_150wpm_sec": 73.2,
+      "total_source_clip_sec": 114,
+      "clip_to_voice_ratio": 1.56,
+      "cut_in_sec": 52.36,
+      "cut_out_sec": 118.82,
+      "sync_anchors": {
+        "start_phrase": "Step one starts as soon as",
+        "end_phrase": "Out There' pops on your screen."
+      },
+      "narration_text": "Step one starts as soon as you finish Chapter One and unlock free roam in Kelly County. Wait until after two in the morning in-game, make sure you are completely alone, and ride east out of Port Gellhorn near Watkins Auto Parts. Watch the shoulder of the road for a stranded twenty-twenty Declasse Impaler sitting with its door hanging open and headlights flashing into the trees. Stop your ride and use the shout button to call out\u2014nobody answers. You will spot a trail of scattered clothes leading straight off the pavement into the dark, foggy woods. Follow those clothes deeper between the trees until the entire forest suddenly explodes in blinding blue-white light. A massive UFO is hovering right above the canopy, aborting an abduction and dropping a confused, naked woman onto the dirt. Talk to her and offer to fetch her car back on the road\u2014because the second you walk back to her vehicle, the UFO snatches you instead. Right after the abduction cuts back to the road, the secret trophy 'The Truth Is Out There' pops on your screen.",
+      "visual_direction": "Dark 2 AM rural woods trail, eerie glowing sky/light in the trees, UFO encounter clip, and secret trophy popup graphic.",
+      "source_clips": [
+        {
+          "video_id": "7N2Q31-Uci8",
+          "start": "0:04",
+          "end": "0:36",
+          "scene": "Dark nighttime forest trail & eerie glow",
+          "duration_sec": 32,
+          "url": "http://www.youtube.com/watch?v=7N2Q31-Uci8"
+        },
+        {
+          "video_id": "riMc1dagrrg",
+          "start": "7:05",
+          "end": "7:35",
+          "scene": "2 AM rural road east of Port Gellhorn UFO abduction",
+          "duration_sec": 30,
+          "url": "http://www.youtube.com/watch?v=riMc1dagrrg",
+          "skip": true,
+          "skip_reason": "text-slide explainer with wrong codes (010317/085355), not gameplay"
+        },
+        {
+          "video_id": "5-OQPwar3oQ",
+          "start": "7:53",
+          "end": "8:19",
+          "scene": "UFO hovering over forest trees and dropping NPC",
+          "duration_sec": 26,
+          "url": "http://www.youtube.com/watch?v=5-OQPwar3oQ"
+        },
+        {
+          "video_id": "7N2Q31-Uci8",
+          "start": "0:46",
+          "end": "1:12",
+          "scene": "Night forest aftermath & map location",
+          "duration_sec": 26,
+          "url": "http://www.youtube.com/watch?v=7N2Q31-Uci8"
+        }
+      ],
+      "overlay_graphics": [
+        "PART 1: AFTER 2:00 AM ALONE (EAST OF PORT GELLHORN)",
+        "TROPHY UNLOCKED: THE TRUTH IS OUT THERE"
+      ],
+      "audio_sfx_cue": "Crickets & foggy wind -> blinding UFO bass beam -> PS5 trophy chime",
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat03_part2_dream",
+      "section": "Part 2: Lucia's White-Void Dream & Keypad Code 3214 / 2134",
+      "word_count": 163,
+      "est_time_range_150wpm_ref_only": "02:04-03:10",
+      "est_voice_dur_150wpm_sec": 65.2,
+      "total_source_clip_sec": 114,
+      "clip_to_voice_ratio": 1.75,
+      "cut_in_sec": 118.82,
+      "cut_out_sec": 180.56,
+      "sync_anchors": {
+        "start_phrase": "Do not think the mission is",
+        "end_phrase": "exploration task: Find the Mysterious Place."
+      },
+      "narration_text": "Do not think the mission is over after that trophy pops, because part two triggers the next time your abducted character sleeps at the Starlet Motel. Instead of waking up normally, you drop into a playable dream sequence inside a stark white void lined with glowing capsules. Walk up to the round window and zoom in\u2014you are looking straight out at a fenced compound beside a giant radio tower. Now look closely at the wall above the dream keypad, because Rockstar hid your exact entry code in glowing light bars. Count each cluster of bars from left to right\u2014in most playthroughs they group as three, two, one, four for code three-two-one-four, though some runs generate two-one-three-four. Punch your light-bar digits into the dream keypad, and GTA Six automatically saves the code in your phone's Notes app. When Lucia wakes up, she tells Jason about the warning signs and the towering radio mast, unlocking the hidden exploration task: Find the Mysterious Place.",
+      "visual_direction": "White-void dream sequence + kinetic graphic showing light bars grouping into 3-2-1-4 (3214) / 2134 saved to Phone Notes.",
+      "source_clips": [
+        {
+          "video_id": "5-OQPwar3oQ",
+          "start": "8:05",
+          "end": "8:22",
+          "scene": "Lucia dream void / mysterious room",
+          "duration_sec": 17,
+          "url": "http://www.youtube.com/watch?v=5-OQPwar3oQ"
+        },
+        {
+          "video_id": "riMc1dagrrg",
+          "start": "1:34",
+          "end": "2:06",
+          "scene": "Keypad door code & secret bunker clues",
+          "duration_sec": 32,
+          "url": "http://www.youtube.com/watch?v=riMc1dagrrg",
+          "skip": true,
+          "skip_reason": "text-slide explainer with wrong codes (010317/085355), not gameplay"
+        },
+        {
+          "video_id": "riMc1dagrrg",
+          "start": "2:20",
+          "end": "2:50",
+          "scene": "Decoding 4-digit protocol sequence",
+          "duration_sec": 30,
+          "url": "http://www.youtube.com/watch?v=riMc1dagrrg",
+          "skip": true,
+          "skip_reason": "text-slide explainer with wrong codes (010317/085355), not gameplay"
+        },
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "4:40",
+          "end": "5:15",
+          "scene": "Classified terminal & mystery clues",
+          "duration_sec": 35,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        }
+      ],
+      "overlay_graphics": [
+        "PART 2: SLEEP AT STARLET MOTEL -> PLAYABLE DREAM",
+        "DREAM KEYPAD CODE: 3214 (OR 2134 \u2014 CHECK PHONE NOTES)"
+      ],
+      "audio_sfx_cue": "Dreamy reverse cymbal -> 4 keypad beeps (3-2-1-4) -> phone note chime",
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat04_part3_lab_entry",
+      "section": "Part 3: Finding the Grassrivers Radio Tower & Underground Lab",
+      "word_count": 128,
+      "est_time_range_150wpm_ref_only": "03:10-04:01",
+      "est_voice_dur_150wpm_sec": 51.2,
+      "total_source_clip_sec": 131,
+      "clip_to_voice_ratio": 2.56,
+      "cut_in_sec": 180.56,
+      "cut_out_sec": 227.94,
+      "sync_anchors": {
+        "start_phrase": "For part three, bring both Jason",
+        "end_phrase": "Area Fifty-One style alien research facility."
+      },
+      "narration_text": "For part three, bring both Jason and Lucia down into the Grassrivers along Boundary Road, between Port Gellhorn and South Point Airfield near Key Lento. Look for a small guard booth, chain-link fencing covered in warning signs, and the massive radio tower from Lucia's dream. Head through the gate or climb the left side of the fence, then climb the ladder on the far side of the main building onto the roof. Drop down through the open roof hatch and head downstairs until you hit a heavy door marked Restricted Area with a glowing keypad. Type in your dream code\u2014three-two-one-four or two-one-three-four straight from your phone notes\u2014and step into the elevator. The lift drops you deep underground into a full-blown Area Fifty-One style alien research facility.",
+      "visual_direction": "4K aerial Grassrivers swamp approach -> fenced radio tower compound -> entering secret bunker hatch & riding elevator into underground lab.",
+      "source_clips": [
+        {
+          "video_id": "dEJSn2ZctTo",
+          "start": "2:10",
+          "end": "2:45",
+          "scene": "4K helicopter view over Grassrivers & Leonida",
+          "duration_sec": 35,
+          "url": "http://www.youtube.com/watch?v=dEJSn2ZctTo"
+        },
+        {
+          "video_id": "riMc1dagrrg",
+          "start": "3:28",
+          "end": "3:58",
+          "scene": "Locked bunker hatch & keypad entry",
+          "duration_sec": 30,
+          "url": "http://www.youtube.com/watch?v=riMc1dagrrg",
+          "skip": true,
+          "skip_reason": "text-slide explainer with wrong codes (010317/085355), not gameplay"
+        },
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "1:42",
+          "end": "2:18",
+          "scene": "Discovering government restricted facility",
+          "duration_sec": 36,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        },
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "3:20",
+          "end": "3:50",
+          "scene": "Entering underground facility interior",
+          "duration_sec": 30,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        }
+      ],
+      "overlay_graphics": [
+        "PART 3: BOUNDARY RD (GRASSRIVERS / SOUTH POINT)",
+        "CLIMB ROOF LADDER -> DROP HATCH -> ENTER 3214"
+      ],
+      "audio_sfx_cue": "Chain-link climb -> keypad unlock beep -> heavy elevator rumble",
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat05_part3_alien_milk",
+      "section": "Inside the Lab: Subject NHI 01, Raw Cow's Milk & Toxic Gas Escape",
+      "word_count": 173,
+      "est_time_range_150wpm_ref_only": "04:01-05:10",
+      "est_voice_dur_150wpm_sec": 69.2,
+      "total_source_clip_sec": 177,
+      "clip_to_voice_ratio": 2.56,
+      "cut_in_sec": 227.94,
+      "cut_out_sec": 291.3,
+      "sync_anchors": {
+        "start_phrase": "Once you reach the basement control",
+        "end_phrase": "surface before the gas drops you."
+      },
+      "narration_text": "Once you reach the basement control room, play the audio tapes sitting on the console. They reveal the lab has been holding a live creature labeled Subject N-H-I Zero-One\u2014and finally explain why GTA aliens keep abducting cows: they feed it raw cow's milk. Press the control panel buttons until every light turns green, then pull the lever to unlock the three sealed lab doors. Move fast here, because stepping through the middle door hits you with lingering radiation that steadily drains your health bar. Duck through the left corridor, grab the bottle of raw cow's milk off the desk, and sprint back through the control room into the right-hand chamber. Insert the milk bottle into the containment capsule\u2014it hisses open, revealing a live alien lying right on a gurney. The instant you pick the alien up, alarms scream, a security breach triggers, and toxic gas floods the entire floor. Do not stop to loot\u2014sprint straight back to the elevator and ride it to the surface before the gas drops you.",
+      "visual_direction": "Inside secret lab corridors, classified audio logs, glowing green console lights, tense alarm/gas escape sequence.",
+      "source_clips": [
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "3:50",
+          "end": "4:45",
+          "scene": "Exploring detailed secret government lab rooms & Easter eggs",
+          "duration_sec": 55,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        },
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "4:45",
+          "end": "5:40",
+          "scene": "Reading classified FIB & extraction logs",
+          "duration_sec": 55,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        },
+        {
+          "video_id": "riMc1dagrrg",
+          "start": "7:18",
+          "end": "7:48",
+          "scene": "Buried alien lab & freeing alien from Area 51 base",
+          "duration_sec": 30,
+          "url": "http://www.youtube.com/watch?v=riMc1dagrrg",
+          "skip": true,
+          "skip_reason": "text-slide explainer with wrong codes (010317/085355), not gameplay"
+        },
+        {
+          "video_id": "_KcEAnsJ3DU",
+          "start": "5:45",
+          "end": "6:22",
+          "scene": "Escaping the secret facility",
+          "duration_sec": 37,
+          "url": "http://www.youtube.com/watch?v=_KcEAnsJ3DU"
+        }
+      ],
+      "overlay_graphics": [
+        "SUBJECT NHI 01: FED RAW COW'S MILK",
+        "GRAB MILK (LEFT) -> INSERT CAPSULE (RIGHT) -> ESCAPE TOXIC GAS"
+      ],
+      "audio_sfx_cue": "Tape click -> radiation Geiger clicks -> red security klaxon alarm",
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat06_reward",
+      "section": "The UFO Rescue & 4 Permanent Stat Upgrades",
+      "word_count": 107,
+      "est_time_range_150wpm_ref_only": "05:10-05:53",
+      "est_voice_dur_150wpm_sec": 42.8,
+      "total_source_clip_sec": 92,
+      "clip_to_voice_ratio": 2.15,
+      "cut_in_sec": 291.3,
+      "cut_out_sec": 332.92,
+      "sync_anchors": {
+        "start_phrase": "As soon as you burst back",
+        "end_phrase": "for permanent health and Focus bars."
+      },
+      "narration_text": "As soon as you burst back out onto the grass, secret government agents roll up to arrest you. Before a firefight even starts, the UFO roars back overhead above the radio tower, beams up your friendly alien, and scares the agents off. Then the ship bathes Jason and Lucia in bright beam light\u2014and hands you one of the best permanent rewards in GTA Six. Four instant stat upgrades pop on screen: Focus increased, Maximum Focus increased, Maximum Stamina increased, and Maximum Health increased. That makes this secret UFO quest mandatory early in Chapter Two\u2014not just for the trophy, but for permanent health and Focus bars.",
+      "visual_direction": "UFO returning in bright sky beam + bold 4-upgrade stat popup card (Focus, Max Focus, Max Stamina, Max Health) over 4K night Vice City.",
+      "source_clips": [
+        {
+          "video_id": "5-OQPwar3oQ",
+          "start": "7:53",
+          "end": "8:15",
+          "scene": "UFO beam overhead",
+          "duration_sec": 22,
+          "url": "http://www.youtube.com/watch?v=5-OQPwar3oQ"
+        },
+        {
+          "video_id": "8zpkGW2DGCo",
+          "start": "2:00",
+          "end": "2:35",
+          "scene": "4K PS5 Pro ray-traced Leonida open world",
+          "duration_sec": 35,
+          "url": "http://www.youtube.com/watch?v=8zpkGW2DGCo"
+        },
+        {
+          "video_id": "dEJSn2ZctTo",
+          "start": "5:10",
+          "end": "5:45",
+          "scene": "4K helicopter sky view over Leonida",
+          "duration_sec": 35,
+          "url": "http://www.youtube.com/watch?v=dEJSn2ZctTo"
+        }
+      ],
+      "overlay_graphics": [
+        "4 PERMANENT UPGRADES UNLOCKED:",
+        "+FOCUS | +MAX FOCUS | +MAX STAMINA | +MAX HEALTH"
+      ],
+      "audio_sfx_cue": "Bright sci-fi power-up chime x4 -> uplifting synth chord",
+      "_match": 1.0
+    },
+    {
+      "beat_id": "beat07_ufo_house_bonus",
+      "section": "Bonus: The 5-Year San Andreas UFO House Solved in Belville",
+      "word_count": 192,
+      "est_time_range_150wpm_ref_only": "05:53-07:10",
+      "est_voice_dur_150wpm_sec": 76.8,
+      "total_source_clip_sec": 193,
+      "clip_to_voice_ratio": 2.51,
+      "cut_in_sec": 332.92,
+      "cut_out_sec": 406.024,
+      "sync_anchors": {
+        "start_phrase": "Wait\u2014before you click off, there is",
+        "end_phrase": "subscribe for daily GTA Six secrets!"
+      },
+      "narration_text": "Wait\u2014before you click off, there is one more UFO secret players just cracked five years after Rockstar first teased it. Back in twenty-twenty-one, Rockstar slipped a mysterious framed photo into GTA San Andreas Definitive Edition showing a UFO hovering over a cream bungalow with two palm trees. For five years nobody knew where that house was\u2014until launch weekend, when players found the exact bungalow standing in Belville. Walk into its open garage during the day, and the entire wall is covered in a massive conspiracy corkboard screaming in giant red letters: 'It's a simulation.' Surrounding it are frantic notes from a sentient NPC asking 'Why can't I leave Leonida?', 'Number six, what does it mean?', 'Who is L, who is J?', and 'Identical People: one hundred and forty.' Even creepier, boat brochures are scattered across the floor, hinting that the owner tried sailing past the edge of the map to escape the game. Did your dream keypad show code three-two-one-four or two-one-three-four\u2014and what other alien clues have you found in Leonida? Drop them in the comments below and subscribe for daily GTA Six secrets!",
+      "visual_direction": "2021 San Andreas UFO house photo -> Belville bungalow exterior -> inside the garage conspiracy corkboard ('IT'S A SIMULATION', 'Identical People: 140', boat brochures) -> CTA outro.",
+      "source_clips": [
+        {
+          "video_id": "jX87WPBqUcs",
+          "start": "0:45",
+          "end": "1:43",
+          "scene": "2021 San Andreas UFO house photo -> found in Belville",
+          "duration_sec": 58,
+          "url": "http://www.youtube.com/watch?v=jX87WPBqUcs"
+        },
+        {
+          "video_id": "jX87WPBqUcs",
+          "start": "1:44",
+          "end": "2:55",
+          "scene": "Garage conspiracy corkboard: IT'S A SIMULATION, 140 identical people, Number 6",
+          "duration_sec": 71,
+          "url": "http://www.youtube.com/watch?v=jX87WPBqUcs"
+        },
+        {
+          "video_id": "jX87WPBqUcs",
+          "start": "3:10",
+          "end": "3:55",
+          "scene": "Boat brochures & missing sentient NPC",
+          "duration_sec": 45,
+          "url": "http://www.youtube.com/watch?v=jX87WPBqUcs"
+        },
+        {
+          "video_id": "5-OQPwar3oQ",
+          "start": "1:02",
+          "end": "1:21",
+          "scene": "Belville UFO house comparison",
+          "duration_sec": 19,
+          "url": "http://www.youtube.com/watch?v=5-OQPwar3oQ"
+        }
+      ],
+      "overlay_graphics": [
+        "5-YEAR MYSTERY SOLVED: BELVILLE UFO HOUSE",
+        "GARAGE WALL: \"IT'S A SIMULATION\" | \"IDENTICAL PEOPLE: 140\""
+      ],
+      "audio_sfx_cue": "Vinyl mystery swell -> eerie piano note -> upbeat outro synth fade",
+      "_match": 0.94
+    }
+  ],
+  "vo_duration_sec": 406.024
+}

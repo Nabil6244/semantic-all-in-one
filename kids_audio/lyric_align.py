@@ -14,6 +14,20 @@ import subprocess
 import sys
 
 
+def _whisper_backend():
+    """The repo's whisper_backend.py (Apple-GPU Whisper with a CPU fallback), or None where it can't be imported."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        root = str(_P(__file__).resolve().parents[1])
+        if root not in _sys.path:
+            _sys.path.append(root)
+        import whisper_backend
+        return whisper_backend
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def sections(lyrics):
     out, tag = [], None
     for raw in lyrics.splitlines():
@@ -32,9 +46,13 @@ def _norm(w):
 
 
 def transcribe(path, model="small"):
-    from faster_whisper import WhisperModel
-    m = WhisperModel(model, device="cpu", compute_type="int8")
-    segs, _ = m.transcribe(path, language="en", word_timestamps=True, vad_filter=False, beam_size=5)
+    wb = _whisper_backend()
+    if wb is not None:   # Apple GPU when it can (whisper_backend.py), else the same CPU model
+        segs, _ = wb.transcribe(path, model, language="en", word_timestamps=True, vad_filter=False, beam_size=5)
+    else:
+        from faster_whisper import WhisperModel
+        m = WhisperModel(model, device="cpu", compute_type="int8")
+        segs, _ = m.transcribe(path, language="en", word_timestamps=True, vad_filter=False, beam_size=5)
     words = []
     for s in segs:
         for w in s.words or []:

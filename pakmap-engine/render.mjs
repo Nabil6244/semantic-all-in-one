@@ -101,9 +101,12 @@ function startServer(spec, plan, media) {
         if (m.count) frame = Math.min(frame, m.count);   // a lazy clip may hold a frame fewer than its length promised
         const f = m.file ? stillFile(m, { ffmpeg: spec.ffmpeg || 'ffmpeg' }) : path.join(m.dir, `${String(frame).padStart(5, '0')}.jpg`);
         recentMedia.push(`${path.basename(m.file || m.dir || '')}`); if (recentMedia.length > 6) recentMedia.shift();
-        if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
+        // read whole (a frame or still is small): a file removed or unreadable mid-stream must answer with a status the
+        // page can retry, never a dropped connection ("TypeError: Failed to fetch" ended the whole render)
+        let body;
+        try { body = await fs.promises.readFile(f); } catch { res.writeHead(404); return res.end(); }
         res.writeHead(200, { 'Content-Type': m.mime || 'image/jpeg' });
-        return fs.createReadStream(f).pipe(res);
+        return res.end(body);
       }
       if (url.pathname === '/spec.json') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(pageSpec); }
       if (url.pathname === '/data/countries.geojson') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(countriesGeoJSON(spec)); }
@@ -116,11 +119,16 @@ function startServer(spec, plan, media) {
       else if (url.pathname.startsWith('/maplibre/')) file = path.join(MAPLIBRE_DIST, path.basename(url.pathname));
       if (!file || !fs.existsSync(file)) { res.writeHead(404); return res.end(); }
       res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream' });
-      fs.createReadStream(file).pipe(res);
+      fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
     } catch (err) {
+      if (res.headersSent) return res.destroy();
       res.writeHead(502); res.end(String((err && err.message) || err));
     }
   });
+  // the page reuses idle connections: a server closing one at the same moment drops that request, so keep them open
+  // for the whole render; a render frame that takes long (busy Mac, big clip) must not trip the request timers either
+  server.keepAliveTimeout = 0; server.headersTimeout = 0; server.requestTimeout = 0;
+  server.on('clientError', (_e, socket) => socket.destroy());
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 

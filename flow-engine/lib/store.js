@@ -49,11 +49,20 @@ export function upsertAccount(partial) {
   return data.accounts.find((a) => a.id === (partial.id || data.accounts.at(-1).id));
 }
 
+/** Next unused "Account N": one past the highest number in use, so removing an account never makes a new one
+ *  repeat a label (the old count+1 gave three "Account 9"s after two removals; labels also name download folders). */
+export function nextAccountLabel(accounts = listAccounts()) {
+  const nums = accounts.map((a) => Number(/^Account\s+(\d+)$/i.exec(String(a.label || "").trim())?.[1] || 0));
+  return `Account ${Math.max(0, ...nums) + 1}`;
+}
+
 export function createAccount(label) {
-  const n = listAccounts().length + 1;
+  const accounts = listAccounts();
+  const want = String(label || "").trim();
+  const taken = want && accounts.some((a) => String(a.label || "").trim().toLowerCase() === want.toLowerCase());
   return upsertAccount({
     id: crypto.randomUUID(),
-    label: label || String(n),
+    label: want && !taken ? want : nextAccountLabel(accounts),
     authenticated: false,
   });
 }

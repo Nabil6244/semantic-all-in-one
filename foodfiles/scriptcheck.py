@@ -91,7 +91,8 @@ def check(text):
         if not YEAR.search(p):
             miss.append("no year")
         if not (AGE.search(p) or re.search(r"\b(kids?|children|toddlers?|students?|people|customers|workers|family|"
-                                             r"boy|girl|man|woman|teen\w*|mother|father|dad|mom|son|daughter)\b", p, re.I)):
+                                             r"boy|girl|man|men|woman|women|teen\w*|mother|father|dad|mom|son|daughter|owners?|founder|ringleader|parents?|"
+                                             r"babies|grandparents|inspectors?|investigators?|doctors?|patients?)\b", p, re.I)):
             miss.append("no person")
         if len(NUMBER.findall(p)) < 3:
             miss.append("fewer than 3 numbers")

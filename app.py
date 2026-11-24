@@ -117,6 +117,7 @@ from ui import foodfiles_section as _ff_section   # Food Files (ui/foodfiles_sec
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import game_launch_section as _gl_section   # Game Launch (ui/game_launch_section.py, game_launch/)
 from ui import ocean_section as _oc_section   # Ocean Predators (ui/ocean_section.py, ocean/)
+from ui import podcastcut_section as _pc_section   # Motivation (ui/podcastcut_section.py, podcast_cut/)
 from ui import kids_learn_section as _kl_section   # Kids Learn (ui/kids_learn_section.py, cartoon3d-engine/ + kids_audio/)
 from ui import rules_horror_section as _rh_section   # Rules Horror (ui/rules_horror_section.py, rules_horror/)
 import editorial_timeline_edit as _tl_edit
@@ -850,6 +851,7 @@ _LAZY_VIEWS = {
     "tools": "ToolsView",
     "graphics": "GraphicsView",
     "voiceover": "VoiceoverView",   # free Edge neural voices (ui/voiceover_view.py, edge_voiceover.py)
+    "uploads": "UploadsView",       # YouTube channels + the uploading computer (ui/uploads_view.py, upload_videos.py)
 }
 
 
@@ -1003,6 +1005,9 @@ class VideoGeneratorApp(ctk.CTk):
         self.configure(fg_color=_BG)
 
         self._ui_queue: queue.Queue = queue.Queue()
+        # ui_latest(): newest callback per key, applied once per _poll_queue drain (progress ticks coalesce).
+        self._ui_latest: dict = {}
+        self._ui_latest_lock = threading.Lock()
         self._worker: threading.Thread | None = None
         self._running = False
         self._last_output: str | None = None
@@ -3257,6 +3262,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Game Launch"
         if getattr(self, "_oc_active", False):   # Ocean Predators (ui/ocean_section.py): opt-in, per session
             return "Ocean Predators"
+        if getattr(self, "_pc_active", False):   # Motivation (ui/podcastcut_section.py): opt-in, per session
+            return "Motivation"
         if getattr(self, "_rc_active", False):   # Roblox Cinema (ui/roblox_cinema_section.py): opt-in, per session
             return "Roblox Cinema"
         if getattr(self, "_pt_active", False):   # Product Trailer (ui/product_trailer_section.py): opt-in, per session
@@ -3352,6 +3359,10 @@ class VideoGeneratorApp(ctk.CTk):
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
             return
+        if getattr(self, "_pc_running", False):   # Motivation
+            messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
+            self._sync_style_picker()
+            return
         if getattr(self, "_kl_running", False):   # Kids Learn
             messagebox.showinfo("Generation running", "Wait for the current generation to finish before switching style.")
             self._sync_style_picker()
@@ -3371,7 +3382,7 @@ class VideoGeneratorApp(ctk.CTk):
                                 ("City Timelapse", _ct_section), ("Toon Tales", _tt_section), ("Toy Vehicles", _tv_section),
                                 ("Kids Stories", _ks_section), ("Stickman", _sm_section), ("Prepper Host", _ph_section),
                                 ("Food Files", _ff_section), ("Aviation", _av_section), ("Game Launch", _gl_section), ("Ocean Predators", _oc_section),
-                                ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section)):
+                                ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section), ("Motivation", _pc_section)):
             if choice != _sec_name:
                 _sec.deactivate(self)
         if choice != "War Documentary":
@@ -3460,6 +3471,12 @@ class VideoGeneratorApp(ctk.CTk):
             _oc_section.deactivate(self)
         if choice == "Ocean Predators":   # its own page (ui/ocean_section.py); nothing runs until Generate
             _oc_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "Motivation":
+            _pc_section.deactivate(self)
+        if choice == "Motivation":   # its own page (ui/podcastcut_section.py); nothing runs until Generate
+            _pc_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Kids Learn":
@@ -3642,6 +3659,9 @@ class VideoGeneratorApp(ctk.CTk):
         oc_block = getattr(self, "_oc_block", None)
         if oc_block is not None:
             oc_block.grid() if active == "Ocean Predators" else oc_block.grid_remove()
+        pc_block = getattr(self, "_pc_block", None)
+        if pc_block is not None:
+            pc_block.grid() if active == "Motivation" else pc_block.grid_remove()
         kl_block = getattr(self, "_kl_block", None)
         if kl_block is not None:
             kl_block.grid() if active == "Kids Learn" else kl_block.grid_remove()
@@ -7604,6 +7624,8 @@ class VideoGeneratorApp(ctk.CTk):
             _gl_section.cta(self, action)
         elif action in ("oc_generate", "oc_render", "oc_cancel"):
             _oc_section.cta(self, action)
+        elif action in ("pc_generate", "pc_render", "pc_cancel"):
+            _pc_section.cta(self, action)
         elif action in ("kl_generate", "kl_render", "kl_cancel"):
             _kl_section.cta(self, action)
         elif action in ("rh_generate", "rh_render", "rh_cancel"):
@@ -8441,6 +8463,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _gl_section.sync_cta(self)
         if getattr(self, "_oc_active", False) and getattr(self, "_oc_block", None) is not None:   # Ocean Predators owns the button while its page is up
             return _oc_section.sync_cta(self)
+        if getattr(self, "_pc_active", False) and getattr(self, "_pc_block", None) is not None:   # Motivation owns the button while its page is up
+            return _pc_section.sync_cta(self)
         if getattr(self, "_rc_active", False) and getattr(self, "_rc_block", None) is not None:   # Roblox Cinema owns the button while its page is up
             return _rc_section.sync_cta(self)
         pt_on = getattr(self, "_pt_active", False) and getattr(self, "_pt_block", None) is not None
@@ -9295,6 +9319,7 @@ class VideoGeneratorApp(ctk.CTk):
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _gl_section.deactivate(self, remember=False)   # Game Launch likewise, until resume_on_open below
         _oc_section.deactivate(self, remember=False)   # Ocean Predators likewise, until resume_on_open below
+        _pc_section.deactivate(self, remember=False)   # Motivation likewise, until resume_on_open below
         _kl_section.deactivate(self)   # Kids Learn likewise
         _rh_section.deactivate(self)   # Rules Horror likewise
         _vm_section.resume_on_open(self)   # a project left on the Voxel Map page opens on it again; nothing runs until Generate
@@ -9308,6 +9333,7 @@ class VideoGeneratorApp(ctk.CTk):
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         _gl_section.resume_on_open(self)   # a project left on the Game Launch page opens on it again; nothing runs until Generate
         _oc_section.resume_on_open(self)   # a project left on the Ocean Predators page opens on it again; nothing runs until Generate
+        _pc_section.resume_on_open(self)   # a project left on the Motivation page opens on it again; nothing runs until Generate
         self._sync_export_csv_link()
         self._sync_primary_cta()
         self._refresh_voice_playback_buttons()
@@ -16540,6 +16566,10 @@ class VideoGeneratorApp(ctk.CTk):
                         if logs:
                             self._append_log("".join(logs))
                             logs.clear()
+                        if kind == "call":
+                            self._drain_ui_latest()   # progress queued before this call lands first (no stale % after "finish")
+                            payload()
+                            continue
                         if kind == "done":
                             self._on_finished(success=True, message=payload)
                         elif kind == "error":
@@ -16639,6 +16669,7 @@ class VideoGeneratorApp(ctk.CTk):
                 self._append_log("".join(logs))
             if latest_progress is not None:
                 self._apply_progress_event(latest_progress)
+            self._drain_ui_latest()
         except Exception:
             # Never let a handler crash stop the poll loop.
             try:
@@ -16649,6 +16680,37 @@ class VideoGeneratorApp(ctk.CTk):
             # Drain faster while the worker is flooding the queue (generation start).
             delay = 40 if processed >= batch_limit else 80
             self.after(delay, self._poll_queue)
+
+    def ui_call(self, fn) -> None:
+        """Run fn on the UI thread, in order with worker log lines.
+
+        From a worker this goes through _ui_queue (drained in batches by _poll_queue) instead of
+        Tk's after(), which costs a cross-thread round trip per call and floods the event loop.
+        """
+        if threading.current_thread() is threading.main_thread():
+            self.after(0, fn)
+        else:
+            self._ui_queue.put(("call", fn))
+
+    def ui_latest(self, key: str, fn) -> None:
+        """Like ui_call, but only the newest fn per key runs (once per drain, ~every 80 ms).
+
+        For progress bars/status text: a render reporting hundreds of ticks a second repaints once per drain.
+        """
+        with self._ui_latest_lock:
+            self._ui_latest[key] = fn
+
+    def _drain_ui_latest(self) -> None:
+        if not self._ui_latest:
+            return
+        with self._ui_latest_lock:
+            pending = list(self._ui_latest.values())
+            self._ui_latest.clear()
+        for fn in pending:
+            try:
+                fn()
+            except Exception:
+                self._append_log(f"[UI] Progress update error:\n{traceback.format_exc()}\n")
 
     def _end_generate_run(self) -> None:
         self._running = False
@@ -17194,6 +17256,10 @@ class VideoGeneratorApp(ctk.CTk):
         except Exception as exc:
             messagebox.showerror("Cannot open", f"No app could open:\n{p}\n\n{exc}")
 
+    def _open_uploads(self) -> None:
+        """The Uploads page (ui/uploads_view.py): YouTube channels and the uploading computer. Opened from Tools, not the sidebar."""
+        self._shell.navigate("uploads")
+
     def _open_output_folder(self) -> None:
         """Open the folder that contains the generated video (selects the file when possible)."""
         if not self._last_output:
@@ -17248,6 +17314,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_av_running",)   # Aviation likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_gl_running",)   # Game Launch likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_oc_running",)   # Ocean Predators likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_pc_running",)   # Motivation likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_rh_running",)   # Rules Horror likewise
 

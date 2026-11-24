@@ -23,6 +23,20 @@ ROOT = Path(__file__).resolve().parents[2]
 YOUTUBE_DEFAULTS: Dict[str, Any] = {"youtube_clip_duration": 3.5, "youtube_search_results": 5, "youtube_transcript_matching": True}
 
 
+def _whisper_backend():
+    """The repo's whisper_backend.py (Apple-GPU Whisper with a CPU fallback), or None where it can't be imported."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        root = str(_P(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.append(root)
+        import whisper_backend
+        return whisper_backend
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def load_settings() -> Dict[str, Any]:
     """The app's settings file (the project folder in development, ~/.videogen when packaged)."""
     for p in (ROOT / "settings.json", Path.home() / ".videogen" / "settings.json"):
@@ -94,8 +108,12 @@ def word_times(voiceover: Path) -> List[Tuple[str, float, float]]:
         return [(w["word"], float(w["start"]), float(w["end"])) for w in json.loads(side.read_text(encoding="utf-8"))]
     from faster_whisper import WhisperModel      # the app's own aligner needs the window; this is the same model family
 
-    model = WhisperModel("base", compute_type="int8")
-    segs, _info = model.transcribe(str(voiceover), word_timestamps=True)
+    wb = _whisper_backend()
+    if wb is not None:   # Apple GPU when it can (whisper_backend.py), else the same CPU model
+        segs, _info = wb.transcribe(str(voiceover), "base", word_timestamps=True)
+    else:
+        model = WhisperModel("base", compute_type="int8")
+        segs, _info = model.transcribe(str(voiceover), word_timestamps=True)
     return [(w.word.strip(), float(w.start), float(w.end)) for s in segs for w in (s.words or [])]
 
 

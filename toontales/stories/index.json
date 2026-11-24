@@ -1,82 +1,202 @@
 {
- "stories": [
-  {
-   "id": "newton_fomo",
-   "title": "How Isaac Newton Lost a Fortune to FOMO",
-   "topic": "Isaac Newton and the South Sea Bubble",
-   "date": "2026-11-17"
-  },
-  {
-   "id": "salad_oil",
-   "title": "How Fake Salad Oil Made Warren Buffett Rich",
-   "topic": "The 1963 Salad Oil Swindle",
-   "date": "2026-11-17"
-  },
-  {
-   "id": "silver_hunt",
-   "title": "How Two Billionaires Tried to Own All the Silver",
-   "topic": "The Hunt brothers' silver corner and Silver Thursday",
-   "date": "2026-11-17"
-  },
-  {
-   "id": "traffic_light",
-   "title": "The First Traffic Light Exploded",
-   "topic": "John Peake Knight's gas-lit semaphore traffic signal outside Parliament, London 1868-1869",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "great_stink",
-   "title": "The Summer London Smelled So Bad It Built Sewers",
-   "topic": "The Great Stink of 1858 and Joseph Bazalgette's London sewer system",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "pony_express",
-   "title": "The Pony Express Lasted 18 Months",
-   "topic": "The Pony Express mail relay (April 1860 - October 1861) and the transcontinental telegraph that ended it",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "rivet_jeans",
-   "title": "Why Your Jeans Have Tiny Rivets",
-   "topic": "Jacob Davis's riveted work pants and the 1873 patent he shared with Levi Strauss",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "well_field",
-   "title": "How a Hole in a Dry Field Fills Itself With Water",
-   "topic": "how a hand-dug well works: digging below the water table, stone lining, groundwater seeping in, a cover",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "root_cellar",
-   "title": "How a Hole in the Yard Keeps Food Cold With No Fridge",
-   "topic": "how a backyard root cellar works: steady ground temperature, concrete lining, earth cover, a vent pipe",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "nitrous_shot",
-   "title": "How a Small Bottle Adds 100 Horsepower",
-   "topic": "How nitrous oxide injection adds power: extra oxygen, a colder intake charge, and why it needs extra fuel",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "flat_plane",
-   "title": "Why a Ferrari V8 Screams and a Mustang V8 Rumbles",
-   "topic": "flat-plane vs cross-plane V8 crankshafts: firing order, exhaust pulses, crank weight, revs and vibration",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "penny_zinc",
-   "title": "Why Your Penny Is Secretly Zinc",
-   "topic": "The 1982 switch of the US cent from 95% copper to copper-plated zinc, the 1943 steel cent, and the end of penny production in 2025",
-   "date": "2026-11-18"
-  },
-  {
-   "id": "codd_marble",
-   "title": "Why This Bottle Has a Marble in Its Neck",
-   "topic": "Hiram Codd's 1872 marble-stoppered soda bottle, sealed by its own gas pressure, still used as Ramune and goli soda",
-   "date": "2026-11-18"
-  }
- ]
+  "stories": [
+    {
+      "id": "newton_fomo",
+      "title": "How Isaac Newton Lost a Fortune to FOMO",
+      "topic": "Isaac Newton and the South Sea Bubble",
+      "date": "2026-11-17"
+    },
+    {
+      "id": "salad_oil",
+      "title": "How Fake Salad Oil Made Warren Buffett Rich",
+      "topic": "The 1963 Salad Oil Swindle",
+      "date": "2026-11-17"
+    },
+    {
+      "id": "silver_hunt",
+      "title": "How Two Billionaires Tried to Own All the Silver",
+      "topic": "The Hunt brothers' silver corner and Silver Thursday",
+      "date": "2026-11-17"
+    },
+    {
+      "id": "traffic_light",
+      "title": "The First Traffic Light Exploded",
+      "topic": "John Peake Knight's gas-lit semaphore traffic signal outside Parliament, London 1868-1869",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "great_stink",
+      "title": "The Summer London Smelled So Bad It Built Sewers",
+      "topic": "The Great Stink of 1858 and Joseph Bazalgette's London sewer system",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "pony_express",
+      "title": "The Pony Express Lasted 18 Months",
+      "topic": "The Pony Express mail relay (April 1860 - October 1861) and the transcontinental telegraph that ended it",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "rivet_jeans",
+      "title": "Why Your Jeans Have Tiny Rivets",
+      "topic": "Jacob Davis's riveted work pants and the 1873 patent he shared with Levi Strauss",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "well_field",
+      "title": "How a Hole in a Dry Field Fills Itself With Water",
+      "topic": "how a hand-dug well works: digging below the water table, stone lining, groundwater seeping in, a cover",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "root_cellar",
+      "title": "How a Hole in the Yard Keeps Food Cold With No Fridge",
+      "topic": "how a backyard root cellar works: steady ground temperature, concrete lining, earth cover, a vent pipe",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "nitrous_shot",
+      "title": "How a Small Bottle Adds 100 Horsepower",
+      "topic": "How nitrous oxide injection adds power: extra oxygen, a colder intake charge, and why it needs extra fuel",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "flat_plane",
+      "title": "Why a Ferrari V8 Screams and a Mustang V8 Rumbles",
+      "topic": "flat-plane vs cross-plane V8 crankshafts: firing order, exhaust pulses, crank weight, revs and vibration",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "penny_zinc",
+      "title": "Why Your Penny Is Secretly Zinc",
+      "topic": "The 1982 switch of the US cent from 95% copper to copper-plated zinc, the 1943 steel cent, and the end of penny production in 2025",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "codd_marble",
+      "title": "Why This Bottle Has a Marble in Its Neck",
+      "topic": "Hiram Codd's 1872 marble-stoppered soda bottle, sealed by its own gas pressure, still used as Ramune and goli soda",
+      "date": "2026-11-18"
+    },
+    {
+      "id": "brooklyn_bridge",
+      "title": "The Man Who Sold the Brooklyn Bridge",
+      "topic": "George C. Parker, the New York con man who 'sold' the Brooklyn Bridge and other landmarks (1890s-1928)",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "cassie_chadwick",
+      "title": "The Woman Who Said She Was Carnegie's Daughter",
+      "topic": "Cassie Chadwick (1897-1904), who borrowed millions from banks by pretending to be Andrew Carnegie's secret daughter",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "clever_hans",
+      "title": "The Horse That Could Do Math",
+      "topic": "Clever Hans, the Berlin horse that tapped out answers (1904-1907), and how Oskar Pfungst found the real trick",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "dancing_plague",
+      "title": "The Town That Couldn't Stop Dancing",
+      "topic": "The dancing plague of Strasbourg (July-September 1518) and the town council's cure: more music",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "dreadnought_hoax",
+      "title": "The Pranksters Who Fooled the Royal Navy",
+      "topic": "The Dreadnought hoax of February 1910: Horace de Vere Cole and friends, including Virginia Woolf, tour HMS Dreadnought as fake Abyssinian royals",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "ghost_army",
+      "title": "The Army of Balloons That Fooled Germany",
+      "topic": "The Ghost Army (23rd Headquarters Special Troops) of World War II: inflatable tanks, sound trucks and fake radio traffic",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "headless_chicken",
+      "title": "The Chicken That Lived Without a Head",
+      "topic": "Mike the Headless Chicken of Fruita, Colorado (1945-1947), who lived 18 months and toured sideshows",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "kopenick",
+      "title": "The Shoemaker Who Took Over a Town Hall",
+      "topic": "Wilhelm Voigt, the Captain of Kopenick (16 October 1906): a shoemaker in a second-hand uniform commands soldiers and seizes a town treasury",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "london_bridge",
+      "title": "How London Bridge Ended Up in Arizona",
+      "topic": "Robert McCulloch's 1968 purchase of London Bridge and its rebuilding at Lake Havasu City, Arizona (1971)",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "marathon_1904",
+      "title": "The Strangest Olympic Marathon Ever",
+      "topic": "The 1904 St. Louis Olympic marathon: Fred Lorz's car ride, Thomas Hicks's brandy and strychnine, Andarin Carvajal's apple nap",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "meat_shower",
+      "title": "The Day It Rained Meat in Kentucky",
+      "topic": "The Kentucky meat shower of 3 March 1876 in Bath County, and the vulture explanation",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "molasses_flood",
+      "title": "The Day a Wave of Molasses Hit Boston",
+      "topic": "The Great Molasses Flood of 15 January 1919 in Boston's North End",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "pig_war",
+      "title": "The War That Started Over a Pig",
+      "topic": "The Pig War of 1859 on San Juan Island between the United States and Britain, settled in 1872 with one casualty: a pig",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "poyais",
+      "title": "The Man Who Sold a Country That Didn't Exist",
+      "topic": "Gregor MacGregor's invented country of Poyais (1822-1823): bonds, banknotes, settlers and the jungle they found",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "princess_caraboo",
+      "title": "The Fake Princess Who Fooled an English Town",
+      "topic": "Princess Caraboo (1817): Mary Baker, a cobbler's daughter, poses as a kidnapped princess from the island of Javasu",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "spaghetti_tree",
+      "title": "The TV Show That Grew Spaghetti on Trees",
+      "topic": "the BBC spaghetti-tree hoax (1957)",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "tichborne",
+      "title": "The Butcher Who Claimed to Be a Lord",
+      "topic": "The Tichborne Claimant (1866-1874): Arthur Orton, an Australian butcher, claims to be the lost heir Roger Tichborne",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "timothy_dexter",
+      "title": "The Worst Businessman Who Got Rich Anyway",
+      "topic": "'Lord' Timothy Dexter of Newburyport (1747-1806): worthless currency, warming pans to the West Indies, and a book with no punctuation",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "van_meegeren",
+      "title": "The Forger Who Fooled the Nazis",
+      "topic": "Han van Meegeren's fake Vermeers",
+      "date": "2026-11-22"
+    },
+    {
+      "id": "zanzibar_war",
+      "title": "The War That Lasted 38 Minutes",
+      "topic": "The Anglo-Zanzibar War of 27 August 1896, the shortest war in recorded history",
+      "date": "2026-11-22"
+    }
+  ]
 }

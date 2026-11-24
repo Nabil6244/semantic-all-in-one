@@ -587,6 +587,7 @@ NAV_ITEMS = (
     ("audio", "Audio & Effects", "workspace"),
     ("graphics", "Graphics", "workspace"),
     ("render", "Export", "workspace"),
+    ("uploads", "Uploads", "workspace"),
     ("brand_style", "Brand & Style", "advanced"),
     ("research", "Research", "advanced"),
     ("music", "Music", "advanced"),
@@ -608,6 +609,7 @@ NAV_ICONS = {
     "audio": "\u266A",            # ♪
     "graphics": "\u2726",         # ✦
     "render": "\u21EA",           # ⇪
+    "uploads": "\u21E7",          # ⇧
     "brand_style": "\u25D0",      # ◐
     "research": "\u2315",         # ⌕
     "music": "\u266B",            # ♫

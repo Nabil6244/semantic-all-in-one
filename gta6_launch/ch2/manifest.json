@@ -68,6 +68,20 @@
           "end": "1:21",
           "scene": "Opening pink PRTYGRL trunk",
           "url": "http://www.youtube.com/watch?v=skD4GeYV94g"
+        },
+        {
+          "video_id": "g6pNfpij-JE",
+          "start": "1:06",
+          "end": "1:16",
+          "scene": "Chapter 2 car registration & keeping Eclipse",
+          "url": "http://www.youtube.com/watch?v=g6pNfpij-JE"
+        },
+        {
+          "video_id": "qIPDHfdegC0",
+          "start": "1:00",
+          "end": "1:15",
+          "scene": "Gellhorn Raceway circuit racing",
+          "url": "http://www.youtube.com/watch?v=qIPDHfdegC0"
         }
       ],
       "_match": 1.0
@@ -225,10 +239,11 @@
         },
         {
           "video_id": "NuuGDSumo8Y",
-          "start": "1:00",
+          "start": "1:15",
           "end": "1:35",
           "scene": "4K Vice City driving B-roll",
-          "url": "http://www.youtube.com/watch?v=NuuGDSumo8Y"
+          "url": "http://www.youtube.com/watch?v=NuuGDSumo8Y",
+          "note": "1:00-1:15 is a blank map loading; driving only"
         }
       ],
       "_match": 1.0
@@ -273,6 +288,12 @@
           "end": "0:33",
           "scene": "Shirley -> Three Sheets Liquor -> fence hop -> talking parrot -> generator grate +$1,392",
           "url": "http://www.youtube.com/watch?v=RpPmy591f2Y"
+        },
+        {
+          "video_id": "RpPmy591f2Y",
+          "start": "0:33",
+          "end": "0:52",
+          "scene": "parrot cage + safe room (same trick, continued)"
         }
       ],
       "_match": 1.0

@@ -15,6 +15,7 @@ from .widgets import ElidingLabel, Toast, button_style
 INSPECTOR_VIEWS = frozenset({"visual_plan"})
 
 _NAV_LABELS = {key: label for key, label, _group in T.NAV_ITEMS}
+NAV_ITEM_H = 30   # was T.CONTROL_H (32): with the Uploads row every item must still fit a 1100x700 window
 
 
 def _app_version() -> str:
@@ -223,13 +224,13 @@ class AppShell(ctk.CTkFrame):
                 self._group_headers.append(header)
                 current_group = group
                 row += 1
-            item = ctk.CTkFrame(side, fg_color="transparent", height=T.CONTROL_H)
+            item = ctk.CTkFrame(side, fg_color="transparent", height=NAV_ITEM_H)
             item.grid(row=row, column=0, sticky="ew", padx=(0, 10), pady=0)   # was 1: the Voiceover item must still fit a 1100x700 window
             item.grid_columnconfigure(1, weight=1)
             bar = ctk.CTkFrame(item, fg_color="transparent", width=3, height=20, corner_radius=2)
             bar.grid(row=0, column=0, sticky="w", padx=(0, 7))
             btn = ctk.CTkButton(
-                item, text=f"{T.NAV_ICONS.get(key, '•')}   {label}", height=T.CONTROL_H, anchor="w",
+                item, text=f"{T.NAV_ICONS.get(key, '•')}   {label}", height=NAV_ITEM_H, anchor="w",
                 fg_color="transparent", hover_color=T.CARD_HOVER,
                 text_color=T.MUTED, font=ctk.CTkFont(size=13),
                 corner_radius=T.RADIUS,

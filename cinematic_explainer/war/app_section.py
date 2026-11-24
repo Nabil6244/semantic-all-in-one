@@ -1076,10 +1076,10 @@ def on_render_click(app) -> None:
     app._sync_primary_cta()
 
     def log(msg: str) -> None:
-        app.after(0, lambda: app._append_log(f"{TAG} {msg}\n"))
+        app.ui_call(lambda: app._append_log(f"{TAG} {msg}\n"))
 
     def progress(k: float, msg: str) -> None:
-        app.after(0, lambda: (app._war_status_var.set(f"{int(k * 100)}%  {msg}"), run is not None and app._export_progress(k, msg)))
+        app.ui_latest("style_progress", lambda: (app._war_status_var.set(f"{int(k * 100)}%  {msg}"), run is not None and app._export_progress(k, msg)))
 
     def return_rows(rows: List[Any]) -> None:
         def done() -> None:      # Generate scenes ends in the Visuals tab; nothing is rendered and the Export page is not touched
@@ -1100,7 +1100,7 @@ def on_render_click(app) -> None:
                     pass
             app._sync_primary_cta()
 
-        app.after(0, done)
+        app.ui_call(done)
 
     wall = wall_options(app)          # read on the main thread (Tk variables)
 
@@ -1133,7 +1133,7 @@ def on_render_click(app) -> None:
                 def listed(rows_: List[Any]) -> None:
                     import visual_bridge
 
-                    app.after(0, lambda: visual_bridge.fill(app, OWNER, rows_))
+                    app.ui_call(lambda: visual_bridge.fill(app, OWNER, rows_))
 
                 def on_start(scene: Any, source: Any) -> None:
                     app._ui_queue.put(("scene_busy", (scene.scene_number, M._scene_busy_kind(source))))
@@ -1142,10 +1142,12 @@ def on_render_click(app) -> None:
                     app._ui_queue.put(("scene_asset", (scene.scene_number, result)))
 
                 live = media_only and hasattr(app, "_ui_queue")
+                # listed always: a Render also puts its scenes in the Visuals tab at once. It used to fill the tab only when the
+                # whole render ended, so a reopened project rendered for minutes under "No scenes yet" (2026-11-23)
                 app._style_fetch_manager = manager       # Change source / Stop on a Visuals row reaches the scene this fetch is downloading
                 try:
                     scenes, rows = fetch_csv_footage(scenes, manager, images_dir, log, cancel=app._war_cancel.is_set, ai_cap=ai_cap, fetch=media_only,
-                                                     listed=listed if live else None, on_start=on_start if live else None, on_done=on_done if live else None)
+                                                     listed=listed, on_start=on_start if live else None, on_done=on_done if live else None)
                 finally:
                     app._style_fetch_manager = None
                 if app._war_cancel.is_set():
@@ -1214,6 +1216,6 @@ def on_render_click(app) -> None:
                     app._append_log(f"{TAG} credit: {line}\n")
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name="war-documentary-render", daemon=True).start()

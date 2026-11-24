@@ -124,7 +124,8 @@ def _get_bytes(url, tries=2):
         if r.status_code == 429 and i + 1 < tries:
             ra = float(r.headers.get("Retry-After") or 0) or 5 * (i + 1)
             if ra > 15:            # a long ban: move on (the next candidate or Flow) instead of stalling Generate
-                break
+                _refused(RuntimeError("429 Too Many Requests (long wait asked)"))
+                raise RuntimeError(f"Wikimedia asked us to wait {int(ra)} s; Flow stands in for this picture")
             time.sleep(ra)
             continue
         r.raise_for_status()

@@ -116,6 +116,9 @@ class BakeTest(unittest.TestCase):
         spec = {"x264_preset": "medium", "crf": 20}
         B.fast_intermediate(spec)
         self.assertEqual(spec, {"x264_preset": "medium", "crf": 20})
+        spec = {"duration": 37 * 60.0}
+        B.fast_intermediate(spec)
+        self.assertEqual(spec, {"duration": 37 * 60.0, "x264_preset": "superfast", "crf": 20})   # long: a smaller file
 
     def test_nothing_to_bake_leaves_the_spec_and_clears_an_old_list(self):
         with tempfile.TemporaryDirectory() as d:

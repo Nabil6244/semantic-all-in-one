@@ -246,5 +246,80 @@ class FlowVoiceTests(unittest.TestCase):
         self.assertIn("flow", S.TALKING.values())
 
 
+class BalancedAccountsTests(unittest.TestCase):
+    """Owner, 2026-11-23: 14 Flow accounts with ~50 credits each - clips spread so every account spends evenly."""
+
+    def accounts(self, td, jobs):
+        import json
+        f = Path(td) / "accounts.json"
+        f.write_text(json.dumps({"accounts": [{"id": f"id{i}", "label": f"A{i}", "authenticated": True, "videoJobs": j}
+                                              for i, j in enumerate(jobs)] + [{"id": "out", "label": "X", "authenticated": False}]}))
+        return f
+
+    def test_least_used_first_and_signed_in_only(self):
+        import tempfile
+        from prepper_host import flow
+        with tempfile.TemporaryDirectory() as td:
+            f = self.accounts(td, [30, 0, 12, 0, 5, 40])
+            ids, shown = flow.balanced_accounts(3, path=f)
+            self.assertEqual(ids, ["id1", "id3", "id4"])          # 0, 0, 5 jobs
+            ids, _ = flow.balanced_accounts(15, path=f)
+            self.assertEqual(len(ids), 5)                          # at most 5 browsers at once for a normal video
+            self.assertNotIn("out", flow.balanced_accounts(99, path=f)[0])
+
+    def test_never_more_than_one_accounts_credits(self):
+        import tempfile
+        from prepper_host import flow
+        with tempfile.TemporaryDirectory() as td:
+            f = self.accounts(td, [0] * 14)
+            ids, _ = flow.balanced_accounts(40, path=f)
+            self.assertGreaterEqual(len(ids) * flow.MAX_CLIPS_PER_ACCOUNT, 40)
+
+    def test_no_accounts_file_keeps_the_profile(self):
+        from prepper_host import flow
+        ids, shown = flow.balanced_accounts(4, fallback=["p1", "p2"], path="/nonexistent/accounts.json")
+        self.assertEqual((ids, shown), (["p1", "p2"], []))
+
+
+class StallWatchdogTests(unittest.TestCase):
+    """Owner, 2026-11-23: runs must be smooth - a stuck Flow account ends the wait in minutes, not an hour."""
+
+    def test_idle_accounts_are_the_ones_without_a_clip(self):
+        import tempfile
+        from prepper_host import flow
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "agent_x" / "account-10-f4f1b6").mkdir(parents=True)
+            (Path(td) / "agent_x" / "account-10-f4f1b6" / "001.mp4").write_bytes(b"x")
+            (Path(td) / "agent_x" / "account-15-4427b0").mkdir(parents=True)
+            self.assertEqual(flow.idle_accounts(td), {"4427b0"})
+
+    def test_a_silent_batch_stops_waiting_and_skips_the_stuck_account(self):
+        import tempfile
+        from unittest import mock
+        from prepper_host import flow
+
+        class Quiet:      # an engine that takes the batch and then never says anything again
+            def subscribe(self, cb):
+                return lambda: None
+            def generate(self, *a, **k):
+                pass
+            def is_alive(self):
+                return True
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "account-15-4427b0").mkdir()
+            s = flow.Session(log=lambda m: None)
+            s.client = Quiet()
+            clock = [1000.0]
+            with mock.patch.object(s, "_ensure"), mock.patch.object(s, "_wait_idle"), \
+                    mock.patch.object(flow.time, "time", lambda: clock[0]), \
+                    mock.patch.object(flow.time, "sleep", lambda sec: clock.__setitem__(0, clock[0] + sec)):
+                got, errs = s._run(["p"], ["k"], {"outputDir": td}, ["id"], timeout=3600)
+            self.assertEqual(got, {})
+            self.assertLess(clock[0] - 1000.0, flow.STALL_SEC + 30)     # gave up after the stall time, not the hour
+            self.assertEqual(s._stalled, {"4427b0"})
+            ids, _ = flow.balanced_accounts(3, fallback=["x"], skip=s._stalled)
+            self.assertFalse(any(i.startswith("4427b0") for i in ids))
+
+
 if __name__ == "__main__":
     unittest.main()

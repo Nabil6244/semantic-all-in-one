@@ -37,6 +37,20 @@ class Cancelled(Exception):
     pass
 
 
+def _whisper_backend():
+    """The repo's whisper_backend.py (Apple-GPU Whisper with a CPU fallback), or None where it can't be imported."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        root = str(_P(__file__).resolve().parents[1])
+        if root not in _sys.path:
+            _sys.path.append(root)
+        import whisper_backend
+        return whisper_backend
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _run(cmd: List[str]) -> None:
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode:
@@ -198,8 +212,12 @@ def vo_words(audio: str, cache_dir: Path, log=lambda m: None) -> List[Dict[str, 
     from faster_whisper import WhisperModel
 
     log("listening to the voiceover (word timings)")
-    m = WhisperModel("small", device="cpu", compute_type="int8")
-    segs, _info = m.transcribe(str(f), language="en", word_timestamps=True)
+    wb = _whisper_backend()
+    if wb is not None:   # Apple GPU when it can (whisper_backend.py), else the same CPU model
+        segs, _info = wb.transcribe(str(f), "small", language="en", word_timestamps=True)
+    else:
+        m = WhisperModel("small", device="cpu", compute_type="int8")
+        segs, _info = m.transcribe(str(f), language="en", word_timestamps=True)
     words = [{"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)} for sg in segs for w in sg.words]
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache.write_text(json.dumps(words), encoding="utf-8")

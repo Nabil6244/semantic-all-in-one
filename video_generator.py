@@ -321,8 +321,6 @@ def transcribe_audio(audio_path: str, model_size: str):
 
 
 def _transcribe_locked(audio_path: str, model_size: str):
-    model = _whisper_model(model_size)
-
     print(f"[1/4] Transcribing {audio_path} (this can take a while for long audio)...")
     # Decoded by the ffmpeg program first: Whisper's own reader (PyAV) stops at the first damaged frame, so an mp3 with a
     # bad header 18 s in was transcribed as 18 s of a 13 minute voiceover (2026-10-16). ffmpeg skips damaged frames, as
@@ -340,7 +338,20 @@ def _transcribe_locked(audio_path: str, model_size: str):
         print(f"[1/4] ffmpeg could not decode the audio first ({exc}); Whisper reads the file itself")
     # beam_size=1 (one pass, no candidate search): about twice as fast on the CPU with almost the same words; the timings come from
     # the same word-timestamp pass either way (owner-approved 2026-10-30)
-    segments, info = model.transcribe(source, word_timestamps=True, vad_filter=True, beam_size=1)
+    # On an Apple-chip Mac with mlx-whisper installed, the same model runs on the GPU (whisper_backend.py), several times
+    # faster; anywhere else, or if it fails, faster-whisper on the CPU as before
+    segments = None
+    try:
+        import whisper_backend
+        if whisper_backend.gpu_available():
+            print("[1/4] Whisper on the Apple GPU (mlx)")
+            segments, info = whisper_backend.transcribe_gpu(source, model_size, hallucination_silence_threshold=2.0)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[1/4] GPU Whisper not used ({exc})")
+        segments = None
+    if segments is None:
+        model = _whisper_model(model_size)
+        segments, info = model.transcribe(source, word_timestamps=True, vad_filter=True, beam_size=1)
     # Whisper works through the audio as the segments are read: say how far it is, or a long voiceover looks frozen
     total = float(getattr(info, "duration", 0) or 0)
     seg_list, shown, started = [], -1, time.monotonic()

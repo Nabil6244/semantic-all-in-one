@@ -326,6 +326,11 @@ def layout(app: Any, width: int) -> bool:
     if not getattr(app, "_vd_installed", False):
         return False
     grid = app._style_grid
+    if not _view_shown(grid):
+        # Hidden page (the app opens on another one): the grid's width is then its own cards' width, so wrapping the
+        # cards to it shrank them, which shrank the grid, which wrapped them again: ~110 relayouts over ~6 s of lag
+        # after the window opened (2026-11-23). Lay out for a fixed width until the page is shown with its real width.
+        width = 1100
     width = width if width and width > 50 else 1100
     cols = 4 if width >= 1060 else 3 if width >= 760 else 2
     key = (cols, app._vd_query.get(), app._vd_family.get())
@@ -366,9 +371,45 @@ def layout(app: Any, width: int) -> bool:
     return True
 
 
+def _view_shown(grid: Any) -> bool:
+    """True when the scroll area holding the gallery is on screen with a real width (it sets the grid's width then)."""
+    import tkinter
+
+    w = grid
+    try:
+        while w is not None:
+            if isinstance(w, tkinter.Canvas):
+                return bool(w.winfo_ismapped()) and w.winfo_width() > 50
+            w = w.master
+    except Exception:
+        return True
+    return True
+
+
 def _wrap_cards(app: Any, width: int, cols: int) -> None:
+    """Re-wrap the card texts for this width, once the width has settled. Re-wrapping on every resize event made each
+    card change size, which resized the grid again: ~20 rounds and 125k resize events froze the window for ~5 s while
+    it opened (2026-11-23). Now one re-wrap runs 120 ms after the last width change, snapped to 8 px steps."""
+    pending = getattr(app, "_vd_wrap_after", None)
+    if pending is not None:
+        try:
+            app.after_cancel(pending)
+        except Exception:
+            pass
+
+    def run():
+        app._vd_wrap_after = None
+        _apply_wrap(app, width, cols)
+
+    try:
+        app._vd_wrap_after = app.after(120, run)
+    except Exception:
+        _apply_wrap(app, width, cols)
+
+
+def _apply_wrap(app: Any, width: int, cols: int) -> None:
     card_w = max(160, int((width - 10 * cols) / cols))
-    wl = card_w - 32
+    wl = (card_w - 32) // 8 * 8
     if getattr(app, "_vd_wrap", None) == wl:
         return
     app._vd_wrap = wl

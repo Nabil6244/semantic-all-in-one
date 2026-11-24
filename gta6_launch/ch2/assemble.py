@@ -7,7 +7,10 @@
      captions from the Whisper words run bottom-centre (drawn with PIL into one transparent overlay track)
   6. voice (0 dB) + the Game Launch music bed (-24 dB) are muxed with +faststart; ffprobe checks video vs audio length
 
-Run:  python3 assemble.py [voice.mp3]     (default manual_vo_mastered.mp3; run align.py with the same voice first)"""
+Run:  python3 assemble.py [voice.mp3] --sheet-only   -> cuts shots + overlays, writes work/contact.jpg (1 frame / 15 s), stops
+      look at the sheet (no blank maps, credits, broken glyphs, off-topic frames), then
+      python3 assemble.py [voice.mp3]                -> reuses everything cut and exports
+(default voice manual_vo_mastered.mp3; run align.py with the same voice first)"""
 import json
 import subprocess
 import sys
@@ -19,13 +22,17 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent.parent))
 from game_launch import look as L  # noqa: E402
 
-VO = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "manual_vo_mastered.mp3"
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+SHEET_ONLY = "--sheet-only" in sys.argv     # stop after the contact sheet, before the final export
+VO = Path(ARGS[0]) if ARGS else HERE / "manual_vo_mastered.mp3"
 RAW = HERE.parent / "footage/library/raw/yt_ch2"
 RAW1 = HERE.parent / "footage/library/raw/yt_endings"
 WORK = HERE / "work"
 OUT = HERE.parent / "out/gta6_chapter2_10_tricks_final.mp4"
 W, H, FPS = 1920, 1080, 30
 SEG = 5.5                    # seconds per footage segment
+ENC = ["-c:v", "h264_videotoolbox", "-b:v", "8M"]   # Mac hardware encoder (all encodes)
+JOBS = 4                     # shots cut in parallel
 
 # Footage = each beat's exact source_clips from manifest.json (downloaded by fetch_ranges.py as <id>_<start>_<end>.mp4).
 # Every range gets a share of the beat in proportion to its length, plays from its start, and repeats only if its share is
@@ -54,22 +61,23 @@ def dur(p):
 def segment(name, at, length, out):
     """One normalized piece: 1920x1080 30 fps, no audio; a vertical source sits over a blurred copy of itself."""
     p = src(name)
+    tmp = out.with_suffix(".part.mp4")
     w, h = (int(x) for x in probe(p, "stream=width,height").split(",")[:2])
     total = dur(p)
     at = max(0.0, min(at, total - length - 0.1))
     if h > w:
-        vf = (f"split[a][b];[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},boxblur=30:2,eq=brightness=-0.12[bg];"
+        vf = (f"split[a][b];[a]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},scale=480:-2,boxblur=8:1,scale=1920:1080,eq=brightness=-0.12[bg];"
               f"[b]scale=-2:{H}[fg];[bg][fg]overlay=(W-w)/2:0,fps={FPS},setsar=1")
     else:
         vf = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS},setsar=1"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{at:.2f}", "-t", f"{length:.3f}", "-i", str(p), "-filter_complex", vf,
-                    "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "19", "-pix_fmt", "yuv420p", "-r", str(FPS), str(out)],
-                   check=True)
+                    "-an", *ENC, "-pix_fmt", "yuv420p", "-r", str(FPS), str(tmp)], check=True)
+    tmp.replace(out)                                 # a stopped run never leaves a half-written shot behind
 
 
 def footage(beats):
     WORK.mkdir(parents=True, exist_ok=True)
-    parts = []
+    parts, jobs = [], []
     for b in beats:
         need = b["cut_out_sec"] - b["cut_in_sec"]
         clips = [(range_name(c), secs(c["end"]) - secs(c["start"])) for c in b["source_clips"]]
@@ -79,17 +87,24 @@ def footage(beats):
             share = need - made if i == len(clips) - 1 else need * n / total
             got, pos = 0.0, 0.0
             while share - got > 0.05:
-                length = min(SEG, share - got, n - pos)
-                if length < 0.5:                          # end of the range: start it again
+                if n - pos < 0.5:                         # end of the range: start it again
                     pos = 0.0
-                    continue
+                rem = share - got
+                length = min(SEG, rem, n - pos)
+                if rem - length < 0.5 and n - pos >= rem:  # fold a tiny leftover into this shot (no endless loop)
+                    length = rem
                 f = WORK / f"{b['beat_id']}_{k:02d}.mp4"
                 if not f.is_file():
-                    segment(f_, pos, length, f)
+                    jobs.append((f_, pos, length, f))
                 parts.append(f)
                 real = round(length * FPS) / FPS
                 got, pos, k = got + real, pos + real, k + 1
             made += got
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(JOBS) as ex:
+        for done, _ in enumerate(ex.map(lambda j: segment(*j), jobs), 1):
+            if done % 10 == 0 or done == len(jobs):
+                print(f"  shots {done}/{len(jobs)}", flush=True)
     lst = WORK / "concat.txt"
     lst.write_text("".join(f"file '{p}'\n" for p in parts))
     silent = WORK / "video.mp4"
@@ -199,13 +214,26 @@ if __name__ == "__main__":
     silent = footage(beats)
     print("overlays...", flush=True)
     ov = overlay_track(beats, words, total)
+    sheet, sdir = WORK / "contact.jpg", WORK / "sheet"   # picture + overlays, 1 frame every 15 s
+    subprocess.run(["rm", "-rf", str(sdir)]); sdir.mkdir()
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(silent), "-i", str(ov), "-filter_complex",
+                    "[0:v][1:v]overlay=0:0,fps=1/15,scale=384:-2", str(sdir / "f%03d.jpg")], check=True)
+    frames = sorted(sdir.glob("f*.jpg"))
+    rows = (len(frames) + 5) // 6
+    board = Image.new("RGB", (6 * 388, rows * 220), (0, 0, 0))
+    for i, fp in enumerate(frames):
+        board.paste(Image.open(fp), ((i % 6) * 388, (i // 6) * 220))
+    board.save(sheet, quality=85)
+    print(f"contact sheet: {sheet}  (row = 90 s, each frame = 15 s)", flush=True)
+    if SHEET_ONLY:
+        sys.exit(0)
     print("music + mix...", flush=True)
     mus = WORK / "music.wav"
     L.music(total, mus, cache=WORK / "cache")
     OUT.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(silent), "-i", str(ov), "-i", str(VO), "-i", str(mus), "-filter_complex",
                     f"[0:v][1:v]overlay=0:0:shortest=0[v];[3:a]volume=-24dB[m];[2:a][m]amix=inputs=2:duration=first:normalize=0[a]",
-                    "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+                    "-map", "[v]", "-map", "[a]", *ENC, "-pix_fmt", "yuv420p",
                     "-c:a", "aac", "-b:a", "192k", "-t", f"{total:.3f}", "-movflags", "+faststart", str(OUT)], check=True)
     v = float(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration", "-of",
                               "csv=p=0", str(OUT)], capture_output=True, text=True).stdout.strip().strip(","))

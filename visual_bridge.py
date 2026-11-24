@@ -79,6 +79,13 @@ def _oc_dir(ws) -> Path:
 OWNERS["ocean"] = ("_oc_active", _oc_dir)   # Ocean Predators real clips (ui/ocean_section.py, ocean/clips.py)
 
 
+def _pc_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "podcast_cut" / "assets"
+
+
+OWNERS["podcast_cut"] = ("_pc_active", _pc_dir)   # Motivation literal stock shots (ui/podcastcut_section.py, podcast_cut/director.py)
+
+
 def _gl_dir(ws) -> Path:
     return Path(ws.root) / "state" / "game_launch" / "assets"
 

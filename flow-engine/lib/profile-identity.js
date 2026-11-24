@@ -16,20 +16,36 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const cache = new Map(); // file -> { mtimeMs, identity }
 
 /** { email, name } for a profile folder, or null when unknown (no file, unreadable, not signed in to Google). */
-export function readProfileIdentity(dir) {
-  const file = path.join(dir, "Local State");
+function cachedRead(file, pick) {
   try {
     const { mtimeMs } = fs.statSync(file);
     const hit = cache.get(file);
     if (hit && hit.mtimeMs === mtimeMs) return hit.identity;
-    const info = JSON.parse(fs.readFileSync(file, "utf8"))?.profile?.info_cache?.Default;
-    const email = String(info?.user_name || "").trim();
-    const identity = EMAIL.test(email) ? { email, name: String(info?.gaia_name || "").trim() || null } : null;
+    const identity = pick(JSON.parse(fs.readFileSync(file, "utf8")));
     cache.set(file, { mtimeMs, identity });
     return identity;
   } catch {
     return null;
   }
+}
+
+function asIdentity(email, name) {
+  const e = String(email || "").trim();
+  return EMAIL.test(e) ? { email: e, name: String(name || "").trim() || null } : null;
+}
+
+export function readProfileIdentity(dir) {
+  const fromLocalState = cachedRead(path.join(dir, "Local State"), (j) => {
+    const info = j?.profile?.info_cache?.Default;
+    return asIdentity(info?.user_name, info?.gaia_name);
+  });
+  if (fromLocalState) return fromLocalState;
+  // Chrome started by automation often leaves Local State's user_name empty, but the profile's own
+  // Preferences still lists the signed-in Google account under account_info.
+  return cachedRead(path.join(dir, "Default", "Preferences"), (j) => {
+    const info = (Array.isArray(j?.account_info) ? j.account_info : []).find((x) => EMAIL.test(String(x?.email || "")));
+    return info ? asIdentity(info.email, info.full_name) : null;
+  });
 }
 
 /** Same, for an account id (its profile under the app's profiles folder). */

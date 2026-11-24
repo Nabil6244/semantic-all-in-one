@@ -295,7 +295,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
                 end(error)
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name=name, daemon=True).start()
 
@@ -311,7 +311,7 @@ def _progress_cb(app: Any, export: bool = False):
         msg = next((a for a in args if isinstance(a, str)), "")
         text = (f"{int(k * 100)}%  " if k is not None else "") + (msg or "Rendering…")
         try:
-            app.after(0, lambda: (app._rh_status_var.set(text.strip()), k is not None and app.progress.set(k),
+            app.ui_latest("style_progress", lambda: (app._rh_status_var.set(text.strip()), k is not None and app.progress.set(k),
                                   export and k is not None and app._export_progress(k, msg or "")))
         except Exception:
             pass
@@ -381,11 +381,11 @@ def on_generate(app: Any) -> None:
     app._append_log(f"{TAG} Generate: {o['width']}x{o['height']} @ {o['fps']} fps, {len(pictures)} of {len(reqs)} Flow pictures ready\n")
 
     def job():
-        app.after(0, lambda: app._rh_status_var.set("Reading the voice-over…"))
+        app.ui_call(lambda: app._rh_status_var.set("Reading the voice-over…"))
         words = app._pakmap_get_words(Path(o["voice"]), whisper_model, getattr(app._workspace, "state_dir", None),
-                                      lambda m: app.after(0, lambda m=m: app._append_log(f"{TAG} {m}\n")))
+                                      lambda m: app.ui_call(lambda m=m: app._append_log(f"{TAG} {m}\n")))
         return runner.generate(o["csv"], o["voice"], out_dir, words=list(words), width=o["width"], height=o["height"], fps=o["fps"], pictures=pictures, scheme=o.get("scheme", "auto"),
-                               log=lambda m: app.after(0, lambda m=m: app._append_log(f"{TAG} {m}\n")))
+                               log=lambda m: app.ui_call(lambda m=m: app._append_log(f"{TAG} {m}\n")))
 
     def done(r) -> None:
         app._rh_spec_path = r["spec_path"]
@@ -434,7 +434,7 @@ def on_make_pictures(app: Any) -> None:
     def job():
         client = manager.ensure_running()
         return assets.make(reqs, Path(app._workspace.state_dir) / "rules_horror" / "flow", client, skip=have, cancel=app._rh_cancel.is_set,
-                           log=lambda m: app.after(0, lambda m=m: app._append_log(f"{TAG} {m}\n")))
+                           log=lambda m: app.ui_call(lambda m=m: app._append_log(f"{TAG} {m}\n")))
 
     def done(results) -> None:
         for r in reqs:
@@ -492,7 +492,7 @@ def on_render(app: Any) -> None:
 
     def job():
         return runner.render_planned(spec, out_path, progress=cb, cancel=app._rh_cancel.is_set,
-                                     log=lambda m: app.after(0, lambda m=m: app._append_log(f"{TAG} {m}\n")))
+                                     log=lambda m: app.ui_call(lambda m=m: app._append_log(f"{TAG} {m}\n")))
 
     def done(_result) -> None:
         if app._rh_cancel.is_set():

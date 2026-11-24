@@ -15,6 +15,22 @@ import { footageWindows, shiftedEvent } from '/lib/hybrid.mjs';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
+/** A picture/clip frame from the local server. One dropped request ("Failed to fetch") or a frame not written yet must
+ *  not end a long render: retry a few times, then name the picture in the error. */
+async function fetchBitmap(url) {
+  let last = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 300 * attempt));
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (res.ok) return await createImageBitmap(await res.blob());
+      last = `HTTP ${res.status}`;
+      if (res.status === 404 && attempt >= 2) break;   // really missing: stop early
+    } catch (err) { last = String((err && err.message) || err); }
+  }
+  throw new Error(`picture ${url} could not be loaded (${last})`);
+}
+
 async function setup() {
   const spec = await (await fetch('/spec.json')).json();
   const W = spec.width, H = spec.height;
@@ -220,7 +236,7 @@ async function setup() {
     spec: R === 1 ? spec : { ...spec, width: OW, height: OH }, ctx, gfx: { createGfx, drawGfx },
     project: (lon, lat) => { const p = map.project([lon, lat]); return p ? { x: p.x * R, y: p.y * R } : null; },
     unproject: (x, y) => map.unproject([x / R, y / R]),
-    fetchMedia: async (id, frame) => createImageBitmap(await (await fetch(frame == null ? `/media/${id}` : `/media/${id}/${frame}`)).blob()),
+    fetchMedia: (id, frame) => fetchBitmap(frame == null ? `/media/${id}` : `/media/${id}/${frame}`),
   });
 
   function applyState(t, c) {

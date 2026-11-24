@@ -1,6 +1,6 @@
 """CustomTkinter startup fix: no global layout flush per scrollbar redraw.
 
-CTkScrollbar._draw() ends with ``canvas.update_idletasks()``. In Tk that call
+CTkScrollbar._draw() and CTkOptionMenu._draw() end with ``canvas.update_idletasks()``. In Tk that call
 is global: it runs every pending geometry/redraw task in the whole app. The
 window builds 36+ scrollbars (every text box has two), so startup ran dozens
 of full-app layout passes while widgets were still being created. Tk redraws
@@ -24,15 +24,11 @@ def _skip(*_args, **_kwargs):
     return None
 
 
-def install() -> bool:
-    global _INSTALLED
-    if _INSTALLED:
-        return True
-    try:
-        from customtkinter import CTkScrollbar
-    except Exception:
-        return False
-    original_draw = CTkScrollbar._draw
+def _patch_draw(cls) -> None:
+    """Run cls._draw with its trailing ``canvas.update_idletasks()`` skipped (see the module note)."""
+    original_draw = cls._draw
+    if getattr(original_draw, "_sy_original", None) is not None:
+        return
 
     def draw_without_global_flush(self, no_color_updates=False):
         canvas = getattr(self, "_canvas", None)
@@ -48,7 +44,23 @@ def install() -> bool:
                 pass
 
     draw_without_global_flush._sy_original = original_draw  # type: ignore[attr-defined]
-    CTkScrollbar._draw = draw_without_global_flush
+    cls._draw = draw_without_global_flush
+
+
+def install() -> bool:
+    global _INSTALLED
+    if _INSTALLED:
+        return True
+    try:
+        from customtkinter import CTkScrollbar
+    except Exception:
+        return False
+    _patch_draw(CTkScrollbar)
+    try:   # CTkOptionMenu._draw has the same global flush: each dropdown built or re-filled ran a full-app layout pass
+        from customtkinter import CTkOptionMenu   # (6 dropdowns cost ~5 s of the window opening, 2026-11-23)
+        _patch_draw(CTkOptionMenu)
+    except Exception:
+        pass
     _install_scrollable_frame_unbind()
     _INSTALLED = True
     return True

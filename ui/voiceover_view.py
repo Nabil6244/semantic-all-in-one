@@ -303,7 +303,7 @@ def _add_clone(view: Any, app: Any) -> None:
 
     def ui(fn, *a):
         try:
-            app.after(0, lambda: fn(*a))
+            app.ui_call(lambda: fn(*a))
         except Exception:
             pass
 
@@ -323,7 +323,8 @@ def _add_clone(view: Any, app: Any) -> None:
                 return
             say = lambda t: ui(view._vo_clone_status.set, t)  # noqa: E731
             if not engine.ensure_models(say):
-                ui(finish, "The voice model could not be downloaded. Check the internet connection and try again.")
+                from voice_clone import chatterbox_engine as cbx
+                ui(finish, f"The voice model could not be downloaded. Check the internet connection and try again. Details: {cbx.setup_log()}")
                 return
             cloner = engine.get_cloner(ff, say)
             if cloner is None:
@@ -567,7 +568,7 @@ def _start(view: Any, app: Any, *, preview: bool) -> None:
 
     def ui(fn, *a):
         try:
-            app.after(0, lambda: fn(*a))
+            app.ui_call(lambda: fn(*a))
         except Exception:
             pass
 

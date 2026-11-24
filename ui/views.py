@@ -2794,6 +2794,8 @@ TOOL_CARDS = (
     ("Activity log", "Every step the app takes during planning, downloads and rendering, as it happens (on the Visuals page).",
      "Show activity", "_show_activity_log"),
     ("Output folder", "The folder that holds this project's finished videos.", "Open output folder", "_open_output_folder"),
+    ("YouTube uploads", "Your channels, their upload queues, and the computer that uploads them (pause, resume, retry, sign in).",
+     "Open Uploads", "_open_uploads"),
     ("Settings", "Accounts, providers, API keys, Flow, appearance and defaults.", "Open Settings", "_open_settings"),
 )
 
@@ -2847,3 +2849,21 @@ class VoiceoverView(_BaseView):
     def on_show(self) -> None:
         from . import voiceover_view
         voiceover_view.sync_project(self, self.app)
+
+
+class UploadsView(_BaseView):
+    """YouTube channels, their upload queues and the uploading computer. The page itself lives in ui/uploads_view.py."""
+
+    key = "uploads"
+
+    def __init__(self, master, app: Any, **kwargs):
+        super().__init__(master, app, **kwargs)
+        SectionHeader(self, "Uploads", "Queue finished videos for your channels and watch the uploading computer").grid(
+            row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8)
+        )
+        from . import uploads_view
+        uploads_view.build(self, app)
+
+    def on_show(self) -> None:
+        from . import uploads_view
+        uploads_view.on_show(self, self.app)

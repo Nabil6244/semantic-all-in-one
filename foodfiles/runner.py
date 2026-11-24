@@ -14,6 +14,7 @@ talking:
   python -m foodfiles.runner my.csv [--voice file.mp3] [--preview] [--no-flow] [--talking | --flow-voice] [--out video.mp4]
 """
 import json
+import os
 import random
 import re
 import subprocess
@@ -71,6 +72,9 @@ def _flow_voice(rows, spec, meta, edge_voice, size, title, use_flow, log, cancel
     jobs = {fv.clip_key(meta, r["line"]): fv.clip_prompt(meta, r["line"]) for r in rows2 if r.get("say")}
     missing = {k: p for k, p in jobs.items() if not flow.have(k, "mp4")}
     log(f"food files: Flow voice: {len(jobs)} host line(s), {len(jobs) - len(missing)} already spoken, {len(missing)} to make")
+    if missing and os.environ.get("FOOD_FILES_NO_NEW_CLIPS") == "1":
+        log(f"food files: no new Flow clips this run (FOOD_FILES_NO_NEW_CLIPS=1); {len(missing)} line(s) keep his copied voice")
+        missing = {}
     if missing and use_flow and not (cancel and cancel()):
         try:
             with flow.Session(log=log) as fs:

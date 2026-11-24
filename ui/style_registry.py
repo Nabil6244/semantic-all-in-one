@@ -261,3 +261,15 @@ BUILT_ON[PK] = "Normal video"
 GROUPS = tuple((title, tuple(x for n in names for x in ((n, PK) if n == "Normal video" else (n,)))) for title, names in GROUPS)
 EXTRA_BLURBS[PK] = _pk.BLURB
 EXTRA_CARDS[PK] = _pk.CARD
+
+
+# Motivation (ui/podcastcut_section.py, podcast_cut/): appended here so nothing above changes
+MOTIVATION = "Motivation"
+STANDALONE = STANDALONE + (MOTIVATION,)
+GROUPS = tuple((title, names + (MOTIVATION,) if title == "General" else names) for title, names in GROUPS)
+EXTRA_BLURBS[MOTIVATION] = ("A long podcast cut to a 30-38 min 'The Only N Minutes You Need To ...' motivation video: ads and small "
+                             "talk left out, the strongest line first as a hook, a 'channel presents' card, the speaker's camera "
+                             "alternating with dark mood b-roll matched to what is said, one-line captions, a watermark and a quiet "
+                             "music bed. Titles, chapters, a thumbnail and optional 9:16 Shorts. From a YouTube link or a file.")
+EXTRA_CARDS[MOTIVATION] = ("▶", "Podcast clips over mood b-roll", "A YouTube link or a podcast file",
+                            "Huberman, Peterson, Dispenza, Shi Heng Yi style motivation cuts")

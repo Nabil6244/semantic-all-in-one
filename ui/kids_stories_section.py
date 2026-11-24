@@ -183,7 +183,7 @@ def _restore(app: Any) -> None:
 
 def resume_on_open(app: Any) -> None:
     if _read_settings(app).get("active"):
-        app.after(0, lambda: app._on_style_pick(STYLE))
+        app.ui_call(lambda: app._on_style_pick(STYLE))
 
 
 def _browse(app: Any) -> None:
@@ -280,13 +280,13 @@ def cancel(app: Any) -> None:
 
 def _progress(app: Any):
     def cb(frac: float, msg: str = "") -> None:
-        app.after(0, lambda: (app._ks_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
+        app.ui_latest("style_progress", lambda: (app._ks_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
                               app._export_progress(max(0.0, min(1.0, frac)), msg or "")))
     return cb
 
 
 def _log(app: Any):
-    return lambda m: app.after(0, lambda: app._append_log(f"{TAG} {m}\n"))
+    return lambda m: app.ui_call(lambda: app._append_log(f"{TAG} {m}\n"))
 
 
 def _start(app: Any, name: str, job, done, end=None) -> None:
@@ -315,7 +315,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
                 end(error)
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name=name, daemon=True).start()
 

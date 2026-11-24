@@ -15,6 +15,7 @@ last frame (FREEZE s, with the text as a big card, record scratch, music stops) 
 music follows the story mood per beat (upbeat -> sneaky con -> sad twist -> upbeat payoff), with a
 whoosh on every change of place; music never fades at the very end so the Short loops cleanly.
 """
+import os
 import re
 import hashlib
 import json
@@ -311,7 +312,8 @@ def mix(clips, shots, starts, total, out, freezes=()):
     env = np.sqrt(np.convolve(mono, np.ones(win) / win, "same"))
     env = np.convolve(env, np.ones(int(0.2 * SR)) / int(0.2 * SR), "same")
     duck = 1 - MUSIC_DUCK * np.clip(env / 0.04, 0, 1)
-    mixed = buf_v + buf_fx + buf_m * duck
+    # TT_BED_SCALE / TT_SFX_SCALE (default 1): softer music and sound effects for a channel or batch
+    mixed = buf_v + buf_fx * float(os.environ.get("TT_SFX_SCALE", "1")) + buf_m * duck * float(os.environ.get("TT_BED_SCALE", "1"))
     mixed = mixed[:, : int(total * SR)]
     mixed *= 0.95 / (np.abs(mixed).max() + 1e-9)
     raw = out.with_suffix(".f32")

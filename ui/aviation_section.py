@@ -201,7 +201,7 @@ def _restore(app: Any) -> None:
 
 def resume_on_open(app: Any) -> None:
     if _read_settings(app).get("active"):
-        app.after(0, lambda: app._on_style_pick(STYLE))
+        app.ui_call(lambda: app._on_style_pick(STYLE))
 
 
 def _browse(app: Any, kind: str) -> None:
@@ -333,13 +333,13 @@ def _voice(app: Any) -> str:
 
 
 def _log(app: Any):
-    return lambda m: app.after(0, lambda: app._append_log(f"{TAG} {m}\n"))
+    return lambda m: app.ui_call(lambda: app._append_log(f"{TAG} {m}\n"))
 
 
 def _progress(app: Any, export: bool):
     def cb(frac: float, msg: str = "") -> None:
         k = max(0.0, min(1.0, frac))
-        app.after(0, lambda: (app._av_status_var.set(f"{int(k * 100)}%  {msg}".strip()), app.progress.set(k),
+        app.ui_latest("style_progress", lambda: (app._av_status_var.set(f"{int(k * 100)}%  {msg}".strip()), app.progress.set(k),
                               export and app._export_progress(k, msg or "")))
     return cb
 
@@ -372,7 +372,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
                 end(error)
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name=name, daemon=True).start()
 
@@ -428,7 +428,7 @@ def _ask(app: Any, title: str, message: str) -> bool:
         finally:
             ev.set()
 
-    app.after(0, q)
+    app.ui_call(q)
     while not ev.wait(0.3):
         if app._av_cancel.is_set():
             return False
@@ -554,7 +554,7 @@ def on_generate(app: Any) -> None:
             ", ".join(f"{m} {plan.modes.count(m)}" for m in sorted(set(plan.modes), key=plan.modes.count, reverse=True)))
 
         def listed(rows_):
-            app.after(0, lambda: visual_bridge.fill(app, OWNER, rows_))
+            app.ui_call(lambda: visual_bridge.fill(app, OWNER, rows_))
 
         def on_start(scene, source):
             app._ui_queue.put(("scene_busy", (scene.scene_number, M._scene_busy_kind(source))))

@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import subprocess
+import time
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -54,6 +55,34 @@ def _one(sentence, voice, speed):
     raise RuntimeError(f"Edge could not read: \"{sentence[:80]}\" ({last})")
 
 
+def _one_in_halves(sentence, voice, speed):
+    """Edge refuses some exact sentences but reads their halves (2026-11-23: '...handles flour at the plant.'): read the
+    sentence in two pieces split at the comma nearest the middle (else the middle word) and join them, same words."""
+    words = sentence.split()
+    if len(words) < 4:
+        raise RuntimeError("too short to split")
+    mid = len(words) // 2
+    commas = [i + 1 for i, w in enumerate(words[:-1]) if w.endswith((",", ";", ":"))]
+    cut = min(commas, key=lambda i: abs(i - mid)) if commas else mid
+    a, b = " ".join(words[:cut]), " ".join(words[cut:])
+    key = hashlib.sha1(f"{voice}|{speed}|halves|{sentence}".encode()).hexdigest()[:16]
+    mp3 = CACHE / f"{key}.mp3"
+    wj = Path(str(mp3) + ".words.json")
+    if mp3.is_file() and wj.is_file():
+        return mp3
+    pa, pb = _one(a, voice, speed), _one(b, voice, speed)
+    d0 = _duration(pa)
+    lst = CACHE / f"{key}.txt"
+    lst.write_text(f"file '{pa}'\nfile '{pb}'\n")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-c:a", "libmp3lame", "-b:a", "96k", str(mp3)],
+                   check=True, timeout=300)
+    w = json.loads(Path(str(pa) + ".words.json").read_text())
+    w += [{"word": x["word"], "start": round(x["start"] + d0, 4), "end": round(x["end"] + d0, 4)}
+          for x in json.loads(Path(str(pb) + ".words.json").read_text())]
+    wj.write_text(json.dumps(w))
+    return mp3
+
+
 def edge(text, voice="en-US-AndrewNeural", speed=1.0, log=print, workers=6):
     parts = sentences(text)
     if not parts:
@@ -64,8 +93,40 @@ def edge(text, voice="en-US-AndrewNeural", speed=1.0, log=print, workers=6):
     if out.is_file() and wj.is_file():
         return {"path": str(out), "duration": _duration(out), "words": json.loads(wj.read_text())}
     log(f"prepper host: Edge voice {voice}, {len(parts)} sentences")
+
+    def safe(s):
+        try:
+            return _one(s, voice, speed)
+        except Exception as e:  # noqa: BLE001 - tried again below, one at a time
+            return e
+
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        mp3s = list(ex.map(lambda s: _one(s, voice, speed), parts))
+        mp3s = list(ex.map(safe, parts))
+    # A sentence Edge refused ("No audio was received", 2026-11-23: one plain sentence stopped a whole video) usually
+    # means it is throttling a burst: wait, then try the refused ones one at a time; last of all at a hair's different
+    # speed, which Edge treats as a new request (the timing difference is too small to hear).
+    for round_, pause in enumerate((15, 30, 60)):
+        bad = [i for i, m in enumerate(mp3s) if isinstance(m, Exception)]
+        if not bad:
+            break
+        log(f"prepper host: Edge refused {len(bad)} sentence(s); waiting {pause} s, then one at a time")
+        time.sleep(pause)
+        for i in bad:
+            sp = speed if round_ < 2 else round(speed * 0.99, 3)
+            try:
+                mp3s[i] = _one(parts[i], voice, sp)
+            except Exception as e:  # noqa: BLE001
+                mp3s[i] = e
+    for i, m in enumerate(mp3s):          # still refused: read it in two halves
+        if isinstance(m, Exception):
+            try:
+                mp3s[i] = _one_in_halves(parts[i], voice, speed)
+                log(f"prepper host: Edge read this sentence in two halves: {parts[i][:60]}")
+            except Exception as e:  # noqa: BLE001
+                mp3s[i] = e
+    bad = [parts[i][:70] for i, m in enumerate(mp3s) if isinstance(m, Exception)]
+    if bad:
+        raise RuntimeError(f"Edge could not read {len(bad)} sentence(s) after waiting and retrying: " + " | ".join(bad))
     words, t = [], 0.0
     lst = CACHE / f"full_{key}.txt"
     sil = CACHE / "gap.wav"

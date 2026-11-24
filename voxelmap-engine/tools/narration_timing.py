@@ -19,6 +19,20 @@ from pathlib import Path
 SR = 16000   # what Whisper listens at
 
 
+def _whisper_backend():
+    """The repo's whisper_backend.py (Apple-GPU Whisper with a CPU fallback), or None where it can't be imported."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        root = str(_P(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.append(root)
+        import whisper_backend
+        return whisper_backend
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _ffmpeg() -> str:
     try:
         from map_scene.render import _ffmpeg as find   # the app's own ffmpeg (bundled builds have no system one)
@@ -60,10 +74,14 @@ def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("audio"); p.add_argument("out"); p.add_argument("--model", default="small")
     a = p.parse_args(argv)
-    from faster_whisper import WhisperModel
-    model = WhisperModel(a.model, device="cpu", compute_type="int8")
     audio = load_audio(a.audio)
-    segs, _ = model.transcribe(a.audio if audio is None else audio, word_timestamps=True, vad_filter=True)
+    wb = _whisper_backend()
+    if wb is not None:   # Apple GPU when it can (whisper_backend.py), else the same CPU model
+        segs, _ = wb.transcribe(a.audio if audio is None else audio, a.model, word_timestamps=True, vad_filter=True)
+    else:
+        from faster_whisper import WhisperModel
+        model = WhisperModel(a.model, device="cpu", compute_type="int8")
+        segs, _ = model.transcribe(a.audio if audio is None else audio, word_timestamps=True, vad_filter=True)
     words = [{"word": w.word, "start": w.start, "end": w.end} for s in segs for w in (s.words or [])]
     sents = sentences_from_words(words)
     Path(a.out).write_text(json.dumps({"sentences": sents, "silences": silences_between(sents)}, indent=1), encoding="utf-8")

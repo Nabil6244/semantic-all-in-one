@@ -9,6 +9,20 @@ import os
 import sys
 
 
+def _whisper_backend():
+    """The repo's whisper_backend.py (Apple-GPU Whisper with a CPU fallback), or None where it can't be imported."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        root = str(_P(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.append(root)
+        import whisper_backend
+        return whisper_backend
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def sig(path):
     st = os.stat(path)
     return [os.path.abspath(path), st.st_size, st.st_mtime_ns, "base"]
@@ -47,9 +61,13 @@ def main(src, dst):
                 return
         except Exception:
             pass
-    from faster_whisper import WhisperModel
-    model = WhisperModel("base", device="cpu", compute_type="int8")
-    segs, info = model.transcribe(src, word_timestamps=True, language="en", vad_filter=False, beam_size=5)
+    wb = _whisper_backend()
+    if wb is not None:   # Apple GPU when it can (whisper_backend.py), else the same CPU model
+        segs, info = wb.transcribe(src, "base", word_timestamps=True, language="en", vad_filter=False, beam_size=5)
+    else:
+        from faster_whisper import WhisperModel
+        model = WhisperModel("base", device="cpu", compute_type="int8")
+        segs, info = model.transcribe(src, word_timestamps=True, language="en", vad_filter=False, beam_size=5)
     words = [{"text": w.word.strip(), "t0": round(w.start, 3), "t1": round(w.end, 3)} for s in segs for w in (s.words or []) if w.word.strip()]
     onsets(src, words)
     json.dump({"duration": round(info.duration, 3), "words": words}, open(dst, "w"))

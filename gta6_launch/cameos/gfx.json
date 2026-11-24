@@ -1,0 +1,77 @@
+{
+  "beat01_hook": [
+    {"type": "steps", "title": "RETURNING CAMEOS IN GTA 6", "items": [
+      {"label": "GTA IV protagonist in Chapter 5", "phrase": "an actual playable-era GTA Four protagonist"},
+      {"label": "Michael De Santa's son at the club", "phrase": "Michael De Santa's son trying to sneak"},
+      {"label": "Radio voice that sounds like Trevor", "phrase": "a bizarre radio broadcast"},
+      {"label": "Arthur Morgan's cowboy hat", "phrase": "Rockstar hid Arthur Morgan's cowboy hat"},
+      {"label": "Tiny cowboy riding a Chihuahua", "phrase": "a tiny cowboy riding a Chihuahua"},
+      {"label": "4-part Dexter Morgan Easter egg", "phrase": "a full four-part Dexter Morgan"}
+    ]}
+  ],
+  "beat02_niko_bellic": [
+    {"type": "notes", "title": "NIKO BELLIC FILE", "items": [
+      {"text": "Credited only as 'The Hitman'", "phrase": "listing him simply as The Hitman"},
+      {"text": "Chapter 5: Taking Liberties", "phrase": "during the mission Taking Liberties"},
+      {"text": "Voiced by Michael Hollick again", "phrase": "original voice actor Michael Hollick"},
+      {"text": "Pats his tactical dog Rocco", "phrase": "pats his tactical dog Rocco"},
+      {"text": "18 years since Liberty City", "phrase": "After eighteen years of silence", "red": true}
+    ]}
+  ],
+  "beat03_jimmy_desanta": [
+    {"type": "steps", "title": "FIND JIMMY DE SANTA", "items": [
+      {"label": "Chapter 4 mission: Headliners", "phrase": "During the Chapter Four mission Headliners"},
+      {"label": "Crew in matching hoodies", "phrase": "the crew in matching hoodies"},
+      {"label": "Righteous Slaughter / Misfire Games", "phrase": "working on Righteous Slaughter with Misfire Games"},
+      {"label": "Let him in or turn him away", "phrase": "you can wave Jimmy inside the VIP section"},
+      {"label": "One scene only", "phrase": "it is a one-scene cameo", "warn": true}
+    ]}
+  ],
+  "beat04_gta5_trio_audio": [
+    {"type": "notes", "title": "NOT IN THE CREDITS", "items": [
+      {"text": "Ned Luke - Michael", "phrase": "their actors Ned Luke"},
+      {"text": "Shawn Fonteno - Franklin", "phrase": "Shawn Fonteno"},
+      {"text": "Steven Ogg - Trevor", "phrase": "and Steven Ogg", "red": true}
+    ]},
+    {"type": "steps", "title": "TWO AUDIO CALLBACKS", "items": [
+      {"label": "Wade's true-crime interview", "phrase": "a hidden true-crime audio interview"},
+      {"label": "Michael: family man / Franklin: rascal", "phrase": "naming Michael De Santa as a family man"},
+      {"label": "Weazel News: Mayor Donnie Profanaldi", "phrase": "tune into Weazel News on the radio"},
+      {"label": "Steven Ogg? Still unsolved", "phrase": "Players swore it was Steven Ogg", "warn": true}
+    ]}
+  ],
+  "beat05_arthur_hat": [
+    {"type": "steps", "title": "GET ARTHUR'S HAT", "items": [
+      {"label": "Unlock Chapter 2", "phrase": "wait until you unlock Chapter Two"},
+      {"label": "Southern Port Gellhorn, Kelly County", "phrase": "drive down to southern Port Gellhorn"},
+      {"label": "Orchard Ave near Wild Hog Point", "phrase": "Cruise along Orchard Avenue"},
+      {"label": "Blue house, balloons, US flag", "phrase": "until you spot a blue house"},
+      {"label": "White couch, black guitar case", "phrase": "straight to the white couch"},
+      {"label": "$5 Jason / $35 Lucia", "phrase": "five dollars as Jason"},
+      {"label": "Empty? Leave, return another day", "phrase": "If the yard sale is empty", "warn": true}
+    ]}
+  ],
+  "beat06_tiny_arthur_rdr2": [
+    {"type": "steps", "title": "FIND MINI ARTHUR", "items": [
+      {"label": "South Leonard County", "phrase": "hiding in South Leonard County"},
+      {"label": "Valentine Drive", "phrase": "Head over to Valentine Drive"},
+      {"label": "Frontier Adventure Golf", "phrase": "mini golf park called Frontier Adventure Golf"},
+      {"label": "Look down on the boardwalk", "phrase": "look down by your boots"},
+      {"label": "Pet the Ride 'Em Chihuahua", "phrase": "Jason can crouch down and pet"}
+    ]},
+    {"type": "notes", "title": "RED DEAD LORE", "items": [
+      {"text": "Flaco Hernandez book at Brian's marina", "phrase": "check Brian's marina for a paperback book"},
+      {"text": "Blackwater, Armadillo, New Austin", "phrase": "name-dropping Blackwater, Armadillo"},
+      {"text": "Rare New Austin license plates", "phrase": "sporting New Austin license plates", "red": true}
+    ]}
+  ],
+  "beat07_dexter_4part": [
+    {"type": "steps", "title": "DEXTER'S 4-PART EASTER EGG", "items": [
+      {"label": "1. Trinity Apartments, Washington Island", "phrase": "look for Trinity Apartments"},
+      {"label": "2. Rooftop kill kit + knife + $68", "phrase": "climb the side ladder up onto the roof"},
+      {"label": "3. The 'Slice of Life' boat", "phrase": "his twin-engine boat, the Slice of Life"},
+      {"label": "4. Key Lento kill room garage", "phrase": "drive down to Surfside Drive in Key Lento"},
+      {"label": "Bones on the ocean floor", "phrase": "plus human bones scattered", "warn": true}
+    ]}
+  ]
+}

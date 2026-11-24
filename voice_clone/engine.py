@@ -74,6 +74,27 @@ def models_ready() -> bool:
     return all((d / n).is_file() and (d / n).stat().st_size >= m for n, m in MODEL_FILES.items())
 
 
+def _ssl_context():
+    """The system's certificates plus certifi's: a packaged macOS app has no other certificate list, so a plain urlopen fails
+    there with CERTIFICATE_VERIFY_FAILED (same setup as weather/netssl.py; servers are still verified)."""
+    import ssl
+    ctx = ssl.create_default_context()
+    try:
+        import certifi
+        ctx.load_verify_locations(certifi.where())
+    except Exception:  # noqa: BLE001
+        pass
+    return ctx
+
+
+def _log_setup(line: str) -> None:
+    try:
+        with open(data_dir() / "chatterbox_setup.log", "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except OSError:
+        pass
+
+
 def ensure_models(say: Optional[Callable[[str], None]] = None) -> bool:
     d = _model_dir()
     for name, minimum in MODEL_FILES.items():
@@ -85,7 +106,7 @@ def ensure_models(say: Optional[Callable[[str], None]] = None) -> bool:
         tmp = dest.with_suffix(dest.suffix + ".part")
         try:
             req = urllib.request.Request(MODEL_BASE + name, headers={"User-Agent": "semantic-yt-studio"})
-            with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
+            with urllib.request.urlopen(req, timeout=60, context=_ssl_context()) as r, open(tmp, "wb") as f:
                 while True:
                     block = r.read(1 << 20)
                     if not block:
@@ -94,7 +115,8 @@ def ensure_models(say: Optional[Callable[[str], None]] = None) -> bool:
             if tmp.stat().st_size < minimum:
                 raise OSError("download too small")
             os.replace(tmp, dest)
-        except Exception:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
+            _log_setup(f"OpenVoice model download {MODEL_BASE + name} failed: {type(exc).__name__}: {exc}")
             try:
                 tmp.unlink()
             except OSError:

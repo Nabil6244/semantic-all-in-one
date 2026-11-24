@@ -188,9 +188,15 @@ def bake_stills(spec: Dict[str, Any], work: Any, log: Callable[[str], None] = la
 INTERMEDIATE_X264 = {"x264_preset": "ultrafast", "crf": 15}   # the map render's own file is encoded again later (post_render, final export): cheap to write
 
 
+LONG_INTERMEDIATE_X264 = {"x264_preset": "superfast", "crf": 20}   # over LONG_MINUTES: ultrafast/15 is ~0.45 GB a minute (16 GB for 37 min,
+LONG_MINUTES = 20                                                     # kept twice while the pieces are joined), which filled the disk
+
+
 def fast_intermediate(spec: Dict[str, Any]) -> None:
-    """The map render writes its in-between file quickly: x264 'faster' was what kept the cores busy (about 50 frames a second at 1080p, picture frames included)."""
-    for k, v in INTERMEDIATE_X264.items():
+    """The map render writes its in-between file quickly: x264 'faster' was what kept the cores busy (about 50 frames a second at 1080p, picture frames included).
+    A long video's file is written smaller instead, so the map, its pieces and the join fit on the disk."""
+    long = float(spec.get("duration") or 0) > LONG_MINUTES * 60
+    for k, v in (LONG_INTERMEDIATE_X264 if long else INTERMEDIATE_X264).items():
         spec.setdefault(k, v)
 
 

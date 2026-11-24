@@ -318,8 +318,8 @@ def _progress(app: Any):
         import time as _time
         if _time.monotonic() - last["t"] >= 30:      # a real log line every 30 s keeps the stall watchdog quiet
             last["t"] = _time.monotonic()
-            app.after(0, lambda m=f"{int(frac * 100)}% {msg}".strip(): app._append_log(f"{TAG} {m}\n"))
-        app.after(0, lambda: (app._kl_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
+            app.ui_call(lambda m=f"{int(frac * 100)}% {msg}".strip(): app._append_log(f"{TAG} {m}\n"))
+        app.ui_latest("style_progress", lambda: (app._kl_status_var.set(f"{int(frac * 100)}%  {msg}".strip()), app.progress.set(max(0.0, min(1.0, frac))),
                               app._export_progress(max(0.0, min(1.0, frac)), msg or "")))
     return cb
 
@@ -350,7 +350,7 @@ def _start(app: Any, name: str, job, done, end=None) -> None:
                 end(error)
             app._sync_primary_cta()
 
-        app.after(0, finish)
+        app.ui_call(finish)
 
     threading.Thread(target=worker, name=name, daemon=True).start()
 
@@ -385,7 +385,7 @@ def on_generate(app: Any) -> None:
     app._append_log(f"{TAG} Generate: {'timing your voice-over' if o['voiceover'] else 'speaking the lines'} and planning the lesson\n")
 
     def job():
-        return kl.plan(o["csv"], work, progress=_progress(app), cancel=app._kl_cancel.is_set, log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **_engine_opts(o))
+        return kl.plan(o["csv"], work, progress=_progress(app), cancel=app._kl_cancel.is_set, log=lambda m: app.ui_call(lambda: app._append_log(m + "\n")), **_engine_opts(o))
 
     def done(r) -> None:
         app._kl_planned = dict(o)
@@ -430,7 +430,7 @@ def on_render(app: Any) -> None:
 
     def job():
         return kl.render(plan["csv"], str(_work_dir(app)), str(out_path), progress=_progress(app), cancel=app._kl_cancel.is_set,
-                         log=lambda m: app.after(0, lambda: app._append_log(m + "\n")), **_engine_opts(plan))
+                         log=lambda m: app.ui_call(lambda: app._append_log(m + "\n")), **_engine_opts(plan))
 
     def done(r) -> None:
         a = r.get("audio") or {}

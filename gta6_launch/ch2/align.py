@@ -12,15 +12,32 @@ HERE = Path(__file__).resolve().parent
 VO = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "manual_vo_mastered.mp3"
 
 
+def _whisper_backend():
+    """The repo's whisper_backend.py (Apple-GPU Whisper with a CPU fallback), or None where it can't be imported."""
+    try:
+        import sys as _sys
+        from pathlib import Path as _P
+        root = str(_P(__file__).resolve().parents[2])
+        if root not in _sys.path:
+            _sys.path.append(root)
+        import whisper_backend
+        return whisper_backend
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def norm(w):
     return re.sub(r"[^a-z0-9]", "", w.lower())
 
 
 def words_of(vo):
-    from faster_whisper import WhisperModel
-
-    model = WhisperModel("small", compute_type="int8")
-    segs, _ = model.transcribe(str(vo), word_timestamps=True, language="en", vad_filter=False)
+    wb = _whisper_backend()
+    if wb is not None:   # Apple GPU when it can (whisper_backend.py), else the same CPU model
+        segs, _ = wb.transcribe(str(vo), "small", word_timestamps=True, language="en", vad_filter=False)
+    else:
+        from faster_whisper import WhisperModel
+        segs, _ = WhisperModel("small", compute_type="int8").transcribe(str(vo), word_timestamps=True, language="en",
+                                                                        vad_filter=False)
     out = [{"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)} for s in segs for w in s.words]
     (HERE / "words.json").write_text(json.dumps(out))
     return out

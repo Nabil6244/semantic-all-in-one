@@ -34,6 +34,10 @@ class ModelReuse(unittest.TestCase):
         _FakeModel.built = []
         vg._WHISPER_CACHE.clear()
         self.addCleanup(vg._WHISPER_CACHE.clear)
+        # these check the CPU model cache: keep the Apple-GPU path (whisper_backend.py) out of them
+        e = mock.patch.dict("os.environ", {"VG_WHISPER": "cpu"})
+        e.start()
+        self.addCleanup(e.stop)
         fake_mod = types.ModuleType("faster_whisper")
         fake_mod.WhisperModel = _FakeModel
         p = mock.patch.dict(sys.modules, {"faster_whisper": fake_mod})

@@ -1,0 +1,65 @@
+{
+  "beat01_hook": [
+    {"type": "steps", "title": "THE SECRET UFO QUEST", "items": [
+      {"label": "Abduction on a rural road after 2 AM", "phrase": "drive down the wrong rural road"},
+      {"label": "Playable white-void dream + keypad code", "phrase": "triggers a playable white-void dream"},
+      {"label": "Underground Grassrivers alien lab", "phrase": "leading straight into an underground"},
+      {"label": "Belville UFO house mystery", "phrase": "players just solved Rockstar's"}
+    ]}
+  ],
+  "beat02_part1_forest": [
+    {"type": "steps", "title": "PART 1: THE ABDUCTION", "items": [
+      {"label": "Finish Chapter One (free roam)", "phrase": "finish Chapter One and unlock free roam"},
+      {"label": "After 2:00 AM, completely alone", "phrase": "Wait until after two in the morning"},
+      {"label": "Ride east of Port Gellhorn", "phrase": "ride east out of Port Gellhorn"},
+      {"label": "Stranded Impaler, door open", "phrase": "Watch the shoulder of the road"},
+      {"label": "Shout: nobody answers", "phrase": "use the shout button"},
+      {"label": "Follow the clothes into the woods", "phrase": "trail of scattered clothes"},
+      {"label": "Walk back to her car: UFO takes you", "phrase": "offer to fetch her car", "warn": true}
+    ]},
+    {"type": "trophy", "phrase": "the secret trophy", "title": "The Truth Is Out There", "sub": "Secret trophy unlocked"}
+  ],
+  "beat03_part2_dream": [
+    {"type": "keypad", "phrase": "look closely at the wall above the dream keypad", "code_phrase": "for code",
+     "digits": "3214", "note": "Some runs: 2134  ·  saved in Phone Notes", "note_phrase": "saves the code in your phone's Notes app"}
+  ],
+  "beat04_part3_lab_entry": [
+    {"type": "steps", "title": "PART 3: GET INTO THE LAB", "items": [
+      {"label": "Boundary Road, Grassrivers", "phrase": "Grassrivers along Boundary Road"},
+      {"label": "Guard booth + radio tower", "phrase": "Look for a small guard booth"},
+      {"label": "Gate or left side of the fence", "phrase": "climb the left side of the fence"},
+      {"label": "Ladder onto the roof", "phrase": "climb the ladder on the far side"},
+      {"label": "Drop through the roof hatch", "phrase": "Drop down through the open roof hatch"},
+      {"label": "Restricted Area keypad: 3214", "phrase": "Type in your dream code"},
+      {"label": "Elevator down to the lab", "phrase": "The lift drops you deep underground"}
+    ]}
+  ],
+  "beat05_part3_alien_milk": [
+    {"type": "steps", "title": "INSIDE THE LAB", "items": [
+      {"label": "Play the audio tapes", "phrase": "play the audio tapes sitting on the console"},
+      {"label": "Subject NHI-01 eats raw cow's milk", "phrase": "live creature labeled Subject"},
+      {"label": "All lights green, pull the lever", "phrase": "Press the control panel buttons"},
+      {"label": "Middle door: radiation!", "phrase": "stepping through the middle door", "warn": true},
+      {"label": "Left corridor: grab the milk", "phrase": "Duck through the left corridor"},
+      {"label": "Right chamber: milk into capsule", "phrase": "Insert the milk bottle"},
+      {"label": "Pick up alien: toxic gas, RUN", "phrase": "The instant you pick the alien up", "warn": true}
+    ]}
+  ],
+  "beat06_reward": [
+    {"type": "stats", "title": "4 PERMANENT UPGRADES", "items": [
+      {"label": "Focus", "phrase": "Focus increased, Maximum Focus"},
+      {"label": "Max Focus", "phrase": "Maximum Focus increased"},
+      {"label": "Max Stamina", "phrase": "Maximum Stamina increased"},
+      {"label": "Max Health", "phrase": "Maximum Health increased"}
+    ]}
+  ],
+  "beat07_ufo_house_bonus": [
+    {"type": "notes", "title": "GARAGE WALL", "items": [
+      {"text": "IT'S A SIMULATION", "phrase": "screaming in giant red letters", "red": true},
+      {"text": "Why can't I leave Leonida?", "phrase": "Why can't I leave Leonida"},
+      {"text": "Number 6, what does it mean?", "phrase": "Number six, what does it mean"},
+      {"text": "Who is L, who is J?", "phrase": "Who is L, who is J"},
+      {"text": "Identical People: 140", "phrase": "Identical People: one hundred"}
+    ]}
+  ]
+}
