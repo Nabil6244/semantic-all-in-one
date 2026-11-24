@@ -111,3 +111,88 @@ class ScrollableFrameUnbind(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_TK, "needs Tk")
+class ResizeDeferral(unittest.TestCase):
+    """Dragging the window edge: widget redraws and page widths wait, then happen once when the drag settles."""
+
+    def setUp(self):
+        ctk_perf.watch_window(_root)
+        # a test window resize can take longer than a real drag's event gap; keep the drag "active" across steps
+        self._settle = ctk_perf.RESIZE_SETTLE_MS
+        ctk_perf.RESIZE_SETTLE_MS = 5000
+        self.page = ctk.CTkScrollableFrame(_root)
+        self.page.pack(fill="both", expand=True)
+        self.btn = ctk.CTkButton(self.page, text="Go")
+        self.btn.pack(fill="x")
+        _root.geometry("400x300")
+        for _ in range(3):
+            _root.update()
+        ctk_perf.flush_pending_draws()
+        _root.update_idletasks()
+
+    def tearDown(self):
+        ctk_perf.RESIZE_SETTLE_MS = self._settle
+        ctk_perf.flush_pending_draws()
+        self.page.destroy()
+
+    def _resize(self, width):
+        _root.geometry(f"{width}x300")
+        _root.update()   # the window's own size change is a window-system event: update(), not update_idletasks()
+
+    def _count_draws(self):
+        calls = []
+        real = type(self.btn)._draw
+
+        def counting(w, *a, **k):
+            calls.append(w)
+            return real(w, *a, **k)
+
+        type(self.btn)._draw = counting
+        return calls, real
+
+    def test_children_never_reach_the_window_handlers_in_python(self):
+        script = str(_root.tk.call("bind", str(_root), "<Configure>"))
+        self.assertIn('if {"%W" eq ".', script)
+
+    def test_redraw_waits_while_resizing_then_happens_once(self):
+        self._resize(410)   # the drag's first step may lay out before the window reports its new size
+        calls, real = self._count_draws()
+        try:
+            for i in range(8):
+                self._resize(420 + 12 * i)
+            self.assertTrue(ctk_perf.resizing())
+            self.assertEqual([c for c in calls if c is self.btn], [])
+            ctk_perf.flush_pending_draws()
+            _root.update_idletasks()
+            self.assertFalse(ctk_perf.resizing())
+            self.assertEqual(len([c for c in calls if c is self.btn]), 1)
+        finally:
+            type(self.btn)._draw = real
+
+    def test_page_takes_the_new_width_after_settling(self):
+        self._resize(520)
+        ctk_perf.flush_pending_draws()
+        _root.update_idletasks()
+        canvas = self.page._parent_canvas
+        width = int(canvas.itemcget(self.page._create_window_id, "width"))
+        self.assertEqual(width, canvas.winfo_width())
+
+    def test_after_settle_runs_latest_once(self):
+        ran = []
+        self._resize(590)   # the window's first reported size counts as opening, not as a resize
+        self._resize(600)
+        self.assertTrue(ctk_perf.resizing())
+        ctk_perf.after_settle("k", lambda: ran.append(1))
+        ctk_perf.after_settle("k", lambda: ran.append(2))
+        ctk_perf.flush_pending_draws()
+        self.assertEqual(ran, [2])
+
+    def test_settles_by_itself_on_the_timer(self):
+        ctk_perf.RESIZE_SETTLE_MS = self._settle
+        self._resize(640)
+        self.assertTrue(ctk_perf.resizing())
+        _root.after(ctk_perf.RESIZE_SETTLE_MS + 80, _root.quit)
+        _root.mainloop()
+        self.assertFalse(ctk_perf.resizing())

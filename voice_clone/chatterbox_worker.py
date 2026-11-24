@@ -63,7 +63,21 @@ def main():
         text = piece["text"]
         best = None
         for _attempt in range(3):               # a piece that comes out far too long or empty is made again
-            wav = model.generate(text) if primed else model.generate(text, audio_prompt_path=ref)
+            try:
+                wav = model.generate(text) if primed else model.generate(text, audio_prompt_path=ref)
+            except Exception as exc:  # noqa: BLE001 - a graphics chip that loads the model but fails on a line (out of memory,
+                if device == "cpu":   # an op it lacks) finishes the run on the processor instead of stopping it
+                    raise
+                print(f"chatterbox: {device} failed ({type(exc).__name__}: {str(exc)[:200]}); continuing on the CPU", file=sys.stderr, flush=True)
+                model, device, kind = load_model("cpu")
+                primed = False
+                try:
+                    model.prepare_conditionals(ref)
+                    primed = True
+                except Exception:  # noqa: BLE001
+                    pass
+                say(ready=device, model=kind)
+                wav = model.generate(text) if primed else model.generate(text, audio_prompt_path=ref)
             samples = wav.squeeze().detach().cpu().float().numpy()
             sec = samples.size / model.sr
             best = samples
@@ -77,5 +91,7 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:  # noqa: BLE001
+        import traceback
+        traceback.print_exc()                    # to stderr: the app keeps it in chatterbox_run.log
         say(error=f"{type(exc).__name__}: {str(exc)[:300]}")
         sys.exit(1)

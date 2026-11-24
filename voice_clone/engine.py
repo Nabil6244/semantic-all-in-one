@@ -17,6 +17,11 @@ from typing import Callable, Optional
 
 import numpy as np
 
+try:   # no black console window per child on Windows (the exe is a windowed app)
+    from providers import hidden_subprocess as _hs
+except Exception:  # noqa: BLE001
+    _hs = subprocess
+
 SR = 22050                      # the converter's sampling rate
 MODEL_BASE = "https://huggingface.co/myshell-ai/OpenVoiceV2/resolve/main/converter/"
 MODEL_FILES = {"config.json": 300, "checkpoint.pth": 100_000_000}   # name -> minimum plausible bytes
@@ -134,7 +139,7 @@ def read_audio(path: str, ffmpeg: str = "ffmpeg", start: float = 0.0, seconds: O
     if seconds:
         cmd += ["-t", str(seconds)]
     cmd += ["-vn", "-ac", "1", "-ar", str(rate), "-f", "f32le", "-"]
-    out = subprocess.run(cmd, capture_output=True, timeout=1800)
+    out = _hs.run(cmd, capture_output=True, timeout=1800)
     if out.returncode != 0 or not out.stdout:
         raise ValueError("could not read audio: " + out.stderr.decode("utf-8", "replace")[:160])
     return np.frombuffer(out.stdout, dtype=np.float32).copy()
@@ -143,7 +148,7 @@ def read_audio(path: str, ffmpeg: str = "ffmpeg", start: float = 0.0, seconds: O
 def write_mp3(audio: np.ndarray, path: str, ffmpeg: str = "ffmpeg", rate: int = 24000, bitrate: str = "48k") -> None:
     """Float samples at the converter's rate -> mp3 in the same shape the Voiceover tab's pieces use (mono, 24 kHz)."""
     pcm = np.clip(audio, -1.0, 1.0).astype(np.float32).tobytes()
-    r = subprocess.run([ffmpeg, "-y", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-", "-ar", str(rate),
+    r = _hs.run([ffmpeg, "-y", "-v", "error", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-", "-ar", str(rate),
                         "-c:a", "libmp3lame", "-b:a", bitrate, str(path)], input=pcm, capture_output=True, timeout=1800)
     if r.returncode != 0:
         raise OSError("could not write audio: " + r.stderr.decode("utf-8", "replace")[:160])
@@ -266,7 +271,7 @@ def _imports_torch(py: Path) -> bool:
     if not py.is_file():
         return False
     try:
-        r = subprocess.run([str(py), "-c", OV_CHECK], capture_output=True, timeout=600, stdin=subprocess.DEVNULL, env=cbx._child_env())
+        r = _hs.run([str(py), "-c", OV_CHECK], capture_output=True, timeout=600, stdin=subprocess.DEVNULL, env=cbx._child_env())
     except (OSError, subprocess.TimeoutExpired):
         return False
     return r.returncode == 0
@@ -306,7 +311,7 @@ class WorkerCloner:
         self._log = open(cbx.setup_log(), "a", encoding="utf-8")
         self._log.write(f"$ {python} {ov_worker_path()} (OpenVoice worker)\n")
         self._log.flush()
-        self.proc = subprocess.Popen([python, str(ov_worker_path()), ffmpeg], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        self.proc = _hs.popen([python, str(ov_worker_path()), ffmpeg], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=self._log, text=True, encoding="utf-8", errors="replace", env=cbx._child_env())
         first = self._read()
         if "ready" not in first:

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import threading
 from pathlib import Path
@@ -93,6 +94,31 @@ def _render_relevant(value: Any) -> Any:
     return value
 
 
+_RENDERER_REV: Optional[str] = None
+
+
+def renderer_rev() -> str:
+    """Which renderer made a clip: the scene renderer's own source (video_generator.py), else the app version (frozen exe).
+    In the key so a renderer fix (e.g. the BT.709 encode) never hands back clips the old code made."""
+    global _RENDERER_REV
+    if _RENDERER_REV is None:
+        rev = ""
+        try:
+            src = Path(__file__).with_name("video_generator.py")
+            if src.is_file():
+                rev = hashlib.sha256(src.read_bytes()).hexdigest()[:16]
+        except OSError:
+            rev = ""
+        if not rev:
+            try:
+                import app_version
+                rev = "app-" + str(getattr(app_version, "APP_VERSION", "") or getattr(app_version, "__version__", ""))
+            except Exception:
+                rev = "unknown"
+        _RENDERER_REV = rev
+    return _RENDERER_REV
+
+
 def build_scene_cache_key(
     *,
     scene_number: Any,
@@ -145,6 +171,7 @@ def build_scene_cache_key(
 
     payload = {
         "schema_version": RENDER_CACHE_SCHEMA_VERSION,
+        "renderer": renderer_rev(),
         "scene_number": str(scene_number),
         "source": _file_identity(img_path),
         "duration": round(float(duration), 4),
@@ -226,10 +253,9 @@ class RenderCache:
         try:
             self.state_dir.mkdir(parents=True, exist_ok=True)
             payload = {"schema_version": RENDER_CACHE_SCHEMA_VERSION, "entries": self._entries}
-            self._index_path.write_text(
-                json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False),
-                encoding="utf-8",
-            )
+            tmp = self._index_path.with_name(f"{self._index_path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+            tmp.write_text(json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, self._index_path)   # a crash mid-write can no longer corrupt the whole index
         except OSError:
             # Persisting the cache is best-effort — losing it just means the
             # next run starts cold, never a pipeline failure.
@@ -272,7 +298,13 @@ class RenderCache:
             self._clips_dir.mkdir(parents=True, exist_ok=True)
             clip_name = f"scene_{str(scene_key)}_{cache_key[:16]}{Path(rendered_clip).suffix}"
             dest = self._clips_dir / clip_name
-            shutil.copy2(rendered_clip, dest)
+            part = dest.with_name(dest.name + ".part")
+            try:
+                shutil.copy2(rendered_clip, part)      # a copy cut short by a full disk never takes the cached name
+                os.replace(part, dest)
+            except (OSError, shutil.Error):
+                part.unlink(missing_ok=True)
+                return
             with self._lock:
                 previous = (self._entries.get(str(scene_key)) or {}).get("clip_file")
                 self._entries[str(scene_key)] = {"cache_key": cache_key, "clip_file": clip_name}

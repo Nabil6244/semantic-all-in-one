@@ -10,7 +10,8 @@ from __future__ import annotations
 import importlib
 from typing import Any, Callable, List, NamedTuple, Optional
 
-# flag -> (label, how to stop it). "app:<method>" calls app.<method>(); "mod:<module>" calls ui.<module>.cancel(app).
+# flag -> (label, how to stop it). "app:<method>" calls app.<method>(); "mod:<module>" calls ui.<module>.cancel(app);
+# "pkg:<dotted.module>" calls <dotted.module>.cancel(app) (styles whose page lives in their own package).
 KNOWN = {
     "_running": ("Generate", "app:_on_cancel"),
     "_hybrid_running": ("Hybrid Map", "app:_on_hybrid_cancel"),
@@ -18,10 +19,10 @@ KNOWN = {
     "_starmap_running": ("StarMap", "app:_on_starmap_cancel"),
     "_whatif_running": ("What If", "app:_on_whatif_cancel"),
     "_pakmap_running": ("pakMap", "app:_on_pakmap_cancel"),
-    "_weather_running": ("Weather", ""),
-    "_war_running": ("War Documentary", ""),
-    "_rt_running": ("Rep Theory", ""),
-    "_health_running": ("Health Cinema", ""),
+    "_weather_running": ("Weather", "pkg:weather.app_section"),
+    "_war_running": ("War Documentary", "pkg:cinematic_explainer.war.app_section"),
+    "_rt_running": ("Rep Theory", "pkg:reptheory.app_section"),
+    "_health_running": ("Health Cinema", "pkg:health_cinema.app_section"),
     "_av_running": ("Aviation", "mod:aviation_section"),
     "_ct_running": ("City Timelapse", "mod:city_timelapse_section"),
     "_ff_running": ("Food Files", "mod:foodfiles_section"),
@@ -59,7 +60,24 @@ def _stopper(app: Any, how: str) -> Optional[Callable[[], None]]:
             mod.cancel(app)
 
         return run
+    if how.startswith("pkg:"):
+        dotted = how[4:]
+
+        def run_pkg() -> None:
+            importlib.import_module(dotted).cancel(app)
+
+        return run_pkg
     return None
+
+
+def stop_all(app: Any) -> None:
+    """Ask every running job to stop (used on quit). One failing stop never blocks the others."""
+    for job in running(app):
+        if job.stop is not None:
+            try:
+                job.stop()
+            except Exception:
+                pass
 
 
 def running(app: Any) -> List[Job]:

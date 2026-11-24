@@ -10,6 +10,7 @@ captions and cuts are untouched. Each levelled copy is cached in the render's wo
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -65,11 +66,17 @@ def level(path: Union[str, Path], out_dir: Union[str, Path], *, target: float, k
             print(f"[LEVEL] {kind}: {measured:.1f} LUFS, already at the standard level")
         return str(path)
     out.parent.mkdir(parents=True, exist_ok=True)
+    part = out.with_name(out.stem + ".part.wav")
     cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(src), "-vn", "-af", f"volume={g:.2f}dB,alimiter=limit={LIMIT}:level=false",
-           "-ar", "48000", "-c:a", "pcm_s16le", str(out)]
+           "-ar", "48000", "-c:a", "pcm_s16le", str(part)]
     try:
         subprocess.run(cmd, check=True, capture_output=True, timeout=900)
+        os.replace(part, out)            # only a finished file gets the cached name: a timed-out half is never reused
     except Exception as exc:
+        try:
+            part.unlink()
+        except OSError:
+            pass
         print(f"[LEVEL] {kind}: levelling skipped ({exc})")
         return str(path)
     print(f"[LEVEL] {kind}: {measured:.1f} LUFS -> {target:.0f} LUFS ({g:+.1f} dB, peaks limited)")

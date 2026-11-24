@@ -25,6 +25,7 @@ import argparse
 import glob
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -186,19 +187,27 @@ def follow(job: Path, proc, *, max_s: float = 0, say=print) -> dict:
 
 def stop_app(proc) -> None:
     """Closes only the app this command started (its own process), never another copy."""
+    # The app runs in its own process group (start_app), so its ffmpeg/Blender/Chrome children stop with it.
     try:
-        proc.terminate()
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, timeout=30)
+        else:
+            os.killpg(proc.pid, signal.SIGTERM)
         proc.wait(timeout=30)
     except Exception:
         try:
-            proc.kill()
+            if os.name == "nt":
+                proc.kill()
+            else:
+                os.killpg(proc.pid, signal.SIGKILL)
         except Exception:
             pass
 
 
 def start_app(app: list, job: Path):
     env = dict(os.environ, SYT_AUTORUN=str(job))
-    return subprocess.Popen(app, env=env, cwd=str(Path(app[-1]).parent), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return subprocess.Popen(app, env=env, cwd=str(Path(app[-1]).parent), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            **({"creationflags": 0x00000200} if os.name == "nt" else {"start_new_session": True}))
 
 
 def cmd_run(a) -> int:
@@ -325,8 +334,29 @@ def write_report(report: Path, started: float, results: list, total: int) -> Non
                 lines.append(f"   project (open it in the app to fix and Render): {r['project']}")
         if r.get("log"):
             lines.append(f"   log: {r['log']}")
-    report.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    report.with_suffix(".json").write_text(json.dumps({"started": started, "total": total, "results": results}, indent=2), encoding="utf-8")
+    # A full disk while writing the report must not end the batch: log it and carry on with the next video.
+    for path, text in ((report, "\n".join(lines) + "\n"), (report.with_suffix(".json"), json.dumps({"started": started, "total": total, "results": results}, indent=2))):
+        tmp = path.with_name(path.name + ".tmp")
+        try:
+            tmp.write_text(text, encoding="utf-8")
+            os.replace(tmp, path)
+        except OSError as exc:
+            print(f"make_video: could not write {path.name} ({exc})", file=sys.stderr, flush=True)
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
+
+MIN_FREE_GB = 3.0   # below this a video is not started: it would fail midway and could take the next ones down with it
+
+
+def free_gb(path: Path) -> float:
+    import shutil
+    try:
+        return shutil.disk_usage(str(path)).free / 1e9
+    except OSError:
+        return float("inf")
 
 
 def cmd_batch(a) -> int:
@@ -373,7 +403,18 @@ def cmd_batch(a) -> int:
                 write_report(report, started, results, len(jobs))
                 continue
             say(f"\n=== video {i} of {len(jobs)}: {title} ({j.style}) ===")
-            job = write_job(j, jobs_dir)
+            free = min(free_gb(jobs_dir), free_gb(Path.home()))
+            if free < MIN_FREE_GB:
+                results.append({"title": title, "style": j.style, "state": "failed", "message": f"not started: disk full ({free:.1f} GB free, needs {MIN_FREE_GB:.0f} GB)"})
+                say(f"video {i}: SKIPPED, only {free:.1f} GB free on disk")
+                write_report(report, started, results, len(jobs))
+                continue
+            try:
+                job = write_job(j, jobs_dir)
+            except OSError as exc:
+                results.append({"title": title, "style": j.style, "state": "failed", "message": f"not started: could not write the job file ({exc})"})
+                write_report(report, started, results, len(jobs))
+                continue
             t0 = time.time()
             st = follow(job, start_app(app, job), max_s=a.max_hours * 3600, say=say)
             results.append({"title": title, "style": j.style, "state": st.get("state"), "message": st.get("message", ""), "video": st.get("video", ""),

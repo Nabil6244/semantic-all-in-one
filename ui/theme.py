@@ -16,6 +16,7 @@ that one key with its own tiny, independent helpers.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -59,7 +60,9 @@ def _write_saved_mode(mode: str) -> None:
                 data = {}
         data["theme_mode"] = mode
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        tmp = path.with_name(path.name + ".theme.tmp")
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
     except OSError:
         pass
 
@@ -151,6 +154,15 @@ DARK = {
     "family_kids": "#14241C",
     "family_products": "#122229",
     "family_more": "#1A1C24",
+    # family accent ink (icon glyphs, icon tiles, pills) from the Lovable mockup 2026-11-24
+    "ink_general": "#8A93A8",
+    "ink_history": "#D9785B",
+    "ink_space": "#6C8CFF",
+    "ink_theory": "#F5B748",
+    "ink_stories": "#C46FD8",
+    "ink_kids": "#4FC3E8",
+    "ink_products": "#3DBE9C",
+    "ink_more": "#8A93A8",
 }
 
 LIGHT = {
@@ -203,6 +215,14 @@ LIGHT = {
     "family_kids": "#E2F2E8",
     "family_products": "#DFEFF4",
     "family_more": "#EBECF0",
+    "ink_general": "#6B7386",
+    "ink_history": "#C0583A",
+    "ink_space": "#4766E0",
+    "ink_theory": "#C68415",
+    "ink_stories": "#A24BB8",
+    "ink_kids": "#1F9BC4",
+    "ink_products": "#1E9C7A",
+    "ink_more": "#6B7386",
 }
 
 _TABLES = {"dark": DARK, "light": LIGHT}
@@ -213,13 +233,33 @@ _TABLES = {"dark": DARK, "light": LIGHT}
 # ui.theme is always imported (and thus resolved) before app.py's later
 # top-level lines copy these values. See ui/theme.py module docstring and
 # the Phase 2 report's THEME section for the live-toggle scope note.
-MODE = _read_saved_mode() or "system"  # follow the OS appearance unless the user picked one
+MODE = _read_saved_mode() or "light"  # white by default; the sun/moon button or Settings can still pick dark or system
 _ACTIVE_MODE = _resolve(MODE)
 _TOKENS = _TABLES[_ACTIVE_MODE]
 
 
 def get_token(name: str) -> str:
     return _TOKENS.get(name, DARK.get(name, "#000000"))
+
+
+_MIXES: set = set()   # every (color, base, amount) blended so far: a live light/dark switch remaps these too
+
+
+def mix(color: str, base: str, amount: float, _record: bool = True) -> str:
+    """``amount`` of ``color`` over ``base`` (both #RRGGBB): the tinted icon tiles and pills."""
+    if _record and isinstance(color, str) and isinstance(base, str):
+        _MIXES.add((color.upper(), base.upper(), amount))
+    try:
+        c = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+        b = [int(base[i:i + 2], 16) for i in (1, 3, 5)]
+        return "#" + "".join(f"{round(b[k] + (c[k] - b[k]) * amount):02X}" for k in range(3))
+    except (ValueError, IndexError, TypeError):
+        return base
+
+
+def family_ink(tint_token: str) -> str:
+    """The accent ink for a family tint token (family_history -> ink_history)."""
+    return get_token("ink_" + tint_token.replace("family_", "", 1))
 
 
 def _apply_active_tokens() -> None:
@@ -361,6 +401,17 @@ def color_remap(old_tokens: dict, new_tokens: dict, role: str = "fill") -> dict:
         old, new = old_tokens.get(key), new_tokens.get(key)
         if isinstance(old, str) and isinstance(new, str):
             mapping.setdefault(old.upper(), new)
+    # blended colours (mix()) are not tokens: map each to the same blend of the new tokens
+    keys: dict = {}
+    for key in sorted(old_tokens, key=rank):
+        val = old_tokens.get(key)
+        if isinstance(val, str):
+            keys.setdefault(val.upper(), key)
+    for color, base, amount in list(_MIXES):
+        kc, kb = keys.get(color), keys.get(base)
+        if kc and kb and isinstance(new_tokens.get(kc), str) and isinstance(new_tokens.get(kb), str):
+            old_mix = mix(color, base, amount, _record=False).upper()
+            mapping.setdefault(old_mix, mix(new_tokens[kc], new_tokens[kb], amount))   # recorded: switching back maps it again
     return mapping
 
 

@@ -432,7 +432,9 @@ class AppShell(ctk.CTkFrame):
     def view(self, key: str):
         """The page for ``key``, building a lazily-registered one on first use."""
         if key not in self.views and key in self._factories:
-            self.register_view(key, self._factories.pop(key)())
+            frame = self._factories[key]()        # a page that fails to build stays registered so it can be tried again
+            self._factories.pop(key, None)
+            self.register_view(key, frame)
         return self.views.get(key)
 
     def navigate(self, key: str) -> None:

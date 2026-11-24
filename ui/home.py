@@ -35,6 +35,12 @@ def install(app: Any) -> None:
         shell.set_tools_open(False, notify=False)
     _track_recent_styles(app)
     install_shortcuts(app)
+    try:   # dragging the window edge: widgets redraw once when it settles, not on every pixel (ui/ctk_perf.py)
+        from . import ctk_perf
+
+        ctk_perf.watch_window(app)
+    except Exception:
+        pass
     app._home_state = {"visuals_at": 0.0, "visuals_done": False}
     try:
         app.after(POLL_MS, lambda: _poll(app))

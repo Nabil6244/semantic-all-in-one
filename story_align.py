@@ -609,6 +609,8 @@ def speech_window_check(rows, whisper_words, windows: Sequence[Tuple[float, floa
     """For each scene: the share of ITS heard words (script words matched to Whisper words by the DP) that lie inside its (start, end) window.
     ``windows`` should TILE (what the renderer shows). Used to compare any aligner's result against the speech evidence."""
     words = _norm_words(whisper_words)
+    if not words:                       # silent / failed transcript: nothing to compare (was IndexError)
+        return []
     toks: List[_Tok] = []
     owner: List[int] = []
     for ri, row in enumerate(rows):

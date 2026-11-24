@@ -371,12 +371,20 @@ class Runner:
         if self.ws is None:
             return None, False
         # A video an earlier run left in final/ is not this run's result: counting it handed back the old film without rendering.
-        vids = [p for p in Path(self.ws.final_dir).glob("*.mp4") if p.stat().st_size > 0 and ".part" not in p.name and not p.name.startswith(".")
-                and p.stat().st_mtime >= self.run_started - 1.0]
+        vids = []
+        for p in Path(self.ws.final_dir).glob("*.mp4"):
+            if ".part" in p.name or p.name.startswith("."):
+                continue
+            try:                                         # the export may rename the file between glob and stat
+                stt = p.stat()
+            except OSError:
+                continue
+            if stt.st_size > 0 and stt.st_mtime >= self.run_started - 1.0:
+                vids.append((stt.st_mtime, p))
         if not vids:
             return None, False
-        v = max(vids, key=lambda p: p.stat().st_mtime)
-        return v, time.time() - v.stat().st_mtime > FINAL_STABLE_S
+        mtime, v = max(vids, key=lambda t: t[0])
+        return v, time.time() - mtime > FINAL_STABLE_S
 
     def step(self) -> None:
         """One look at the big button: wait while it says Stop, else press it for whatever it says next."""

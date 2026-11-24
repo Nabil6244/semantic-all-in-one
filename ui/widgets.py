@@ -235,11 +235,22 @@ class StatTile(ctk.CTkFrame):
         self._detail = ctk.CTkLabel(self, text="", font=font(T.FONT_METADATA), text_color=T.MUTED,
                                     anchor="w", justify="left")
         self._detail.grid(row=2, column=0, sticky="w", padx=14, pady=(0, 12))
+        self._bar = ctk.CTkProgressBar(self, height=4, corner_radius=2, fg_color=T.CARD_HOVER,
+                                       progress_color=T.ACCENT, border_width=0)
+        self._bar.set(0)
 
-    def set(self, value: str, detail: str = "", tone: str = "") -> None:
+    def set(self, value: str, detail: str = "", tone: str = "", progress: Optional[float] = None) -> None:
+        """``progress`` 0..1 shows a thin bar under the value (the mockup's tiles); None hides it."""
         color = _tone_colors(tone)[0] if tone else T.TEXT
         self._value.configure(text=value, text_color=color)
         self._detail.configure(text=detail)
+        if progress is None:
+            self._bar.grid_remove()
+        else:
+            self._bar.set(max(0.0, min(1.0, float(progress))))
+            self._bar.configure(progress_color=_tone_colors(tone)[0] if tone in ("ok", "warn", "fail") else T.ACCENT)
+            self._bar.grid(row=3, column=0, sticky="ew", padx=14, pady=(0, 12))
+            self._detail.grid_configure(pady=(0, 6))
 
 
 # ---------------------------------------------------------------------------
@@ -440,3 +451,47 @@ def segmented_style() -> dict:
         unselected_color=T.CARD, unselected_hover_color=T.CARD_HOVER,
         text_color=T.TEXT, text_color_disabled=T.TEXT_TERTIARY, corner_radius=T.RADIUS,
     )
+
+
+class StyleTile(ctk.CTkFrame):
+    """Small style card (Home quick picks): tinted icon tile in the family ink, star when pinned, name and pitch."""
+
+    def __init__(self, master, name: str, icon: str, pitch: str, tint_token: str, pinned: bool = False,
+                 command: Optional[Callable] = None, **kwargs):
+        ink = T.family_ink(tint_token)
+        base = T.mix(ink, T.CARD, 0.07)
+        super().__init__(master, fg_color=base, corner_radius=T.RADIUS_LG, border_width=1,
+                         border_color=T.BORDER, cursor="hand2", **kwargs)
+        self.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(self, text=icon or "□", width=40, height=40, corner_radius=T.RADIUS,
+                     fg_color=T.mix(ink, T.CARD, 0.18), text_color=ink,
+                     font=ctk.CTkFont(size=18)).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 0))
+        ctk.CTkLabel(self, text="★" if pinned else "☆", font=ctk.CTkFont(size=14),
+                     text_color=T.WARNING if pinned else T.TEXT_TERTIARY).grid(row=0, column=1, sticky="ne",
+                                                                              padx=12, pady=(12, 0))
+        ctk.CTkLabel(self, text=name, font=ctk.CTkFont(size=14, weight="bold"), text_color=T.TEXT,
+                     anchor="w").grid(row=1, column=0, columnspan=2, sticky="ew", padx=14, pady=(10, 0))
+        self._pitch = ctk.CTkLabel(self, text=pitch, font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="nw",
+                                   justify="left", wraplength=150)
+        self._pitch.grid(row=2, column=0, columnspan=2, sticky="new", padx=14, pady=(2, 14))
+        self.grid_rowconfigure(2, weight=1)
+
+        def bind_all(w):
+            if command is not None:
+                w.bind("<Button-1>", lambda _e: command())
+            w.bind("<Enter>", lambda _e: self.configure(border_color=T.BORDER_STRONG))
+            w.bind("<Leave>", lambda _e: self.configure(border_color=T.BORDER))
+            for child in w.winfo_children():
+                bind_all(child)
+
+        bind_all(self)
+        self.bind("<Configure>", lambda e: self._pitch.configure(wraplength=max(80, e.width - 30)), add="+")
+
+
+class Pill(ctk.CTkLabel):
+    """Small rounded label tinted in a colour (a style's family on Recent projects)."""
+
+    def __init__(self, master, text: str, color: str, **kwargs):
+        super().__init__(master, text=f"  {text}  ", height=20, corner_radius=10, fg_color=T.mix(color, T.CARD, 0.16),
+                         text_color=color, font=ctk.CTkFont(size=11, weight="bold"), **kwargs)
+

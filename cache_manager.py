@@ -64,7 +64,29 @@ def project_cache_bytes(ws: ProjectWorkspace) -> int:
     the preview/proxy render cache. Never includes source media, CSVs,
     narration, scripts, project metadata, or final renders — those are
     never scanned by either underlying helper."""
-    return generated_asset_cache_bytes(ws) + proxy_cache_bytes(ws)
+    return generated_asset_cache_bytes(ws) + proxy_cache_bytes(ws) + render_cache_bytes(ws)
+
+
+def render_cache_bytes(ws: ProjectWorkspace) -> int:
+    """The per-scene render cache (state/render_cache): finished scene clips kept for reuse."""
+    import render_cache
+    return _dir_size(render_cache.cache_clips_dir(ws.state_dir))
+
+
+def clear_render_cache(ws: ProjectWorkspace) -> int:
+    """Removes the cached scene clips and their index (the next render simply re-renders every scene)."""
+    import shutil
+    import render_cache
+
+    clips = render_cache.cache_clips_dir(ws.state_dir)
+    freed = _dir_size(clips)
+    if clips.is_dir() and path_is_inside(clips, ws.state_dir):
+        shutil.rmtree(clips, ignore_errors=True)
+    try:
+        render_cache.cache_index_path(ws.state_dir).unlink(missing_ok=True)
+    except OSError:
+        pass
+    return freed
 
 
 def clear_temp_cache(ws: ProjectWorkspace) -> int:
@@ -142,6 +164,7 @@ def clear_all_cache(projects_root: Optional[Path] = None) -> ClearAllCacheResult
             result.bytes_freed += clear_temp_cache(ws)
             result.bytes_freed += clear_preview_cache(ws)
             result.bytes_freed += clear_generated_asset_cache(ws).bytes_freed
+            result.bytes_freed += clear_render_cache(ws)
         except Exception as exc:  # best-effort across many projects
             result.failures.append((ws.project_id, str(exc)))
     return result

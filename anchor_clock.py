@@ -42,8 +42,14 @@ class AnchorClock:
 
         return hit_first(self.tr, m)
 
-    def _near(self, hit, reach: int) -> bool:
-        return hit is not None and not hit[0].out_of_order and (self.open_reach or self._first(hit[0]) - self.cursor <= reach)
+    def _near(self, hit, reach: int, bounded: bool = False) -> bool:
+        """bounded: a partial match (a few words, or a re-spelled name) is held to a window even with open_reach,
+        so a misheard anchor's "the city" cannot jump the cursor minutes ahead."""
+        if hit is None or hit[0].out_of_order:
+            return False
+        if self.open_reach and not bounded:
+            return True
+        return self._first(hit[0]) - self.cursor <= (reach * 3 + 200 if self.open_reach else reach)
 
     def _find(self, words: str, reach: int):
         exact = self.tr.find(words, self.cursor)
@@ -56,13 +62,13 @@ class AnchorClock:
         # one word only (a name): a longer phrase must be spoken as written, or a wrong place could be matched silently
         if (near and len(words.split()) == 1 and len(near[0].split()) == 1 and words[:1].lower() == near[0][:1].lower()
                 and difflib.SequenceMatcher(None, words.lower(), near[0].lower()).ratio() >= 0.72):
-            if self._near(hit := self.tr.find(near[0], self.cursor), reach):
+            if self._near(hit := self.tr.find(near[0], self.cursor), reach, bounded=True):
                 self.notes.append(f"vo_anchor {words!r} was matched to {near[0]!r} at {near[1]:.1f}s (how the narration spells it)")
                 return hit
         parts = words.split()
         for size in range(len(parts) - 1, 1, -1):                  # one wrong word: the same start, or end, with fewer words
             for label, sub in (("start", parts[:size]), ("end", parts[-size:])):
-                if self._near(hit := self.tr.find(" ".join(sub), self.cursor), reach):
+                if self._near(hit := self.tr.find(" ".join(sub), self.cursor), reach, bounded=True):
                     self.notes.append(f"vo_anchor {words!r}: not spoken exactly; its {label} words {' '.join(sub)!r} were found at {hit[0].t_start:.1f}s")
                     return hit
         return exact if exact is not None and exact[0].out_of_order else None

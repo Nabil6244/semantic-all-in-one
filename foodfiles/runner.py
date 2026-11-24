@@ -512,7 +512,7 @@ def refresh_assets(spec):
     for k, p in spec.get("pictures", {}).items():
         if k not in pics and flow.have(k):
             pics[k] = flow.have(k)
-        if p.get("clip") and k not in clips and flow.have(k, "mp4"):
+        if p.get("clip") and not p.get("still_chosen") and k not in clips and flow.have(k, "mp4"):   # still_chosen: picked in the Visuals tab
             clips[k] = flow.have(k, "mp4")
     credits(spec)
     return spec

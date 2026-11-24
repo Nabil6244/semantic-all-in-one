@@ -143,6 +143,12 @@ def sync(app: Any, active: str) -> None:
     if prev_browsing is None or prev_browsing != browsing:
         _scroll_visual_director_to_top(app)
     app._style_sync_browsing = browsing
+    view = getattr(app, "_view_visual_director", None)
+    if view is not None and hasattr(view, "sync_side"):
+        try:
+            view.sync_side()
+        except Exception:
+            pass
 
 
 _STYLE_BLOCKS = ("_overscaled_block", "_pakmap_block", "_hybrid_block", "_starmap_block", "_weather_block", "_whatif_block", "_war_block",

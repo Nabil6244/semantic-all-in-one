@@ -2452,6 +2452,9 @@ def _normalize_ffmpeg_cmd(cmd: List[str]) -> List[str]:
     return out
 
 
+_MIX_TIMEOUT_S = 1800
+
+
 def _run_ffmpeg_cmd(cmd: List[str], *, work_dir: Optional[Path] = None) -> bool:
     """Run ffmpeg; on Windows prefer filter_complex_script to avoid WinError 206."""
     cmd = _normalize_ffmpeg_cmd(cmd)
@@ -2476,21 +2479,24 @@ def _run_ffmpeg_cmd(cmd: List[str], *, work_dir: Optional[Path] = None) -> bool:
     use_script = sys.platform == "win32" or _estimate_cmd_chars(cmd) > _WIN_CMDLINE_SOFT_LIMIT
     attempt = _with_filter_script(cmd) if use_script else cmd
     try:
-        proc = hidden_subprocess.run(attempt, capture_output=True, text=True, cwd=cwd)
+        proc = hidden_subprocess.run(attempt, capture_output=True, text=True, cwd=cwd, timeout=_MIX_TIMEOUT_S)
         ok = proc.returncode == 0
         if not ok and use_script and attempt is not cmd:
             # Some Windows ffmpeg builds reject filter_complex_script paths — retry inline.
-            proc = hidden_subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+            proc = hidden_subprocess.run(cmd, capture_output=True, text=True, cwd=cwd, timeout=_MIX_TIMEOUT_S)
             ok = proc.returncode == 0
         if not ok and _mix_debug_enabled():
             _mix_debug(f"ffmpeg rc={proc.returncode} stderr={(proc.stderr or '')[-400:]}")
         return ok
+    except subprocess.TimeoutExpired:
+        _mix_debug("ffmpeg mix timed out")      # a looping bed (-stream_loop -1) on a bad file must not hang the render
+        return False
     except OSError as exc:
         if _is_win_cmdline_error(exc) and attempt is cmd and "-filter_complex" in cmd:
             # Retry once with filter script
             try:
                 attempt2 = _with_filter_script(cmd)
-                proc = hidden_subprocess.run(attempt2, capture_output=True, text=True, cwd=cwd)
+                proc = hidden_subprocess.run(attempt2, capture_output=True, text=True, cwd=cwd, timeout=_MIX_TIMEOUT_S)
                 return proc.returncode == 0
             except OSError as exc2:
                 _mix_debug(f"ffmpeg OSError after script retry: {exc2}")
@@ -2619,7 +2625,10 @@ def _ffmpeg_mix_ambience_chunk(
                     "-af", f"atrim=0:{trim_duration:.3f}",
                     str(output_path),
                 ]
-                proc = hidden_subprocess.run(cmd, capture_output=True, text=True)
+                try:
+                    proc = hidden_subprocess.run(cmd, capture_output=True, text=True, timeout=_MIX_TIMEOUT_S)
+                except subprocess.TimeoutExpired:
+                    return False
                 return proc.returncode == 0 and output_path.is_file()
             shutil.copy2(base_path, output_path)
             return True
@@ -2731,7 +2740,7 @@ def _ffmpeg_mix_narration_with_stem(
         "-i", str(narration_path),
         "-i", str(stem_path),
         "-filter_complex",
-        "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,volume=0.98[aout]",
+        "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,volume=0.98,alimiter=limit=0.89:level=false[aout]",   # summed beds+effects on speech must never hard-clip
         "-map", "[aout]",
         str(output_path),
     ]
@@ -2791,7 +2800,7 @@ def _ffmpeg_mix_layers(
     n = len(mix_inputs)
     filter_parts.append(
         f"{''.join(mix_inputs)}amix=inputs={n}:duration=first:dropout_transition=0:normalize=0,"
-        f"volume=0.95[aout]"
+        f"volume=0.95,alimiter=limit=0.89:level=false[aout]"
     )
     cmd.extend(["-filter_complex", ";".join(filter_parts), "-map", "[aout]", str(output_path)])
     return _run_ffmpeg_cmd(cmd, work_dir=Path(output_path).resolve().parent) and output_path.is_file()

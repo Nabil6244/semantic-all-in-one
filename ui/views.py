@@ -9,6 +9,7 @@ from typing import Any, Callable, Optional
 
 import customtkinter as ctk
 
+from . import ctk_perf as _ctk_perf
 from . import theme as T
 from .widgets import (
     Card,
@@ -18,6 +19,7 @@ from .widgets import (
     SectionHeader,
     SectionLabel,
     StatTile,
+    StyleTile,
     StatusPill,
     make_button,
     segmented_style,
@@ -52,10 +54,13 @@ class _BaseView(ctk.CTkFrame):
         self.bind("<Configure>", self._fit_measure, add="+")
 
     def _fit_measure(self, event=None) -> None:
+        if _ctk_perf.resizing():   # window edge being dragged: re-pad once it settles, not on every step
+            _ctk_perf.after_settle(("fit", id(self)), self._fit_measure)
+            return
         width = int(getattr(event, "width", 0) or self.winfo_width())
         if width <= 1:
             return
-        side = max(T.PAD_LG + 8, (width - T.CONTENT_MAX_W) // 2)
+        side = max(T.PAD_LG + 8, (width - T.CONTENT_MAX_W) // 2 // 8 * 8)   # 8 px steps: no relayout per pixel of a window drag
         if side == self._side_pad:
             return
         self._side_pad = side
@@ -71,6 +76,21 @@ class _BaseView(ctk.CTkFrame):
     def on_show(self) -> None:
         """Refresh read-only displays. Never trigger production work."""
         pass
+
+
+def _ago(ts: float) -> str:
+    """'2 min ago' / '3 h ago' / 'Yesterday' / '5 days ago' for Recent projects."""
+    import time
+
+    if not ts:
+        return ""
+    s = max(0, time.time() - ts)
+    if s < 3600:
+        return f"{max(1, int(s // 60))} min ago"
+    if s < 86400:
+        return f"{int(s // 3600)} h ago"
+    d = int(s // 86400)
+    return "Yesterday" if d == 1 else f"{d} days ago"
 
 
 class ProjectView(_BaseView):
@@ -99,14 +119,17 @@ class ProjectView(_BaseView):
         nxt = ctk.CTkFrame(self._panel, fg_color=T.ACCENT_SEL, corner_radius=T.RADIUS_LG,
                            border_width=1, border_color=T.ACCENT_BORDER)
         nxt.grid(row=0, column=0, sticky="ew", pady=(0, 12))
-        nxt.grid_columnconfigure(0, weight=1)
+        nxt.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(nxt, text="\u25B6", width=40, height=40, corner_radius=T.RADIUS, fg_color=T.ACCENT,
+                     text_color=T.ACCENT_DARK, font=ctk.CTkFont(size=16)).grid(
+            row=0, column=0, rowspan=2, sticky="w", padx=(18, 0), pady=16)
         ctk.CTkLabel(nxt, text="NEXT STEP", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.ACCENT_TEXT,
-                     anchor="w").grid(row=0, column=0, sticky="w", padx=18, pady=(14, 0))
-        ctk.CTkLabel(nxt, textvariable=app.hint_var, font=ctk.CTkFont(size=15, weight="bold"),
+                     anchor="w").grid(row=0, column=1, sticky="sw", padx=14, pady=(16, 0))
+        ctk.CTkLabel(nxt, textvariable=app.hint_var, font=ctk.CTkFont(size=17, weight="bold"),
                      text_color=T.TEXT, anchor="w", justify="left", wraplength=620).grid(
-            row=1, column=0, sticky="w", padx=18, pady=(2, 14))
-        self._next_btn = make_button(nxt, "Continue", app._on_primary_cta, variant="primary", size="lg", width=170)
-        self._next_btn.grid(row=0, column=1, rowspan=2, sticky="e", padx=18)
+            row=1, column=1, sticky="nw", padx=14, pady=(0, 16))
+        self._next_btn = make_button(nxt, "Continue  \u2192", app._on_primary_cta, variant="primary", size="lg", width=170)
+        self._next_btn.grid(row=0, column=2, rowspan=2, sticky="e", padx=18)
 
         tiles = ctk.CTkFrame(self._panel, fg_color="transparent")
         tiles.grid(row=1, column=0, sticky="ew", pady=(0, 12))
@@ -120,8 +143,12 @@ class ProjectView(_BaseView):
         self._tile_qa = StatTile(tiles, "Quality score")
         self._tile_qa.grid(row=0, column=3, sticky="ew", padx=(6, 0))
 
-        details = Card(self._panel, title="Project details")
-        details.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+        # lower block: details and jump links sit under the jobs / recent pair
+        self._panel_low = ctk.CTkFrame(self._body, fg_color="transparent")
+        self._panel_low.grid(row=3, column=0, sticky="ew", pady=(12, 0))
+        self._panel_low.grid_columnconfigure(0, weight=1)
+        details = Card(self._panel_low, title="Project details")
+        details.grid(row=0, column=0, sticky="ew", pady=(0, 12))
         self._metrics: list[MetricRow] = []
         for i, label in enumerate(("Project", "Style", "Narration", "Scenes", "Visual assets", "Ambience", "SFX",
                                    "Music", "Editorial score", "Last render")):
@@ -132,21 +159,30 @@ class ProjectView(_BaseView):
         # Start a video: the styles used last (pinned first), one click from Home.
         self._quick = Card(self._panel, title="Start with a style", subtitle="Your pinned and recent styles. Opening one only "
                            "shows its page: nothing runs until you press Generate.")
-        self._quick.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        self._quick.grid(row=2, column=0, sticky="ew", pady=(0, 0))
         self._quick_row = ctk.CTkFrame(self._quick.body, fg_color="transparent")
-        self._quick_row.grid(row=0, column=0, sticky="w")
+        self._quick_row.grid(row=0, column=0, sticky="ew")
+        self._quick.body.grid_columnconfigure(0, weight=1)
+        self._quick_row.grid_columnconfigure(tuple(range(6)), weight=1, uniform="quick_tiles")
         self._quick_sig: Optional[tuple] = None
 
         # Running jobs across every style (the full list with Stop is the Jobs drawer in the status bar).
-        self._jobs_card = Card(self._panel, title="Running jobs")
-        self._jobs_card.grid(row=4, column=0, sticky="ew", pady=(0, 12))
-        self._jobs_label = ctk.CTkLabel(self._jobs_card.body, text="", font=ctk.CTkFont(size=12), text_color=T.MUTED,
-                                        anchor="w", justify="left")
-        self._jobs_label.grid(row=0, column=0, sticky="w")
-        make_button(self._jobs_card.body, "Open Jobs", self._open_jobs, size="sm", width=100).grid(row=0, column=1, sticky="e")
+        # jobs | recent projects, side by side (recent alone, full width, with no project open)
+        self._duo = ctk.CTkFrame(self._body, fg_color="transparent")
+        self._duo.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        self._duo.grid_columnconfigure((0, 1), weight=1, uniform="home_duo")
+        self._jobs_card = Card(self._duo, title="Running jobs")
+        self._jobs_card.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        self._jobs_card.body.grid_columnconfigure(0, weight=1)
+        self._jobs_rows = ctk.CTkFrame(self._jobs_card.body, fg_color="transparent")
+        self._jobs_rows.grid(row=0, column=0, sticky="ew")
+        self._jobs_rows.grid_columnconfigure(1, weight=1)
+        make_button(self._jobs_card.body, "Open Jobs", self._open_jobs, variant="ghost", size="sm", width=100).grid(
+            row=1, column=0, sticky="e", pady=(6, 0))
+        self._jobs_sig: Optional[tuple] = None
 
-        jump = Card(self._panel, title="Jump to")
-        jump.grid(row=5, column=0, sticky="ew")
+        jump = Card(self._panel_low, title="Jump to")
+        jump.grid(row=1, column=0, sticky="ew")
         links = ctk.CTkFrame(jump.body, fg_color="transparent")
         links.grid(row=0, column=0, sticky="w")
         # Visual Director is where the style is chosen; Tools holds the CSV Generator, ratings and learning.
@@ -157,8 +193,9 @@ class ProjectView(_BaseView):
                         width=140).grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 8), pady=(0, 6))
 
         # Recent projects: shown with or without a project open, newest first.
-        self._recent = Card(self._body, title="Recent projects")
-        self._recent.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        self._recent = Card(self._duo, title="Recent projects")
+        self._recent.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
+        self._recent.body.grid_columnconfigure(0, weight=1)
         self._recent_sig: Optional[tuple] = None
 
     def _open_jobs(self) -> None:
@@ -210,14 +247,16 @@ class ProjectView(_BaseView):
         self._recent.grid()
         for i, ws in enumerate(ranked):
             row = ctk.CTkFrame(body, fg_color="transparent")
-            row.grid(row=i, column=0, sticky="ew", pady=1)
+            row.grid(row=i, column=0, sticky="ew", pady=3)
             row.grid_columnconfigure(1, weight=1)
             ctk.CTkLabel(row, text=f"#{ws.display_seq()}" if hasattr(ws, "display_seq") else "", width=44,
                          font=ctk.CTkFont(size=11), text_color=T.TEXT_TERTIARY, anchor="w").grid(row=0, column=0, sticky="w")
             ctk.CTkLabel(row, text=ws.title or ws.project_id, font=ctk.CTkFont(size=13), text_color=T.TEXT,
                          anchor="w").grid(row=0, column=1, sticky="ew")
+            ctk.CTkLabel(row, text=_ago(touched(ws)), font=ctk.CTkFont(size=12), text_color=T.MUTED, width=80,
+                         anchor="e").grid(row=0, column=2, sticky="e", padx=(8, 4))
             make_button(row, "Open", lambda pid=ws.project_id: self._open_project(pid), variant="ghost", size="sm",
-                        width=70).grid(row=0, column=2, sticky="e")
+                        width=70).grid(row=0, column=3, sticky="e")
 
     def _refresh_quick(self) -> None:
         try:
@@ -235,12 +274,18 @@ class ProjectView(_BaseView):
         self._quick_sig = sig
         for child in self._quick_row.winfo_children():
             child.destroy()
+        cards = getattr(self.app, "STYLE_CARDS", {}) or {}
+        try:
+            from .visual_director import display_name, family_of
+        except Exception:
+            display_name, family_of = (lambda n: n), (lambda n: ("more", "More", "family_more"))
         for i, name in enumerate(picks):
-            label = ("\u2605  " if name in pinned else "") + name
-            make_button(self._quick_row, label, lambda n=name: self._start_style(n), size="sm").grid(
-                row=0, column=i, padx=(0, 6), pady=(0, 4))
-        make_button(self._quick_row, "Browse all styles", lambda: self._start_style(None), variant="primary", size="sm").grid(
-            row=0, column=len(picks), padx=(0, 6), pady=(0, 4))
+            icon, pitch = (cards.get(name) or ("", ""))[:2]
+            StyleTile(self._quick_row, display_name(name), icon, pitch, family_of(name)[2], pinned=name in pinned,
+                      command=lambda n=name: self._start_style(n)).grid(
+                row=0, column=i, sticky="nsew", padx=(0 if i == 0 else 6, 0), pady=(0, 4))
+        make_button(self._quick_row, "Browse all styles  \u2192", lambda: self._start_style(None), variant="ghost",
+                    size="sm").grid(row=1, column=0, columnspan=6, sticky="e", pady=(6, 0))
 
     def _start_style(self, name: Optional[str]) -> None:
         shell = getattr(self.app, "_shell", None)
@@ -267,10 +312,27 @@ class ProjectView(_BaseView):
             jobs = running(self.app)
         except Exception:
             jobs = []
-        if jobs:
-            self._jobs_label.configure(text="  \u00B7  ".join(j.label for j in jobs), text_color=T.ACCENT_TEXT)
-        else:
-            self._jobs_label.configure(text="Nothing running.", text_color=T.MUTED)
+        sig = tuple(j.flag for j in jobs)
+        if sig == self._jobs_sig:
+            return
+        self._jobs_sig = sig
+        for child in self._jobs_rows.winfo_children():
+            if isinstance(child, ctk.CTkProgressBar):
+                child.stop()                    # an animating bar destroyed mid-loop keeps firing on dead commands
+            child.destroy()
+        if not jobs:
+            ctk.CTkLabel(self._jobs_rows, text="Nothing running.", font=ctk.CTkFont(size=13), text_color=T.MUTED,
+                         anchor="w").grid(row=0, column=0, columnspan=3, sticky="w", pady=4)
+            return
+        for i, job in enumerate(jobs[:5]):
+            ctk.CTkLabel(self._jobs_rows, text=job.label, font=ctk.CTkFont(size=13, weight="bold"), text_color=T.TEXT,
+                         anchor="w").grid(row=i, column=0, sticky="w", pady=5, padx=(0, 12))
+            bar = ctk.CTkProgressBar(self._jobs_rows, height=4, corner_radius=2, mode="indeterminate",
+                                     fg_color=T.CARD_HOVER, progress_color=T.ACCENT, border_width=0)
+            bar.grid(row=i, column=1, sticky="ew", padx=(0, 12))
+            bar.start()
+            if job.stop is not None:
+                make_button(self._jobs_rows, "Stop", job.stop, size="sm", width=64).grid(row=i, column=2, sticky="e")
 
     def on_show(self) -> None:
         self._refresh_recent()
@@ -278,9 +340,17 @@ class ProjectView(_BaseView):
         if ws is None:
             self._empty.grid()
             self._panel.grid_remove()
+            self._panel_low.grid_remove()
+            self._jobs_card.grid_remove()
+            if self._recent.winfo_manager():    # _refresh_recent hid an empty card: leave it hidden
+                self._recent.grid_configure(column=0, columnspan=2, padx=0)
             return
         self._empty.grid_remove()
         self._panel.grid()
+        self._panel_low.grid()
+        self._jobs_card.grid()
+        if self._recent.winfo_manager():
+            self._recent.grid_configure(column=1, columnspan=1, padx=(6, 0))
         self._refresh_quick()
         self._refresh_jobs()
         cta = getattr(self.app, "generate_btn", None)
@@ -339,7 +409,7 @@ class ProjectView(_BaseView):
         self._header.set_title(ws.title or "Home")
         if total:
             self._tile_scenes.set(f"{ready}/{total}", f"{needs} need attention" if needs else "scenes ready",
-                                  "fail" if needs else ("ok" if ready >= total else "warn"))
+                                  "fail" if needs else ("ok" if ready >= total else "warn"), progress=ready / total)
         else:
             self._tile_scenes.set("—", "No scenes yet")
         self._tile_voice.set("Loaded" if audio_ok else "Missing",
@@ -351,7 +421,8 @@ class ProjectView(_BaseView):
             self._tile_sound.set("—", "Planned at render")
         if isinstance(score, (int, float)):
             tone = "ok" if verdict == "PASS" else ("warn" if verdict == "WARN" else "fail")
-            self._tile_qa.set(f"{score:.0f}", str(verdict), tone)
+            self._tile_qa.set(f"{score:.0f}", str(verdict), tone,
+                              progress=score / 100 if score > 10 else score / 10)
         else:
             self._tile_qa.set("—", "After the first render")
 
@@ -402,10 +473,13 @@ class ScriptView(ctk.CTkFrame):
         self.bind("<Configure>", self._fit_measure, add="+")
 
     def _fit_measure(self, event=None) -> None:
+        if _ctk_perf.resizing():   # window edge being dragged: re-pad once it settles, not on every step
+            _ctk_perf.after_settle(("fit", id(self)), self._fit_measure)
+            return
         width = int(getattr(event, "width", 0) or self.winfo_width())
         if width <= 1:
             return
-        side = max(T.PAD_LG + 8, (width - T.CONTENT_MAX_W) // 2)
+        side = max(T.PAD_LG + 8, (width - T.CONTENT_MAX_W) // 2 // 8 * 8)   # 8 px steps: no relayout per pixel of a window drag
         if side == self._side_pad:
             return
         self._side_pad = side
@@ -1518,6 +1592,17 @@ class ResearchView(_BaseView):
         self._summary.grid_remove()
 
         def worker():
+            try:
+                _research_body()
+            except Exception as exc:                     # never leave Start disabled for the rest of the session
+                def _failed(e=exc):
+                    self._researching = False
+                    self._start_btn.configure(state="normal")
+                    self._status_pill.set_tone("Failed", "fail")
+                    self._status_label.configure(text=f"Research failed: {e}")
+                self.after(0, _failed)
+
+        def _research_body():
             from research.library import property_dir, property_id_for
             from research.property_provider import PropertyResearchProvider
 
@@ -1877,6 +1962,44 @@ class VisualDirectorView(_BaseView):
             self, "Visual Director",
             "Pick the kind of video you want to make. The cards say what each style needs and what it is good for.",
         ).grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
+        # right-hand Steps / Progress / Output column on a style page (ui/style_side.py); built on first need
+        self._side = None
+        self._side_on = False
+
+    def sync_side(self, width: int = 0) -> None:
+        """Show or hide the right-hand column for the current page and window width."""
+        from . import style_side
+
+        width = int(width or self.winfo_width())
+        if width <= 1:
+            return
+        want = style_side.wanted(self.app, width)
+        if want == self._side_on:
+            return
+        self._side_on = want
+        if want:
+            if self._side is None:
+                self._side = style_side.StyleSidePanel(self, self.app)
+            self.grid_columnconfigure(1, weight=0, minsize=style_side.WIDTH)
+            self._side.grid(row=1, column=1, sticky="nsew", padx=(0, 18), pady=(0, 6))
+            self._side.refresh()
+        else:
+            if self._side is not None:
+                self._side.grid_remove()
+            self.grid_columnconfigure(1, weight=0, minsize=0)
+        self._side_pad = None   # re-pad the body for its new width
+        self._fit_measure()
+
+    def _fit_measure(self, event=None) -> None:
+        from types import SimpleNamespace
+
+        from . import style_side
+
+        width = int(getattr(event, "width", 0) or self.winfo_width())
+        self.sync_side(width)   # no-op unless the column must appear/disappear (then it re-pads once itself)
+        if self._side_on:
+            width -= style_side.WIDTH + 18
+        super()._fit_measure(SimpleNamespace(width=width))
 
 
 class VisualPlanView(ctk.CTkFrame):
@@ -2323,6 +2446,65 @@ class EditorialView(_BaseView):
         )
 
 
+# the page styles' app flags -> their prefix (ui/*_section.py keep `_<px>_active`, `_<px>_voice_var`, maybe `_<px>_edge_var`)
+_STYLE_PREFIXES = ("_av", "_ct", "_ff", "_gl", "_kl", "_ks", "_oc", "_pc", "_ph", "_pt", "_rc", "_rh", "_sm", "_tt", "_tv", "_vm")
+
+
+def _style_voice(app) -> tuple:
+    """(value, detail, tone) for the Voiceover tile: the active page style's own voice choice, else the app's voiceover."""
+    for px in _STYLE_PREFIXES:
+        if getattr(app, f"{px}_active", False) is not True:
+            continue
+        var = getattr(app, f"{px}_voice_var", None)
+        v = ""
+        try:
+            v = (var.get() if var is not None else "").strip()
+        except Exception:
+            v = ""
+        if v and Path(v).is_file():
+            return "Loaded", Path(v).name[:34], "ok"
+        if v and Path(v).suffix:               # a chosen voice file that is gone must not read as a free voice
+            return "Missing", f"Not found: {Path(v).name[:24]}", "warn"
+        edge = getattr(app, f"{px}_edge_var", None)
+        if edge is not None:
+            try:
+                return "Free voice", str(edge.get())[:34], "ok"
+            except Exception:
+                pass
+        if v and not Path(v).suffix:           # a voice name (Kids Learn's host voice), not a file
+            return "Free voice", v[:34], "ok"
+        if var is None:                        # the style voices its own lines (Kids Stories, Toon Tales, Toy Vehicles, Motivation)
+            return "By the style", "Made on Generate", "ok"
+        audio = app.audio_var.get().strip()
+        if audio and Path(audio).is_file():
+            return "Loaded", Path(audio).name[:34], "ok"
+        if v:
+            return "Missing", f"Not found: {Path(v).name[:24]}", "warn"
+        return "Missing", "Choose it on the style's page", "warn"
+    audio = app.audio_var.get().strip()
+    if audio and Path(audio).is_file():
+        return "Loaded", Path(audio).name[:34], "ok"
+    return "Missing", "Add it on Audio & Effects", "warn"
+
+
+def _probe_video(path: str):
+    """(width, height, fps) of a video, or None."""
+    try:
+        import json as _json
+        from providers.media_clip.ffmpeg_clip import _ffprobe
+        from providers import hidden_subprocess
+
+        out = hidden_subprocess.run([_ffprobe(), "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height,avg_frame_rate",
+                                     "-of", "json", str(path)], capture_output=True, text=True, timeout=30, check=False).stdout
+        st = (_json.loads(out or "{}").get("streams") or [{}])[0]
+        w, h = int(st.get("width") or 0), int(st.get("height") or 0)
+        num, _, den = str(st.get("avg_frame_rate") or "0/1").partition("/")
+        fps = round(float(num) / float(den or 1), 2) if float(den or 1) else 0.0
+        return (w, h, fps) if w and h else None
+    except Exception:
+        return None
+
+
 class RenderView(_BaseView):
     """Export: is the project ready, one button that does the right next
     thing, and live progress while a run is going."""
@@ -2424,6 +2606,7 @@ class RenderView(_BaseView):
     def on_show(self) -> None:
         self._resolution_row.set_value("1920 \u00D7 1080")
         self._fps_row.set_value("30 fps")
+        self._probed_for = None
         try:
             import video_generator as vg
 
@@ -2446,8 +2629,10 @@ class RenderView(_BaseView):
             except Exception:
                 return
             if visible:
-                self._refresh()
-                self._schedule()
+                try:
+                    self._refresh()
+                finally:
+                    self._schedule()
 
         self._tick_id = self.after(700, tick)
 
@@ -2484,11 +2669,7 @@ class RenderView(_BaseView):
             self._scenes_tile.set(f"{snap.ready}/{snap.total}", detail, tone)
         else:
             self._scenes_tile.set("—", "No scenes yet", "")
-        audio = app.audio_var.get().strip()
-        if audio and Path(audio).is_file():
-            self._voice_tile.set("Loaded", Path(audio).name[:34], "ok")
-        else:
-            self._voice_tile.set("Missing", "Add it on Audio & Effects", "warn")
+        self._voice_tile.set(*_style_voice(app))
         # A style's render (pakMap, Hybrid, StarMap, What If, Weather, Overscaled): shown from its own job, not the Normal-video
         # pipeline's progress bar and steps (which stay at 0 / "Waiting" during a style's render).
         job = getattr(app, "_export_job", None)
@@ -2500,6 +2681,8 @@ class RenderView(_BaseView):
         if style_job is not None and style_job.output_path:
             out = style_job.output_path
         has_out = bool(out) and Path(out).is_file()
+        if has_out:
+            self._show_output_settings(out)
         self._output_tile.set(Path(out).name[:26] if has_out else "None yet",
                               "Ready to play" if has_out else "Render to create one", "ok" if has_out else "")
         self._open_video_btn.configure(state="normal" if has_out else "disabled")
@@ -2544,6 +2727,38 @@ class RenderView(_BaseView):
         status = (app.status_var.get() or "").strip() if hasattr(app, "status_var") else ""
         self._op.set_value(status or ("Working\u2026" if running else "Idle"))
         self._out.set_value(Path(out).name if out else "\u2014")
+
+    def _show_output_settings(self, out: str) -> None:
+        """Resolution and frame rate of the video the page shows (a Short is 1080 x 1920, a draft 720p), probed once per file off
+        the main thread; until then the rows keep the export default."""
+        try:
+            st = Path(out).stat()
+            key = (out, st.st_size, st.st_mtime_ns)
+        except OSError:
+            return
+        if key == getattr(self, "_probed_for", None):
+            return
+        self._probed_for = key
+        import threading
+
+        def probe() -> None:
+            got = _probe_video(out)
+            if got is None:
+                return
+
+            def show() -> None:
+                if getattr(self, "_probed_for", None) != key:
+                    return
+                w, h, fps = got
+                self._resolution_row.set_value(f"{w} \u00D7 {h}" + ("  (vertical)" if h > w else ""))
+                if fps:
+                    self._fps_row.set_value(f"{fps:g} fps")
+            try:
+                self.app.ui_call(show)            # from the probe thread: go through the app's UI queue, not Tk after()
+            except Exception:
+                pass
+
+        threading.Thread(target=probe, name="export-probe", daemon=True).start()
 
     def _show_style_job(self, job, out: str, has_out: bool) -> None:
         """The style's own job: one row with its style and state instead of the Normal-video steps, its own progress, and

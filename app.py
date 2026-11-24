@@ -202,7 +202,15 @@ def load_settings() -> dict:
         return dict(cached)
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError:
+        # A broken file would otherwise read as {} and the next save would wipe every key: keep a copy first.
+        try:
+            import shutil
+            shutil.copy2(path, path.with_name(path.name + ".bad"))
+        except OSError:
+            pass
+        return {}
+    except OSError:
         return {}
     if not isinstance(data, dict):
         return {}
@@ -216,7 +224,15 @@ def save_settings(data: dict) -> None:
 
     try:
         path = _settings_path()
-        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        try:                                  # the theme switch writes theme_mode itself; an older dict must not undo it
+            disk_mode = json.loads(path.read_text(encoding="utf-8")).get("theme_mode")
+            if disk_mode:
+                data["theme_mode"] = disk_mode
+        except (OSError, ValueError, AttributeError):
+            pass
+        tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        os.replace(tmp, path)                 # a crash mid-write can no longer leave a half file
         try:
             _SETTINGS_CACHE["mtime"] = path.stat().st_mtime
             _SETTINGS_CACHE["data"] = dict(data)
@@ -826,6 +842,67 @@ class _QueueWriter:
         if self._buf:
             self.q.put(("log", self._buf))
             self._buf = ""
+
+
+class _OutputRouter:
+    """One permanent sys.stdout / sys.stderr. Each job's worker sends its prints to its own writer; any other thread
+    (a job's helper threads) goes to the newest running job's writer, else the real terminal. Jobs that finish out of
+    order (a Retry during Generate) can no longer leave output pointed at a finished job's log."""
+
+    def __init__(self, base):
+        self.base = base
+
+    def _target(self):
+        with _ROUTE_LOCK:
+            w = _ROUTE_BY_THREAD.get(threading.get_ident())
+            if w is None and _ROUTE_STACK:
+                w = _ROUTE_STACK[-1]
+        return w if w is not None else self.base
+
+    def write(self, text):
+        t = self._target()
+        if t is None:                       # windowed exe: no terminal
+            return len(text or "")
+        return t.write(text)
+
+    def flush(self):
+        t = self._target()
+        if t is not None:
+            try:
+                t.flush()
+            except Exception:
+                pass
+
+    def __getattr__(self, name):            # encoding, isatty, fileno ... from the real stream
+        return getattr(self.base, name)
+
+
+_ROUTE_LOCK = threading.Lock()
+_ROUTE_BY_THREAD: dict = {}
+_ROUTE_STACK: list = []
+
+
+def _install_output_router() -> None:
+    if not isinstance(sys.stdout, _OutputRouter):
+        sys.stdout = _OutputRouter(sys.stdout)  # type: ignore[assignment]
+    if not isinstance(sys.stderr, _OutputRouter):
+        sys.stderr = _OutputRouter(sys.stderr)  # type: ignore[assignment]
+
+
+def _redirect_output(writer) -> None:
+    """This thread's prints (and its helper threads') go to ``writer`` until _restore_output(writer)."""
+    _install_output_router()
+    with _ROUTE_LOCK:
+        _ROUTE_BY_THREAD[threading.get_ident()] = writer
+        _ROUTE_STACK.append(writer)
+
+
+def _restore_output(writer) -> None:
+    with _ROUTE_LOCK:
+        for k in [k for k, w in _ROUTE_BY_THREAD.items() if w is writer]:
+            del _ROUTE_BY_THREAD[k]
+        while writer in _ROUTE_STACK:
+            _ROUTE_STACK.remove(writer)
 
 
 _STEPPER_STEPS = ("Script", "Scenes", "Assets", "Voice", "Render")
@@ -9574,8 +9651,7 @@ class VideoGeneratorApp(ctk.CTk):
         def worker() -> None:
             old_out, old_err = sys.stdout, sys.stderr
             writer = _QueueWriter(self._ui_queue)
-            sys.stdout = writer
-            sys.stderr = writer
+            _redirect_output(writer)
             try:
                 try:
                     mgr = self._ensure_asset_manager(images_dir)
@@ -9606,8 +9682,7 @@ class VideoGeneratorApp(ctk.CTk):
                     self._ui_queue.put(("scene_result", (scene.scene_number, tokens.get(key, 0), result)))
             finally:
                 writer.flush()
-                sys.stdout = old_out
-                sys.stderr = old_err
+                _restore_output(writer)
                 try:
                     if self._workspace is not None:
                         self._workspace.sync_state_copies()
@@ -11287,8 +11362,7 @@ class VideoGeneratorApp(ctk.CTk):
         def worker() -> None:
             old_out, old_err = sys.stdout, sys.stderr
             writer = _QueueWriter(self._ui_queue)
-            sys.stdout = writer
-            sys.stderr = writer
+            _redirect_output(writer)
             results: dict = {}
             try:
                 mgr = self._ensure_asset_manager(images_dir)
@@ -11309,8 +11383,7 @@ class VideoGeneratorApp(ctk.CTk):
                     )
             finally:
                 writer.flush()
-                sys.stdout = old_out
-                sys.stderr = old_err
+                _restore_output(writer)
                 self._ui_queue.put(("flow_retry_batch_done", None))
                 for scene in updated:
                     key = _scene_key(scene.scene_number)
@@ -13245,8 +13318,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _scene_action_worker(self, action: str, scene_row: SceneRow, images_dir: Path, extra, token: int = 0) -> None:
         old_out, old_err = sys.stdout, sys.stderr
         writer = _QueueWriter(self._ui_queue)
-        sys.stdout = writer
-        sys.stderr = writer
+        _redirect_output(writer)
         key = _scene_key(scene_row.scene_number)
         result = None
         try:
@@ -13271,8 +13343,7 @@ class VideoGeneratorApp(ctk.CTk):
             )
         finally:
             writer.flush()
-            sys.stdout = old_out
-            sys.stderr = old_err
+            _restore_output(writer)
             try:
                 self._mirror_result_into_workspace(result)
             except Exception:
@@ -15587,8 +15658,7 @@ class VideoGeneratorApp(ctk.CTk):
     def _run_pipeline(self, config: dict, mode: str = "render") -> None:
         old_out, old_err = sys.stdout, sys.stderr
         writer = _QueueWriter(self._ui_queue)
-        sys.stdout = writer  # type: ignore[assignment]
-        sys.stderr = writer  # type: ignore[assignment]
+        _redirect_output(writer)
 
         # PHASE 2: perf instrumentation for this run. Failure-safe by design
         # (see perf_instrumentation.py) — never able to break the pipeline.
@@ -15644,18 +15714,24 @@ class VideoGeneratorApp(ctk.CTk):
             )
         except Exception as exc:
             writer.flush()
-            sys.stdout = old_out
-            sys.stderr = old_err
+            _restore_output(writer)
             self._ui_queue.put(("error", f"Could not prepare the render: {exc}"))
             return
         old_cwd = os.getcwd()
-        from production import events as _pevents
-        from production import jobs as _pjobs
-        from production import regeneration as _pregen
+        try:
+            from production import events as _pevents
+            from production import jobs as _pjobs
+            from production import regeneration as _pregen
 
-        prun = _pevents.start_run(mode, scenes=len(config.get("rows") or []))
+            prun = _pevents.start_run(mode, scenes=len(config.get("rows") or []))
+            ledger = _pjobs.current()
+        except Exception as exc:                   # without this the UI stayed on "running" with no error shown
+            writer.flush()
+            _restore_output(writer)
+            shutil.rmtree(work_dir, ignore_errors=True)
+            self._ui_queue.put(("error", f"Could not prepare the render: {exc}"))
+            return
         poutcome = "error"
-        ledger = _pjobs.current()
         state_dir_p = self._workspace.state_dir if self._workspace is not None else None
         prod_settings = None
         try:
@@ -16517,7 +16593,10 @@ class VideoGeneratorApp(ctk.CTk):
                 ledger.flush()
             except Exception:
                 pass
-            _pevents.end_run(prun, poutcome)
+            try:                                   # a failed run record must not skip the cwd / temp folder / log clean-up below
+                _pevents.end_run(prun, poutcome)
+            except Exception:
+                pass
             try:
                 prev = getattr(self, "_pipeline_prev_theme", None)
                 if prev is not None:
@@ -16537,8 +16616,7 @@ class VideoGeneratorApp(ctk.CTk):
             else:
                 shutil.rmtree(work_dir, ignore_errors=True)
             writer.flush()
-            sys.stdout = old_out
-            sys.stderr = old_err
+            _restore_output(writer)
 
     # ---------- UI queue / log ----------
 
@@ -17447,9 +17525,12 @@ class VideoGeneratorApp(ctk.CTk):
             self._sfx_ready = False
 
     def _on_close(self) -> None:
-        busy_bits = []
-        if self._running:
-            busy_bits.append("asset generation / render")
+        try:
+            from ui import jobs as _jobs
+            busy_bits = [j.label for j in _jobs.running(self)]   # every style's job, not only Generate
+        except Exception:
+            _jobs = None
+            busy_bits = ["asset generation / render"] if self._running else []
         if busy_bits:
             if not messagebox.askyesno(
                 "Quit?",
@@ -17457,6 +17538,8 @@ class VideoGeneratorApp(ctk.CTk):
                 "Quit anyway? In-flight work will be interrupted.",
             ):
                 return
+            if _jobs is not None:
+                _jobs.stop_all(self)            # let each style stop its own workers before the window goes
         try:
             self._flush_log_disk()
         except Exception:
@@ -17534,7 +17617,15 @@ def main() -> None:
     except Exception:
         pass
     _configure_macos_dock_name()
+    _install_output_router()                   # before any job: one permanent stdout/stderr that routes by thread
     if not _acquire_single_instance_lock_windows():
+        if os.environ.get("SYT_AUTORUN"):   # no one can click a dialog here: say why in the job's status and quit
+            try:
+                from autorun.job import Status as _AutorunStatus
+                _AutorunStatus(os.environ["SYT_AUTORUN"]).set(state="failed", message="the app is already open; close it and start again")
+            except Exception:
+                pass
+            return
         messagebox.showwarning(
             "Semantic YT Studio",
             "Semantic YT Studio is already running.\n\n"

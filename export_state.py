@@ -33,6 +33,9 @@ STYLE_LABELS["toy_vehicles"] = "Toy Vehicles"   # ui/toy_vehicles_section.py
 STYLE_LABELS["stickman"] = "Stickman"   # ui/stickman_section.py
 STYLE_LABELS["prepper_host"] = "Prepper Host"   # ui/prepper_host_section.py
 STYLE_LABELS["foodfiles"] = "Food Files"   # ui/foodfiles_section.py
+# the other page styles (their render engine keys as ui/*_section.py pass them to _track_generation_start)
+STYLE_LABELS.update({"rules_horror": "Rules Horror", "voxel_map": "Voxel Map", "roblox_cinema": "Roblox Cinema", "podcast_cut": "Motivation",
+                     "city_timelapse": "City Timelapse", "kids_learn": "Kids Learn", "kids_stories": "Kids Stories", "toon_tales": "Toon Tales"})
 
 
 def run_outcome(error: str, output_path=None, stopped: bool = False) -> str:

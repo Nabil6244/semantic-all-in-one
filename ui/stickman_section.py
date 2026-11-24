@@ -31,6 +31,34 @@ LOOKS = {"Auto (CSV look, else Ink Paper)": None, "Ink Paper": "ink_paper", "Cha
 HOSTS = {"Auto (CSV, else none)": None, "No host": ""}     # + one entry per puppet folder (your pictures), filled on build
 
 
+VB_OWNER = "stickman"   # its Flow-painted Meme rooms in the Visuals tab (visual_bridge.OWNERS)
+
+
+def _vb_view(spec: dict):
+    """The Meme look's rooms as a {key: picture} plan for visual_bridge (None for the drawn looks: nothing to list)."""
+    if "backdrops" not in spec:
+        return None
+    beats = spec.get("beats") or []
+    need = [b["place"] for b in beats if b.get("place")]
+    if beats and not beats[0].get("place"):
+        need.insert(0, "void")
+    need = list(dict.fromkeys(need + list(spec.get("backdrops") or {})))
+    return {"pictures": {p: {"prompt": f"Painted cartoon room background: {str(p).replace('_', ' ')}. No people, no text."} for p in need},
+            "assets": {"pictures": dict(spec.get("backdrops") or {})}}
+
+
+def _fill_visuals(app: Any, spec: dict) -> None:
+    """Main thread: the painted rooms into the Visuals tab (Retry / Change source / Local clip there are used at Render)."""
+    try:
+        import visual_bridge
+
+        view = _vb_view(spec)
+        if view is not None and app._workspace is not None:
+            visual_bridge.fill(app, VB_OWNER, visual_bridge.spec_rows(visual_bridge.folder(VB_OWNER, app._workspace), view))
+    except Exception as exc:  # noqa: BLE001 - the Visuals list never stops a video
+        app._append_log(f"{TAG} Visuals tab: {type(exc).__name__}: {exc}\n")
+
+
 def _load_hosts() -> None:
     try:
         from stickman import host as _h
@@ -257,6 +285,12 @@ def activate(app: Any) -> None:
     app._sm_active = True
     _restore(app)
     _save(app)
+    try:
+        import visual_bridge
+
+        visual_bridge.restore(app, VB_OWNER)      # this project's painted rooms back in the Visuals tab
+    except Exception:  # noqa: BLE001
+        pass
     app._sm_block.grid()
     _sync_buttons(app)
 
@@ -264,6 +298,12 @@ def activate(app: Any) -> None:
 def deactivate(app: Any, *, remember: bool = True) -> None:
     if getattr(app, "_sm_active", False):
         app._sm_active = False
+        try:
+            import visual_bridge
+
+            visual_bridge.clear(app, VB_OWNER)
+        except Exception:  # noqa: BLE001
+            pass
         if remember:
             _save(app)
         block = getattr(app, "_sm_block", None)
@@ -403,6 +443,7 @@ def on_generate(app: Any) -> None:
 
     def ready(r) -> None:
         app._sm_planned = {"sig": sig, "plan": str(plan_path)}
+        _fill_visuals(app, r["spec"])
         extra = f", {len(r['problems'])} CSV note(s) in the log" if r["problems"] else ""
         head = f"\"{r['title']}\": " if r["title"] else ""
         fixed = f", the checker fixed {len(r['notes'])}" if r["notes"] else ""
@@ -444,8 +485,19 @@ def on_render(app: Any) -> None:
         app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed",
                                   message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
+    import visual_bridge
+
+    vb_dir, vb_rows = visual_bridge.folder(VB_OWNER, ws), visual_bridge.rows(app, VB_OWNER)   # read on the main thread
+
     def job():
-        return rn.render(rn.load(planned["plan"]), str(out_path), progress=_progress(app), cancel=app._sm_cancel.is_set, log=_log(app))
+        spec = rn.load(planned["plan"])
+        view = _vb_view(spec)
+        if view is not None and vb_rows:
+            n = visual_bridge.apply_spec(vb_dir, vb_rows, view)
+            if n:
+                spec["backdrops"] = view["assets"]["pictures"]
+                _log(app)(f"{TAG} {n} room picture(s) from the Visuals tab")
+        return rn.render(spec, str(out_path), progress=_progress(app), cancel=app._sm_cancel.is_set, log=_log(app))
 
     def done(r) -> None:
         msg = f"Done: {out_path.name} ({r['seconds']:.0f} s)."

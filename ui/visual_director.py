@@ -87,7 +87,9 @@ def _make_card(app: Any, parent: Any, name: str) -> ctk.CTkFrame:
     cover.grid(row=0, column=0, sticky="ew", padx=_PAD, pady=(_PAD, 0))
     cover.grid_propagate(False)
     cover.grid_columnconfigure(1, weight=1)
-    ctk.CTkLabel(cover, text=icon, font=_font(T.FONT_STYLE_ICON), text_color=T.ACCENT_TEXT, width=44).grid(
+    ink = T.family_ink(tint)
+    ctk.CTkLabel(cover, text=icon, font=_font(T.FONT_STYLE_ICON), text_color=ink, width=44, height=44,
+                 corner_radius=T.RADIUS, fg_color=T.mix(ink, _tint(tint), 0.18)).grid(
         row=0, column=0, rowspan=2, sticky="w", padx=(10, 0), pady=6)
     ctk.CTkLabel(cover, text=family.upper(), font=ctk.CTkFont(size=10, weight="bold"), text_color=T.MUTED, anchor="e").grid(
         row=0, column=1, sticky="ne", padx=10, pady=(8, 0))
@@ -276,6 +278,8 @@ def sync_page_head(app: Any, active: str) -> None:
     _key, family, tint = family_of(active)
     try:
         app._style_page_head.configure(fg_color=_tint(tint))
+        ink = T.family_ink(tint)
+        app._style_page_icon.configure(text_color=ink, fg_color=T.mix(ink, _tint(tint), 0.18))
         app._style_page_name.configure(text=display_name(active))
         _icon, _pitch, needs, suits = app.STYLE_CARDS.get(active, ("", "", "", ""))
         tags = [family.upper()]
@@ -408,8 +412,12 @@ def layout(app: Any, width: int) -> bool:
         return True
     app._style_grouped_cols = key
     app._style_grid_cols = cols
+    # Fixed-width columns (minsize), set again once the width settles (_apply_wrap): stretching columns resized every
+    # card and every label in it on each pixel of a window drag, ~3,400 widgets per step (2026-11-24).
+    card_w = _card_width(width, cols)
     for c in range(6):
-        grid.grid_columnconfigure(c, weight=1 if c < cols else 0, uniform="vdstyle" if c < cols else "")
+        grid.grid_columnconfigure(c, weight=0, minsize=card_w if c < cols else 0, uniform="vdstyle" if c < cols else "")
+    app._vd_col_w = card_w
     for w in list(app._style_cards.values()) + [c for cs in getattr(app, "_vd_coming", {}).values() for c in cs]:
         w.grid_remove()
     labels = getattr(app, "_style_group_labels", None)
@@ -476,8 +484,19 @@ def _wrap_cards(app: Any, width: int, cols: int) -> None:
         _apply_wrap(app, width, cols)
 
 
+def _card_width(width: int, cols: int) -> int:
+    return max(160, int((width - 10 * cols) / cols))
+
+
 def _apply_wrap(app: Any, width: int, cols: int) -> None:
-    card_w = max(160, int((width - 10 * cols) / cols))
+    card_w = _card_width(width, cols)
+    if getattr(app, "_vd_col_w", None) != card_w:   # the settled width: columns take it now, once
+        app._vd_col_w = card_w
+        try:
+            for c in range(cols):
+                app._style_grid.grid_columnconfigure(c, minsize=card_w)
+        except Exception:
+            pass
     wl = (card_w - 32) // 8 * 8
     if getattr(app, "_vd_wrap", None) == wl:
         return

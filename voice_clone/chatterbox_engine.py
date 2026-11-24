@@ -19,6 +19,11 @@ from typing import Callable, Optional
 
 from . import engine
 
+try:   # no black console window per child on Windows (the exe is a windowed app)
+    from providers import hidden_subprocess as _hs
+except Exception:  # noqa: BLE001
+    _hs = subprocess
+
 PACKAGES = ["chatterbox-tts", "setuptools<81"]   # uv envs have no setuptools; the watermarker needs its pkg_resources
 CHECK = "import chatterbox, pkg_resources; from perth.perth_net.perth_net_implicit.perth_watermarker import PerthImplicitWatermarker"
 PY_VERSION = "3.11"             # Chatterbox's pinned packages have wheels for 3.10-3.11
@@ -45,7 +50,7 @@ def is_ready() -> bool:
     if not py.is_file():
         return False
     try:
-        r = subprocess.run([str(py), "-c", CHECK], capture_output=True, timeout=600, stdin=subprocess.DEVNULL, env=_child_env())      # first torch import on Windows (antivirus scan) can be slow
+        r = _hs.run([str(py), "-c", CHECK], capture_output=True, timeout=600, stdin=subprocess.DEVNULL, env=_child_env())      # first torch import on Windows (antivirus scan) can be slow
     except (OSError, subprocess.TimeoutExpired):
         return False
     return r.returncode == 0
@@ -76,10 +81,23 @@ def setup_log() -> Path:
     return engine.data_dir() / "chatterbox_setup.log"
 
 
+def run_log() -> Path:
+    """What the Chatterbox worker printed on its last run (model download, torch errors): named in the error when a run fails."""
+    return engine.data_dir() / "chatterbox_run.log"
+
+
+def _log_tail(path: Path, lines: int = 6) -> str:
+    try:
+        rows = [r for r in path.read_text(encoding="utf-8", errors="replace").splitlines() if r.strip()]
+    except OSError:
+        return ""
+    return " | ".join(r.strip()[:200] for r in rows[-lines:])
+
+
 def _run(cmd: list, timeout: int = 3600) -> bool:
     # utf-8 + replace: uv/pip print non-ASCII (progress marks, names); a Windows code page would raise UnicodeDecodeError here
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
+        r = _hs.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
                            stdin=subprocess.DEVNULL, env=_child_env())
         ok, out = r.returncode == 0, f"exit {r.returncode}\n{r.stdout[-4000:]}\n{r.stderr[-4000:]}"
     except (OSError, subprocess.TimeoutExpired) as ex:
@@ -203,8 +221,17 @@ def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
         done, error = len(pieces) - len(todo), ""
         proc = None
         if todo:                                      # every piece already kept from an earlier run: no model load needed
-            proc = subprocess.Popen([str(env_python()), str(worker_path()), job_path], stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace", env=_child_env())
+            try:
+                err_f = open(run_log(), "w", encoding="utf-8", errors="replace")
+            except OSError:
+                err_f = subprocess.DEVNULL
+            try:
+                proc = _hs.popen([str(env_python()), str(worker_path()), job_path], stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                                 stderr=err_f, text=True, encoding="utf-8", errors="replace", env=_child_env())
+            except Exception:
+                if err_f is not subprocess.DEVNULL:
+                    err_f.close()
+                raise
         try:
             for line in (proc.stdout if proc else []):
                 if cancel and cancel():
@@ -227,11 +254,14 @@ def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
             if proc and proc.poll() is None:
                 proc.kill()
                 proc.wait()
+            if proc and err_f is not subprocess.DEVNULL:
+                err_f.close()
         if done < len(pieces):
-            raise RuntimeError("Chatterbox stopped early" + (f": {error}" if error else ""))
+            why = error or _log_tail(run_log())
+            raise RuntimeError("Chatterbox stopped early" + (f": {why}" if why else "") + f" (details: {run_log()})")
 
         gap = os.path.join(wd, "gap.wav")
-        subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", str(PAUSE_SEC),
+        _hs.run([ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono", "-t", str(PAUSE_SEC),
                         "-c:a", "pcm_s16le", gap], check=True, timeout=600)
         lst = os.path.join(wd, "list.txt")
         with open(lst, "w") as f:
@@ -243,11 +273,11 @@ def synthesize(text: str, out_mp3: str, ref_wav: str, speed: float = 1.0,
         tempo = [f"atempo={speed:.3f}"] if abs(speed - 1.0) > 0.01 else []
         enc = ["-ar", "44100", "-c:a", "libmp3lame", "-b:a", "192k", out_mp3]
         try:
-            ok = subprocess.run(base + ["-af", ",".join(tempo + ["loudnorm=I=-14:TP=-1.5:LRA=11"])] + enc, timeout=1800).returncode == 0
+            ok = _hs.run(base + ["-af", ",".join(tempo + ["loudnorm=I=-14:TP=-1.5:LRA=11"])] + enc, timeout=1800).returncode == 0
         except subprocess.TimeoutExpired:
             ok = False
         if not ok or not os.path.isfile(out_mp3) or os.path.getsize(out_mp3) == 0:
-            subprocess.run(base + (["-af", tempo[0]] if tempo else []) + enc, check=True, timeout=1800)
+            _hs.run(base + (["-af", tempo[0]] if tempo else []) + enc, check=True, timeout=1800)
     words_path = out_mp3 + ".words.json"
     with open(words_path, "w") as f:
         json.dump([], f)

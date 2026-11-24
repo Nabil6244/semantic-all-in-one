@@ -35,6 +35,31 @@ def _engine_dir() -> Path:
     return base / "toontales"
 
 
+VB_OWNER = "toon_tales"   # the story's painted places in the Visuals tab (visual_bridge.OWNERS)
+
+
+def _files(c: dict) -> dict:
+    return {n: (v["path"], v["prompt"]) for n, v in (c.get("images") or {}).items()}
+
+
+def _fill_visuals(app: Any, c: dict) -> None:
+    """Main thread: the painted places into the Visuals tab (Retry / Change source / Local clip there are used at Render)."""
+    try:
+        import visual_bridge
+
+        if app._workspace is not None and c.get("images"):
+            visual_bridge.fill(app, VB_OWNER, visual_bridge.file_rows(visual_bridge.folder(VB_OWNER, app._workspace), _files(c)))
+    except Exception as exc:  # noqa: BLE001 - the Visuals list never stops a video
+        app._append_log(f"{TAG} Visuals tab: {type(exc).__name__}: {exc}\n")
+
+
+def _apply_visuals(vb_dir: Path, vb_rows: list, c: dict) -> int:
+    """A place picture chosen in the Visuals tab becomes the story's place picture (the painted one is kept as <name>.orig.png)."""
+    import visual_bridge
+
+    return visual_bridge.apply_files(vb_dir, vb_rows, _files(c), keep_original=True)
+
+
 def _runner():
     mod = sys.modules.get("tt_runner")
     if mod is not None:
@@ -191,6 +216,12 @@ def activate(app: Any) -> None:
     if getattr(app, "_tt_block", None) is None:
         build(app, app._view_visual_director.content, row=9)
     app._tt_active = True
+    try:
+        import visual_bridge
+
+        visual_bridge.restore(app, VB_OWNER)      # this project's painted places back in the Visuals tab
+    except Exception:  # noqa: BLE001
+        pass
     _restore(app)
     _save(app)
     app._tt_block.grid()
@@ -200,6 +231,12 @@ def activate(app: Any) -> None:
 def deactivate(app: Any, *, remember: bool = True) -> None:
     if getattr(app, "_tt_active", False):
         app._tt_active = False
+        try:
+            import visual_bridge
+
+            visual_bridge.clear(app, VB_OWNER)
+        except Exception:  # noqa: BLE001
+            pass
         if remember:
             _save(app)
         block = getattr(app, "_tt_block", None)
@@ -331,6 +368,7 @@ def on_generate(app: Any) -> None:
 
     def ready(c) -> None:
         app._tt_planned = {"plan": plan, "draft": draft}
+        _fill_visuals(app, c)
         warn = f"  {len(c['warnings'])} notes (see the log)." if c["warnings"] else ""
         for w in c["warnings"]:
             app._append_log(f"{TAG} note: {w}\n")
@@ -384,7 +422,14 @@ def on_render(app: Any) -> None:
         app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed",
                                   message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
+    import visual_bridge
+
+    vb_dir, vb_rows = visual_bridge.folder(VB_OWNER, ws), visual_bridge.rows(app, VB_OWNER)   # read on the main thread
+
     def job():
+        n = _apply_visuals(vb_dir, vb_rows, tt.check(planned["plan"])) if vb_rows else 0
+        if n:
+            _log(app)(f"{TAG} {n} place picture(s) from the Visuals tab")
         return tt.render(planned["plan"], str(out_path), draft=draft, progress=_progress(app), cancel=app._tt_cancel.is_set, log=_log(app))
 
     def done(r) -> None:

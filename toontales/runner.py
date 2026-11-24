@@ -44,7 +44,16 @@ def check(plan_path):
     return {"ok": r["ok"], "title": plan.get("title", plan.get("id")), "id": plan.get("id"),
             "errors": [f"{x['shot'] or '--'} {x['rule']}: {x['msg']}" for x in issues if x["level"] == "error"],
             "warnings": [f"{x['shot'] or '--'} {x['rule']}: {x['msg']}" for x in issues if x["level"] == "warn"],
-            "shots": len(p.get("shots", [])), "seconds": p.get("est_total", 0), "places": places, "missing": missing}
+            "shots": len(p.get("shots", [])), "seconds": p.get("est_total", 0), "places": places, "missing": missing,
+            # the painted places (worlds are 3D, not pictures): the Visuals tab lists these
+            "images": {n: {"path": str(S.place_image(plan, n)), "prompt": _place_prompt(plan, n)} for n in places if not S.is_world(plan, n)}}
+
+
+def _place_prompt(plan, name):
+    v = (plan.get("places") or {}).get(name)
+    if isinstance(v, dict):
+        return str(v.get("prompt") or v.get("paint") or v.get("description") or name)
+    return str(v or name)
 
 
 def _run(cmd, cwd, cancel, log, on_line=None, env=None):

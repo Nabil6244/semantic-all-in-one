@@ -53,8 +53,9 @@ def cached_probe_duration(path, probe_fn: Callable[..., Optional[float]], *args,
     # Probe outside the lock — ffprobe is a subprocess call, no need to
     # serialize unrelated files' probes behind one lock.
     result = probe_fn(path, *args, **kwargs)
-    with _lock:
-        _cache[key] = result
+    if result is not None:          # a failed/timed-out probe is retried next time, not pinned for the session
+        with _lock:
+            _cache[key] = result
     return result
 
 

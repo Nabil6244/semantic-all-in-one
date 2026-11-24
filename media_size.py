@@ -60,8 +60,9 @@ def probe_size(path) -> Optional[Tuple[int, int]]:
         if key in _cache:
             return _cache[key]
     size = _probe(Path(path))
-    with _lock:
-        _cache[key] = size
+    if size is not None:
+        with _lock:
+            _cache[key] = size
     return size
 
 

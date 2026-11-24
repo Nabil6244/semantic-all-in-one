@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -129,26 +130,42 @@ class Status:
 
     def __init__(self, job_path: "str | Path"):
         self.path = status_path(job_path)
+        self._lock = threading.RLock()
         self.data: Dict[str, Any] = {"state": "starting", "step": "", "message": "", "video": "", "project": "", "questions": [], "errors": [], "started": time.time()}
         self.write()
 
     def set(self, **kw: Any) -> None:
-        self.data.update(kw)
-        self.write()
+        with self._lock:
+            self.data.update(kw)
+            self.write()
 
     def add(self, key: str, value: str) -> None:
-        lst: List[str] = self.data.setdefault(key, [])
-        lst.append(value)
-        self.write()
+        with self._lock:
+            lst: List[str] = self.data.setdefault(key, [])
+            lst.append(value)
+            self.write()
 
     def write(self) -> None:
-        self.data["updated"] = time.time()
-        tmp = self.path.with_name(self.path.name + ".tmp")
-        try:
-            tmp.write_text(json.dumps(self.data, indent=2), encoding="utf-8")
-            os.replace(tmp, self.path)
-        except OSError:
-            pass
+        # Called from the Tk thread (set) and from worker threads (patched dialogs -> add): one lock, one temp name per
+        # writer, and a retry for Windows, where os.replace fails while follow() has the file open for reading.
+        with self._lock:
+            self.data["updated"] = time.time()
+            text = json.dumps(self.data, indent=2)
+            tmp = self.path.with_name(f"{self.path.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+            try:
+                tmp.write_text(text, encoding="utf-8")
+                for attempt in range(6):
+                    try:
+                        os.replace(tmp, self.path)
+                        return
+                    except PermissionError:
+                        time.sleep(0.05 * (attempt + 1))
+                tmp.unlink(missing_ok=True)
+            except OSError:
+                try:
+                    tmp.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
 
 def read_status(job_path: "str | Path") -> Optional[Dict[str, Any]]:

@@ -29,6 +29,31 @@ RESOLUTIONS = {"Final quality": False, "Fast (quicker encode, a little larger)":
 _ROOT = Path(__file__).resolve().parent.parent
 
 
+VB_OWNER = "kids_stories"   # the pack's background pictures in the Visuals tab (visual_bridge.OWNERS)
+_PIC = (".png", ".jpg", ".jpeg", ".webp")
+
+
+def _files(work) -> dict:
+    """{name: (picture, prompt)} for the backgrounds Generate unpacked into <work>/bg."""
+    bg = Path(work) / "bg"
+    if not bg.is_dir():
+        return {}
+    return {f.stem: (str(f), f"Story background: {f.stem.replace('_', ' ')}") for f in sorted(bg.iterdir())
+            if f.suffix.lower() in _PIC and ".orig" not in f.stem}
+
+
+def _fill_visuals(app: Any, work) -> None:
+    """Main thread: the story's pictures into the Visuals tab (Retry / Change source / Local clip there are used at Render)."""
+    try:
+        import visual_bridge
+
+        files = _files(work)
+        if app._workspace is not None and files:
+            visual_bridge.fill(app, VB_OWNER, visual_bridge.file_rows(visual_bridge.folder(VB_OWNER, app._workspace), files))
+    except Exception as exc:  # noqa: BLE001 - the Visuals list never stops a video
+        app._append_log(f"{TAG} Visuals tab: {type(exc).__name__}: {exc}\n")
+
+
 def _engine_dir() -> Path:
     base = Path(getattr(sys, "_MEIPASS", _ROOT)) if getattr(sys, "frozen", False) else _ROOT
     return base / "cartoon2d"
@@ -209,6 +234,12 @@ def activate(app: Any) -> None:
     if getattr(app, "_ks_block", None) is None:
         build(app, app._view_visual_director.content, row=9)
     app._ks_active = True
+    try:
+        import visual_bridge
+
+        visual_bridge.restore(app, VB_OWNER)      # this project's story pictures back in the Visuals tab
+    except Exception:  # noqa: BLE001
+        pass
     _restore(app)
     _save(app)
     app._ks_block.grid()
@@ -218,6 +249,12 @@ def activate(app: Any) -> None:
 def deactivate(app: Any, *, remember: bool = True) -> None:
     if getattr(app, "_ks_active", False):
         app._ks_active = False
+        try:
+            import visual_bridge
+
+            visual_bridge.clear(app, VB_OWNER)
+        except Exception:  # noqa: BLE001
+            pass
         if remember:
             _save(app)
         block = getattr(app, "_ks_block", None)
@@ -346,6 +383,7 @@ def on_generate(app: Any) -> None:
 
     def ready(g) -> None:
         app._ks_planned = {"source": source, "work": str(work), "sig": _sig(source)}
+        _fill_visuals(app, work)
         m, sec = divmod(int(round(g["seconds"])), 60)
         msg = f"\"{g['title']}\": {g['lines']} lines, {m}:{sec:02d} long, {len(g['cast'])} characters."
         if g["problems"]:
@@ -390,7 +428,14 @@ def on_render(app: Any) -> None:
         app._track_generation_end(run, done, output_path=out_path if done == "completed" else None, validated=done == "completed",
                                   message=error or ("" if done != "failed" else "Render finished, but no video was written."))
 
+    import visual_bridge
+
+    vb_dir, vb_rows = visual_bridge.folder(VB_OWNER, ws), visual_bridge.rows(app, VB_OWNER)   # read on the main thread
+
     def job():
+        n = visual_bridge.apply_files(vb_dir, vb_rows, _files(planned["work"])) if vb_rows else 0
+        if n:
+            _log(app)(f"{TAG} {n} picture(s) from the Visuals tab")
         return ks.render(planned["work"], str(out_path), draft=draft, progress=_progress(app), cancel=app._ks_cancel.is_set,
                          log=_log(app))
 

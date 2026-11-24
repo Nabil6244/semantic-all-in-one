@@ -228,3 +228,163 @@ def seed(images_dir: Path, scene_number: str, path: str, source: str, *, prompt:
 def snapshot(images_dir: Path, scene_rows: List) -> Dict[int, str]:
     """{scene no: file} the table holds now: compared later to tell whether the user changed anything there."""
     return {no: rec["path"] for no, rec in records(images_dir, scene_rows).items()}
+
+
+# --- styles whose plan is a {key: picture} map (Prepper Host, Food Files): spec["pictures"] = {key: {"prompt", ...}},
+#     spec["assets"]["pictures"] = {key: file}. One table row per picture; the key of each row is kept in spec_keys.json.
+def _ph_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "prepper_host" / "assets"
+
+
+def _ff_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "foodfiles" / "assets"
+
+
+OWNERS["prepper_host"] = ("_ph_active", _ph_dir)   # Prepper Host Flow pictures (ui/prepper_host_section.py)
+OWNERS["foodfiles"] = ("_ff_active", _ff_dir)      # Food Files Flow pictures (ui/foodfiles_section.py)
+
+
+def spec_rows(images_dir: Path, spec: dict) -> List:
+    """The plan's pictures as table rows (made ones seeded into the manifest), in plan order. Main-thread safe: only files."""
+    import json
+    from providers.base import SceneRow
+
+    pics = spec.get("pictures") or {}
+    have = (spec.get("assets") or {}).get("pictures") or {}
+    clips = (spec.get("assets") or {}).get("clips") or {}
+    rows, keys = [], {}
+    try:
+        old_keys = json.loads((Path(images_dir) / "spec_keys.json").read_text(encoding="utf-8"))
+    except Exception:
+        old_keys = {}
+    stale = []
+    for i, (k, p) in enumerate(pics.items(), 1):
+        if old_keys.get(f"{i:03d}") not in (None, k):
+            stale.append(f"{i:03d}")
+    if stale:
+        # Rows are numbered by position: when the plan adds/removes/reorders pictures, row 003 is a different picture now,
+        # so a picture chosen for the old 003 must not be handed to the new one.
+        _drop_records(images_dir, stale)
+    for i, (k, p) in enumerate(pics.items(), 1):
+        no = f"{i:03d}"
+        prompt = str((p or {}).get("prompt") or k)
+        clip = clips.get(k)
+        rows.append(SceneRow(scene_number=no, script_segment=prompt[:160], asset_type="video" if clip else "image", prompt=prompt))
+        keys[no] = k
+        made = clip or have.get(k)
+        if made:
+            seed(images_dir, no, str(made), "flow", prompt=prompt, provider="flow")
+    try:
+        Path(images_dir).mkdir(parents=True, exist_ok=True)
+        (Path(images_dir) / "spec_keys.json").write_text(json.dumps(keys, indent=1), encoding="utf-8")
+    except Exception:
+        pass
+    return rows
+
+
+def _drop_records(images_dir: Path, numbers: List[str]) -> None:
+    from asset_manager import AssetManifest, _key, _manifest_lock
+
+    man = AssetManifest(Path(images_dir))
+    with _manifest_lock(man.path):
+        man._refresh()
+        gone = [n for n in numbers if man._data.pop(_key(n), None) is not None]
+        if gone:
+            man.save()
+
+
+def apply_spec(images_dir: Path, scene_rows: List, spec: dict) -> int:
+    """Render side: every finished file the table holds replaces that key's picture (or clip) in the plan. -> how many changed."""
+    import json
+
+    try:
+        keys = json.loads((Path(images_dir) / "spec_keys.json").read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+    assets = spec.setdefault("assets", {})
+    pics, clips = assets.setdefault("pictures", {}), assets.get("clips")
+    changed = 0
+    for no, rec in records(images_dir, scene_rows).items():
+        k = keys.get(f"{no:03d}")
+        if not k or k not in (spec.get("pictures") or {}):
+            continue
+        is_clip = Path(rec["path"]).suffix.lower() in (".mp4", ".mov", ".mkv", ".webm", ".m4v")
+        if is_clip and isinstance(clips, dict):
+            if clips.get(k) != rec["path"]:
+                clips[k] = rec["path"]
+                changed += 1
+        elif not is_clip and pics.get(k) != rec["path"]:
+            pics[k] = rec["path"]
+            if isinstance(clips, dict) and clips.pop(k, None) is not None:   # the user picked a still over the clip
+                pic = (spec.get("pictures") or {}).get(k)
+                if isinstance(pic, dict):
+                    pic["still_chosen"] = True   # so a later asset refresh does not put the clip back
+            changed += 1
+    return changed
+
+
+def _sm_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "stickman" / "assets"
+
+
+OWNERS["stickman"] = ("_sm_active", _sm_dir)   # Stickman Meme look's Flow-painted rooms (ui/stickman_section.py)
+
+
+def _tt_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "toon_tales" / "assets"
+
+
+OWNERS["toon_tales"] = ("_tt_active", _tt_dir)   # Toon Tales Flow-painted places (ui/toon_tales_section.py)
+
+
+# --- styles that read their pictures from fixed files (Toon Tales places, Kids Stories backgrounds): files = {key: (path, prompt)}
+def file_view(files: Dict[str, Tuple[str, str]]) -> dict:
+    return {"pictures": {k: {"prompt": pr} for k, (_, pr) in files.items()},
+            "assets": {"pictures": {k: p for k, (p, _) in files.items() if Path(p).is_file()}}}
+
+
+def file_rows(images_dir: Path, files: Dict[str, Tuple[str, str]]) -> List:
+    return spec_rows(images_dir, file_view(files))
+
+
+def apply_files(images_dir: Path, scene_rows: List, files: Dict[str, Tuple[str, str]], keep_original: bool = False) -> int:
+    """Render side: a picture chosen in the Visuals tab is written over that key's file (same format), so the engine reads it.
+    keep_original: the first time, the file there is kept as <name>.orig<ext>. -> how many files changed."""
+    import shutil
+
+    view = file_view(files)
+    old = dict(view["assets"]["pictures"])
+    if not apply_spec(images_dir, scene_rows, view):
+        return 0
+    n = 0
+    for k, src in view["assets"]["pictures"].items():
+        dst = Path(files[k][0])
+        if src == old.get(k) or not Path(src).is_file() or Path(src).suffix.lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+            continue
+        try:
+            if dst.exists() and Path(src).resolve() == dst.resolve():
+                continue
+        except OSError:
+            pass
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        keep = dst.with_name(dst.stem + ".orig" + dst.suffix)
+        if keep_original and dst.is_file() and not keep.exists():
+            shutil.copy2(dst, keep)
+        if Path(src).suffix.lower() == dst.suffix.lower():
+            shutil.copy2(src, dst)
+        else:
+            from PIL import Image
+            with Image.open(src) as im:        # closed at once: an open handle locks the source on Windows
+                (im.convert("RGB") if dst.suffix.lower() in (".jpg", ".jpeg") else im.convert("RGBA")).save(dst)
+        side = Path(str(dst) + ".depth.npy")   # a depth map made for the old picture (Kids Stories packs) would warp the new one
+        if side.is_file():
+            side.unlink()
+        n += 1
+    return n
+
+
+def _ks_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "kids_stories" / "assets"
+
+
+OWNERS["kids_stories"] = ("_ks_active", _ks_dir)   # Kids Stories backgrounds from the imported pack (ui/kids_stories_section.py)

@@ -112,7 +112,7 @@ class SceneRecoveryTracker:
         used = self.failed_queries[scene_key(scene.scene_number)]
         out = []
         for query in unique_youtube_queries(scene):
-            if query.lower() not in used:
+            if " ".join(query.split()).lower() not in used:
                 out.append(query)
         return out
 
@@ -122,7 +122,7 @@ class SceneRecoveryTracker:
         names: List[str] = []
         for name in list(scene.fallbacks or []):
             key = str(name).strip().lower().replace(" ", "_")
-            if key and key not in used and key not in names:
+            if key and key.replace("-", "_") not in used and key not in names:   # mark_provider stores "-" as "_"
                 names.append(key)
         if current in ("youtube_video", "youtube") and "youtube" not in names:
             pass

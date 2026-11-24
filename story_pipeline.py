@@ -254,9 +254,18 @@ def trim_clip(src: "str | Path", clip_in: float, dur: float, out: "str | Path") 
     if out.is_file() and out.stat().st_size > 0:
         return out
     out.parent.mkdir(parents=True, exist_ok=True)
-    r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-nostdin", "-ss", f"{clip_in:.4f}", "-i", str(src), "-t", f"{dur + 0.1:.3f}", "-an", "-c:v", "libx264",
-                        "-crf", "12", "-preset", "veryfast", "-pix_fmt", "yuv420p", str(out)], capture_output=True, timeout=600)
-    return out if r.returncode == 0 and out.is_file() else None
+    part = out.with_name(out.stem + ".part.mp4")
+    try:
+        r = subprocess.run(["ffmpeg", "-y", "-v", "error", "-nostdin", "-ss", f"{clip_in:.4f}", "-i", str(src), "-t", f"{dur + 0.1:.3f}", "-an", "-c:v", "libx264",
+                            "-crf", "12", "-preset", "veryfast", "-pix_fmt", "yuv420p", str(part)], capture_output=True, timeout=600)
+    except subprocess.TimeoutExpired:
+        r = None
+    if r is not None and r.returncode == 0 and part.is_file():
+        import os
+        os.replace(part, out)        # a failed/partial trim never takes the cached name
+        return out
+    part.unlink(missing_ok=True)
+    return None
 
 
 # =============================================================== the run record
@@ -889,7 +898,7 @@ def applied_story(vg: Any, run: Optional[StoryRun]):
         p = u.get("path")
         if p and Path(str(p)).is_file():
             if u.get("clip_in", 0.0) > 0.02:
-                tr = trim_clip(p, u["clip_in"], u["end"] - u["start"], tdir / f"{Path(str(p)).stem}_{int(round(u['clip_in'] * 1000))}ms_{Path(str(p)).stat().st_size}.mp4")
+                tr = trim_clip(p, u["clip_in"], u["end"] - u["start"], tdir / f"{Path(str(p)).stem}_{int(round(u['clip_in'] * 1000))}ms_{int(round((u['end'] - u['start']) * 1000))}d_{Path(str(p)).stat().st_size}.mp4")
                 return tr if tr is not None else Path(str(p))
             return Path(str(p))
         sid = str(u.get("shot_id", "")).split("+link")[0]

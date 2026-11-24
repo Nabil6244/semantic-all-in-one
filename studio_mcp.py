@@ -126,6 +126,10 @@ def stop_job(job: str) -> str:
     if not pf.is_file():
         raise ValueError("this job was not started by this server, so it is left alone; stop it in the app")
     pid = int(pf.read_text().strip())
+    st = M.read_status(p) or {}
+    if st.get("state") in ("done", "failed"):
+        pf.unlink(missing_ok=True)                       # finished on its own: its pid may belong to another program now
+        return f"{p.name} had already finished ({st.get('state')})"
     try:
         if os.name == "nt":
             subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True, timeout=30)
@@ -135,6 +139,14 @@ def stop_job(job: str) -> str:
         pf.unlink(missing_ok=True)
         return f"{p.name} had already finished"
     pf.unlink(missing_ok=True)
+    try:                                                 # the killed app cannot say so itself: without this it shows "running" forever
+        sp = p.with_name(p.stem + ".status.json")
+        st.update(state="failed", message="stopped by user", updated=time.time())
+        tmp = sp.with_name(sp.name + ".stop.tmp")
+        tmp.write_text(json.dumps(st, indent=2), encoding="utf-8")
+        os.replace(tmp, sp)
+    except OSError:
+        pass
     return f"stopped {p.name} (pid {pid})"
 
 
