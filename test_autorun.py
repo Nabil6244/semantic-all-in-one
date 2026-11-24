@@ -319,6 +319,24 @@ class DriverTest(unittest.TestCase):
             self.assertEqual(st["failed_scenes"], ["scene 1: failed", "scene 2: failed"])
             self.assertNotIn(("render",), steps)
 
+    def test_a_full_disk_stops_the_job_at_once_with_that_reason(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d).resolve()
+            app = FakeApp(d)
+            press = app._on_primary_cta
+
+            def full_disk():
+                if app._cta_action == "generate" and app.rounds >= app.ready_after:   # the render press fails: the app logs the error, the button says Generate again
+                    app._append_log("[HYBRID] Generation failed:\npakMap render failed: ffmpeg exited 228: No space left on device")
+                    app.running = 2
+                    return
+                press()
+            app._on_primary_cta = full_disk
+            job, st, steps = self._run(d, app, style="normal")
+            self.assertEqual(st["state"], "failed")
+            self.assertIn("the disk is full", st["message"])
+            self.assertNotIn(("render",), steps)
+
     def test_a_few_scenes_that_never_come_back_are_skipped_and_the_video_is_rendered(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d).resolve()

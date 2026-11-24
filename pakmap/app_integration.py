@@ -385,21 +385,32 @@ def generate_pakmap_video(
     try:   # an Explainer plan: map overlays over the finished video and its own sound track (explainer.integration.post_render; never stops the render)
         from explainer.integration import post_render
 
-        _fin = post_render(silent, work, voiceover_path, log)
+        _fin = post_render(silent, work, voiceover_path, log, sidecar=getattr(outcome, "sidecar", {}) or {})
         silent = _fin["video"]
         if _fin.get("audio"):
             narration_for_export = _fin["audio"]
     except Exception:
-        pass
+        _fin = {"holes_unfilled": bool((getattr(outcome, "sidecar", {}) or {}).get("footage_holes"))}
+    if _fin.get("holes_unfilled"):   # the map engine left the Explainer's picture clips blank for the pass that failed: never export black stretches
+        return PakmapResult(False, ["the Explainer's picture clips could not be laid into the video (see the log); press Render again"], report=res.report)
     _report(progress_cb, "Adding the narration…", 0.92)
     try:
         from scene_graph.app_integration import _export_via_existing_renderer
 
-        _export_via_existing_renderer(
-            SimpleNamespace(duration=spec["duration"], title=title or csv_path.stem, segment_id="pakmap"), silent,
-            voiceover_path=str(narration_for_export), output_path=output_path, resolution=f"{width * pixel_scale}x{height * pixel_scale}",
-            fps=fps, work_dir=work,
-        )
+        if _fin.get("final_ready"):   # the Explainer pass already encoded the picture with the export's settings: only the sound is added (no second encode)
+            import subprocess
+
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(silent), "-i", str(narration_for_export), "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
+                                "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", str(output_path)], capture_output=True, text=True, timeout=3600)
+            if r.returncode != 0:
+                raise RuntimeError((r.stderr or "").strip()[-300:] or f"ffmpeg exited {r.returncode}")
+        else:
+            _export_via_existing_renderer(
+                SimpleNamespace(duration=spec["duration"], title=title or csv_path.stem, segment_id="pakmap"), silent,
+                voiceover_path=str(narration_for_export), output_path=output_path, resolution=f"{width * pixel_scale}x{height * pixel_scale}",
+                fps=fps, work_dir=work,
+            )
     except Exception as exc:
         return PakmapResult(False, [f"final export failed: {exc}"], report=res.report)
     if not output_path.is_file():
@@ -409,6 +420,18 @@ def generate_pakmap_video(
     problem = validate_rendered_output(output_path, expected_duration_s=spec["duration"])
     if problem:
         return PakmapResult(False, [f"final video failed validation: {problem}"], report=res.report)
+    if Path(str(silent)).name.endswith("__boards.mp4"):   # the Explainer's laid-on video (GBs for a long video) is only the export's input: made again on every render
+        try:
+            Path(str(silent)).unlink(missing_ok=True)
+        except OSError:
+            pass
+    if _fin.get("final_ready"):   # an Explainer video is out and checked: its working files go (all drawn again by the next render; explainer/cleanup.py)
+        try:
+            from explainer.cleanup import after_export
+
+            after_export(work, log)
+        except Exception:
+            pass
 
     sidecar = getattr(outcome, "sidecar", {}) or {}
     credits = list((sidecar.get("credits") or {}).get("attribution") or []) + list((sidecar.get("credits") or {}).get("notes") or [])

@@ -10,7 +10,8 @@ import os
 import subprocess
 from typing import Dict, List
 
-H264 = ["-c:v", "h264_videotoolbox", "-b:v", "40M", "-profile:v", "high"]
+H264 = ["-c:v", "h264_videotoolbox", "-b:v", "12M", "-profile:v", "high"]   # every one of these files is encoded again (final export ~7 Mbps): 40M made a 37-min
+                                                                             # Explainer's laid-on map 10 GB and its picture clips 8 GB; 12M measured SSIM 0.995 on a picture clip (the final is ~9 Mbps x264)
 WORKERS = 3                    # one engine: more jobs do not make it faster, a few keep it fed while the cores decode
 _OK: Dict[str, bool] = {}
 

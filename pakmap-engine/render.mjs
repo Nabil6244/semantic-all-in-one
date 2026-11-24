@@ -16,7 +16,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { planRender } from './lib/plan.mjs';
@@ -25,7 +25,7 @@ import { prepareMedia, materializeClip, releaseClips, disposeMedia } from './lib
 import { fetchTile, cachePath } from './lib/tiles.mjs';
 import { parsePointsCsv } from './lib/points.mjs';
 import { stillFile } from './lib/stills.mjs';
-import { footageShortcut } from './lib/footage_pass.mjs';
+import { footageShortcut, footageHoles, holeRuns } from './lib/footage_pass.mjs';
 import { planSegments, frameCosts, segmentEvents } from './lib/segments.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -157,7 +157,8 @@ async function main() {
       let cost = 0;
       for (let i = g.from; i < g.to; i++) cost += costs[i];
       return { ...g, cost: Math.round(cost), key: segmentKey(spec, g, fingerprint) };
-    }), sidecar: { layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm } });
+    }), sidecar: { layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm,
+      ...(Array.isArray(spec.footage_holes) && spec.footage_holes.length ? { footage_holes: holeRuns(spec, spec.events, total, { baseDir: spec.base_dir || path.dirname(path.resolve(process.argv[2])) }) } : {}) } });
     return;
   }
 
@@ -206,6 +207,18 @@ async function main() {
   try {
     // Hybrid: a frame that is only a full-screen video clip is that clip's frame (lib/footage_pass.mjs); pakMap: never
     const clipOnly = footageShortcut(spec, spec.events, media);
+    // Explainer splice (spec.footage_holes): frames that are only one of the listed clips are left blank here and filled from the clip itself after the render
+    const holeAt = footageHoles(spec, spec.events, { baseDir: spec.base_dir || path.dirname(path.resolve(process.argv[2])) });
+    let blank = null;
+    const blankFrame = () => {
+      if (!blank) {
+        const r = spawnSync(spec.ffmpeg || 'ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', `color=c=black:s=${Math.round(width * (spec.pixel_scale || 1))}x${Math.round(height * (spec.pixel_scale || 1))}:d=1`,
+          '-frames:v', '1', '-f', 'image2pipe', '-c:v', 'mjpeg', '-'], { maxBuffer: 1 << 26 });
+        if (r.status !== 0 || !r.stdout || !r.stdout.length) throw new Error(`could not make the blank frame: ${String(r.stderr || '').trim().slice(-300)}`);
+        blank = r.stdout;
+      }
+      return blank;
+    };
     const jobTotal = jobs.reduce((n, j) => n + (j.to - j.from), 0);
     let fromClips = 0, drawn = 0;
     const segmentsDone = [];
@@ -248,6 +261,13 @@ async function main() {
       };
       for (let i = job.from; i < job.to; i++) {
         if (i === job.from || pieceStarts.has(i)) needFresh = true;
+        if (holeAt(i / fps)) {
+          await flush();
+          fromClips++; jobClips++;
+          await write(blankFrame());
+          tick(i);
+          continue;
+        }
         const direct = clipOnly(i / fps);
         if (direct) {
           await flush();
@@ -293,7 +313,8 @@ async function main() {
       emit({ event: 'warning', message: `map imagery: ${tiles.failed} map tile(s) could not be used (failed downloads, or ${tiles.invalid} unreadable or blank tile(s)); ${tiles.drawn_from_coarser_zoom} were drawn from the same imagery at a coarser zoom and ${tiles.drawn_from_coarser_layer} from a coarser imagery layer, so those areas look softer${last}` });
     }
     const sidecar = `${spec.output}.pakmap.json`;
-    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: jobTotal, frames_from_clips: fromClips, tiles, segments: segmentsDone }, null, 2));
+    fs.writeFileSync(sidecar, JSON.stringify({ layer_facts: plan.layer_facts, credits: plan.credits, warnings: plan.warnings, imagery_used: [...plan.used], min_frame_km: plan.minFrameKm, frames: jobTotal, frames_from_clips: fromClips, tiles, segments: segmentsDone,
+      ...(Array.isArray(spec.footage_holes) && spec.footage_holes.length ? { footage_holes: holeRuns(spec, spec.events, total, { baseDir: spec.base_dir || path.dirname(path.resolve(process.argv[2])) }) } : {}) }, null, 2));
     emit({ event: 'done', output: spec.output, sidecar, frames: jobTotal });
   } finally {
     disposeMedia(media.files);   // the frame folders are this render's own: they never outlive it

@@ -194,8 +194,9 @@ LONG_MINUTES = 20                                                     # kept twi
 
 def fast_intermediate(spec: Dict[str, Any]) -> None:
     """The map render writes its in-between file quickly: x264 'faster' was what kept the cores busy (about 50 frames a second at 1080p, picture frames included).
-    A long video's file is written smaller instead, so the map, its pieces and the join fit on the disk."""
-    long = float(spec.get("duration") or 0) > LONG_MINUTES * 60
+    The smaller setting at every length (2026-11-24): a 5-minute test still wrote 1.2 GB with ultrafast/15, kept twice (pieces + join), and with the picture clips
+    left blank (explainer/splice.py) superfast costs little."""
+    long = True
     for k, v in (LONG_INTERMEDIATE_X264 if long else INTERMEDIATE_X264).items():
         spec.setdefault(k, v)
 

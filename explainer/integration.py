@@ -126,6 +126,11 @@ def clear_under_boards(spec: Dict[str, Any], work: Any, log: Callable[[str], Non
             fast_intermediate(spec)
         except Exception:
             pass
+        try:                       # and those clips skip the map engine: it leaves their frames blank, post_render lays the clips in (explainer/splice.py)
+            from .splice import choose
+            choose(spec, log)
+        except Exception:
+            spec.pop("footage_holes", None)
         import json
         details = json.loads(rr.read_text(encoding="utf-8"))["report"].get("beat_details") or {}
         wins = [(float(i["board_overlay"]["start"]), float(i["board_overlay"]["end"])) for i in details.values() if (i or {}).get("board_overlay")]
@@ -142,12 +147,16 @@ def clear_under_boards(spec: Dict[str, Any], work: Any, log: Callable[[str], Non
         return 0
 
 
-def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], None] = lambda m: None) -> Dict[str, Any]:
+def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], None] = lambda m: None, sidecar: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """After the whole video is drawn (map, board clips, presenter): lays each map beat's overlay (outlines, arrows, stamps, plates) over it at the beat's time, and builds the sound track
     (effects + ducked bed + the voice) from the plan the director left in <work>/explainer/render_report.json (or beside work). Returns {"video": path, "audio": path or None}; anything that
     fails keeps the video / the voice as they were and says so in the log (never raises)."""
     from pathlib import Path as _P
     out: Dict[str, Any] = {"video": video, "audio": None}
+    from .splice import runs_from_sidecar
+    holes = runs_from_sidecar(sidecar or {})
+    if holes:
+        out["holes_unfilled"] = True           # until the pass below fills them: the caller must not export a video with blank spans
     try:
         rr = next((p for p in (_P(work) / "explainer" / "render_report.json", _P(work).parent / "explainer" / "render_report.json") if p.is_file()), None)
         if rr is None:
@@ -179,11 +188,17 @@ def post_render(video: Any, work: Any, voice_path: Any, log: Callable[[str], Non
             (rr.parent / MN.PENDING).unlink(missing_ok=True)
         except Exception as exc:
             log(f"[Explainer] the presenter could not be prepared ({str(exc)[:100]}); the map is used as it is")
-        if boards or maps or presenter:
+        if boards or maps or presenter or holes:
             nxt = rr.parent / f"{cur.stem.split('__ov')[0].split('__boards')[0]}__boards.mp4"
+            if nxt != cur:                     # the last render's laid-on video (GBs for a long video) is made again here: drop it first, so two never sit on the disk
+                nxt.unlink(missing_ok=True)
             try:
-                if OV.composite_chunked(cur, boards + maps, nxt, presenter=presenter, log=log) == 0 and nxt.is_file():
+                if OV.composite_chunked(cur, boards + maps, nxt, presenter=presenter, log=log, holes=holes, final=True) == 0 and nxt.is_file():
                     cur = nxt
+                    out["final_ready"] = True      # encoded once with the export's own settings: the export only adds the sound
+                    out.pop("holes_unfilled", None)
+                    if holes:
+                        log(f"[Explainer] {len(holes)} picture clip(s) laid straight into the final encode")
                     if boards:
                         log(f"[Explainer] {len(boards)} board(s) laid over their pictures")
                     if maps:

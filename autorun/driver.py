@@ -25,6 +25,17 @@ from . import job as J
 
 POLL_MS = 1000
 SIGN_IN_WAIT_S = 30 * 60
+DISK_FULL_MARKS = ("No space left on device", "[Errno 28]")
+
+
+def _free_gb(where: Any) -> float:
+    import shutil as _sh
+    try:
+        return _sh.disk_usage(str(where)).free / 1e9
+    except Exception:
+        return 0.0
+
+
 STEP_WAIT_S = 10 * 3600        # one press (a long render or a big Flow batch) may take hours; the app's stall watchdog stops a stuck tool
 SCENE_ROUNDS = 3               # presses of the same Generate step: the app fetches only the scenes still missing each time
 SETTLE_S = 4.0                 # after a press, the button needs a moment to turn into Stop
@@ -204,6 +215,8 @@ class Runner:
 
         def tee(text: str, *a: Any, **k: Any) -> Any:
             self.log(str(text).rstrip("\n"))
+            if any(m in str(text) for m in DISK_FULL_MARKS):
+                self.disk_full = True
             return orig(text, *a, **k)
         self.app._append_log = tee
 
@@ -401,6 +414,9 @@ class Runner:
             self.say("load the CSV", Path(self.job["csv"]).name)
             app._import_claude_csv_path(Path(self.job["csv"]), source_label="uploaded")
             self.press_done()
+            return
+        if getattr(self, "disk_full", False):   # pressing again only fails again (the 2026-11-24 night lost 1 h 20 min to three such presses)
+            self.fail(f"the disk is full ({_free_gb(self.ws.final_dir):.1f} GB free); free some space, then open the project and press Render")
             return
         n = self.presses.get(action, 0) + 1
         self.presses[action] = n

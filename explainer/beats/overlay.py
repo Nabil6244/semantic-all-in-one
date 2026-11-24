@@ -640,11 +640,22 @@ def chunk_bounds(total: int, fps: float, items: Sequence[Tuple[str, float, float
     return sorted(set(fine))
 
 
+def _final_argv() -> List[str]:
+    """The export's own video settings (video_generator._cpu_encode_argv: providers.ffmpeg_runner.encode_argv 'documentary')."""
+    try:
+        from providers.ffmpeg_runner import encode_argv
+        return list(encode_argv(quality="documentary"))
+    except Exception:
+        return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+
+
 def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path", float]], out_path: "str | Path", *, presenter: Optional[Dict[str, Any]] = None,
-                      crf: int = 10, workers: int = 0, max_per_chunk: int = 24, log=lambda m: None) -> int:
+                      crf: int = 10, workers: int = 0, max_per_chunk: int = 24, log=lambda m: None, holes: Sequence[Dict[str, Any]] = (), final: bool = False) -> int:
     """composite_many in ONE pass: the video is cut into time chunks drawn at the same time on several cores, each chunk laying on only the alpha clips (and the presenter
     windows) that fall inside it, then the chunks are joined without another encode and the video's own audio is put back. A 16.7 min video with 259 boards took ~9 full
-    re-encodes one after another before. `presenter` = {"mov": looping RGBA clip, "x": .., "y": .., "windows": [(start, end), ...]}. Returns 0 when the result is written."""
+    re-encodes one after another before. `presenter` = {"mov": looping RGBA clip, "x": .., "y": .., "windows": [(start, end), ...]}. Returns 0 when the result is written.
+    `holes` = the map engine's blank spans (explainer/splice.py): [{from, to, media, t_in, start_s}] frame ranges filled from the clip itself, under everything else.
+    `final` = this is the video's only encode before the narration is muxed on: the export's own x264 settings (providers.ffmpeg_runner.encode_argv), never the video engine."""
     import os
     from concurrent.futures import ThreadPoolExecutor
     video, out_path = Path(video), Path(out_path)
@@ -657,7 +668,11 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
     items = [(str(m), float(s), float(s) + d) for (m, s), d in zip(overlays, lens) if d > 0]
     cores = os.cpu_count() or 4
     workers = workers or max(1, min(8, cores - 1))
-    bounds = chunk_bounds(total, fps, items, (presenter or {}).get("windows", ()))
+    holes = [h for h in holes if int(h["to"]) > int(h["from"])]
+    if any(not h.get("media") for h in holes):
+        log("[Explainer] a blank span of the map has no clip to fill it")
+        return -1
+    bounds = chunk_bounds(total, fps, items + [(h["media"], int(h["from"]) / fps, int(h["to"]) / fps) for h in holes], (presenter or {}).get("windows", ()))
     n_chunks = len(bounds) - 1
     parts_dir = out_path.with_name(out_path.stem + "__chunks")
     parts_dir.mkdir(parents=True, exist_ok=True)
@@ -669,6 +684,19 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
         mine = [it for it in items if it[1] < t1 and it[2] > t0]
         cmd = ["ffmpeg", "-v", "error", "-y", "-threads", "2", "-ss", f"{t0:.6f}", "-i", str(video)]
         graph, last, n_in = [], "0:v", 0
+        if final:
+            graph.append("[0:v]format=yuv420p[b0]")
+            last = "b0"
+        for hz in (hh for hh in holes if int(hh["from"]) < f1 and int(hh["to"]) > f0):     # the clips the engine left blank, frame for frame
+            from ..splice import clip_frame
+            a, b = max(f0, int(hz["from"])), min(f1, int(hz["to"]))
+            n_in += 1
+            src = float(hz.get("start_s") or 0.0) + clip_frame(a, float(hz["t_in"]), fps) / fps
+            cmd += ["-ss", f"{src:.6f}", "-i", str(hz["media"])]
+            graph.append(f"[{n_in}:v]fps={fps:.6f},scale={w}:{h},format=yuv420p,tpad=stop_mode=clone:stop=3,trim=end_frame={b - a},"
+                         f"setpts=PTS-STARTPTS+{a - f0}/({fps:.6f}*TB)[h{n_in}]")
+            graph.append(f"[{last}][h{n_in}]overlay=0:0:eof_action=pass[k{n_in}]")
+            last = f"k{n_in}"
         for mov, s, _e in mine:
             n_in += 1
             lead = round((s - t0) * fps)                 # whole frames, so a clip starts and ends on the same frames as in one long pass
@@ -689,7 +717,10 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
             cmd += ["-filter_complex", ";".join(graph), "-map", f"[{last}]"]
         else:
             cmd += ["-map", "0:v"]
-        enc = list(HW.H264) if hw else ["-c:v", "libx264", "-crf", str(crf), "-preset", "superfast", "-threads", str(threads)]
+        if final:
+            enc = [*_final_argv(), "-threads", str(threads)]
+        else:
+            enc = list(HW.H264) if hw else ["-c:v", "libx264", "-crf", str(crf), "-preset", "superfast", "-threads", str(threads)]
         cmd += ["-frames:v", str(f1 - f0), "-an", *enc, "-pix_fmt", "yuv420p", "-r", f"{fps:.6f}",
                 "-video_track_timescale", str(round(fps * 1000)), "-avoid_negative_ts", "make_zero", str(parts_dir / f"c{k:03d}.mp4")]      # exact frame ticks: the joins stay on the frame grid
         try:
@@ -697,11 +728,11 @@ def composite_chunked(video: "str | Path", overlays: Sequence[Tuple["str | Path"
         except subprocess.TimeoutExpired:
             return -1
 
-    hw = HW.h264_ok()
+    hw = HW.h264_ok() and not final
     if hw:                                     # the Mac's video engine: about 4.5x real time whatever the number of jobs, and the cores stay free (and cool)
         workers = min(workers, HW.WORKERS)
-    log(f"[Explainer] laying {len(items)} clip(s){' and the presenter' if presenter else ''} on in {n_chunks} chunk(s), {workers} at a time"
-        + (" (hardware encoder)" if hw else ""))
+    log(f"[Explainer] laying {len(items)} clip(s){' and the presenter' if presenter else ''}{f' and {len(holes)} picture clip(s)' if holes else ''} on in {n_chunks} chunk(s), {workers} at a time"
+        + (" (hardware encoder)" if hw else "") + (" (the video's final encode)" if final else ""))
     with ThreadPoolExecutor(workers) as ex:
         rcs = list(ex.map(chunk, range(n_chunks)))
     if hw and any(rcs):                        # the video engine refused a chunk: every chunk again with the software encoder, so the joined parts all match

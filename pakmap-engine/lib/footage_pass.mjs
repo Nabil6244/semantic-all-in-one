@@ -67,3 +67,44 @@ export function footageShortcut(spec, events, media, { busy = () => false } = {}
     return sizeOk.get(m.dir) ? f : null;
   };
 }
+
+/**
+ * Explainer splice (opt-in, spec.footage_holes = list of clip paths): (t) => the media_full event whose clip fills frame t, or null.
+ * Those clips are already full-frame output-size videos at least as long as their slot (the caller checks), so the renderer does not cut them
+ * into JPEG frames at all: it writes a blank frame and lists the span (holeRuns); the caller lays the clip itself over those frames in the one
+ * encode after the render. Same rules as footageShortcut for what may skip the page (one live clip, fully in, nothing drawn over it).
+ */
+export function footageHoles(spec, events, { baseDir = '.' } = {}) {
+  const none = () => null;
+  const list = Array.isArray(spec.footage_holes) ? spec.footage_holes : [];
+  const wm = spec.watermark;
+  if (!list.length || !spec.hybrid || spec.footage_shortcut === false || spec.debug_hud || (wm && wm.text && wm.enabled !== false)) return none;
+  const allowed = new Set(list.map((p) => path.resolve(baseDir, String(p))));
+  const all = events || [];
+  const fulls = all.filter((e) => e.type === 'media_full');
+  const over = all.filter((e) => e.type === 'map_template' && e.over_footage === true);
+  return (t) => {
+    const live = fulls.filter((e) => t >= e.t_in && t < e.t_out);
+    if (live.length !== 1) return null;
+    if (over.some((g) => t >= g.t_in && t < g.t_out)) return null;
+    const e = live[0];
+    if (e.cover_ui !== true || e.kenburns !== false || e.loop || footageAlpha(e, t, all, e.dissolve_s ?? TIMING.dissolve) < 1) return null;
+    if (typeof e.media !== 'string' || !allowed.has(path.resolve(baseDir, e.media))) return null;
+    return e;
+  };
+}
+
+/** The frames footageHoles leaves blank, as runs [{from, to, id, media, t_in, start_s}] (frame numbers, `to` exclusive). */
+export function holeRuns(spec, events, total, { baseDir = '.' } = {}) {
+  const hole = footageHoles(spec, events, { baseDir });
+  const runs = [];
+  let cur = null;
+  for (let i = 0; i < total; i++) {
+    const e = hole(i / spec.fps);
+    if (e && cur && cur.id === e.id && cur.to === i) { cur.to = i + 1; continue; }
+    if (cur) { runs.push(cur); cur = null; }
+    if (e) cur = { from: i, to: i + 1, id: e.id, media: path.resolve(baseDir, e.media), t_in: e.t_in, start_s: e.start_s ?? 0 };
+  }
+  if (cur) runs.push(cur);
+  return runs;
+}

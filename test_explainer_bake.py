@@ -112,7 +112,7 @@ class BakeTest(unittest.TestCase):
     def test_the_in_between_file_is_quick_to_write_unless_set(self):
         spec = {}
         B.fast_intermediate(spec)
-        self.assertEqual(spec, {"x264_preset": "ultrafast", "crf": 15})
+        self.assertEqual(spec, {"x264_preset": "superfast", "crf": 20})        # every length: a 5-minute test wrote 1.2 GB with ultrafast/15
         spec = {"x264_preset": "medium", "crf": 20}
         B.fast_intermediate(spec)
         self.assertEqual(spec, {"x264_preset": "medium", "crf": 20})
