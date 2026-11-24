@@ -80,7 +80,7 @@ class ProjectView(_BaseView):
 
     def __init__(self, master, app: Any, **kwargs):
         super().__init__(master, app, **kwargs)
-        self._header = SectionHeader(self, "Overview", "Where this project stands, and what to do next.")
+        self._header = SectionHeader(self, "Home", "Where this project stands, and what to do next.")
         self._header.grid(row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, 8))
         self._empty = EmptyState(
             self._body,
@@ -129,8 +129,24 @@ class ProjectView(_BaseView):
             row.grid(row=i, column=0, sticky="ew", pady=2)
             self._metrics.append(row)
 
+        # Start a video: the styles used last (pinned first), one click from Home.
+        self._quick = Card(self._panel, title="Start with a style", subtitle="Your pinned and recent styles. Opening one only "
+                           "shows its page: nothing runs until you press Generate.")
+        self._quick.grid(row=3, column=0, sticky="ew", pady=(0, 12))
+        self._quick_row = ctk.CTkFrame(self._quick.body, fg_color="transparent")
+        self._quick_row.grid(row=0, column=0, sticky="w")
+        self._quick_sig: Optional[tuple] = None
+
+        # Running jobs across every style (the full list with Stop is the Jobs drawer in the status bar).
+        self._jobs_card = Card(self._panel, title="Running jobs")
+        self._jobs_card.grid(row=4, column=0, sticky="ew", pady=(0, 12))
+        self._jobs_label = ctk.CTkLabel(self._jobs_card.body, text="", font=ctk.CTkFont(size=12), text_color=T.MUTED,
+                                        anchor="w", justify="left")
+        self._jobs_label.grid(row=0, column=0, sticky="w")
+        make_button(self._jobs_card.body, "Open Jobs", self._open_jobs, size="sm", width=100).grid(row=0, column=1, sticky="e")
+
         jump = Card(self._panel, title="Jump to")
-        jump.grid(row=3, column=0, sticky="ew")
+        jump.grid(row=5, column=0, sticky="ew")
         links = ctk.CTkFrame(jump.body, fg_color="transparent")
         links.grid(row=0, column=0, sticky="w")
         # Visual Director is where the style is chosen; Tools holds the CSV Generator, ratings and learning.
@@ -140,7 +156,124 @@ class ProjectView(_BaseView):
                         lambda k=key: app._shell.navigate(k) if getattr(app, "_shell", None) else None,
                         width=140).grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 8), pady=(0, 6))
 
+        # Recent projects: shown with or without a project open, newest first.
+        self._recent = Card(self._body, title="Recent projects")
+        self._recent.grid(row=2, column=0, sticky="ew", pady=(12, 0))
+        self._recent_sig: Optional[tuple] = None
+
+    def _open_jobs(self) -> None:
+        try:
+            from .home import open_jobs_drawer
+
+            open_jobs_drawer(self.app)
+        except Exception:
+            pass
+
+    def _open_project(self, project_id: str) -> None:
+        try:
+            from .jobs import any_running
+
+            if any_running(self.app):
+                self.app._shell.notify("Finish or stop the running job before switching projects.", tone="warning")
+                return
+        except Exception:
+            pass
+        self.app._picker_on_select(project_id)
+        self.on_show()
+
+    def _refresh_recent(self) -> None:
+        try:
+            from project_workspace import list_projects
+
+            found = list_projects(self.app._projects_root_path())
+        except Exception:
+            found = []
+        current = getattr(self.app._workspace, "project_id", None)
+
+        def touched(ws) -> float:
+            try:
+                return Path(ws.meta_path).stat().st_mtime
+            except Exception:
+                return 0.0
+
+        ranked = sorted((w for w in found if w.project_id != current), key=touched, reverse=True)[:6]
+        sig = tuple((w.project_id, w.title) for w in ranked)
+        if sig == self._recent_sig:
+            return
+        self._recent_sig = sig
+        body = self._recent.body
+        for child in body.winfo_children():
+            child.destroy()
+        if not ranked:
+            self._recent.grid_remove()
+            return
+        self._recent.grid()
+        for i, ws in enumerate(ranked):
+            row = ctk.CTkFrame(body, fg_color="transparent")
+            row.grid(row=i, column=0, sticky="ew", pady=1)
+            row.grid_columnconfigure(1, weight=1)
+            ctk.CTkLabel(row, text=f"#{ws.display_seq()}" if hasattr(ws, "display_seq") else "", width=44,
+                         font=ctk.CTkFont(size=11), text_color=T.TEXT_TERTIARY, anchor="w").grid(row=0, column=0, sticky="w")
+            ctk.CTkLabel(row, text=ws.title or ws.project_id, font=ctk.CTkFont(size=13), text_color=T.TEXT,
+                         anchor="w").grid(row=0, column=1, sticky="ew")
+            make_button(row, "Open", lambda pid=ws.project_id: self._open_project(pid), variant="ghost", size="sm",
+                        width=70).grid(row=0, column=2, sticky="e")
+
+    def _refresh_quick(self) -> None:
+        try:
+            from . import prefs as P
+
+            pinned = P.names(self.app, P.PINNED_KEY)
+            recent = P.names(self.app, P.RECENT_KEY)
+        except Exception:
+            pinned, recent = [], []
+        known = set(getattr(self.app, "STYLE_CHOICES", ()) or ())
+        picks = [n for n in pinned + [r for r in recent if r not in pinned] if not known or n in known][:6]
+        sig = (tuple(picks), tuple(pinned))
+        if sig == self._quick_sig:
+            return
+        self._quick_sig = sig
+        for child in self._quick_row.winfo_children():
+            child.destroy()
+        for i, name in enumerate(picks):
+            label = ("\u2605  " if name in pinned else "") + name
+            make_button(self._quick_row, label, lambda n=name: self._start_style(n), size="sm").grid(
+                row=0, column=i, padx=(0, 6), pady=(0, 4))
+        make_button(self._quick_row, "Browse all styles", lambda: self._start_style(None), variant="primary", size="sm").grid(
+            row=0, column=len(picks), padx=(0, 6), pady=(0, 4))
+
+    def _start_style(self, name: Optional[str]) -> None:
+        shell = getattr(self.app, "_shell", None)
+        if shell is None:
+            return
+        shell.navigate("visual_director")
+        if name:
+            try:
+                self.app._on_style_pick(name)
+            except Exception:
+                pass
+        else:
+            try:
+                from . import style_pages
+
+                style_pages.change_style(self.app)
+            except Exception:
+                pass
+
+    def _refresh_jobs(self) -> None:
+        try:
+            from .jobs import running
+
+            jobs = running(self.app)
+        except Exception:
+            jobs = []
+        if jobs:
+            self._jobs_label.configure(text="  \u00B7  ".join(j.label for j in jobs), text_color=T.ACCENT_TEXT)
+        else:
+            self._jobs_label.configure(text="Nothing running.", text_color=T.MUTED)
+
     def on_show(self) -> None:
+        self._refresh_recent()
         ws = self.app._workspace
         if ws is None:
             self._empty.grid()
@@ -148,6 +281,8 @@ class ProjectView(_BaseView):
             return
         self._empty.grid_remove()
         self._panel.grid()
+        self._refresh_quick()
+        self._refresh_jobs()
         cta = getattr(self.app, "generate_btn", None)
         if cta is not None:
             try:
@@ -201,7 +336,7 @@ class ProjectView(_BaseView):
         ]
         for row, val in zip(self._metrics, vals):
             row.set_value(val)
-        self._header.set_title(ws.title or "Overview")
+        self._header.set_title(ws.title or "Home")
         if total:
             self._tile_scenes.set(f"{ready}/{total}", f"{needs} need attention" if needs else "scenes ready",
                                   "fail" if needs else ("ok" if ready >= total else "warn"))

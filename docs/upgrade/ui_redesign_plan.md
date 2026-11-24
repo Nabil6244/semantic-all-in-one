@@ -77,3 +77,16 @@ Goal: a cleaner, faster-to-use app for 30+ styles, **without breaking any workfl
 - Moving off CustomTkinter to a web/Electron UI. It would mean rewriting the 17k-line
   controller and every section, and would risk exactly the workflows we want to keep.
   We can revisit it later as its own project.
+
+## Status 2026-11-24 (uncommitted)
+
+- Phase 1 v2: "Obsidian + Iris" palette in `ui/theme.py` (deeper neutrals, indigo accent #5B5FEF dark / #4C55E0 light,
+  softer family tints); Segoe UI on Windows (CustomTkinter's default Roboto is rarely installed there).
+- Phase 2: Overview is now **Home** (recent projects, start with a pinned/recent style, running jobs).
+  Sidebar numbers the 7 production steps (`T.STEP_KEYS`) and ticks each when done; Tools folds (remembered).
+  Status bar **Jobs** button + drawer (`ui/jobs.py`, `ui/home.py`): every `_*_running` flag, Stop = the style's own cancel.
+  One additive hook in `app._build_ui` calls `ui.home.install`.
+- Phase 3: Quick-pick chips (pinned + recent) under the style search; Pin button on each style page (`ui/prefs.py`,
+  saved through `app._settings`).
+- Phase 4: shortcuts (Cmd on Mac / Ctrl on Windows): 0 Home, 1-7 steps, J Jobs, K search styles, comma Settings.
+- Phase 5: UI tests + smoke pass. Not done: Windows CI run, exe/dmg build, full suite, by-eye screenshot check.

@@ -1145,6 +1145,11 @@ class VideoGeneratorApp(ctk.CTk):
         self._build_scenes_workspace(parent=self._view_visual.content)
         # Details panel is created inside inspector_body by _build_scenes_workspace.
         self._shell.navigate("script")
+        try:   # Jobs drawer, sidebar step ticks, recent styles, Tools fold (ui/home.py; reads state only)
+            from ui import home as _ui_home
+            _ui_home.install(self)
+        except Exception as exc:
+            print(f"[UI] Home extras skipped ({exc})")
         self._refresh_cache_status()
         self._topbar.bind("<Configure>", self._on_topbar_configure, add="+")
         self._scene_window_first = 0

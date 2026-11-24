@@ -102,38 +102,38 @@ def _resolve(mode: str) -> str:
 # ---------------------------------------------------------------------------
 
 DARK = {
-    "background": "#0A0B0F",
-    "surface": "#111318",
-    "surface_alt": "#0D0F13",
-    "surface_elevated": "#181B22",
-    "surface_elevated_hover": "#20242D",
-    "row_alt": "#14171D",
-    "border": "#262A35",
-    "border_strong": "#363C4B",
-    "text_primary": "#F1F2F6",
-    "text_secondary": "#A3AABB",
-    "text_tertiary": "#8A92A5",
-    "accent": "#6548F0",
-    "accent_hover": "#5638DC",
+    "background": "#08090C",
+    "surface": "#0E1015",
+    "surface_alt": "#0B0C10",
+    "surface_elevated": "#15171E",
+    "surface_elevated_hover": "#1C1F28",
+    "row_alt": "#111319",
+    "border": "#22252E",
+    "border_strong": "#323644",
+    "text_primary": "#F4F5F8",
+    "text_secondary": "#A7ADBC",
+    "text_tertiary": "#8B92A3",
+    "accent": "#5B5FEF",
+    "accent_hover": "#4B4FDB",
     "accent_on_accent": "#FFFFFF",
-    "accent_text": "#A898FF",
-    "selected": "#1F1B40",
-    "accent_border": "#4A3F96",
+    "accent_text": "#A3A9FF",
+    "selected": "#191B36",
+    "accent_border": "#3F43A3",
     "success": "#3DD68C",
-    "success_bg": "#0F2419",
+    "success_bg": "#0D2118",
     "processing": "#5AA9FF",
     "queued": "#64748B",
     "warning": "#F5B544",
-    "warning_bg": "#281F0E",
+    "warning_bg": "#261D0C",
     "error": "#F26D6D",
-    "error_bg": "#2A1517",
+    "error_bg": "#281416",
     "skipped": "#6B7280",
     "stepper_done": "#2F9E72",
-    "hover": "#20242D",
-    "disabled": "#3A4050",
-    "timeline_bg": "#0D0F13",
-    "track": "#161B22",
-    "track_alt": "#12161C",
+    "hover": "#1C1F28",
+    "disabled": "#363B4A",
+    "timeline_bg": "#0B0C10",
+    "track": "#13161C",
+    "track_alt": "#101318",
     "clip_video": "#3D5080",
     "clip_image": "#3D5080",
     "clip_text": "#7C5CFA",
@@ -143,34 +143,34 @@ DARK = {
     "clip_music": "#B08900",
     "clip_voiceover": "#4F6BF6",
     "playhead": "#F26D6D",
-    "family_general": "#1A2338",
-    "family_history": "#2A2417",
-    "family_space": "#1D1A38",
-    "family_theory": "#2C1F1A",
-    "family_stories": "#2C1A27",
-    "family_kids": "#16291F",
-    "family_products": "#13262E",
-    "family_more": "#1F2129",
+    "family_general": "#161C30",
+    "family_history": "#241F15",
+    "family_space": "#1A1832",
+    "family_theory": "#261C18",
+    "family_stories": "#261824",
+    "family_kids": "#14241C",
+    "family_products": "#122229",
+    "family_more": "#1A1C24",
 }
 
 LIGHT = {
-    "background": "#EEF0F4",
-    "surface": "#FAFAFC",
-    "surface_alt": "#F3F4F8",
+    "background": "#F4F5F7",
+    "surface": "#FBFBFC",
+    "surface_alt": "#F6F7F9",
     "surface_elevated": "#FFFFFF",
-    "surface_elevated_hover": "#EFF0F6",
-    "row_alt": "#F7F8FB",
-    "border": "#DEE1EA",
-    "border_strong": "#C6CBD8",
-    "text_primary": "#14161F",
-    "text_secondary": "#474E60",
-    "text_tertiary": "#5F6678",
-    "accent": "#5B3DF0",
-    "accent_hover": "#4A2DD6",
+    "surface_elevated_hover": "#F0F1F5",
+    "row_alt": "#F8F9FA",
+    "border": "#E3E5EB",
+    "border_strong": "#CDD1DA",
+    "text_primary": "#0F1117",
+    "text_secondary": "#4A5061",
+    "text_tertiary": "#626879",
+    "accent": "#4C55E0",
+    "accent_hover": "#3E46C8",
     "accent_on_accent": "#FFFFFF",
-    "accent_text": "#5132E6",
-    "selected": "#ECE8FF",
-    "accent_border": "#B9ADF7",
+    "accent_text": "#3F48D6",
+    "selected": "#ECEEFE",
+    "accent_border": "#B8BDF6",
     "success": "#0A7A55",
     "success_bg": "#E3F6EE",
     "processing": "#2F80D6",
@@ -181,9 +181,9 @@ LIGHT = {
     "error_bg": "#FBEAEA",
     "skipped": "#9AA1AD",
     "stepper_done": "#1F8F5E",
-    "hover": "#EFF0F6",
+    "hover": "#F0F1F5",
     "disabled": "#C7CCD6",
-    "timeline_bg": "#F3F4F8",
+    "timeline_bg": "#F6F7F9",
     "track": "#FFFFFF",
     "track_alt": "#F5F6F8",
     "clip_video": "#AAB8F0",
@@ -195,14 +195,14 @@ LIGHT = {
     "clip_music": "#F0D98C",
     "clip_voiceover": "#AAB8F0",
     "playhead": "#D64545",
-    "family_general": "#E4EAFB",
-    "family_history": "#F6ECD9",
-    "family_space": "#ECE6FC",
-    "family_theory": "#F9E7E0",
-    "family_stories": "#F8E3EF",
-    "family_kids": "#DFF3E7",
-    "family_products": "#DCEFF5",
-    "family_more": "#E9EAEE",
+    "family_general": "#E6EBFB",
+    "family_history": "#F5EDDD",
+    "family_space": "#ECE9FC",
+    "family_theory": "#F7E9E3",
+    "family_stories": "#F6E6F0",
+    "family_kids": "#E2F2E8",
+    "family_products": "#DFEFF4",
+    "family_more": "#EBECF0",
 }
 
 _TABLES = {"dark": DARK, "light": LIGHT}
@@ -476,6 +476,12 @@ def install_ctk_theme() -> None:
     def put(widget: str, **values) -> None:
         th.setdefault(widget, {}).update(values)
 
+    # Windows: CustomTkinter's default "Roboto" is rarely installed, so every label fell back to Tk's plain default
+    # font (blurry, wrong metrics). Segoe UI ships with every Windows since Vista and is what native apps use.
+    import sys as _sys
+
+    if _sys.platform.startswith("win"):
+        th.setdefault("CTkFont", {})["family"] = WINDOWS_FONT
     put("CTk", fg_color=pair("background"))
     put("CTkToplevel", fg_color=pair("background"))
     put("CTkFrame", corner_radius=RADIUS, border_width=0, fg_color=pair("surface_alt"),
@@ -524,6 +530,8 @@ def active_appearance() -> str:
     """The resolved dark/light in effect right now (never "system")."""
     return _ACTIVE_MODE
 
+
+WINDOWS_FONT = "Segoe UI"
 
 # Layout (unaffected by theme)
 SIDEBAR_WIDTH = 204
@@ -579,7 +587,7 @@ FOCUS_RING_WIDTH = 2
 
 # Sidebar navigation: the production flow first, supporting tools below.
 NAV_ITEMS = (
-    ("project", "Overview", "workspace"),
+    ("project", "Home", "workspace"),
     ("script", "Script", "workspace"),
     ("voiceover", "Voiceover", "workspace"),
     ("visual_director", "Visual Director", "workspace"),
@@ -598,6 +606,9 @@ NAV_ITEMS = (
 )
 
 NAV_GROUP_LABELS = {"workspace": "PRODUCTION", "advanced": "TOOLS"}
+
+# The production steps, in the order a video is made. The sidebar numbers them and ticks each one once it is done.
+STEP_KEYS = ("script", "voiceover", "visual_director", "visual_plan", "audio", "graphics", "render")
 
 # One glyph per page; plain Unicode so it renders on macOS and Windows alike.
 NAV_ICONS = {

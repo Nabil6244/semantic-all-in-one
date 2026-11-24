@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import Callable, Dict, Optional
 
 import customtkinter as ctk
@@ -59,6 +60,13 @@ class AppShell(ctk.CTkFrame):
         self._active = "script"
         self._nav_btns: Dict[str, ctk.CTkButton] = {}
         self._nav_bars: Dict[str, ctk.CTkFrame] = {}
+        self._nav_items: Dict[str, ctk.CTkFrame] = {}
+        self._nav_steps: Dict[str, ctk.CTkLabel] = {}
+        self._step_done: Dict[str, bool] = {}
+        self._tools_open = True
+        self._tools_header = None
+        self.on_tools_toggled: Optional[Callable[[bool], None]] = None   # set by ui.home: remembers open/closed
+        self.on_jobs: Optional[Callable[[], None]] = None   # set by ui.home: opens the Jobs drawer
         self.views: Dict[str, ctk.CTkFrame] = {}
         self._factories: Dict[str, Callable[[], ctk.CTkFrame]] = {}
 
@@ -215,10 +223,16 @@ class AppShell(ctk.CTkFrame):
         self._group_headers: list = []
         for key, label, group in T.NAV_ITEMS:
             if group != current_group:
+                collapsible = group == "advanced"
                 header = ctk.CTkLabel(
-                    side, text=T.NAV_GROUP_LABELS.get(group, group.upper()),
+                    side, text=T.NAV_GROUP_LABELS.get(group, group.upper()) + ("   \u25BE" if collapsible else ""),
                     font=ctk.CTkFont(size=10, weight="bold"), text_color=T.TEXT_TERTIARY, anchor="w",
+                    cursor="hand2" if collapsible else "",
                 )
+                if collapsible:   # Tools folds away so the production steps stay in view
+                    header.bind("<Button-1>", lambda _e: self.set_tools_open(not self._tools_open))
+                    self._tools_header = header
+                    TT.attach(header, "Show or hide the tools")
                 header.grid(row=row, column=0, sticky="ew", padx=(20, 12),
                             pady=(18 if current_group is None else 10, 6))   # 10 (was 14): the Voiceover item must still fit a 1100x700 window
                 self._group_headers.append(header)
@@ -237,8 +251,19 @@ class AppShell(ctk.CTkFrame):
                 command=lambda k=key: self.navigate(k),
             )
             btn.grid(row=0, column=1, sticky="ew")
+            if key in T.STEP_KEYS:   # the production steps, numbered in order; a tick once that step is done
+                step = ctk.CTkLabel(
+                    item, text=str(T.STEP_KEYS.index(key) + 1), width=20, height=18, corner_radius=9,
+                    font=ctk.CTkFont(size=10, weight="bold"), text_color=T.TEXT_TERTIARY, fg_color=T.CARD,
+                )
+                step.grid(row=0, column=2, sticky="e", padx=(4, 6))
+                step.bind("<Button-1>", lambda _e, k=key: self.navigate(k))
+                self._nav_steps[key] = step
+                mod = "\u2318" if sys.platform == "darwin" else "Ctrl+"
+                TT.attach(btn, f"Step {T.STEP_KEYS.index(key) + 1}: {label}   ({mod}{T.STEP_KEYS.index(key) + 1})")
             self._nav_btns[key] = btn
             self._nav_bars[key] = bar
+            self._nav_items[key] = item
             row += 1
 
         side.grid_rowconfigure(row, weight=1)
@@ -250,6 +275,60 @@ class AppShell(ctk.CTkFrame):
         self.version_label.grid(row=row + 1, column=0, sticky="ew", padx=20, pady=(0, 12))
         ctk.CTkFrame(self, fg_color=T.BORDER, width=1, corner_radius=0).grid(
             row=1, column=0, sticky="nse")
+
+    def tool_keys(self) -> list:
+        return [k for k, _l, g in T.NAV_ITEMS if g == "advanced"]
+
+    def set_tools_open(self, is_open: bool, *, notify: bool = True) -> None:
+        """Fold or unfold the Tools group. The page that is open always stays visible."""
+        self._tools_open = bool(is_open)
+        for key in self.tool_keys():
+            item = self._nav_items.get(key)
+            if item is None:
+                continue
+            if self._tools_open or key == self._active:
+                item.grid()
+            else:
+                item.grid_remove()
+        if self._tools_header is not None:
+            try:
+                arrow = "\u25BE" if self._tools_open else "\u25B8"
+                self._tools_header.configure(text=f"{T.NAV_GROUP_LABELS.get('advanced', 'TOOLS')}   {arrow}")
+            except Exception:
+                pass
+        if notify and self.on_tools_toggled is not None:
+            try:
+                self.on_tools_toggled(self._tools_open)
+            except Exception:
+                pass
+
+    def set_step_done(self, key: str, done: bool) -> None:
+        """Tick (or untick) a production step in the sidebar. Cheap when nothing changed."""
+        lab = self._nav_steps.get(key)
+        if lab is None or self._step_done.get(key) == bool(done):
+            return
+        self._step_done[key] = bool(done)
+        try:
+            if done:
+                lab.configure(text="\u2713", text_color=T.ACCENT_DARK, fg_color=T.STEPPER_DONE)
+            else:
+                lab.configure(text=str(T.STEP_KEYS.index(key) + 1), text_color=T.TEXT_TERTIARY, fg_color=T.CARD)
+        except Exception:
+            pass
+
+    def set_jobs(self, count: int, summary: str = "") -> None:
+        """The status-bar Jobs button: how many jobs are running across all styles."""
+        btn = getattr(self, "jobs_btn", None)
+        if btn is None:
+            return
+        text = f"\u25CF  {count} running" + (f"  \u00B7  {summary}" if summary else "") if count else "Jobs"
+        if getattr(self, "_jobs_text", None) == text:
+            return
+        self._jobs_text = text
+        try:
+            btn.configure(text=text, text_color=T.ACCENT_TEXT if count else T.MUTED)
+        except Exception:
+            pass
 
     def _paint_nav(self) -> None:
         for k, btn in self._nav_btns.items():
@@ -313,7 +392,7 @@ class AppShell(ctk.CTkFrame):
         bar.grid_columnconfigure(2, weight=1)
         self.statusbar = bar
         ctk.CTkFrame(bar, fg_color=T.BORDER, height=1, corner_radius=0).grid(
-            row=0, column=0, columnspan=4, sticky="ew")
+            row=0, column=0, columnspan=5, sticky="ew")
         self.status_dot = ctk.CTkLabel(bar, text="●", font=ctk.CTkFont(size=9), text_color=T.SUCCESS)
         self.status_dot.grid(row=1, column=0, sticky="w", padx=(14, 6), pady=5)
         self.cache_label = ctk.CTkLabel(
@@ -324,7 +403,17 @@ class AppShell(ctk.CTkFrame):
             bar, textvariable=status_line_var, font=ctk.CTkFont(size=11), text_color=T.TEXT_TERTIARY,
             anchor="e",
         )
-        self.status_line_label.grid(row=1, column=3, sticky="e", padx=14, pady=5)
+        self.status_line_label.grid(row=1, column=3, sticky="e", padx=(14, 6), pady=5)
+        jobs_style = button_style("ghost", "sm")
+        jobs_style.update(font=ctk.CTkFont(size=11, weight="bold"), text_color=T.MUTED, height=20)
+        self.jobs_btn = ctk.CTkButton(bar, text="Jobs", width=60, command=self._open_jobs, **jobs_style)
+        self.jobs_btn.grid(row=1, column=4, sticky="e", padx=(0, 8), pady=2)
+        TT.attach(self.jobs_btn, "Every running job across all styles, with Stop  ("
+                  + ("\u2318J" if sys.platform == "darwin" else "Ctrl+J") + ")")
+
+    def _open_jobs(self) -> None:
+        if self.on_jobs is not None:
+            self.on_jobs()
 
     # ------------------------------------------------------------------
     # Navigation
@@ -356,6 +445,8 @@ class AppShell(ctk.CTkFrame):
             else:
                 fr.grid_remove()
         self._active = key
+        if not self._tools_open and key in self.tool_keys():
+            self.set_tools_open(False, notify=False)   # re-apply so the opened tool page's own item shows
         # The inspector acts on the selected scene, which only the Visuals
         # page shows — elsewhere it was an empty panel, so hide it.
         if key in INSPECTOR_VIEWS:

@@ -286,7 +286,7 @@ class TestLiveWidgetSmoke(unittest.TestCase):
         self.app._shell.navigate("project")
         self.app.update_idletasks()
         self.assertEqual(self.app._shell.active_view, "project")
-        self.assertEqual(self.app._shell.page_title.cget("text"), "Overview")
+        self.assertEqual(self.app._shell.page_title.cget("text"), "Home")
 
 
 if __name__ == "__main__":

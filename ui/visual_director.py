@@ -15,6 +15,7 @@ import customtkinter as ctk
 
 from . import theme as T
 from .style_registry import BUILT_ON
+from .widgets import button_style
 
 # (key, title, tint token, styles in order). A style no family names lands in "More", so a new style always shows.
 FAMILIES: Tuple[Tuple[str, str, str, Tuple[str, ...]], ...] = (
@@ -178,6 +179,7 @@ def _build_toolbar(app: Any, grid: Any) -> None:
     entry = ctk.CTkEntry(bar, textvariable=app._vd_query, placeholder_text="⌕  Search styles, topics or inputs", width=300,
                          height=T.CONTROL_H, font=_font(T.FONT_BODY))
     entry.grid(row=0, column=0, sticky="w")
+    app._vd_search_entry = entry
     app._vd_count = ctk.CTkLabel(bar, text="", font=_font(T.FONT_METADATA), text_color=T.TEXT_TERTIARY, anchor="e")
     app._vd_count.grid(row=0, column=1, sticky="e", padx=(12, 0))
     families = ["All"] + [title for _k, title, _t, _n in FAMILIES]
@@ -186,7 +188,12 @@ def _build_toolbar(app: Any, grid: Any) -> None:
                                  command=lambda _v: refresh(app))
     seg.grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
     app._vd_query.trace_add("write", lambda *_a: refresh(app))
+    # Pinned and recent styles, one click away (ui/prefs.py keeps them in settings.json).
+    app._vd_quick = ctk.CTkFrame(bar, fg_color="transparent")
+    app._vd_quick.grid(row=2, column=0, columnspan=2, sticky="w", pady=(10, 0))
+    app._vd_quick_sig = None
     app._vd_toolbar = bar
+    refresh_quick_picks(app)
     app._vd_empty = ctk.CTkLabel(grid, text="No style matches. Clear the search or pick All.", font=_font(T.FONT_BODY), text_color=T.MUTED)
 
 
@@ -255,6 +262,9 @@ def _restyle_page_head(app: Any) -> None:
     app._vd_page_tags.grid(row=2, column=1, sticky="w", pady=(8, 0))
     app._vd_page_types = ctk.CTkLabel(head, text="", font=_font(T.FONT_METADATA), text_color=T.TEXT, anchor="w", justify="left")
     app._vd_page_types.grid(row=3, column=1, sticky="w", pady=(6, 0))
+    app._vd_pin_btn = ctk.CTkButton(head, text="\u2606  Pin", width=80, command=lambda: _toggle_pin(app),
+                                    **button_style("ghost", "sm"))
+    app._vd_pin_btn.grid(row=2, column=2, sticky="ne", padx=16, pady=(8, 0))
     app._vd_page_needs = ctk.CTkLabel(head, text="", font=_font(T.FONT_METADATA), text_color=T.MUTED, anchor="w", justify="left")
     app._vd_page_needs.grid(row=4, column=1, sticky="w", pady=(6, 16))
 
@@ -280,12 +290,71 @@ def sync_page_head(app: Any, active: str) -> None:
             app._vd_page_types.grid()
         else:
             app._vd_page_types.grid_remove()
+        _paint_pin(app, active)
         app._vd_page_needs.configure(text=f"Needs:  {needs}" + (f"      Good for:  {suits}" if suits else ""))
         width = max(320, app._style_page_head.winfo_width() - 260)
         for lab in (app._style_page_blurb, app._vd_page_types, app._vd_page_needs):
             lab.configure(wraplength=width)
     except Exception:
         pass
+
+
+def _paint_pin(app: Any, name: str) -> None:
+    btn = getattr(app, "_vd_pin_btn", None)
+    if btn is None:
+        return
+    from . import prefs as P
+
+    pinned = name in P.names(app, P.PINNED_KEY)
+    try:
+        btn.configure(text="\u2605  Pinned" if pinned else "\u2606  Pin", text_color=T.ACCENT_TEXT if pinned else T.MUTED)
+    except Exception:
+        pass
+
+
+def _toggle_pin(app: Any) -> None:
+    from . import prefs as P
+
+    try:
+        name = app._style_picker.get()
+    except Exception:
+        return
+    if not name:
+        return
+    P.toggle_pinned(app, name)
+    _paint_pin(app, name)
+    refresh_quick_picks(app)
+
+
+def refresh_quick_picks(app: Any) -> None:
+    """The chip row under the search box: pinned styles (starred) then recent ones. Hidden when there are none yet."""
+    row = getattr(app, "_vd_quick", None)
+    if row is None:
+        return
+    from . import prefs as P
+
+    cards = getattr(app, "_style_cards", {}) or {}
+    pinned = [n for n in P.names(app, P.PINNED_KEY) if n in cards]
+    recent = [n for n in P.names(app, P.RECENT_KEY) if n in cards and n not in pinned]
+    picks = (pinned + recent)[:8]
+    sig = (tuple(picks), tuple(pinned))
+    if getattr(app, "_vd_quick_sig", None) == sig:
+        return
+    app._vd_quick_sig = sig
+    for child in row.winfo_children():
+        child.destroy()
+    if not picks:
+        row.grid_remove()
+        return
+    row.grid()
+    ctk.CTkLabel(row, text="QUICK PICK", font=ctk.CTkFont(size=10, weight="bold"), text_color=T.TEXT_TERTIARY).grid(
+        row=0, column=0, padx=(2, 10))
+    style = button_style("secondary", "sm")
+    style.update(corner_radius=13, height=26)
+    for i, name in enumerate(picks, start=1):
+        text = ("\u2605  " if name in pinned else "") + display_name(name)
+        ctk.CTkButton(row, text=text, width=40, command=lambda n=name: app._on_style_pick(n), **style).grid(
+            row=0, column=i, padx=(0, 6))
 
 
 def _visible(app: Any) -> List[Tuple[str, str, List[Any]]]:
