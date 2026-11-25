@@ -898,8 +898,41 @@ class _ProgressTap:
 
     def flush(self):
         pass
+
+
+def _whisper_thread_setup(slot, model) -> None:
+    """In a background Whisper thread: keep its latest progress line in slot["last"] (a Generate waiting for it shows it), and on a
+    PC with 4 cores or fewer load the CPU model with one core fewer, so the window keeps a core (empty cards while it read, Windows)."""
+    with _ROUTE_LOCK:
+        _ROUTE_BY_THREAD[threading.get_ident()] = _ProgressTap(slot)
+    try:
+        import whisper_backend as _wb
+        if not _wb.gpu_available() and (os.cpu_count() or 4) <= 4:
+            with vg._WHISPER_LOCK:
+                if vg._WHISPER_CACHE.get("size") != str(model):
+                    from faster_whisper import WhisperModel
+                    vg._WHISPER_CACHE.clear()
+                    vg._WHISPER_CACHE.update(size=str(model), model=WhisperModel(str(model), device="cpu", compute_type="int8",
+                                                                                cpu_threads=max(1, (os.cpu_count() or 4) - 1), num_workers=1))
+    except Exception:
+        pass
 _ROUTE_BY_THREAD: dict = {}
 _ROUTE_STACK: list = []
+
+
+def _start_freeze_helpers(app) -> None:
+    """Window freezes are recorded with the code that caused them (~/SYT_lag_report.txt, ui/lag_probe.py), and the graphics
+    template library is read off the main thread (its first read froze the window 2.3 s on Windows during a plan check)."""
+    try:
+        import gfx_templates as _gfx_templates
+        threading.Thread(target=_gfx_templates.load_library, name="gfx-library-warm", daemon=True).start()
+    except Exception:
+        pass
+    try:
+        from ui import lag_probe as _lag_probe
+        _lag_probe.start(app)
+    except Exception:
+        pass
 
 
 def _install_output_router() -> None:
@@ -12141,19 +12174,7 @@ class VideoGeneratorApp(ctk.CTk):
         slot = {"key": key, "words": None}
 
         def _run() -> None:
-            with _ROUTE_LOCK:   # keep Whisper's latest progress line, so a Generate waiting for this run can show it
-                _ROUTE_BY_THREAD[threading.get_ident()] = _ProgressTap(slot)
-            try:   # leave one CPU core for the window: Whisper on every core starved the page (empty cards while it read, 4-core Windows PC)
-                import whisper_backend as _wb
-                if not _wb.gpu_available() and (os.cpu_count() or 4) <= 4:
-                    with vg._WHISPER_LOCK:
-                        if vg._WHISPER_CACHE.get("size") != str(model):
-                            from faster_whisper import WhisperModel
-                            vg._WHISPER_CACHE.clear()
-                            vg._WHISPER_CACHE.update(size=str(model), model=WhisperModel(str(model), device="cpu", compute_type="int8",
-                                                                                        cpu_threads=max(1, (os.cpu_count() or 4) - 1), num_workers=1))
-            except Exception:
-                pass
+            _whisper_thread_setup(slot, model)   # its progress line kept for a waiting Generate; one CPU core left for the window
             try:
                 slot["words"] = self._pakmap_get_words(Path(str(audio)), str(model), state_dir, print)
             except BaseException:   # SystemExit included (no words): the render path reports it itself
@@ -17674,11 +17695,7 @@ def main() -> None:
         return
     ensure_ffmpeg_on_path()
     app = VideoGeneratorApp()
-    try:   # window freezes are recorded with the code that caused them: ~/SYT_lag_report.txt (ui/lag_probe.py)
-        from ui import lag_probe as _lag_probe
-        _lag_probe.start(app)
-    except Exception:
-        pass
+    _start_freeze_helpers(app)
     try:   # a stuck download or media tool never freezes a Generate: stopped after minutes with no progress, report saved
         from stall_guard import install_for_app as _install_stall_watchdog
         app._stall_watchdog = _install_stall_watchdog(app)

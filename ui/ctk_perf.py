@@ -63,6 +63,7 @@ def install() -> bool:
         pass
     _install_scrollable_frame_unbind()
     _install_resize_deferral()
+    _install_skip_same_configure()
     _INSTALLED = True
     return True
 
@@ -336,3 +337,52 @@ def _defer_scroll_width() -> None:
     _FIT_ORIGINAL["fn"] = original
     CTkScrollableFrame._fit_frame_dimensions_to_canvas = fit
 
+
+
+# ---------------------------------------------------------------------------------------------------- no-op configure
+#
+# A CustomTkinter widget redraws all its shapes on every configure(), even when nothing changed. The Visuals table
+# re-applies each row's state on every refresh (checkbox state, button states, row colour, status text): hundreds of
+# full redraws per refresh. A Windows PC's freeze report (2026-11-25) showed 4.5 s in one such refresh. A configure that
+# only repeats the current values now returns at once; anything else is passed on unchanged.
+
+_SAME_OK = frozenset({"state", "text", "fg_color", "text_color", "text_color_disabled", "border_width", "border_color",
+                      "hover_color", "corner_radius", "cursor", "anchor"})
+
+
+def _skip_same(original):
+    def configure(self, require_redraw=False, **kwargs):
+        if kwargs and not require_redraw and _SAME_OK.issuperset(kwargs):
+            try:
+                if all(self.cget(k) == v for k, v in kwargs.items()):
+                    return None
+            except Exception:
+                pass
+        return original(self, require_redraw=require_redraw, **kwargs)
+
+    configure._sy_same = True  # type: ignore[attr-defined]
+    configure._sy_original = original  # type: ignore[attr-defined]
+    return configure
+
+
+def _install_skip_same_configure() -> None:
+    if _os.environ.get("SYT_NO_SKIP_SAME"):
+        return
+    try:
+        from customtkinter import CTkButton, CTkCheckBox, CTkFrame, CTkLabel
+    except Exception:
+        return
+    for cls in (CTkButton, CTkCheckBox, CTkFrame, CTkLabel):
+        own = cls.__dict__.get("configure")
+        if own is None or getattr(own, "_sy_same", False):
+            continue
+        cls.configure = _skip_same(own)
+    original_set = CTkCheckBox.__dict__.get("set")
+    if original_set is not None and not getattr(original_set, "_sy_same", False):
+        def set_state(self, state, from_variable_callback=False):
+            if getattr(self, "_check_state", None) is bool(state) and from_variable_callback:
+                return None   # the variable was set to what the box already shows (every table refresh): no redraw
+            return original_set(self, state, from_variable_callback)
+
+        set_state._sy_same = True  # type: ignore[attr-defined]
+        CTkCheckBox.set = set_state

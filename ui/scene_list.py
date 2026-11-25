@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Tuple
 
 # Keep in sync with app.py batching / windowing constants.
-SCENE_ROW_SYNC_LIMIT = 24
-SCENE_ROW_BATCH = 20
+SCENE_ROW_SYNC_LIMIT = 6   # rows built in one go; more are built a few at a time so the window keeps answering
+SCENE_ROW_BATCH = 4        # a Windows PC took 0.6 s per 20 rows (freeze report 2026-11-25): 4 rows ~0.12 s per step
 # Prefer batching over spacer-windowing — spacers create large empty gaps in CTk.
 SCENE_WINDOW_THRESHOLD = 200  # effectively disable spacer-windowing for typical plans
 SCENE_ROW_HEIGHT = 52   # the Visuals rows (ui/visuals_look.py): 16:9 thumbnail + two lines of narration

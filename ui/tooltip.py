@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+import tkinter
+
 import customtkinter as ctk
 
 from . import theme as T
@@ -56,7 +58,9 @@ class Tooltip:
         except Exception:
             return
         try:
-            win = ctk.CTkToplevel(self.widget)
+            # a plain Toplevel: CTkToplevel on Windows paints its title bar with a full update() of the app (1.0 s per tooltip
+            # in a Windows freeze report, 2026-11-25), and a tooltip has no title bar
+            win = tkinter.Toplevel(self.widget)
             win.overrideredirect(True)
             win.attributes("-topmost", True)
             try:
@@ -68,6 +72,10 @@ class Tooltip:
                 border_width=1, border_color=T.BORDER,
             )
             frame.pack()
+            try:
+                win.configure(bg=frame._apply_appearance_mode(T.CARD))
+            except Exception:
+                pass
             label_text = self.text
             ctk.CTkLabel(
                 frame, text=label_text, font=ctk.CTkFont(size=T.FONT_SECONDARY_LABEL[0]),
