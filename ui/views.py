@@ -125,7 +125,7 @@ class ProjectView(_BaseView):
             row=0, column=0, rowspan=2, sticky="w", padx=(18, 0), pady=16)
         ctk.CTkLabel(nxt, text="NEXT STEP", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.ACCENT_TEXT,
                      anchor="w").grid(row=0, column=1, sticky="sw", padx=14, pady=(16, 0))
-        ctk.CTkLabel(nxt, textvariable=app.hint_var, font=ctk.CTkFont(size=17, weight="bold"),
+        ctk.CTkLabel(nxt, textvariable=app.hint_var, font=ctk.CTkFont(size=16, weight="bold"),
                      text_color=T.TEXT, anchor="w", justify="left", wraplength=620).grid(
             row=1, column=1, sticky="nw", padx=14, pady=(0, 16))
         self._next_btn = make_button(nxt, "Continue  \u2192", app._on_primary_cta, variant="primary", size="lg", width=170)
@@ -2593,6 +2593,9 @@ class RenderView(_BaseView):
 
         settings_card = Card(self._body, title="Output settings")
         settings_card.grid(row=2, column=0, sticky="ew")
+        self._ready_card, self._prog_card, self._settings_card = ready_card, prog_card, settings_card
+        self._two_col = None
+        self._body.bind("<Configure>", self._relayout, add="+")
         sb = settings_card.body
         self._resolution_row = MetricRow(sb, "Resolution")
         self._resolution_row.grid(row=0, column=0, sticky="ew", pady=2)
@@ -2600,6 +2603,24 @@ class RenderView(_BaseView):
         self._fps_row.grid(row=1, column=0, sticky="ew", pady=2)
         self._encoder_row = MetricRow(sb, "Video encoder")
         self._encoder_row.grid(row=2, column=0, sticky="ew", pady=2)
+
+    def _relayout(self, event=None) -> None:
+        """Wide page: checks + settings on the left, Progress in a 340 px column on the right (the mockup's Export)."""
+        width = int(getattr(event, "width", 0) or self._body.winfo_width())
+        two = width >= 880
+        if two == self._two_col or width <= 1:
+            return
+        self._two_col = two
+        if two:
+            self._body.grid_columnconfigure(1, weight=0, minsize=340)
+            self._ready_card.grid_configure(row=0, column=0, padx=(0, 12))
+            self._settings_card.grid_configure(row=1, column=0, padx=(0, 12))
+            self._prog_card.grid_configure(row=0, column=1, rowspan=2, sticky="new", padx=0)
+        else:
+            self._body.grid_columnconfigure(1, weight=0, minsize=0)
+            self._ready_card.grid_configure(row=0, column=0, padx=0)
+            self._prog_card.grid_configure(row=1, column=0, rowspan=1, sticky="ew", padx=0)
+            self._settings_card.grid_configure(row=2, column=0, padx=0)
 
     # -- live refresh while the page is visible -------------------------
 
@@ -2930,56 +2951,61 @@ class QAView(_BaseView):
         )
         self._empty.grid(row=0, column=0, sticky="ew", pady=(24, 0))
 
-        self._head = Card(self._body)
-        self._head.grid(row=1, column=0, sticky="ew", pady=(0, 12))
-        self._head.grid_columnconfigure(1, weight=1)
-        self._score = ctk.CTkLabel(
-            self._head, text="—", font=ctk.CTkFont(size=40, weight="bold"), text_color=T.TEXT,
-        )
-        self._score.grid(row=0, column=0, rowspan=2, sticky="w", padx=(20, 14), pady=16)
+        # score card | by-category list, side by side (the Lovable mockup's Quality Check)
+        self._top = ctk.CTkFrame(self._body, fg_color="transparent")
+        self._top.grid(row=1, column=0, sticky="ew", pady=(0, 12))
+        self._top.grid_columnconfigure(0, weight=0, minsize=280)
+        self._top.grid_columnconfigure(1, weight=1)
+        self._head = Card(self._top)
+        self._head.grid(row=0, column=0, sticky="nsew", padx=(0, 12))
+        self._head.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(self._head, text="OVERALL SCORE", font=ctk.CTkFont(size=11, weight="bold"),
-                     text_color=T.TEXT_TERTIARY, anchor="w").grid(row=0, column=1, sticky="sw", pady=(18, 0))
+                     text_color=T.TEXT_TERTIARY, anchor="w").grid(row=0, column=0, sticky="w", padx=20, pady=(18, 0))
+        score_row = ctk.CTkFrame(self._head, fg_color="transparent")
+        score_row.grid(row=1, column=0, sticky="w", padx=20, pady=(4, 0))
+        self._score = ctk.CTkLabel(score_row, text="—", font=ctk.CTkFont(size=T.FONT_HERO_NUMBER[0], weight=T.FONT_HERO_NUMBER[1]), text_color=T.TEXT)
+        self._score.pack(side="left")
+        ctk.CTkLabel(score_row, text=" /100", font=ctk.CTkFont(size=14), text_color=T.MUTED).pack(side="left", anchor="s", pady=(0, 10))
         self._verdict = StatusPill(self._head, "—", "muted")
-        self._verdict.grid(row=1, column=1, sticky="nw", pady=(4, 18))
+        self._verdict.grid(row=2, column=0, sticky="w", padx=20, pady=(8, 0))
+        self._summary = ctk.CTkLabel(self._head, text="", font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w",
+                                     justify="left", wraplength=240)
+        self._summary.grid(row=3, column=0, sticky="w", padx=20, pady=(10, 18))
 
-        cats = Card(self._body, title="By category")
-        cats.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+        cats = Card(self._top, title="By category")
+        cats.grid(row=0, column=1, sticky="nsew")
         self._cats = cats
         grid = ctk.CTkFrame(cats.body, fg_color="transparent")
         grid.grid(row=0, column=0, sticky="ew")
-        grid.grid_columnconfigure((0, 1, 2), weight=1, uniform="qa_cats")
+        grid.grid_columnconfigure(0, weight=1)
         self._cat_rows: dict = {}
         for i, name in enumerate(self._CATEGORIES):
-            cell = ctk.CTkFrame(grid, fg_color=T.PANEL_ALT, corner_radius=T.RADIUS)
-            cell.grid(row=i // 3, column=i % 3, sticky="ew", padx=4, pady=4)
-            cell.grid_columnconfigure(0, weight=1)
-            ctk.CTkLabel(cell, text=name, font=ctk.CTkFont(size=12), text_color=T.MUTED, anchor="w").grid(
-                row=0, column=0, sticky="w", padx=12, pady=10)
-            pill = StatusPill(cell, "—", "muted")
-            pill.grid(row=0, column=1, sticky="e", padx=10)
+            if i:
+                Divider(grid).grid(row=2 * i - 1, column=0, columnspan=2, sticky="ew")
+            ctk.CTkLabel(grid, text=name, font=ctk.CTkFont(size=13), text_color=T.TEXT, anchor="w").grid(
+                row=2 * i, column=0, sticky="w", pady=7)
+            pill = StatusPill(grid, "—", "muted")
+            pill.grid(row=2 * i, column=1, sticky="e")
             self._cat_rows[name] = _PillValue(pill)
 
         issues_card = Card(self._body, title="Findings")
         issues_card.grid(row=3, column=0, sticky="ew")
+        issues_card.body.grid_columnconfigure(0, weight=1)
         self._issues_card = issues_card
-        self._issues = ctk.CTkTextbox(
-            issues_card.body, height=200, 
-            font=ctk.CTkFont(size=12),
-        )
+        self._issues = ctk.CTkFrame(issues_card.body, fg_color="transparent")
         self._issues.grid(row=0, column=0, sticky="ew")
+        self._issues.grid_columnconfigure(2, weight=1)
 
     def on_show(self) -> None:
         ws = self.app._workspace
         qa = _load_json(ws.state_dir / "editorial_qa.json") if ws else {}
         if not qa:
             self._empty.grid()
-            self._head.grid_remove()
-            self._cats.grid_remove()
+            self._top.grid_remove()
             self._issues_card.grid_remove()
             return
         self._empty.grid_remove()
-        self._head.grid()
-        self._cats.grid()
+        self._top.grid()
         self._issues_card.grid()
         score = qa.get("score")
         verdict = str(qa.get("verdict") or "—")
@@ -3004,16 +3030,28 @@ class QAView(_BaseView):
                 self._cat_rows[label].set_value("FAIL")
             else:
                 self._cat_rows[label].set_value("WARN")
-        self._issues.delete("1.0", "end")
+        fails = sum(1 for i in issues if i.get("severity") == "FAIL")
+        warns = len(issues) - fails
+        self._summary.configure(text="No issues found." if not issues else
+                                f"{fails} to fix, {warns} worth a look." if fails else f"{warns} worth a second look.")
+        for child in self._issues.winfo_children():
+            child.destroy()
         if not issues:
-            self._issues.insert("1.0", "No issues detected.\n")
-        else:
-            for i in issues[:40]:
-                self._issues.insert(
-                    "end",
-                    f"{i.get('severity', '—'):<5}  Scene {i.get('scene_number')}  \u00B7  "
-                    f"{float(i.get('timestamp') or 0):.1f}s  \u00B7  {i.get('message')}\n",
-                )
+            ctk.CTkLabel(self._issues, text="No issues detected.", font=ctk.CTkFont(size=13), text_color=T.MUTED,
+                         anchor="w").grid(row=0, column=0, columnspan=3, sticky="w", pady=4)
+        for n, i in enumerate(issues[:40]):
+            sev = str(i.get("severity") or "—").upper()
+            if n:
+                Divider(self._issues).grid(row=2 * n - 1, column=0, columnspan=4, sticky="ew")
+            StatusPill(self._issues, sev, {"FAIL": "fail", "WARN": "warn"}.get(sev, "muted")).grid(
+                row=2 * n, column=0, sticky="w", pady=6, padx=(0, 12))
+            ctk.CTkLabel(self._issues, text=f"#{i.get('scene_number')}", width=44, anchor="w",
+                         font=ctk.CTkFont(family="Menlo", size=12), text_color=T.MUTED).grid(row=2 * n, column=1, sticky="w")
+            ctk.CTkLabel(self._issues, text=str(i.get("message") or ""), font=ctk.CTkFont(size=13), text_color=T.TEXT,
+                         anchor="w", justify="left", wraplength=560).grid(row=2 * n, column=2, sticky="ew", padx=(4, 8))
+            ctk.CTkLabel(self._issues, text=f"{float(i.get('timestamp') or 0):.1f}s", width=56, anchor="e",
+                         font=ctk.CTkFont(family="Menlo", size=12), text_color=T.TEXT_TERTIARY).grid(
+                row=2 * n, column=3, sticky="e")
 
 
 class _PillValue:
@@ -3134,6 +3172,10 @@ class AboutOwnershipView(_BaseView):
 
 # Tools reachable only from the "⋯" overflow menu before; that menu keeps its entries. Each card calls the SAME app method the menu
 # calls, so behaviour (and its error handling) is unchanged: (title, what it does, button, app method).
+TOOL_ICONS = {"_open_csv_generator": "\u25A6", "_open_rating_history": "\u2605", "_open_learning": "\u2691",
+              "_show_activity_log": "\u2261", "_open_output_folder": "\u2302", "_open_uploads": "\u21EA",
+              "_open_settings": "\u2699"}
+
 TOOL_CARDS = (
     ("CSV Generator", "Turn a script into a CSV for the current style, check it, and use it for the plan.", "Open CSV Generator",
      "_open_csv_generator"),
@@ -3160,16 +3202,26 @@ class ToolsView(_BaseView):
         SectionHeader(self, "Tools", "Helpers that work alongside every style").grid(
             row=0, column=0, sticky="ew", padx=T.PAD, pady=(T.PAD, T.PAD_SM))
         self._buttons = {}
-        for row, (title, blurb, label, method) in enumerate(TOOL_CARDS):
-            card = Card(self._body)
-            card.grid(row=row, column=0, sticky="ew", pady=(0, T.PAD_SM))
+        grid = ctk.CTkFrame(self._body, fg_color="transparent")
+        grid.grid(row=0, column=0, sticky="ew")
+        grid.grid_columnconfigure((0, 1, 2), weight=1, uniform="tool_cards")
+        soft = T.mix(T.ACCENT, T.CARD, 0.12)
+        for i, (title, blurb, label, method) in enumerate(TOOL_CARDS):
+            card = Card(grid)
+            card.grid(row=i // 3, column=i % 3, sticky="nsew", padx=(0 if i % 3 == 0 else 6, 0), pady=(0, 12))
             card.grid_columnconfigure(0, weight=1)
+            card.grid_rowconfigure(2, weight=1)
+            ctk.CTkLabel(card, text=TOOL_ICONS.get(method, "\u2726"), width=40, height=40, corner_radius=T.RADIUS,
+                         fg_color=soft, text_color=T.ACCENT_TEXT, font=ctk.CTkFont(size=20)).grid(
+                row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 0))
             ctk.CTkLabel(card, text=title, text_color=T.TEXT, anchor="w", font=ctk.CTkFont(size=14, weight="bold")).grid(
-                row=0, column=0, sticky="w", padx=T.PAD, pady=(T.PAD, 2))
-            ctk.CTkLabel(card, text=blurb, text_color=T.MUTED, anchor="w", justify="left", wraplength=560,
-                         font=ctk.CTkFont(size=12)).grid(row=1, column=0, sticky="w", padx=T.PAD, pady=(0, T.PAD))
-            btn = make_button(card, label, lambda m=method: self._run(m), variant="secondary")
-            btn.grid(row=0, column=1, rowspan=2, sticky="e", padx=T.PAD, pady=T.PAD)
+                row=1, column=0, sticky="w", padx=T.PAD, pady=(12, 2))
+            desc = ctk.CTkLabel(card, text=blurb, text_color=T.MUTED, anchor="nw", justify="left", wraplength=240,
+                                font=ctk.CTkFont(size=12))
+            desc.grid(row=2, column=0, sticky="new", padx=T.PAD)
+            card.bind("<Configure>", lambda e, d=desc: d.configure(wraplength=max(120, e.width - 40)), add="+")
+            btn = make_button(card, label, lambda m=method: self._run(m), variant="secondary", size="sm")
+            btn.grid(row=3, column=0, sticky="w", padx=T.PAD, pady=(14, T.PAD))
             self._buttons[method] = btn
 
     def _run(self, method: str) -> None:

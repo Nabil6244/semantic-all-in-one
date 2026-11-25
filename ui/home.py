@@ -41,6 +41,12 @@ def install(app: Any) -> None:
         ctk_perf.watch_window(app)
     except Exception:
         pass
+    try:   # the Visuals page's scene rows in the mockup look (ui/visuals_look.py)
+        from . import visuals_look
+
+        visuals_look.install(app)
+    except Exception:
+        pass
     app._home_state = {"visuals_at": 0.0, "visuals_done": False}
     try:
         app.after(POLL_MS, lambda: _poll(app))

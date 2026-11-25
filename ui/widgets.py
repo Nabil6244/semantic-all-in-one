@@ -465,7 +465,7 @@ class StyleTile(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(self, text=icon or "□", width=40, height=40, corner_radius=T.RADIUS,
                      fg_color=T.mix(ink, T.CARD, 0.18), text_color=ink,
-                     font=ctk.CTkFont(size=18)).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 0))
+                     font=ctk.CTkFont(size=20)).grid(row=0, column=0, sticky="w", padx=14, pady=(14, 0))
         ctk.CTkLabel(self, text="★" if pinned else "☆", font=ctk.CTkFont(size=14),
                      text_color=T.WARNING if pinned else T.TEXT_TERTIARY).grid(row=0, column=1, sticky="ne",
                                                                               padx=12, pady=(12, 0))

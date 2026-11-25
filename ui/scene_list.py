@@ -9,7 +9,7 @@ SCENE_ROW_SYNC_LIMIT = 24
 SCENE_ROW_BATCH = 20
 # Prefer batching over spacer-windowing — spacers create large empty gaps in CTk.
 SCENE_WINDOW_THRESHOLD = 200  # effectively disable spacer-windowing for typical plans
-SCENE_ROW_HEIGHT = 28
+SCENE_ROW_HEIGHT = 52   # the Visuals rows (ui/visuals_look.py): 16:9 thumbnail + two lines of narration
 SCENE_WINDOW_BUFFER = 12
 
 

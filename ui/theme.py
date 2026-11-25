@@ -628,6 +628,7 @@ FONT_EMPTY_TITLE = (16, "bold")
 FONT_DISPLAY = (20, "bold")
 FONT_EMPTY_ICON = (20, "normal")
 FONT_STYLE_ICON = (28, "normal")   # the big glyph on a Visual Director style card
+FONT_HERO_NUMBER = (52, "bold")   # the Quality Check score
 
 CONTROL_H_SM = 26
 CONTROL_H = 32
