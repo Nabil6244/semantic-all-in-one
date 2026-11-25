@@ -931,6 +931,7 @@ def _start_freeze_helpers(app) -> None:
     try:
         from ui import lag_probe as _lag_probe
         _lag_probe.start(app)
+        _lag_probe.install_error_log(app)   # errors inside the window (a page that fails to build) -> ~/SYT_error_log.txt
     except Exception:
         pass
 

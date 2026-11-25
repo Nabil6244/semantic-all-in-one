@@ -159,6 +159,14 @@ import weakref as _weakref
 
 RESIZE_SETTLE_MS = 120
 
+import sys as _sys
+
+
+def _defer_off() -> bool:
+    """Deferred drawing stays off on Windows: it came with the Nov 24 UI work, was only tried on a Mac, and Windows builds since then
+    showed pages left blank and the side panel undrawn in the window corner without any freeze. Windows draws as the builds before it did."""
+    return bool(_os.environ.get("SYT_NO_RESIZE_DEFER")) or (_sys.platform == "win32" and not _os.environ.get("SYT_RESIZE_DEFER"))
+
 _RESIZE = {"active": False, "after": None, "root": None, "last": None}
 _PENDING: "_weakref.WeakValueDictionary" = _weakref.WeakValueDictionary()
 _PENDING_FIT: "_weakref.WeakValueDictionary" = _weakref.WeakValueDictionary()
@@ -247,7 +255,7 @@ def _on_root_configure(event) -> None:
 
 def watch_window(root) -> bool:
     """Start deferring redraws while ``root`` (the main window) is resized. Call once after it exists."""
-    if _os.environ.get("SYT_NO_RESIZE_DEFER"):
+    if _defer_off():
         return False
     old = _RESIZE["root"]
     if old is not None:
@@ -298,7 +306,7 @@ def only_window_configure(root) -> bool:
 def _install_resize_deferral() -> None:
     """Swap the per-widget resize handler. Must run before widgets are built: each widget binds the handler it finds
     on its class when it is created. Without watch_window() the new handler behaves exactly like the old one."""
-    if _os.environ.get("SYT_NO_RESIZE_DEFER"):
+    if _defer_off():
         return
     try:
         from customtkinter.windows.widgets.core_widget_classes.ctk_base_class import CTkBaseClass

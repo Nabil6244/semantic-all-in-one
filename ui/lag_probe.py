@@ -104,3 +104,59 @@ def start(root) -> bool:
         _STATE["on"] = False
         return False
     return True
+
+
+# ---------------------------------------------------------------------------------------------------- error log
+# The Windows exe has no console: an error inside a button click or a page build only printed to nowhere, and the
+# page stayed blank (Audio & Effects, 2026-11-25). Every such error now goes to ~/SYT_error_log.txt with its stack.
+
+def error_log_path() -> Path:
+    return Path.home() / "SYT_error_log.txt"
+
+
+def _log_error(where: str, exc_type, exc, tb) -> None:
+    try:
+        text = "".join(traceback.format_exception(exc_type, exc, tb))
+        path = error_log_path()
+        try:
+            if path.stat().st_size > 2_000_000:   # keep the newest errors only
+                path.write_text("", encoding="utf-8")
+        except OSError:
+            pass
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"\n=== {time.strftime('%Y-%m-%d %H:%M:%S')}  {where}\n{text}")
+    except Exception:
+        pass
+
+
+def install_error_log(root) -> None:
+    """Window callbacks, background threads and anything uncaught write their error and stack to ~/SYT_error_log.txt."""
+    original = getattr(root, "report_callback_exception", None)
+
+    def on_callback_error(exc_type, exc, tb):
+        _log_error("window callback", exc_type, exc, tb)
+        if original is not None:
+            try:
+                original(exc_type, exc, tb)
+            except Exception:
+                pass
+
+    try:
+        root.report_callback_exception = on_callback_error
+    except Exception:
+        pass
+    old_thread_hook = threading.excepthook
+
+    def on_thread_error(args):
+        if args.exc_type is not SystemExit:
+            _log_error(f"thread {getattr(args.thread, 'name', '?')}", args.exc_type, args.exc_value, args.exc_traceback)
+        old_thread_hook(args)
+
+    threading.excepthook = on_thread_error
+    old_hook = sys.excepthook
+
+    def on_error(exc_type, exc, tb):
+        _log_error("uncaught", exc_type, exc, tb)
+        old_hook(exc_type, exc, tb)
+
+    sys.excepthook = on_error
