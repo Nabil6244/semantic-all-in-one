@@ -368,10 +368,7 @@ def on_render_click(app) -> None:
                 def listed(rows) -> None:      # shown at once, each row's state then follows the manifest (as Health Cinema does)
                     app.after(0, lambda: (visual_bridge.fill(app, OWNER, rows), app._rt_status_var.set(f"Scenes listed in the Visuals tab; making their pictures through Flow...")))
                 def one_done(*_a, **_k) -> None:      # each finished picture appears in the tab as it lands
-                    def refresh():
-                        try: app._hydrate_overscaled_assets_from_manifest(folder); app._render_scene_rows(); app._refresh_assets_cta()
-                        except Exception: pass
-                    app.after(0, refresh)
+                    visual_bridge.refresh_soon(app, folder)      # at most one table rebuild a second, not one per picture
                 result = dict(result, rows=fetch_pictures(manager, folder, result.get("requests") or [], app._rt_cancel.is_set, log, on_listed=listed, on_done=one_done))
         except engine.Cancelled: error = "Stopped."
         except Exception as exc: error = f"{type(exc).__name__}: {exc}"      # shown to the user, never a silent failure

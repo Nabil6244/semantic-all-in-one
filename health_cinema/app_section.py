@@ -364,12 +364,8 @@ def on_render_click(app) -> None:
                     app.after(0, show)
 
                 def one_done(*_a, **_k) -> None:      # each finished picture appears in the tab as it lands
-                    def refresh():
-                        try:
-                            app._hydrate_overscaled_assets_from_manifest(images_dir); app._render_scene_rows(); app._refresh_assets_cta()
-                        except Exception:
-                            pass
-                    app.after(0, refresh)
+                    import visual_bridge as _vb
+                    _vb.refresh_soon(app, images_dir)      # at most one table rebuild a second, not one per picture
 
                 result["rows"] = footage_rows + illustration_rows(result["illustrations"], manager, images_dir, app._health_cancel.is_set, log, on_listed=listed, on_done=one_done)
         except engine.Cancelled:

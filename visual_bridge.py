@@ -119,6 +119,33 @@ def rows(app, owner: str) -> List:
     return list(getattr(app, "_scene_rows", []) or []) if getattr(app, "_scene_rows_owner", None) == owner else []
 
 
+def refresh_soon(app, pictures_dir, ms: int = 1000) -> None:
+    """A picture landed: show it in the Visuals tab. Called from a worker thread once per picture; the table is rebuilt at most once
+    per ``ms`` (each rebuild re-read the manifest and redrew every row: 100+ pictures froze the window on Windows)."""
+    with _SOON_LOCK:
+        if getattr(app, "_vb_refresh_pending", False):
+            return
+        app._vb_refresh_pending = True
+
+    def run():
+        with _SOON_LOCK:
+            app._vb_refresh_pending = False
+        try:
+            app._hydrate_overscaled_assets_from_manifest(pictures_dir); app._render_scene_rows(); app._refresh_assets_cta()
+        except Exception:
+            pass
+
+    try:
+        app.after(0, lambda: app.after(ms, run))
+    except Exception:
+        with _SOON_LOCK:
+            app._vb_refresh_pending = False
+
+
+import threading as _threading
+_SOON_LOCK = _threading.Lock()
+
+
 def fill(app, owner: str, scene_rows: List) -> None:
     """Main thread only. The style's requests become the table's rows (one per asset); their state is read from the style's manifest."""
     keep = {_scene_key(r.scene_number) for r in scene_rows}

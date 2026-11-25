@@ -17674,6 +17674,11 @@ def main() -> None:
         return
     ensure_ffmpeg_on_path()
     app = VideoGeneratorApp()
+    try:   # window freezes are recorded with the code that caused them: ~/SYT_lag_report.txt (ui/lag_probe.py)
+        from ui import lag_probe as _lag_probe
+        _lag_probe.start(app)
+    except Exception:
+        pass
     try:   # a stuck download or media tool never freezes a Generate: stopped after minutes with no progress, report saved
         from stall_guard import install_for_app as _install_stall_watchdog
         app._stall_watchdog = _install_stall_watchdog(app)
