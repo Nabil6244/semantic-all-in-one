@@ -10524,6 +10524,24 @@ class VideoGeneratorApp(ctk.CTk):
 
     def _enforce_asset_mix_on_csv(self, csv_path: Path) -> int:
         """Rewrite CSV providers from current Asset mix preferences. Returns Flow video count."""
+        # A BOM made the header read "﻿scene_number": every row was dropped and the CSV written back empty
+        # (PK "PIA vs Emirates", 2026-11-26). And a CSV that names its own sources (map / archive / commons)
+        # or carries gfx / on_screen_en columns is a finished plan: the rewrite below keeps 4 columns only.
+        try:
+            _raw = csv_path.read_bytes()
+            if _raw.startswith(b"\xef\xbb\xbf"):
+                csv_path.write_bytes(_raw[3:])
+            with csv_path.open(newline="", encoding="utf-8") as _f:
+                _rd = csv.DictReader(_f)
+                _rows_own = list(_rd)
+                _cols_own = set(_rd.fieldnames or [])
+        except (OSError, csv.Error):
+            _rows_own, _cols_own = [], set()
+        _own_types = {"map", "archive_video", "nasa_video", "commons_image", "commons_video"}
+        if _rows_own and ({"gfx", "on_screen_en"} & _cols_own
+                          or any(str(r.get("asset_type") or "").strip().lower() in _own_types for r in _rows_own)):
+            self._append_log("[CLAUDE-PLAN] CSV names its own sources/graphics - Asset mix left as written\n")
+            return 0
         from vo_planner.preferences import apply_asset_mix_to_plan
 
         mix = self._read_vo_asset_mix()
@@ -16034,6 +16052,11 @@ class VideoGeneratorApp(ctk.CTk):
                     whisper_words = [(w, float(s), float(e)) for w, s, e in cached]
                     print("[SMART] Reusing cached word alignment.")
                 _pevents.emit("cache", cache="whisper", hit=bool(cached))
+            if whisper_words is not None and any(str(r.get("on_screen_en") or "").strip() for r in config["rows"]):
+                # The smart cache keeps the words saved after the EN TEXT swap below (English stand-ins), not the voice:
+                # an Urdu re-render aligned 0/146 rows on them (PIA vs Emirates, 2026-11-26). Take the real transcript instead.
+                whisper_words = None
+                print("[SMART] English on-screen lines: cached words skipped, using the voice transcript.")
             if whisper_words is None:
                 whisper_words = self._whisper_prefetch_take(config)   # started with the asset step, same audio + model
             if whisper_words is None:
