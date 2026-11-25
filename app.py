@@ -878,6 +878,26 @@ class _OutputRouter:
 
 
 _ROUTE_LOCK = threading.Lock()
+
+
+class _ProgressTap:
+    """A background Whisper thread's output: the last line is kept in slot["last"] ("[1/4] Transcribing… 40% …"), the text
+    goes on to the newest running job's log, else the terminal."""
+
+    def __init__(self, slot):
+        self.slot = slot
+
+    def write(self, text):
+        line = (text or "").strip().splitlines()
+        if line and "Transcribing" in line[-1]:
+            self.slot["last"] = line[-1].replace("[1/4] ", "")
+        with _ROUTE_LOCK:
+            w = _ROUTE_STACK[-1] if _ROUTE_STACK else None
+        w = w if w is not None else getattr(sys.stdout, "base", None)
+        return w.write(text) if w is not None else len(text or "")
+
+    def flush(self):
+        pass
 _ROUTE_BY_THREAD: dict = {}
 _ROUTE_STACK: list = []
 
@@ -6693,6 +6713,11 @@ class VideoGeneratorApp(ctk.CTk):
         if words is None and _bg and _bg["thread"] is not threading.current_thread() and _bg["thread"].is_alive() \
                 and _bg["key"] == (_audio_fingerprint(voiceover_path), str(whisper_model)):
             log("Waiting for the voiceover reading that is already running in the background…")
+            _bg_t0 = time.time()   # wait in short steps and say how far it is: a silent wait on a long voiceover looked frozen for 25 min
+            while _bg["thread"].is_alive() and time.time() - _bg_t0 < 3600:
+                _bg["thread"].join(timeout=30)
+                if _bg["thread"].is_alive():
+                    log(f"Still reading the voiceover ({int(time.time() - _bg_t0) // 60} min so far) {_bg.get('last') or ''}".rstrip())
             _bg["thread"].join(timeout=3600)
             if _bg.get("words") and not short(_bg["words"]):
                 words = [(str(w), float(s), float(e)) for w, s, e in _bg["words"]]
@@ -12116,10 +12141,25 @@ class VideoGeneratorApp(ctk.CTk):
         slot = {"key": key, "words": None}
 
         def _run() -> None:
+            with _ROUTE_LOCK:   # keep Whisper's latest progress line, so a Generate waiting for this run can show it
+                _ROUTE_BY_THREAD[threading.get_ident()] = _ProgressTap(slot)
+            try:   # leave one CPU core for the window: Whisper on every core starved the page (empty cards while it read, 4-core Windows PC)
+                import whisper_backend as _wb
+                if not _wb.gpu_available() and (os.cpu_count() or 4) <= 4:
+                    with vg._WHISPER_LOCK:
+                        if vg._WHISPER_CACHE.get("size") != str(model):
+                            from faster_whisper import WhisperModel
+                            vg._WHISPER_CACHE.clear()
+                            vg._WHISPER_CACHE.update(size=str(model), model=WhisperModel(str(model), device="cpu", compute_type="int8",
+                                                                                        cpu_threads=max(1, (os.cpu_count() or 4) - 1), num_workers=1))
+            except Exception:
+                pass
             try:
                 slot["words"] = self._pakmap_get_words(Path(str(audio)), str(model), state_dir, print)
             except BaseException:   # SystemExit included (no words): the render path reports it itself
                 slot["words"] = None
+            with _ROUTE_LOCK:
+                _ROUTE_BY_THREAD.pop(threading.get_ident(), None)
 
         slot["thread"] = threading.Thread(target=_run, name="whisper-prefetch", daemon=True)
         slot["thread"].start()

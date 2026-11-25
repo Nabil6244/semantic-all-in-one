@@ -132,7 +132,9 @@ class ProjectPickerDialog(ctk.CTkToplevel):
         self.resizable(True, True)
         if master is not None:
             try:
-                self.transient(master)
+                # macOS: a transient of a hidden (withdrawn) main window is never mapped and Tk's update() waits for it forever
+                if master.winfo_viewable():
+                    self.transient(master)
             except Exception:
                 pass
 

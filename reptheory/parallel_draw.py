@@ -68,6 +68,8 @@ def _run(cmd, **kw):
         return subprocess.run(cmd, **kw)
 
 
+STALL_S = 300      # no new frame from any worker for this long: they are given up and the video is drawn in one process
+
 _STATE: dict = {}
 
 
@@ -141,7 +143,7 @@ def render(scenes: List[dict], starts: List[int], n_narr: int, n_frames: int, ca
             log(f"[REP THEORY SPEED] one core: the worker processes could not start ({type(e).__name__}: {e})"); return False
         try:
             futs = {ex.submit(draw_chunk, str(state), j["a"], j["b"], j["out"], j["prog"], stop, ff): j for j in jobs}
-            last = -1
+            last = -1; moved = time.time()
             while True:
                 if cancelled():
                     Path(stop).write_text("stop")
@@ -149,6 +151,18 @@ def render(scenes: List[dict], starts: List[int], n_narr: int, n_frames: int, ca
                     raise E.Cancelled("cancelled")
                 pending = [fu for fu in futs if not fu.done()]
                 d = _done_frames(jobs)
+                if d != last:
+                    moved = time.time()
+                if pending and time.time() - moved > STALL_S:      # the workers draw nothing (a frozen build that cannot start them, a hung worker): one process instead of waiting forever
+                    log(f"[REP THEORY SPEED] the worker processes drew nothing for {STALL_S // 60} min ({d}/{n_frames} frames); drawing in one process instead")
+                    Path(stop).write_text("stop")
+                    for fu in futs: fu.cancel()
+                    for pr in list((getattr(ex, "_processes", None) or {}).values()):
+                        try:
+                            pr.terminate()
+                        except Exception:
+                            pass
+                    return False
                 if d != last:
                     last = d; el = time.time() - t0; left = el / d * (n_frames - d) if d else 0
                     prog(0.10 + 0.85 * d / n_frames, f"drawing on {n} cores: {d}/{n_frames} frames" + (f", about {left / 60:.0f} min left" if d and el > 20 else ""))
