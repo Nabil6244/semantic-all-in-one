@@ -56,7 +56,9 @@ class SharedFilesOnlyGrow(unittest.TestCase):
     def test_app_and_spec_lose_no_line_except_the_approved_ones(self):
         base = MANIFEST["base_commit"]
         for name, approved in MANIFEST["approved_removed_lines"].items():
-            diff = git("diff", "--no-color", "-U0", base, "--", name)
+            # histogram diff: the default (myers) can pair a moved-down block with new lines and
+            # report lines that are still in the file as removed
+            diff = git("diff", "--no-color", "-U0", "--diff-algorithm=histogram", base, "--", name)
             if diff is None:
                 self.skipTest("git is not available")
             removed = [ln[1:] for ln in diff.splitlines() if ln.startswith("-") and not ln.startswith("---")]
