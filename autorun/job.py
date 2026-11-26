@@ -59,6 +59,7 @@ STYLES: Dict[str, Dict[str, Any]] = {
                        fields={"script": "_ph_script_var", "csv": "_ph_csv_var", "voice": "_ph_voice_var"}),
     "food-files": _s("Food Files", "optional", "foodfiles/csv_prompt.txt", voice="optional",
                      fields={"script": "_ff_script_var", "csv": "_ff_csv_var", "voice": "_ff_voice_var"}),
+    "senior-trivia": _s("Senior Trivia", "required", "senior_trivia/csv_prompt.txt", voice="optional", fields={"csv": "_st_csv_var"}),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 

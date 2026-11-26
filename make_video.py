@@ -65,6 +65,7 @@ STYLES = {   # kept in step with autorun/job.py (test_autorun.py checks it): nam
     "stickman": ("optional", "optional", "stickman/csv_prompt.txt", "Stickman"),
     "prepper-host": ("optional", "optional", "prepper_host/csv_prompt.txt", "Prepper Host"),
     "food-files": ("optional", "optional", "foodfiles/csv_prompt.txt", "Food Files"),
+    "senior-trivia": ("required", "optional", "senior_trivia/csv_prompt.txt", "Senior Trivia"),
 }
 VOICE_EXT = (".mp3", ".wav", ".m4a", ".aac", ".flac", ".ogg")
 

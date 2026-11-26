@@ -1,0 +1,60 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/doodle_dark/look.css"></head>
+<body><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="1920" height="1080" class="abs" style="inset:0"></svg><div id="h" class="abs" style="inset:0"></div></div>
+<div id="tag"></div><div class="flash" id="fl"></div><div class="vignette"></div><div class="grain"></div>
+<script type="module">
+import * as K from '/agent_kit/lib/kit.js';
+import { hero, heroAt, SPEED } from '/agent_kit/looks/doodle_dark/hero.js';
+import { defs, R, lin, shaft, glow, dust, treeline, dayTag, floorBoards, wallTex, door, contact, fg, frame, clock, plant, rug, clutter, shade } from '/agent_kit/looks/doodle_dark/light.js';
+import { cardBg, line, pop, slamN, cam as camT, caps, AMBER, OFF, INK } from '/@scene/common.js';
+window.sceneReady = document.fonts.ready;
+const D=3.84, tLock=K.when('locked',0.48), tPull=K.when('pulled',2.08), tShut=K.when('shut',3.0);
+function room(t, close) {
+  let g = defs()+'<defs>'+lin('sk2',[[0,'#4b4a63'],[0.7,'#b07c66'],[1,'#d89a6e']])+'</defs>'+
+    wallTex(0,840,'#252c3e',{kind:'paper',seed:2}) + floorBoards(840,240,'#2b241d',{seed:4});
+  // window with dusk outside (clipped), curtains on a rail
+  g += '<g transform="translate(250 230)"><clipPath id="wc2"><rect width="420" height="360"/></clipPath><g clip-path="url(#wc2)">'+R(0,0,420,360,'url(#sk2)')+
+       '<circle cx="300" cy="300" r="36" fill="#ffd9a8" opacity=".9"/>'+treeline(300,'#3a3348',6,60,34).replace('M-60 1100','M0 360').replace('L1980 1100','L420 360')+'</g>'+
+       '<path d="M0 0H420V360H0Z M210 0V360 M0 180H420" fill="none" stroke="#3a4157" stroke-width="18"/>'+R(-24,356,468,24,'#3a4157','stroke="'+INK+'" stroke-width="5"')+'</g>';
+  const cw=70+150*close;
+  g += '<path d="M210 200 h'+cw+' q-10 200 6 420 h-'+cw+'z" fill="#5a3f4a" stroke="'+INK+'" stroke-width="5"/><path d="M710 200 h-'+cw+' q10 200 -6 420 h'+cw+'z" fill="#5a3f4a" stroke="'+INK+'" stroke-width="5"/>'+
+       [0.3,0.6].map(k=>'<path d="M'+(210+cw*k)+' 204 q-4 200 2 410 M'+(710-cw*k)+' 204 q4 200 -2 410" stroke="#45303a" stroke-width="4" fill="none"/>').join('')+R(190,186,540,18,'#2a2f3d','rx="9"');
+  // wall props: picture, clock, side table + lamp (off), rug
+  g += frame(860,250,190,140,'#3b4a5e') + clock(1110,190,38,t);
+  g += R(850,700,190,140,'#3a3128','stroke="'+INK+'" stroke-width="5"')+R(840,690,210,16,'#4a3f33','stroke="'+INK+'" stroke-width="4"')+
+       '<path d="M915 690 l10 -90 h40 l10 90" fill="#6d6250" stroke="'+INK+'" stroke-width="4"/><path d="M895 600 h100 l-20 -60 h-60 z" fill="#c9b48c" stroke="'+INK+'" stroke-width="4"/>'+contact(945,840,240);
+  g += rug(1180,960,620) + plant(120,840);
+  g += door(1400,300,260,540,{wood:'#5b4632'});
+  return g;
+}
+window.renderAt = async (t) => {
+  const close=K.easeInOutCubic(K.clamp((t-tPull)/(tShut-tPull+0.25)));
+  const bolt=K.easeOutBack(K.clamp((t-tLock+0.05)/0.25));
+  let g='';
+  if (t < tLock-0.12 || t >= tPull-0.05) {
+    g = room(t, close);
+    // bolt on the door
+    g += R(1414,522,40,44,'#6d7380','stroke="'+INK+'" stroke-width="4" rx="4"')+R(1420-44*(t>tLock?1:0),536,60,16,'#a7adb8','stroke="'+INK+'" stroke-width="4" rx="4"');
+    const open=1-close;
+    g += shaft('sh2',[[250,230],[670,230],[1100,1080],[380,1080]],'#ffcf9a',0.26*open)+dust(t,[[250,230],[670,230],[1100,1080],[380,1080]],{n:40,seed:4,id:'d2',color:'#ffe2c0'}).replace('<g clip','<g opacity="'+open.toFixed(2)+'" clip');
+    g += t < tPull ? hero(t,{pose:'push',face:'angry',x:1240,y:1000,scale:0.78,light:'dusk'})
+                   : heroAt(t,[{at:tPull-0.05,pose:'push',facing:1,x:1240},{at:tPull+0.1,pose:'walk',facing:-1,x:1180},{at:tShut,pose:'stand',facing:-1,x:1020}],{face:'worried',y:1000,scale:0.78,light:'dusk'});
+    g += fg('<path d="M1820 1080 L1860 640 Q1900 600 1940 640 L1940 1080 Z" fill="#141821"/>','blur8');   // foreground chair edge
+  } else {
+    // insert: the bolt slides home, big
+    g = defs()+R(0,0,1920,1080,'#3d2f22');
+    for (let i=0;i<9;i++) g += '<path d="M'+(i*230-40)+' 0 q30 540 -10 1080" stroke="#33271c" stroke-width="10" fill="none"/>';
+    g += R(0,0,520,1080,'#2a211a','stroke="'+INK+'" stroke-width="10"');                      // door frame on the left
+    g += R(380,420,200,240,'#6d7380','stroke="'+INK+'" stroke-width="10" rx="14"')+'<circle cx="420" cy="460" r="10" fill="#4a4f5c"/><circle cx="420" cy="620" r="10" fill="#4a4f5c"/>';
+    g += R(860,420,340,240,'#7a808c','stroke="'+INK+'" stroke-width="10" rx="18"');             // bolt housing on the door
+    g += R(980-560*bolt,490,520,100,'#b9bfca','stroke="'+INK+'" stroke-width="10" rx="20"')+R(1140-560*bolt,450,50,140,'#9aa0ab','stroke="'+INK+'" stroke-width="8" rx="12"');
+    g += glow(700,540,260,'#ffcf9a',0.15)+'<rect width="1920" height="1080" fill="url(#vb)"/><defs><radialGradient id="vb"><stop offset=".4" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></radialGradient></defs>';
+    const li=pop(t,tLock+0.1);
+    g += '<g transform="translate(1500 300) scale('+(li*1.6)+')" opacity="'+K.clamp(li)+'"><circle r="54" fill="#0d0f14" stroke="'+AMBER+'" stroke-width="4"/><path d="M-18 -4 v-14 a18 18 0 0 1 36 0 v14" fill="none" stroke="'+AMBER+'" stroke-width="5"/>'+R(-24,-4,48,36,'none','stroke="'+AMBER+'" stroke-width="5" rx="5"')+'</g>';
+  }
+  s.innerHTML=g;
+  h.innerHTML = (t>=tLock-0.12 && t<tPull-0.05) ? caps('LOCKED',1500,430,{size:34,color:'#ffb547',op:K.clamp((t-tLock-0.1)*5)}) : '';
+  tag.innerHTML=dayTag(1);
+  cam.style.transform=camT(t,D,[tLock,tPull]);
+  fl.style.opacity=K.flash(t,tLock-0.12,0.12)*0.15;
+};
+</script></body></html>

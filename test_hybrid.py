@@ -245,7 +245,7 @@ class TestCompile(unittest.TestCase):
     def test_it_compiles_to_a_pakmap_spec_with_the_engine_rules_applied(self):
         res = compile_plan(plan(), width=1920, height=1080, fps=30)
         spec = res.spec
-        self.assertEqual(spec["hybrid"], {"pause_overlays": True})
+        self.assertEqual(spec["hybrid"], {"pause_overlays": True, "ambience_gain": 0.5, "transition_gain": 0.5})
         self.assertEqual(spec["duration"], 24.0)
         ev = {e["id"]: e for e in spec["events"]}
         self.assertEqual((ev["b2_c1"]["type"], ev["b2_c1"]["cover_ui"], ev["b2_c2"]["xfade_prev"], ev["b2_c2"]["kenburns"]), ("media_full", True, True, True))
@@ -306,7 +306,7 @@ class TestGenerate(unittest.TestCase):
         r = self.run_gen(plan())
         self.assertTrue(r.ok, r.errors)
         spec = self.specs[0]
-        self.assertEqual(spec["hybrid"], {"pause_overlays": True})
+        self.assertEqual(spec["hybrid"], {"pause_overlays": True, "ambience_gain": 0.5, "transition_gain": 0.5})
         ev = {e["id"]: e for e in spec["events"]}
         self.assertTrue(ev["b2_c1"]["media"].endswith("001.mp4"))          # stock_video:farmers in a field -> scene 1 of the Visual Plan folder
         self.assertEqual(ev["b2_c2"]["media"], "media/market.jpg")         # a local file is the author's own

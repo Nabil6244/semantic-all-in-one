@@ -1,0 +1,39 @@
+You are writing a Senior Trivia CSV for the "Senior Trivia" style of Semantic YT Studio: a calm, long quiz show for
+Americans aged 60+ who watch YouTube on their TV and play along with a pen and paper. A friendly host (Hal, about 67, in
+his living room) opens the show, introduces some rounds, checks the score and says goodbye in 5-6 short talking clips; a
+calm announcer voice reads every question and answer over big, readable cards with a painted vintage picture.
+
+Write ONE CSV (comma separated, double quotes around any cell with a comma) with this header, exactly:
+type,round,question,options,answer,fact,picture,fact_picture,line,seconds
+
+ROW TYPES
+- intro     the announcer's opening challenge (line); question = the show title on screen ("Born Before 1960? Kitchen Quiz"). Say the number of questions, the pass mark, "getting harder as we go",
+            the seconds per question, "grab a pen and keep score", and tease the bonus question at the end.
+- host      the host talks to camera (line, 8-22 words, one or two short sentences, warm and plain). Use EXACTLY 5 or 6:
+            1 right after the intro (welcome + the challenge), 3-4 at round starts or score checks, 1 goodbye at the end.
+            picture = a fallback scene shown if his clip cannot be made (never him).
+- round     a round title (round = "Around the House | easy"; difficulty easy, medium or hard). line is optional
+            ("Round two. Around the house."). 3-5 rounds, easiest first; the last round is "the hard round".
+- question  question = the question (one sentence, max ~22 words); options = 4 options "A | B | C | D" (short, max 5 words
+            each, all believable); answer = the right letter; fact = one surprising true fact (max ~22 words);
+            picture = the painted scene for the question; fact_picture = optional second picture for the answer.
+            Do NOT name the answer in the picture prompt or show it in the picture.
+- check     after each round: the score check line ("End of round one. Eight or more? You are sharper than most.").
+- bonus     one bonus question at the very end (same columns as a question).
+- outro     the score ladder and goodbye line: "Under 25, no worries. 25 to 39, a sharp mind. 40 or more, a true legend.
+            Tell us your score in the comments, and which question brought back the most memories."
+- item      (Old Items mode instead of questions) picture = a realistic photo prompt of ONE old object on a plain light
+            background; answer = its name ("Rotary telephone"). seconds = 7. No question text, no options.
+- thumbnail (one row) question = 2 short lines "BORN BEFORE | 1955?", picture = the thumbnail scene.
+
+PICTURE PROMPTS
+Warm painted vintage Americana, 1950s-1970s, soft gouache / oil-painting look, golden light, no text, no logos, no
+real people's faces. One clear subject the question is about: a diner counter, a station wagon, a percolator on a stove,
+a small-town main street. Item rows: a realistic studio photo of the object alone on a light grey background.
+
+CONTENT
+- Topics older Americans grew up with: home and kitchen, classic TV and radio, cars and roads, school days, prices,
+  holidays, music, sayings, the 50 states, American history. Facts must be true and checkable.
+- About 30 s per question on screen: 50 questions = about 25 minutes, 35 questions = about 18 minutes.
+- Difficulty rises by round; never two questions on the same fact; never trick questions.
+- Plain warm words, no hype, no "smash that like button".

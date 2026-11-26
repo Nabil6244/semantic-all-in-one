@@ -1,0 +1,38 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/doodle_dark/look.css"></head>
+<body><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="1920" height="1080" class="abs" style="inset:0"></svg><div id="h" class="abs" style="inset:0"></div></div>
+<div id="tag"></div><div class="flash" id="fl"></div><div class="vignette"></div><div class="grain"></div>
+<script type="module">
+import * as K from '/agent_kit/lib/kit.js';
+import { hero, SPEED } from '/agent_kit/looks/doodle_dark/hero.js';
+import { defs, R, lin, shaft, glow, dust, treeline, dayTag } from '/agent_kit/looks/doodle_dark/light.js';
+import { cardBg, line, pop, slamN, cam as camT, caps, AMBER, OFF, INK } from '/@scene/common.js';
+window.sceneReady = document.fonts.ready;
+const D=3.64, tB=K.when('beans',0.02), tF=K.when('four',0.7), tW=K.when('water',1.42), tO=K.when('one',2.12), tR=K.when('rice',2.68);
+const COLS=[ {x:520, at:tB, n:12, lab:'BEANS', icon:'M-50 -70 h100 v150 h-100 z M-50 -40 h100 M-50 50 h100 M-30 -84 h60'},
+             {x:960, at:tF, n:4, lab:'WATER', icon:'M-22 -100 h44 v26 q40 20 40 60 v120 q0 14 -14 14 h-96 q-14 0 -14 -14 v-120 q0 -40 40 -60 z M-62 10 q31 -14 62 0 q31 14 62 0'},
+             {x:1400, at:tO, n:1, lab:'RICE', icon:'M-70 80 q-10 -110 30 -150 l-10 -20 h100 l-10 20 q40 40 30 150 z M-40 -70 q40 14 80 0'} ];
+window.renderAt = async (t) => {
+  let g = cardBg();
+  COLS.forEach((c,i)=>{
+    const k=K.clamp((t-c.at+0.1)/0.5);
+    g += '<g transform="translate('+c.x+' 550) scale(1.25)">'+line(c.icon,k,{w:3})+'</g>';
+    g += '<circle cx="'+c.x+'" cy="560" r="'+(170)+'" fill="none" stroke="#2a2f3b" stroke-width="3"/>';
+  });
+  // the tally line under everything draws as the list goes
+  g += line('M380 860 H1540',K.clamp((t-tB)/(tR-tB+0.4)),{w:2,c:'#3a4050'});
+  s.innerHTML = g;
+  let hh = caps("WHAT'S LEFT",960,150,{size:30,color:'#ffb547',op:K.clamp(t*4)});
+  COLS.forEach((c,i)=>{
+    const vis=K.clamp((t-c.at+0.05)*5);
+    let num = i===1 ? Math.round(K.countUp(t,c.at,0.5,0,4)) : c.n;
+    const sl = i===1 ? 1 : slamN(t,c.at,1.9);
+    const col = i===2 ? '#e5484d' : '#ffb547';
+    hh += '<div class="abs display" style="left:'+(c.x-200)+'px;width:400px;text-align:center;top:250px;transform:scale('+sl+');opacity:'+vis+';font-size:120px;color:'+col+'">'+num+'</div>';
+    hh += caps(c.lab,c.x,780,{size:30,op:K.clamp((t-c.at-0.2)*4)});
+  });
+  h.innerHTML = hh;
+  tag.innerHTML = dayTag(3);
+  cam.style.transform = camT(t,D,[tO],{zoom:0.03,x:0,y:-6});
+  fl.style.opacity = 0;
+};
+</script></body></html>

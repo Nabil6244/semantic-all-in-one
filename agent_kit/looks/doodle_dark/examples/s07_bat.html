@@ -1,0 +1,39 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/doodle_dark/look.css"></head>
+<body><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="1920" height="1080" class="abs" style="inset:0"></svg><div id="h" class="abs" style="inset:0"></div></div>
+<div id="tag"></div><div class="flash" id="fl"></div><div class="vignette"></div><div class="grain"></div>
+<script type="module">
+import * as K from '/agent_kit/lib/kit.js';
+import { hero, heroAt, SPEED } from '/agent_kit/looks/doodle_dark/hero.js';
+import { defs, R, lin, shaft, glow, dust, treeline, dayTag, floorBoards, wallTex, door, contact, fg, frame, clock, plant, rug, clutter, shade } from '/agent_kit/looks/doodle_dark/light.js';
+import { cardBg, line, pop, slamN, cam as camT, caps, AMBER, OFF, INK } from '/@scene/common.js';
+window.sceneReady = document.fonts.ready;
+const D=4.22, tG=K.when('grabbed',0.4), tBat=K.when('bat',0.75), tT=K.when('turned',1.2), tOff=K.when('off',1.5), tH=K.when('held',2.6), tBr=K.when('breath',3.0);
+const wall = () => defs()+'<defs>'+lin('w7',[[0,'#1b2130'],[1,'#121723']])+'</defs>'+R(0,0,1920,880,'url(#w7)')+R(0,880,1920,200,'#0d1018')+'<path d="M0 880H1920" stroke="'+INK+'" stroke-width="8"/>';
+window.renderAt = async (t) => {
+  let g='';
+  if (t < tT-0.05) {
+    // A: close insert — the bat against the wall in the torch spot; a hand comes in and takes it
+    g = wall() + '<circle cx="960" cy="560" r="330" fill="#ffd9a0" opacity=".14" filter="url(#blur40)"/>';
+    const lift = K.easeInOutCubic(K.clamp((t-tBat)/0.45));
+    g += '<g transform="translate(0 '+(-lift*260)+') rotate('+(-4+lift*14)+' 960 330)"><path d="M948 330 L930 880 Q960 905 990 880 L972 330 Z" fill="#b5834f" stroke="'+INK+'" stroke-width="7"/>'+R(944,300,32,60,'#3b3f4a','stroke="'+INK+'" stroke-width="6" rx="8"')+'</g>';
+    const reach = K.easeOutCubic(K.clamp((t-tG+0.1)/0.35));
+    g += '<g transform="translate('+(1920-reach*960)+' '+(380-lift*260)+')"><path d="M0 0 L1000 0" stroke="'+INK+'" stroke-width="96" stroke-linecap="round"/><path d="M0 0 L1000 0" stroke="#3a4760" stroke-width="80" stroke-linecap="round"/><circle cx="-6" cy="0" r="52" fill="#e3bf9c" stroke="'+INK+'" stroke-width="7"/></g>';
+    g += '<rect width="1920" height="1080" fill="url(#v7)"/><defs><radialGradient id="v7"><stop offset="0.35" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.75"/></radialGradient></defs>';
+  } else if (t < tH-0.05) {
+    // B: wide in the dark hall, torch pointing at the door — then OFF
+    const on = t < tOff ? 1 : 0;
+    g = wall() + R(1480,280,300,600,'#2c271f','stroke="'+INK+'" stroke-width="6"')+'<circle cx="1510" cy="600" r="12" fill="#6d6040"/>';
+    g += hero(t,{pose:'hold',item:on?'torch':'',face:'scared',x:700,y:1010,scale:0.78,light:'night',joints:{rU:85,rL:5}});
+    if (on) g += '<polygon points="760,700 1800,420 1800,980" fill="#ffd9a0" opacity=".28" filter="url(#blur12)" style="mix-blend-mode:screen"/>';
+    else g += '<rect width="1920" height="1080" fill="#03050a" opacity=".55"/>' + shaft('m7',[[0,0],[300,0],[900,1080],[300,1080]],'#9fb0dc',0.08);
+  } else {
+    // C: close-up, holding his breath (cheeks puffed, lips shut), lit only by the moon
+    g = wall() + '<rect width="1920" height="1080" fill="#03050a" opacity=".35"/>';
+    g += hero(t,{face: t<tBr-0.05?'scared':'holdbreath',closeup:true,x:960,y:560,scale:3.6*slamN(t,tBr,1.12,0.3),light:'moon'});
+  }
+  s.innerHTML = g;
+  tag.innerHTML = dayTag(3);
+  cam.style.transform = camT(t,D,[tBat,tOff,tBr],{zoom:0.06,x:-10,y:-6});
+  fl.style.opacity = K.flash(t,tOff,0.12)*0.2;
+};
+</script></body></html>

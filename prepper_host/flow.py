@@ -312,7 +312,8 @@ class Session:
         """All clips through Flow's agent, up to 4 per message (live test 2026-11-23: 2 clips in ~50 s, faces and voice right).
         The agent's clips come back in any order, so each one is matched to its line by what he says in it."""
         accounts, shown = balanced_accounts(len(todo), fallback=accounts,
-                                            skip=getattr(self, "_not_ready", set()) | getattr(self, "_stalled", set()))
+                                            skip=getattr(self, "_not_ready", set()) | getattr(self, "_stalled", set())
+                                            | no_agent_accounts())
         if shown:
             self.log("prepper host: clips spread over the least-used Flow accounts: "
                      + ", ".join(f"{lab} ({n} made)" for lab, n in shown))
@@ -353,8 +354,10 @@ class Session:
                 switched = True               # stuck accounts were dropped: one more try on the others
             if not todo or (cancel and cancel()) or (attempt >= tries and not switched):
                 break
-            chosen, _ = balanced_accounts(len(todo), fallback=accounts, skip=getattr(self, "_stalled", set()))
+            # Accounts known to have no agent mode are left out (2026-11-25: every try picked the same two no-agent
+            # accounts and the one-by-one path timed out); only when no other account is left do their clips go one by one.
             no_agent = no_agent_accounts()
+            chosen, _ = balanced_accounts(len(todo), fallback=accounts, skip=getattr(self, "_stalled", set()) | no_agent)
             lacks = any(c.startswith(x) for c in chosen for x in no_agent)
             if CLIP_AGENT and os.environ.get("FLOW_CLIP_AGENT", "1") != "0" and not lacks:
                 self._agent_clips(todo, vid, accounts, refs, voice, timeout, attempt)

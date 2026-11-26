@@ -1,0 +1,31 @@
+/* LOOK PACK doc_teal: teal-black documentary. Use: <link rel="stylesheet" href="/agent_kit/looks/doc_teal/look.css">
+   3D globe: import { makeGlobe } from "/agent_kit/looks/doc_teal/globe.js"  (render({ iceLat, spin, scale }) each frame) */
+/* One look for the whole film: deep teal-black, white type, one orange accent. */
+@font-face { font-family: 'Doc Serif'; src: url('/gfx-core/fonts/CormorantGaramond-VF.ttf'); font-weight: 300 700; }
+:root { --bg:#04141a; --bg2:#0a2a33; --teal:#5fd3d6; --ice:#e8f6f8; --mute:#8fb3b9; --accent:#ff8a3d; }
+html, body { margin:0; width:1920px; height:1080px; overflow:hidden; }
+body { background: radial-gradient(ellipse at 50% 40%, var(--bg2), var(--bg) 70%); color: var(--ice);
+       font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+body.over { background: transparent; }
+.abs { position:absolute; }
+
+.serif { font-variant-numeric: lining-nums; font-family:'Doc Serif', Georgia, serif; font-weight:600; letter-spacing:0.5px; }
+.kicker { font-size:28px; letter-spacing:6px; text-transform:uppercase; color:var(--teal); font-weight:600; }
+.title { font-size:112px; line-height:1.0; }
+.label { font-size:30px; color:var(--ice); font-weight:500; }
+.small { font-size:26px; color:var(--mute); }
+.accent { color: var(--accent); }
+.grain { position:absolute; inset:0; pointer-events:none; opacity:.06; mix-blend-mode:overlay;
+         background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>"); }
+.vignette { position:absolute; inset:0; pointer-events:none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55)); }
+
+/* hook pieces */
+.flash { position:absolute; inset:0; background:#fff; pointer-events:none; opacity:0; }
+.hl { position:relative; display:inline-block; isolation:isolate; }
+.hl::before { content:''; position:absolute; left:-6px; right:auto; bottom:-8%; height:26%; width:var(--hl, 0%);
+              background:var(--accent); opacity:.85; z-index:-1; border-radius:4px; }
+.chip { display:inline-block; padding:10px 22px; border:2px solid var(--teal); border-radius:40px; font-size:26px;
+        letter-spacing:3px; text-transform:uppercase; color:var(--teal); font-weight:600; }
+.card { background:rgba(10,42,51,.72); border:1px solid rgba(95,211,214,.35); border-radius:14px; padding:34px 40px; }
+.caption { position:absolute; left:50%; bottom:70px; transform:translateX(-50%); font-size:38px; font-weight:600;
+           background:rgba(4,20,26,.75); padding:10px 26px; border-radius:10px; white-space:nowrap; }

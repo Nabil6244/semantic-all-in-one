@@ -50,9 +50,16 @@ class HybridCompileError(ValueError):
         self.raw = raw or []
 
 
+AMBIENCE_GAIN = 0.5
+TRANSITION_GAIN = 0.5
+
+
 def spec_extra(plan: HybridPlan) -> dict:
     # media_lazy: video clips are cut into frames when needed and deleted when done, so the disk use does not grow with the length of the video
-    return {"hybrid": {"pause_overlays": bool(plan.setting("pause_overlays"))}, "media_lazy": True,
+    # ambience / transition trims (owner, 2026-11-25: Hybrid's ambience and transition whooshes too loud): about -6 dB each,
+    # Hybrid only (pakMap and StarMap keep the shared levels)
+    return {"hybrid": {"pause_overlays": bool(plan.setting("pause_overlays")), "ambience_gain": AMBIENCE_GAIN, "transition_gain": TRANSITION_GAIN},
+            "media_lazy": True,
             "narration_script": " ".join(b.narration.strip() for b in plan.beats if b.narration.strip())}   # read by pakmap.compile to plan the graphics; never reaches the spec
 
 

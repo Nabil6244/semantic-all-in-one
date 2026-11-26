@@ -415,3 +415,10 @@ def _ks_dir(ws) -> Path:
 
 
 OWNERS["kids_stories"] = ("_ks_active", _ks_dir)   # Kids Stories backgrounds from the imported pack (ui/kids_stories_section.py)
+
+
+def _st_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "senior_trivia" / "assets"
+
+
+OWNERS["senior_trivia"] = ("_st_active", _st_dir)   # Senior Trivia Flow pictures (ui/senior_trivia_section.py)

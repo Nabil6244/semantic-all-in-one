@@ -273,3 +273,37 @@ EXTRA_BLURBS[MOTIVATION] = ("A long podcast cut to a 30-38 min 'The Only N Minut
                              "music bed. Titles, chapters, a thumbnail and optional 9:16 Shorts. From a YouTube link or a file.")
 EXTRA_CARDS[MOTIVATION] = ("▶", "Podcast clips over mood b-roll", "A YouTube link or a podcast file",
                             "Huberman, Peterson, Dispenza, Shi Heng Yi style motivation cuts")
+
+
+# Senior Trivia (ui/senior_trivia_section.py, senior_trivia/): appended here so nothing above changes
+SENIOR_TRIVIA = "Senior Trivia"
+STANDALONE = STANDALONE + (SENIOR_TRIVIA,)
+GROUPS = tuple((title, names + (SENIOR_TRIVIA,) if title == "Explainers" else names) for title, names in GROUPS)
+EXTRA_BLURBS[SENIOR_TRIVIA] = ("A calm, long quiz show for American viewers 60+ who play along on their TV: rounds that get harder, "
+                               "a painted vintage picture per question, options that pop in as they are read, a countdown ring, "
+                               "the answer reveal with a fun fact, score checks, a score ladder and a bonus question; the host Hal "
+                               "in 5-6 Flow talking clips. Or an old-items picture quiz. From a Senior Trivia CSV; the voice is free.")
+EXTRA_CARDS[SENIOR_TRIVIA] = ("\u2753", "Quiz shows for older viewers", "A Senior Trivia CSV",
+                              "Could you pass a 1955 8th grade test, US history and civics tests, 50 states, old items")
+
+
+# Doodle Survival (ui/doodle_section.py, doodle_ai/, agent_kit/looks/doodle_dark): appended here so nothing above changes
+DOODLE_SURVIVAL = "Doodle Survival"
+STANDALONE = STANDALONE + (DOODLE_SURVIVAL,)
+GROUPS = tuple((title, names + (DOODLE_SURVIVAL,) if title == "Explainers" else names) for title, names in GROUPS)
+EXTRA_BLURBS[DOODLE_SURVIVAL] = ("Day-by-day survival stories (zombie outbreak, end of the world) as a flat 2D cartoon at night. An AI "
+                                 "signed in on this computer (Gemini CLI or Claude Code) makes the whole video through videokit: "
+                                 "Scout the mascot, every scene drawn new from its sentence, lit rooms, line-icon cards, the DAY tag, "
+                                 "music and effects. From a script; the voice is yours or free.")
+EXTRA_CARDS[DOODLE_SURVIVAL] = ("☼", "AI-drawn survival story cartoons", "A script", "Zombie outbreak days, trapped in a farm, end-of-the-world nights")
+
+# AI Director (ui/ai_director_section.py, agent_kit/): an AI agent (Claude Code or Gemini CLI) makes the video itself with the
+# Video Kit; appended here so nothing above changes
+AI_DIRECTOR = "AI Director"
+STANDALONE = STANDALONE + (AI_DIRECTOR,)
+GROUPS = tuple((title, names + (AI_DIRECTOR,) if title == "Documentary" else names) for title, names in GROUPS)
+EXTRA_BLURBS[AI_DIRECTOR] = ("Claude or Gemini makes the whole video by itself from your script and voiceover: real 3D land and "
+                             "seafloor (seas that drain or flood), 3D rock cut-aways, maps, real footage and animals, short "
+                             "punchy text, every scene timed to the narration, music and sound effects. Test the first 2 minutes first.")
+EXTRA_CARDS[AI_DIRECTOR] = ("\u2726", "Claude or Gemini directs the whole video", "A script (+ your voiceover, or a free voice)",
+                            "Science and history documentaries, explainers")

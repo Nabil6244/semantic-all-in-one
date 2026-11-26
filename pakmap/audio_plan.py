@@ -94,6 +94,9 @@ class AudioPlan:
     warnings: List[str] = field(default_factory=list)
     enabled: bool = True
     assets: Dict[str, Any] = field(default_factory=dict)  # sound id -> ResolvedAsset (audio_mix.resolve_assets)
+    # per-style trims on top of the shared levels (1.0 = unchanged): Hybrid Map sets them lower (owner, 2026-11-25)
+    ambience_gain: float = 1.0
+    transition_gain: float = 1.0   # whoosh / riser / transition effects only
 
     def majors(self) -> List[Tuple[float, float]]:
         out = []

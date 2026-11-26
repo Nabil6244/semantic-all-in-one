@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/doodle_dark/look.css"></head>
+<body><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="1920" height="1080" class="abs" style="inset:0"></svg><div id="h" class="abs" style="inset:0"></div></div>
+<div id="tag"></div><div class="flash" id="fl"></div><div class="vignette"></div><div class="grain"></div>
+<script type="module">
+import * as K from '/agent_kit/lib/kit.js';
+import { hero, heroAt, SPEED } from '/agent_kit/looks/doodle_dark/hero.js';
+import { defs, R, lin, shaft, glow, dust, treeline, dayTag, floorBoards, wallTex, door, contact, fg, frame, clock, plant, rug, clutter, shade } from '/agent_kit/looks/doodle_dark/light.js';
+import { cardBg, line, pop, slamN, cam as camT, caps, AMBER, OFF, INK } from '/@scene/common.js';
+window.sceneReady = document.fonts.ready;
+const D=5.55, tSt=K.when('stopped',0.5), tAnd=K.when('and',1.46), tSil=K.when('silence',2.1), tBarn=K.when('barn',3.0), tCr=K.when('creak',3.5), tOp=K.when('open',3.9);
+window.renderAt = async (t) => {
+  let g = defs();
+  if (t < tAnd-0.05) {
+    // A: Scout pressed by the back door; the light under it is clear again
+    g += wallTex(0,880,'#1d2433',{kind:'paper',seed:13})+floorBoards(880,200,'#16151a',{seed:14});
+    g += door(1100,250,480,630,{wood:'#3a3328'}) + frame(330,300,170,220,'#2f3a4a') + R(1100,872,480,8,'#c8d4f2','opacity=".85"')+
+         '<polygon points="1100,880 1580,880 1700,1080 980,1080" fill="#9fb0dc" opacity=".16" filter="url(#blur12)" style="mix-blend-mode:screen"/>';
+    g += heroAt(t,[{at:0,pose:'crouch',item:'bat',face:'scared'},{at:tSt,pose:'cower',item:'bat',face:'holdbreath'}],{x:860,y:1010,scale:0.8,light:'night'});
+    g += '<rect width="1920" height="1080" fill="url(#v9)"/><defs><radialGradient id="v9" cx="0.55" cy="0.7"><stop offset="0.3" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.7"/></radialGradient></defs>';
+  } else {
+    // B: through the window — the barn across the yard under the moon
+    const tb = t - tAnd;
+    g += '<defs>'+lin('sk9',[[0,'#0c1324'],[1,'#26314d']])+lin('gr9',[[0,'#1d2a24'],[1,'#0c120f']])+'</defs>'+R(0,0,1920,1080,'url(#sk9)')+
+         glow(1500,200,120,'#dfe6ff',0.5)+'<circle cx="1500" cy="200" r="44" fill="#eef1fb"/>'+
+         treeline(640,'#141c2e',12,90,50)+R(0,640,1920,440,'url(#gr9)');
+    const op = K.easeInOutSine(K.clamp((t-tCr+0.1)/1.0));
+    // barn
+    g += '<g transform="translate(470 330)"><path d="M0 110 L200 0 L400 110 L400 330 L0 330 Z" fill="#3d2629" stroke="'+INK+'" stroke-width="6" stroke-linejoin="round"/>'+
+         '<path d="M-14 118 L200 -12 L414 118" fill="none" stroke="#2a1a1c" stroke-width="16" stroke-linecap="round"/>'+
+         R(120,170,160,160,'#05070c','stroke="'+INK+'" stroke-width="5"')+
+         (op>0.15 ? '<circle cx="'+(146)+'" cy="250" r="7" fill="#ff4a3d" opacity="'+K.clamp((t-tOp)*4)+'"/><circle cx="'+(212)+'" cy="240" r="7" fill="#ff4a3d" opacity="'+K.clamp((t-tOp)*4)+'"/>' : '')+
+         '<g transform="translate(120 170) scale('+(1-op*0.85)+' 1)">'+R(0,0,80,160,'#4d2f31','stroke="'+INK+'" stroke-width="5"')+'<path d="M0 0 L80 160 M80 0 L0 160" stroke="#8e7f6c" stroke-width="5"/></g>'+
+         R(200,170,80,160,'#4d2f31','stroke="'+INK+'" stroke-width="5"')+'<path d="M200 170 L280 330 M280 170 L200 330" stroke="#8e7f6c" stroke-width="5"/></g>';
+    g += glow(670,580,220,'#ff4a3d',0.12*K.clamp((t-tOp)*2));
+    // the window frame in front (we are inside looking out)
+    g += '<path d="M0 0H1920V1080H0Z M180 120 V960 H1740 V120 Z" fill="#121723" fill-rule="evenodd"/>'+
+         '<path d="M180 120H1740V960H180Z M960 120V960 M180 540H1740" fill="none" stroke="#252c3e" stroke-width="26"/>';
+    // camera pushes toward the barn on "barn"
+    const push = 1 + 0.25*K.easeInOutCubic(K.clamp((t-tBarn+0.2)/1.6));
+    const [dx,dy] = K.shake(t,tOp,8,0.4);
+    g = '<g transform="translate('+(670+dx)+' '+(580+dy)+') scale('+push+') translate(-670 -580)">'+g+'</g>';
+  }
+  s.innerHTML = g;
+  tag.innerHTML = dayTag(3);
+  cam.style.transform = camT(t,D,[tSt],{zoom:0.03,x:0,y:0});
+};
+</script></body></html>

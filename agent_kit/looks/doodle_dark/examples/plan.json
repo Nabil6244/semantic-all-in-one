@@ -1,0 +1,167 @@
+{
+ "look": "doodle_dark",
+ "story": {
+  "question": "Can Scout survive the first nights alone on the farm?",
+  "beats": [
+   "hook: radio says stay inside (day 1)",
+   "setup: he locks the farmhouse, closes curtains",
+   "problem: day 3 power gone, supplies counted",
+   "turn: something scratches at the back door at night",
+   "rule: never open the door blind",
+   "payoff/teaser: scratching stops, the barn door creaks open"
+  ],
+  "threads": [
+   "Scout (same mascot)",
+   "the farmhouse doors",
+   "the DAY tag",
+   "the torch"
+  ]
+ },
+ "scenes": [
+  {
+   "name": "s01_radio",
+   "start": 0.0,
+   "end": 3.26,
+   "kind": "graphic",
+   "shows": [
+    "day one",
+    "radio",
+    "stay inside"
+   ],
+   "hooks": [
+    "slam:one",
+    "typed:inside"
+   ]
+  },
+  {
+   "name": "s02_lock",
+   "start": 3.26,
+   "end": 7.1,
+   "kind": "graphic",
+   "shows": [
+    "Scout",
+    "farmhouse door",
+    "locked",
+    "curtain shut"
+   ],
+   "hooks": [
+    "punch:locked",
+    "wipe:curtain"
+   ]
+  },
+  {
+   "name": "s03_power",
+   "start": 7.1,
+   "end": 9.7,
+   "kind": "graphic",
+   "shows": [
+    "day three",
+    "power gone",
+    "bulb goes out",
+    "Scout worried"
+   ],
+   "hooks": [
+    "slam:three",
+    "flash:gone"
+   ]
+  },
+  {
+   "name": "s04_pantry",
+   "start": 9.7,
+   "end": 12.4,
+   "kind": "graphic",
+   "shows": [
+    "pantry",
+    "Scout counting",
+    "twelve cans"
+   ],
+   "hooks": [
+    "punch:counted",
+    "slam:twelve"
+   ]
+  },
+  {
+   "name": "s05_count",
+   "start": 12.4,
+   "end": 16.04,
+   "kind": "graphic",
+   "shows": [
+    "twelve cans of beans",
+    "four bottles of water",
+    "one bag of rice"
+   ],
+   "hooks": [
+    "slam:beans",
+    "countUp:four",
+    "slam:one"
+   ]
+  },
+  {
+   "name": "s06_scratch",
+   "start": 16.04,
+   "end": 20.64,
+   "kind": "graphic",
+   "shows": [
+    "night",
+    "back door",
+    "scratch",
+    "slow",
+    "patient"
+   ],
+   "hooks": [
+    "shake:scratched",
+    "typed:slow",
+    "typed:patient"
+   ]
+  },
+  {
+   "name": "s07_bat",
+   "start": 20.64,
+   "end": 24.86,
+   "kind": "graphic",
+   "shows": [
+    "Scout",
+    "bat",
+    "torch turned off",
+    "held his breath"
+   ],
+   "hooks": [
+    "punch:bat",
+    "flash:off",
+    "slam:breath"
+   ]
+  },
+  {
+   "name": "s08_rule",
+   "start": 24.86,
+   "end": 28.88,
+   "kind": "graphic",
+   "shows": [
+    "rule one",
+    "never open the door",
+    "outside"
+   ],
+   "hooks": [
+    "slam:rule",
+    "drawOn:door",
+    "highlight:outside"
+   ]
+  },
+  {
+   "name": "s09_barn",
+   "start": 28.88,
+   "end": 34.43,
+   "kind": "graphic",
+   "shows": [
+    "scratching stopped",
+    "silence",
+    "barn door creak open"
+   ],
+   "hooks": [
+    "punch:stopped",
+    "shake:barn",
+    "slam:open"
+   ]
+  }
+ ]
+}

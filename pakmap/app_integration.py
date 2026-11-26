@@ -359,6 +359,9 @@ def generate_pakmap_video(
     _report(progress_cb, "Designing the sound…" if sound_design else "Adding the narration…", 0.90)
     try:
         audio_plan = plan_pakmap_sound(res, enabled=sound_design, catalog=sound_catalog)
+        trims = (spec_extra or {}).get("hybrid") or {}
+        audio_plan.ambience_gain = float(trims.get("ambience_gain", 1.0))
+        audio_plan.transition_gain = float(trims.get("transition_gain", 1.0))
         (work / "pakmap_sound_plan.txt").write_text(audio_plan.to_text(), encoding="utf-8")
         for sid, what in sorted(audio_plan.missing.items()):
             sound_notes.append(f"missing sound {sid}: {what}")

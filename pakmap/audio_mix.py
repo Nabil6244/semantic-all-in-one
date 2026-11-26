@@ -354,11 +354,21 @@ def _loop(clip: np.ndarray, length: int) -> np.ndarray:
     return _loop_window(clip, length, 0, length)
 
 
+TRANSITION_WORDS = ("whoosh", "swoosh", "transition", "riser", "swish")
+
+
+def is_transition(sound_id: str) -> bool:
+    """Whoosh / riser / transition effects (the sounds a style may trim as one group)."""
+    s = str(sound_id or "").lower()
+    return any(w in s for w in TRANSITION_WORDS)
+
+
 class _Bus:
     """Effects and ambience laid out on the timeline; render(a, b, ...) makes the ducked buses for samples a..b."""
 
     def __init__(self, plan: AudioPlan, n: int) -> None:
         self.n = n
+        self.ambience_gain = float(getattr(plan, "ambience_gain", 1.0))
         self.used: List[dict] = []
         cache: Dict[Tuple[str, str], np.ndarray] = {}
         shaped: Dict[str, np.ndarray] = {}
@@ -381,7 +391,7 @@ class _Bus:
                     clip = clip_for(sound, asset).copy()
                     if sound.max_s:
                         clip = clip[:int(sound.max_s * SR)]
-                    shaped[hit.sound] = _fade(clip, sound.fade_in, sound.fade_out) * sound.volume * SFX_GAIN
+                    shaped[hit.sound] = _fade(clip, sound.fade_in, sound.fade_out) * sound.volume * SFX_GAIN * (plan.transition_gain if is_transition(hit.sound) else 1.0)
                 clip = shaped[hit.sound]
                 i = int(round(hit.t * SR))
                 if i >= n:
@@ -431,6 +441,7 @@ class _Bus:
             s, e = max(i, a), min(j, b)
             if e > s:
                 amb[s - a:e - a] += self._bed_window(clip, j - i, s - i, e - i, sound)
+        amb *= self.ambience_gain
         sfx *= (1.0 - DUCK_SFX * env)[:, None]
         amb *= ((1.0 - DUCK_AMBIENCE * env) * (1.0 - DUCK_AMBIENCE_BY_MAJOR * major_env))[:, None]
         return sfx, amb

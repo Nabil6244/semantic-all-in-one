@@ -113,6 +113,9 @@ from ui import toy_vehicles_section as _tv_section   # Toy Vehicles (ui/toy_vehi
 from ui import kids_stories_section as _ks_section   # Kids Stories (ui/kids_stories_section.py, cartoon2d/): .kidstory files
 from ui import stickman_section as _sm_section   # Stickman (ui/stickman_section.py, stickman/)
 from ui import prepper_host_section as _ph_section   # Prepper Host (ui/prepper_host_section.py, prepper_host/)
+from ui import doodle_section as _ds_section   # Doodle Survival (ui/doodle_section.py, doodle_ai/)
+from ui import senior_trivia_section as _st_section   # Senior Trivia (ui/senior_trivia_section.py, senior_trivia/)
+from ui import ai_director_section as _ad_section   # AI Director (ui/ai_director_section.py, agent_kit/)
 from ui import foodfiles_section as _ff_section   # Food Files (ui/foodfiles_section.py, foodfiles/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
 from ui import game_launch_section as _gl_section   # Game Launch (ui/game_launch_section.py, game_launch/)
@@ -3390,6 +3393,12 @@ class VideoGeneratorApp(ctk.CTk):
             return "Stickman"
         if getattr(self, "_ph_active", False):   # Prepper Host (ui/prepper_host_section.py): opt-in, per session
             return "Prepper Host"
+        if getattr(self, "_ds_active", False):   # Doodle Survival (ui/doodle_section.py): opt-in, per session
+            return "Doodle Survival"
+        if getattr(self, "_st_active", False):   # Senior Trivia (ui/senior_trivia_section.py): opt-in, per session
+            return "Senior Trivia"
+        if getattr(self, "_ad_active", False):   # AI Director (ui/ai_director_section.py): opt-in, per session
+            return "AI Director"
         if getattr(self, "_ff_active", False):   # Food Files (ui/foodfiles_section.py): opt-in, per session
             return "Food Files"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
@@ -3521,6 +3530,12 @@ class VideoGeneratorApp(ctk.CTk):
                                 ("Kids Learn", _kl_section), ("Roblox Cinema", _rc_section), ("Motivation", _pc_section)):
             if choice != _sec_name:
                 _sec.deactivate(self)
+        if choice != "Doodle Survival":   # Doodle Survival (ui/doodle_section.py) off too, whichever style is picked
+            _ds_section.deactivate(self)
+        if choice != "Senior Trivia":   # Senior Trivia (ui/senior_trivia_section.py) off too, whichever style is picked
+            _st_section.deactivate(self)
+        if choice != "AI Director":   # AI Director (ui/ai_director_section.py) off too, whichever style is picked
+            _ad_section.deactivate(self)
         if choice != "War Documentary":
             self._war_deactivate()
         if choice != "Health Cinema":
@@ -3581,6 +3596,18 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if choice != "Prepper Host":
             _ph_section.deactivate(self)
+        if choice != "Senior Trivia":
+            _st_section.deactivate(self)
+        if choice == "Senior Trivia":   # its own page (ui/senior_trivia_section.py); nothing runs until Generate
+            _st_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice != "AI Director":
+            _ad_section.deactivate(self)
+        if choice == "AI Director":   # its own page (ui/ai_director_section.py); nothing runs until Generate
+            _ad_section.activate(self)
+            self._sync_primary_cta()
+            return
         if choice != "Food Files":
             _ff_section.deactivate(self)
         if choice == "Food Files":   # its own page (ui/foodfiles_section.py); nothing runs until Generate
@@ -3589,6 +3616,10 @@ class VideoGeneratorApp(ctk.CTk):
             return
         if choice == "Prepper Host":   # its own page (ui/prepper_host_section.py); nothing runs until Generate
             _ph_section.activate(self)
+            self._sync_primary_cta()
+            return
+        if choice == "Doodle Survival":   # its own page (ui/doodle_section.py); nothing runs until Make video
+            _ds_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "Aviation":
@@ -7757,6 +7788,12 @@ class VideoGeneratorApp(ctk.CTk):
             _sm_section.cta(self, action)
         elif action in ("ph_generate", "ph_render", "ph_cancel"):
             _ph_section.cta(self, action)
+        elif action in ("ds_make", "ds_cancel"):
+            _ds_section.cta(self, action)
+        elif action in ("st_generate", "st_render", "st_cancel"):
+            _st_section.cta(self, action)
+        elif action in ("ad_generate", "ad_cancel"):
+            _ad_section.cta(self, action)
         elif action in ("ff_generate", "ff_render", "ff_cancel"):
             _ff_section.cta(self, action)
         elif action in ("av_generate", "av_render", "av_cancel"):
@@ -8596,6 +8633,12 @@ class VideoGeneratorApp(ctk.CTk):
             return _sm_section.sync_cta(self)
         if getattr(self, "_ph_active", False) and getattr(self, "_ph_block", None) is not None:   # Prepper Host owns the button while its page is up
             return _ph_section.sync_cta(self)
+        if getattr(self, "_ds_active", False) and getattr(self, "_ds_block", None) is not None:   # Doodle Survival owns the button while its page is up
+            return _ds_section.sync_cta(self)
+        if getattr(self, "_st_active", False) and getattr(self, "_st_block", None) is not None:   # Senior Trivia owns the button while its page is up
+            return _st_section.sync_cta(self)
+        if getattr(self, "_ad_active", False) and getattr(self, "_ad_block", None) is not None:   # AI Director owns the button while its page is up
+            return _ad_section.sync_cta(self)
         if getattr(self, "_ff_active", False) and getattr(self, "_ff_block", None) is not None:   # Food Files owns the button while its page is up
             return _ff_section.sync_cta(self)
         if getattr(self, "_av_active", False) and getattr(self, "_av_block", None) is not None:   # Aviation owns the button while its page is up
@@ -9456,6 +9499,9 @@ class VideoGeneratorApp(ctk.CTk):
         _ks_section.deactivate(self, remember=False)   # Kids Stories likewise, until resume_on_open below
         _sm_section.deactivate(self, remember=False)   # Stickman likewise, until resume_on_open below
         _ph_section.deactivate(self, remember=False)   # Prepper Host likewise, until resume_on_open below
+        _ds_section.deactivate(self, remember=False)   # Doodle Survival likewise, until resume_on_open below
+        _st_section.deactivate(self, remember=False)   # Senior Trivia likewise, until resume_on_open below
+        _ad_section.deactivate(self, remember=False)   # AI Director likewise, until resume_on_open below
         _ff_section.deactivate(self, remember=False)   # Food Files likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
         _gl_section.deactivate(self, remember=False)   # Game Launch likewise, until resume_on_open below
@@ -9470,6 +9516,9 @@ class VideoGeneratorApp(ctk.CTk):
         _ks_section.resume_on_open(self)   # a project left on the Kids Stories page opens on it again; nothing runs until Generate
         _sm_section.resume_on_open(self)   # a project left on the Stickman page opens on it again; nothing runs until Generate
         _ph_section.resume_on_open(self)   # a project left on the Prepper Host page opens on it again; nothing runs until Generate
+        _ds_section.resume_on_open(self)   # a project left on the Doodle Survival page opens on it again; nothing runs until Make video
+        _st_section.resume_on_open(self)   # a project left on the Senior Trivia page opens on it again; nothing runs until Generate
+        _ad_section.resume_on_open(self)   # a project left on the AI Director page opens on it again; nothing runs until Generate
         _ff_section.resume_on_open(self)   # a project left on the Food Files page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
         _gl_section.resume_on_open(self)   # a project left on the Game Launch page opens on it again; nothing runs until Generate

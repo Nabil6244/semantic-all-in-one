@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "studio": {
+      "type": "stdio",
+      "command": "py",
+      "args": ["C:\\Users\\YOU\\Documents\\video_generator-main\\studio_mcp.py"]
+    },
+    "videokit": {
+      "type": "stdio",
+      "command": "py",
+      "args": ["C:\\Users\\YOU\\Documents\\video_generator-main\\agent_kit_mcp.py"]
+    }
+  }
+}
