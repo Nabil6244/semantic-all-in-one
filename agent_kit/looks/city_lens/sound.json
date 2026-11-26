@@ -1,0 +1,25 @@
+{
+ "_about": "city_lens sound: a calm modern bed, a few soft effects, and ambience that matches what is on screen. kit.join uses this whenever plan.json says look=city_lens. Effects are levelled by their measured loudness, so every whoosh or tick sits at the same quiet level.",
+ "music": "sound/bed.opus",
+ "music_db": -19,
+ "sfx": {
+  "whoosh": {"files": ["whoosh/whoosh_04.opus", "whoosh/whoosh_02.opus", "whoosh/whoosh_009.opus", "whoosh/whoosh_011.opus"], "rms": -38, "len": 1.2},
+  "tick":   {"files": ["ui/ui_pop_01.opus", "ui/ui_003.opus", "text/text_003.opus", "text/text_pop_01.opus"], "rms": -40, "len": 0.5},
+  "paper":  {"files": ["text/text_002.opus", "text/text_006.opus"], "rms": -40, "len": 0.8},
+  "hit":    {"files": ["ui/ui_006.opus", "text/text_006.opus"], "rms": -37, "len": 0.7}
+ },
+ "alias": {"transition": "whoosh", "cinematic": "whoosh", "ui": "tick", "text": "tick", "technology": "tick", "pop": "tick",
+           "impact": "hit", "slam": "hit", "stamp": "hit", "riser": null, "ambience": null},
+ "ambience": {
+  "_about": "first matching rule wins, on the scene's name + media + shows words. footage gets its bed at `footage_rms`, a drawn map scene at `graphic_rms`; drawn paper/night scenes get none.",
+  "footage_rms": -44, "graphic_rms": -50,
+  "rules": [
+   {"words": ["flood", "rain", "storm", "hurricane", "water comes"], "files": ["ambience/amb_rain_04.opus", "ambience/amb_rain_05.opus"]},
+   {"words": ["bayou", "river", "bay", "harbor", "harbour", "port", "coast", "lake", "water"], "files": ["ambience/amb_water_01.opus", "ambience/amb_water_02.opus"]},
+   {"words": ["freeway", "highway", "interstate", "traffic", "beltway", "parkway", "loop", "road", "interchange", "car"], "files": ["ambience/amb_traffic_02.opus", "ambience/amb_traffic_03.opus"]},
+   {"words": ["street", "shop", "market", "taco", "restaurant", "crowd", "stadium", "fans", "festival"], "files": ["ambience/amb_crowd_02.opus", "ambience/amb_crowd_04.opus"]},
+   {"words": ["*footage"], "files": ["ambience/amb_city_02.opus", "ambience/amb_city_03.opus", "ambience/amb_city_04.opus"]}
+  ],
+  "map_words": ["sat", "satellite", "map", "metro", "loop", "ring", "aerial", "downtown", "neighborhood", "bayou"]
+ }
+}

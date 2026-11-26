@@ -21,6 +21,7 @@ PROTOCOL = "2025-06-18"
 
 
 DRAWN = {"history_toon", "doodle_dark"}      # all-drawn packs: no 3D/footage rules, their own README instead
+OWN_RULES = DRAWN | {"city_lens"}            # packs whose README replaces the doc_teal "3D first" section
 
 
 def guide(pack: str = "") -> str:
@@ -33,7 +34,7 @@ def guide(pack: str = "") -> str:
     keep = [parts[0]]
     for sec in parts[1:]:
         title = sec.split("\n", 1)[0]
-        if title.startswith("Look packs") or (pack in DRAWN and title.startswith("3D first")):
+        if title.startswith("Look packs") or (pack in OWN_RULES and title.startswith("3D first")):
             continue
         keep.append(sec)
     out = "\n## ".join(keep)
@@ -65,7 +66,7 @@ def look(path: str, frames: int = 8, times: str = "", at: float | None = None, d
 S, I, N, A = {"type": "string"}, {"type": "integer"}, {"type": "number"}, {"type": "array"}
 TOOLS = {
     "guide": (guide, "Read this first: how to make a video with these tools (steps, scene page rules, look, pacing). Pass "
-              "pack=<look pack> (doc_teal, history_toon, doodle_dark) to get only what that look needs.", {"pack": S}, []),
+              "pack=<look pack> (doc_teal, history_toon, doodle_dark, city_lens) to get only what that look needs.", {"pack": S}, []),
     "align": (kit.align, "Step 1. Transcribe the voiceover with word times into the project folder. Returns every sentence with its "
               "start and end time; word times are in <project>/voice/words.json.",
               {"project": S, "voice": S, "script": S, "language": S}, ["project", "voice"]),
@@ -82,12 +83,17 @@ TOOLS = {
                 "camera moves, T.screen(lon, lat) for pins. Use it for every sea, coast, valley or mountain the narration names.",
                 {"project": S, "name": S, "west": N, "south": N, "east": N, "north": N, "zoom": I},
                 ["project", "name", "west", "south", "east", "north"]),
+    "satellite": (kit.satellite, "Real satellite picture of a city or place (west/south/east/north in degrees) into "
+                  "<project>/scenes/<name>_sat.jpg + <name>_sat.json (projection in frame px for K.lonlat). Use it for every "
+                  "downtown, freeway, district or river the narration names (city_lens maps sit on it).",
+                  {"project": S, "name": S, "west": N, "south": N, "east": N, "north": N, "zoom": I},
+                  ["project", "name", "west", "south", "east", "north"]),
     "check_plan": (kit.check_plan, "Step 3. Check <project>/plan.json against the voice before making scenes: timing, scene "
                    "lengths, graphics share (70 %+), bare footage, hooks on spoken words, and names/places/numbers said but not "
                    "shown. Fix every problem it lists, then check again.", {"project": S}, ["project"]),
     "scene": (kit.scene, "Make one clip, exactly `duration` seconds, into <project>/clips/<name>.mp4: from an HTML scene you wrote "
               "(html=scenes/<name>.html, defines window.renderAt(t)), or from media (a video cut from `start`, or a photo with a slow "
-              "Ken Burns move), optionally with a transparent overlay_html page drawn on top. grade: doc_teal|warm|bw|none. "
+              "Ken Burns move), optionally with a transparent overlay_html page drawn on top. grade: doc_teal|city_lens|warm|bw|none. "
               "Always pass `at` (the scene's start in the voice): the page then gets window.WORDS for K.when('word').",
               {"project": S, "name": S, "duration": N, "html": S, "media": S, "start": N, "zoom": N, "pan": S, "grade": S,
                "overlay_html": S, "workers": I, "at": N}, ["project", "name", "duration"]),

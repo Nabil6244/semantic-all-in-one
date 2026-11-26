@@ -32,7 +32,7 @@ body.over { background: transparent; }
 .vignette { position:absolute; inset:0; pointer-events:none; background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,.62)); }
 
 /* hook pieces */
-.flash { position:absolute; inset:0; background:#fff; pointer-events:none; opacity:0; }
+.flash { position:absolute; inset:0; background:rgba(255,255,255,.22); pointer-events:none; opacity:0; }  /* capped: a soft bloom, never a white frame */
 .flash.red { background: var(--danger); }
 .hl { position:relative; display:inline-block; isolation:isolate; }
 .hl::before { content:''; position:absolute; left:-6px; bottom:6%; height:40%; width:var(--hl, 0%);

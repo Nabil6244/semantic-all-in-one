@@ -20,7 +20,7 @@ body.over { background: transparent; }
 .vignette { position:absolute; inset:0; pointer-events:none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55)); }
 
 /* hook pieces */
-.flash { position:absolute; inset:0; background:#fff; pointer-events:none; opacity:0; }
+.flash { position:absolute; inset:0; background:rgba(255,255,255,.22); pointer-events:none; opacity:0; }  /* capped: a soft bloom, never a white frame */
 .hl { position:relative; display:inline-block; isolation:isolate; }
 .hl::before { content:''; position:absolute; left:-6px; right:auto; bottom:-8%; height:26%; width:var(--hl, 0%);
               background:var(--accent); opacity:.85; z-index:-1; border-radius:4px; }

@@ -1,0 +1,12 @@
+// city_lens example: paper ground, a comparison table, the big number top right, a newspaper card with a highlight.
+const tTab = K.when('cheaper', 0.3), tNum = K.when('million', 1.8), tDoc = K.when('star', 2.6);
+window.renderAt = async (t) => {
+  s.innerHTML = C.defs() + C.paperGround() +
+    C.title('Why tear it down?', K.prog(t, 0, 0.6)) +
+    C.table(130, 300, ['', 'Old office building', 'Surface lot'],
+      [['Upkeep', 'High', 'Minimal'], ['Tax bill', 'High', 'Lower'], ['Income', 'Empty floors', 'Daily fees']], K.prog(t, tTab, 1.4, K.linear), { colW: 280, hi: 2 }) +
+    C.docCard(1120, 420, 640, 440, { head: 'The City Star', date: '2004', quote: 'only one without a stadium', hl: K.prog(t, tDoc + 0.6, 0.6), lines: 9 }, K.prog(t, tDoc, 0.7));
+  tags.innerHTML = C.defs() + C.bigNumber('$' + K.countUp(t, tNum, 1.2, 0, 100), 'M+', K.prog(t, tNum, 0.5), { chipText: 'for one block' }) +
+    C.sourceLine('Source: city budget, 2025', { color: P.ink });
+  cam.style.transform = K.drift(t, 5, { zoom: 0.03, x: -10, y: -4 });
+};

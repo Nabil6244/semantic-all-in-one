@@ -27,7 +27,7 @@ body.over { background: transparent; }
          background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/><feColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .35 0 0 0 .9 0'/></filter><rect width='220' height='220' filter='url(%23n)'/></svg>"); }
 .vignette { position:absolute; inset:0; pointer-events:none; background: radial-gradient(ellipse at center, transparent 58%, rgba(30,24,14,.38)); }
 
-.flash { position:absolute; inset:0; background:#fff8e6; pointer-events:none; opacity:0; }
+.flash { position:absolute; inset:0; background:rgba(255,248,230,.22); pointer-events:none; opacity:0; }  /* capped: a soft bloom, never a white frame */
 .flash.red { background: var(--red); }
 .hl { position:relative; display:inline-block; isolation:isolate; }
 .hl::before { content:''; position:absolute; left:-6px; bottom:6%; height:40%; width:var(--hl, 0%);

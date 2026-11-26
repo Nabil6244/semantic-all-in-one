@@ -66,9 +66,11 @@ kind: graphic | footage | photo. `shows`: every concrete thing the scene puts on
 - **Something new every 2–3 seconds**, inside a scene too: a new element, a number that counts, a line that draws on,
   a camera push, a highlight on a word. A still frame for more than 1 s is a failure.
 - **Every graphic has at least two hook moves on spoken words** (`K.when('word')`): one entry and one reveal. Hook moves
-  in `kit.js`: `punch` (zoom bump), `slam` (lands from big), `shake` (impact), `flash` (hard reveal), `wipe` (reveal from a
+  in `kit.js`: `punch` (zoom bump), `slam` (lands from big), `shake` (impact), `flash` (rare: see below), `wipe` (reveal from a
   side or a circle), `highlight` (marker under a word), `countUp`, `drawOn`, `drift` + `parallax` (camera always moving),
   `stagger` (lists arrive one by one), `typed` (typewriter).
+- **Flash is rare**: at most ONE `flash` hook per 30 s of video, only on the single biggest reveal. Never flash on
+  slams, punches, shakes or cuts; those already hit. `check_plan` refuses a plan with more.
 - **Show, don't write**: a number becomes a counter, a bar or a scale comparison; a place becomes a map pin; a process
   becomes arrows that draw on; a time becomes a timeline; a person becomes a photo card with name and role. Text alone is
   only for a quote or a question, and then large.
@@ -104,6 +106,11 @@ kind: graphic | footage | photo. `shows`: every concrete thing the scene puts on
   - **Every video is new**: design this film's own cast (era, clothes, colours) from its script and draw every place
     fresh from its sentence. The examples show the style only.
   - Mix the six scene kinds (story shot, paper insert, map, cards, object metaphor, title), never the same twice in a row.
+- **city_lens**: city planning / urban geography documentary (why a downtown, freeway or skyline is the way it is).
+  Darkened satellite maps (`satellite` tool) with one glowing orange outline, navy line maps, paper infographic cards,
+  big orange numbers, a 3D grey block city. Plenty of real footage of that city (a clip about every 20 s) with place tags.
+  `<link rel="stylesheet" href="/agent_kit/looks/city_lens/look.css">`. Read `agent_kit/looks/city_lens/README.md`
+  before the first scene.
 - A new look: copy a pack's folder, change colours and fonts, keep the class names.
 
 ## Scene page rules (the renderer depends on these)
@@ -119,7 +126,6 @@ const hit = K.when('frozen', 1.2);                    // scene time of a spoken 
 window.renderAt = async (t) => {
   const [dx, dy] = K.shake(t, hit);
   cam.style.transform = `${K.drift(t, 5)} translate(${dx}px,${dy}px) scale(${K.punch(t, hit)})`;
-  fl.style.opacity = K.flash(t, hit) * 0.6;
 };
 </script></body></html>
 ```
@@ -133,7 +139,7 @@ window.renderAt = async (t) => {
 
 ## Motion that looks professional
 - Ease everything (`easeOutExpo` for snaps, `easeOutCubic` for entries, `easeInOutSine` for drifts); stagger 0.08–0.15 s.
-- Enter in the first 0.5 s; leave or settle in the last 0.3 s; the cut is the transition (a whoosh + flash for big ones).
+- Enter in the first 0.5 s; leave or settle in the last 0.3 s; the cut is the transition (a whoosh for big ones).
 - One idea per screen. Big type, few words. Photos get frames, captions and a source line.
 
 ## Checks before join

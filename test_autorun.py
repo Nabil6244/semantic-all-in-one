@@ -29,7 +29,7 @@ class TableTest(unittest.TestCase):
         cards = set(R.with_extras(choices)) | {"Weather"}
         # Styles added after make_video's table that it cannot drive yet (their own import / episode pages). Listed here so a NEW
         # card still fails this test until it is either added to autorun or named here.
-        not_automated = {"Motivation", "Game Launch", "Toon Tales", "Toy Vehicles", "Kids Stories", "Ocean Predators"}
+        not_automated = {"Motivation", "Game Launch", "Toon Tales", "Toy Vehicles", "Kids Stories", "Ocean Predators", "City Planning"}
         self.assertEqual({s["pick"] for s in J.STYLES.values()}, cards - not_automated)
         for k, s in J.STYLES.items():
             self.assertTrue((ROOT / s["csv_prompt"]).is_file(), k)

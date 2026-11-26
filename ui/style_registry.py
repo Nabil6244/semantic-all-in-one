@@ -309,6 +309,20 @@ EXTRA_CARDS[AI_DIRECTOR] = ("\u2726", "Claude or Gemini directs the whole video"
                             "Science and history documentaries, explainers")
 
 
+# City Planning: the AI Director page with the city_lens look set (ui/ai_director_section.py PRESETS); appended so nothing above changes
+CITY_PLANNING = "City Planning"
+STANDALONE = STANDALONE + (CITY_PLANNING,)
+GROUPS = tuple((title, names + (CITY_PLANNING,) if title == "Maps" else names) for title, names in GROUPS)
+BUILT_ON[CITY_PLANNING] = AI_DIRECTOR
+EXTRA_BLURBS[CITY_PLANNING] = ("Why a city is built the way it is (worst downtown, a freeway nobody can fix, a city with no zoning): "
+                               "real satellite maps darkened with a glowing orange outline on the place being talked about, "
+                               "rings and routes drawn on, big orange numbers, paper cards for laws, news and comparisons, a 3D "
+                               "block city, plenty of real footage of that city with place tags, a calm bed and matching city "
+                               "ambience. Claude or Gemini makes it from your script and voiceover; test the first 2 minutes first.")
+EXTRA_CARDS[CITY_PLANNING] = ("🏙", "City planning documentaries on satellite maps", "A script (+ your voiceover, or a free voice)",
+                              "Worst designed downtown, a highway that can't be fixed, why a state has no main city")
+
+
 # Reddit Shorts (ui/reddit_shorts_section.py, reddit_shorts/): appended here so nothing above changes
 REDDIT_SHORTS = "Reddit Shorts"
 STANDALONE = STANDALONE + (REDDIT_SHORTS,)

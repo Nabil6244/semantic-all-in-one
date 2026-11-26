@@ -89,6 +89,13 @@ async function openPage(browser, url, W, H, transparent, words = null) {
 async function frame(page, t, W, H, png) {
   await page.evaluate(async (tt) => {
     await window.renderAt(tt);
+    // pictures put in by renderAt (<img>, svg <image>, e.g. a satellite map) load async: wait so no frame shows them missing
+    const urls = [...document.querySelectorAll('img, image')].map((el) => el.currentSrc || el.getAttribute('src') || el.getAttribute('href') || el.getAttribute('xlink:href')).filter(Boolean);
+    window.__pics = window.__pics || {};
+    await Promise.all(urls.map((u) => (window.__pics[u] = window.__pics[u] || new Promise((res) => {
+      const im = new Image(); im.onload = () => (im.decode ? im.decode().catch(() => 0) : Promise.resolve()).then(res); im.onerror = res; im.src = u;
+    }))));
+    if (urls.length) await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     // CSS animations and transitions, if the page uses any, are seeked to t too
     for (const a of document.getAnimations ? document.getAnimations() : []) { a.pause(); a.currentTime = tt * 1000; }
   }, t);

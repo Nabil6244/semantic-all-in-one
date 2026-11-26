@@ -8,6 +8,9 @@ What the agent may do, and nothing else:
                cwd = the project). No shell.
   Gemini CLI:  the videokit tools (server trusted in the project's .gemini/settings.json) + file edits (--approval-mode auto_edit).
                Shell commands need approval, which a headless run cannot give, so they are refused.
+  Antigravity CLI (agy, Google's successor to Gemini CLI; signs in with a Google AI Pro account): the videokit tools (project
+               .agents/mcp_config.json, allowed by an mcp(videokit/*) rule in ~/.gemini/antigravity-cli/settings.json) + file
+               edits in the project (--mode accept-edits). Shell commands still need approval, so a headless run refuses them.
 The app's AI Director page (ui/ai_director_section.py) calls prepare() and run(); both also work from the command line."""
 
 from __future__ import annotations
@@ -26,17 +29,33 @@ from typing import Callable, Optional
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 SERVER = REPO / "agent_kit_mcp.py"
-AGENTS = ("claude", "gemini")
+AGENTS = ("claude", "gemini", "antigravity")
+EXE_NAME = {"claude": "claude", "gemini": "gemini", "antigravity": "agy"}
+
+
+def _win_node_on_path() -> None:
+    """Windows: Node.js installed after the app started is not on the app's PATH yet; gemini.cmd needs node."""
+    if sys.platform != "win32":
+        return
+    dirs = [Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "nodejs",
+            Path(os.environ.get("APPDATA", str(Path.home() / "AppData/Roaming"))) / "npm"]
+    cur = os.environ.get("PATH", "")
+    add = [str(d) for d in dirs if d.is_dir() and str(d).lower() not in cur.lower()]
+    if add:
+        os.environ["PATH"] = os.pathsep.join(add + [cur])
 
 
 def find_agent(agent: str) -> Optional[str]:
     """The agent's command: on PATH, else (Claude) the copy bundled with the Claude desktop app, newest first."""
-    hit = shutil.which(agent)
+    _win_node_on_path()
+    hit = shutil.which(EXE_NAME.get(agent, agent))
     if hit:
         return hit
     home, appdata = Path.home(), Path(os.environ.get("APPDATA", str(Path.home() / "AppData/Roaming")))
+    local = Path(os.environ.get("LOCALAPPDATA", str(home / "AppData/Local")))
     extra = {"claude": [home / ".local/bin/claude", home / ".local/bin/claude.exe", appdata / "npm/claude.cmd"],
-             "gemini": [appdata / "npm/gemini.cmd"]}.get(agent, [])
+             "gemini": [appdata / "npm/gemini.cmd"],
+             "antigravity": [home / ".local/bin/agy", local / "agy/bin/agy.exe"]}.get(agent, [])
     for p in extra:
         if p.exists():
             return str(p)
@@ -70,6 +89,11 @@ def setup_command(agent: str) -> str:
         return f'"{exe}"'
     if agent == "gemini":
         return "npm install -g @google/gemini-cli && gemini"
+    if agent == "antigravity":
+        if win:
+            return ('powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://antigravity.google/cli/install.ps1 | iex" && '
+                    '"%LOCALAPPDATA%\\agy\\bin\\agy.exe"')
+        return 'curl -fsSL https://antigravity.google/cli/install.sh | bash && "$HOME/.local/bin/agy"'
     if win:
         return ('powershell -NoProfile -ExecutionPolicy Bypass -Command "irm https://claude.ai/install.ps1 | iex" && '
                 '"%USERPROFILE%\\.local\\bin\\claude.exe"')
@@ -96,7 +120,29 @@ def open_setup_terminal(agent: str) -> str:
         if r.returncode != 0:
             raise RuntimeError(f"could not open Terminal ({(r.stderr or r.stdout).strip()}). Open Terminal and run:  {cmd}")
     elif sys.platform == "win32":
-        subprocess.Popen(f'start "Set up {agent}" cmd /k {cmd}', shell=True)
+        if agent == "gemini" and not find_agent("gemini"):
+            # Gemini CLI comes from npm. A PC without Node.js got "'npm' is not recognized": install Node.js LTS with
+            # winget first, then npm by its full path (this window's PATH does not refresh after the install).
+            f = Path.home() / ".videogen" / "setup_gemini.bat"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text("@echo off\r\n"
+                         "echo Setting up Gemini CLI for AI Director...\r\n"
+                         'set "PATH=%ProgramFiles%\\nodejs;%APPDATA%\\npm;%PATH%"\r\n'
+                         "where npm >nul 2>nul\r\n"
+                         "if errorlevel 1 (\r\n"
+                         "  echo Node.js is not installed. Installing Node.js LTS with winget...\r\n"
+                         "  winget install -e --id OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements\r\n"
+                         ")\r\n"
+                         "where npm >nul 2>nul\r\n"
+                         "if errorlevel 1 (\r\n"
+                         "  echo Could not install Node.js. Install the LTS from https://nodejs.org then click Set up again.\r\n"
+                         "  goto :eof\r\n"
+                         ")\r\n"
+                         "call npm install -g @google/gemini-cli\r\n"
+                         "call gemini\r\n", encoding="utf-8")
+            subprocess.Popen(f'start "Set up gemini" cmd /k "{f}"', shell=True)
+        else:
+            subprocess.Popen(f'start "Set up {agent}" cmd /k {cmd}', shell=True)
     else:
         term = shutil.which("x-terminal-emulator") or shutil.which("gnome-terminal")
         if not term:
@@ -127,6 +173,9 @@ def check_ready(agent: str, timeout: float = 120) -> tuple:
 
 
 def install_hint(agent: str) -> str:
+    if agent == "antigravity":
+        return ("Antigravity CLI is not installed yet. Click Set up / sign in: it installs it and asks you to sign in with Google "
+                "(a Google AI Pro account works).")
     if agent == "gemini":
         return "Gemini CLI is not installed yet. Click Set up / sign in: it installs it and asks you to sign in with Google."
     return "Claude Code is not installed yet. Click Set up / sign in: it installs it and opens the Claude sign-in."
@@ -172,6 +221,13 @@ PACKS = {
                      "   is drawn in SVG: no footage, no photos. This video is NEW: design its own cast (era, clothes, colours) from the\n"
                      "   script in scenes/common.js and draw every place fresh from its sentence. Mix story shots, paper inserts, maps,\n"
                      "   cards, object metaphors and titles, never the same kind twice in a row. What is said is what is seen."),
+    "city_lens": ("city planning documentary (city_lens): satellite maps with glowing outlines, paper infographics, footage",
+                  "Use the city_lens look pack (its rules come with the guide). Every downtown, freeway, river or district\n"
+                  "   named gets the `satellite` tool + a glowing orange outline/route on it; numbers become big orange counters;\n"
+                  "   comparisons, laws and news become paper cards; 3D block city (city3d.js) for 'from above' shots. Plenty\n"
+                  "   of real footage of THAT city (drone, street, archive): a clip about every 20 s, 25-40 % of the runtime.\n"
+                  "   Build the layer stack as the causes add up.\n"
+                  "   What is said is what is seen."),
     "doodle_dark": ("flat doodle story at night (doodle_dark)",
                     "Use the doodle_dark look pack (its rules come with the guide). Everything is\n"
                     "   drawn, no footage; draw every sentence new. What is said is what is seen."),
@@ -213,19 +269,41 @@ def prepare(project: str | Path, script: str | Path, voice: str | Path = "", edg
     (P / ".gemini").mkdir(exist_ok=True)
     (P / ".gemini" / "settings.json").write_text(json.dumps({"mcpServers": {"videokit": {**server, "trust": True, "timeout": 3600000}}},
                                                             indent=1), encoding="utf-8")
+    (P / ".agents").mkdir(exist_ok=True)
+    (P / ".agents" / "mcp_config.json").write_text(json.dumps({"mcpServers": {"videokit": {**server, "timeoutSeconds": 3600}}},
+                                                              indent=1), encoding="utf-8")
     (P / "GEMINI.md").write_text("Read TASK.md and do it with the videokit tools. Call the videokit `guide` tool first.\n", encoding="utf-8")
     log(f"project ready: {P}")
     return {"project": str(P), "task": task, "minutes": minutes, "model": model}
+
+
+def _agy_model(exe: str, tier: str) -> str:
+    """Antigravity model slug for a tier: "fast" = the newest Gemini Flash (High), "best" = the top Gemini (High).
+    Read from `agy models` each time, since Google renames models; '' (the account's default) if none matches."""
+    if tier not in ("fast", "best"):
+        return tier
+    try:
+        out = subprocess.run([exe, "models"], capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    slugs = [l.split()[0] for l in out.splitlines() if l.strip().startswith("gemini-")]
+    flash = [m for m in slugs if "flash" in m]
+    pick = [m for m in (flash if tier == "fast" else [m for m in slugs if m not in flash]) if m.endswith("-high")]
+    return pick[0] if pick else ""
 
 
 def _cmd(agent: str, exe: str, job: dict) -> list:
     P = job["project"]
     prompt = f"Read {P}/TASK.md and do exactly what it says. The task, in full:\n\n{job['task']}"
     if agent == "claude":
-        model = ["--model", job["model"]] if job.get("model") else []
+        m = {"fast": "sonnet", "best": "opus"}.get(job.get("model", ""), job.get("model", ""))
+        model = ["--model", m] if m else []
         return [exe, "-p", prompt, *model, "--mcp-config", str(Path(P) / "mcp.json"), "--strict-mcp-config",
                 "--allowedTools", "mcp__videokit", "Read", "Write", "Edit", "Glob", "Grep",
                 "--permission-mode", "acceptEdits", "--output-format", "stream-json", "--verbose"]
+    if agent == "antigravity":
+        model = _agy_model(exe, job.get("model", ""))
+        return [exe, "-p", prompt, *(["--model", model] if model else []), "--mode", "accept-edits", "--output-format", "stream-json"]
     return [exe, "-p", prompt, "--approval-mode", "auto_edit", "--allowed-mcp-server-names", "videokit", "--output-format", "stream-json"]
 
 
@@ -236,6 +314,25 @@ def _say(agent: str, line: str) -> str:
     except ValueError:
         return line.strip()[:300]
     t = ev.get("type", "")
+    if agent == "antigravity":
+        e = ev.get("event", "")
+        if e == "result":
+            r = ev.get("result") or {}
+            return f"finished: {r.get('status', '')} {str(r.get('error') or r.get('response') or '')[:400]}"
+        su = ev.get("step_update") or {}
+        if e != "step_update":
+            return ""
+        if su.get("step_type") == "agent_response":   # partial ACTIVE deltas are skipped; DONE carries the text
+            return str(su.get("text_delta", "")).strip()[:300] if su.get("state") == "DONE" else ""
+        if su.get("step_type") != "tool" or su.get("state") != "ACTIVE":   # one line per tool, when it starts
+            return ""
+        prm = (su.get("tool_info") or {}).get("parameters") or {}
+        if su.get("tool_name") == "call_mcp_tool":    # {"ServerName", "ToolName", "Arguments"}
+            args = {k: v for k, v in (prm.get("Arguments") or {}).items() if k != "project"}
+            return f"→ {prm.get('ToolName', '?')} {json.dumps(args)[:140]}"
+        if prm.get("Path"):
+            return f"→ {su.get('tool_name', '')} {Path(str(prm['Path'])).name}"
+        return f"→ {su.get('tool_name', '')}"
     if agent == "claude":
         if t == "assistant":
             out = []
@@ -258,6 +355,28 @@ def _say(agent: str, line: str) -> str:
     return ""
 
 
+def _agy_allow_videokit(log: Callable = print) -> None:
+    """Antigravity asks before every MCP tool, and a headless run cannot answer, so it would refuse the videokit tools.
+    Permission rules live only in the global settings file: add the one rule mcp(videokit/*) there, keep everything else."""
+    f = Path.home() / ".gemini" / "antigravity-cli" / "settings.json"
+    rule = "mcp(videokit/*)"
+    try:
+        data = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+    except (OSError, ValueError):
+        log(f"note: could not read {f}; if videokit tools are refused, add \"{rule}\" to permissions.allow there")
+        return
+    if not isinstance(data, dict):
+        return
+    perms = data.setdefault("permissions", {})
+    allow = perms.setdefault("allow", []) if isinstance(perms, dict) else None
+    if not isinstance(allow, list) or rule in allow:
+        return
+    allow.append(rule)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    log(f"allowed the videokit tools for Antigravity CLI ({f})")
+
+
 def run(agent: str, job: dict, log: Callable = print, cancel: Callable[[], bool] = lambda: False) -> Path:
     """Run the agent headless until it finishes (or Stop). Returns final.mp4. The agent's own log: <project>/agent.log."""
     if agent not in AGENTS:
@@ -268,6 +387,8 @@ def run(agent: str, job: dict, log: Callable = print, cancel: Callable[[], bool]
     P = Path(job["project"])
     final = P / "final.mp4"
     before = final.stat().st_mtime if final.exists() else 0
+    if agent == "antigravity":
+        _agy_allow_videokit(log)
     cmd = _cmd(agent, exe, job)
     log(f"starting {agent} ({Path(exe).name}) in {P}")
     env = dict(os.environ)
@@ -286,6 +407,9 @@ def run(agent: str, job: dict, log: Callable = print, cancel: Callable[[], bool]
                 if agent == "claude" and ("Not logged in" in line or "Please run /login" in line):
                     raise RuntimeError(f"Claude Code is not signed in. Once, in Terminal, run:\n  \"{exe}\"\nthen type /login, sign in, "
                                        "and type /exit. After that the AI Director page works.")
+                if agent == "antigravity" and "authentication required" in line.lower():
+                    raise RuntimeError(f"Antigravity CLI is not signed in. Once, in Terminal, run:\n  \"{exe}\"\nsign in with "
+                                       "Google, then type /quit. After that the AI Director page works.")
                 if agent == "gemini" and ("GEMINI_API_KEY" in line or "Please set an Auth method" in line):
                     raise RuntimeError("Gemini CLI is not signed in. Once, in Terminal, run:  gemini   and choose Login with Google.")
                 if cancel():
@@ -316,12 +440,13 @@ def main() -> int:
     ap.add_argument("--edge-voice", default="en-US-AndrewNeural")
     ap.add_argument("--look", default="")
     ap.add_argument("--pack", choices=list(PACKS), default="doc_teal", help="look pack")
-    ap.add_argument("--model", default="sonnet", help="Claude model: sonnet (cheaper) or opus; empty = the plan's default")
+    ap.add_argument("--model", default="fast", help="fast (Sonnet / Gemini Flash), best (Opus / top Gemini), a model name, "
+                    "or empty = the account's default")
     ap.add_argument("--minutes", type=float, default=0.0, help="test only the first N minutes (0 = all)")
     ap.add_argument("--out", required=True, help="the project folder")
     ap.add_argument("--prepare-only", action="store_true")
     a = ap.parse_args()
-    job = prepare(a.out, a.script, a.voice, a.edge_voice, a.look, a.minutes, pack=a.pack, model=a.model if a.agent == "claude" else "")
+    job = prepare(a.out, a.script, a.voice, a.edge_voice, a.look, a.minutes, pack=a.pack, model=a.model if a.agent != "gemini" else "")
     if a.prepare_only:
         print(json.dumps({"project": job["project"], "command": _cmd(a.agent, find_agent(a.agent) or a.agent, job)[:1]}))
         return 0

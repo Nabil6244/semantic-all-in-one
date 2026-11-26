@@ -3401,7 +3401,7 @@ class VideoGeneratorApp(ctk.CTk):
         if getattr(self, "_rs_active", False):   # Reddit Shorts (ui/reddit_shorts_section.py): opt-in, per session
             return "Reddit Shorts"
         if getattr(self, "_ad_active", False):   # AI Director (ui/ai_director_section.py): opt-in, per session
-            return "AI Director"
+            return _ad_section.style_name(self)   # "AI Director", or a preset card on the same page ("City Planning")
         if getattr(self, "_ff_active", False):   # Food Files (ui/foodfiles_section.py): opt-in, per session
             return "Food Files"
         if getattr(self, "_av_active", False):   # Aviation (ui/aviation_section.py): opt-in, per session
@@ -3539,7 +3539,7 @@ class VideoGeneratorApp(ctk.CTk):
             _st_section.deactivate(self)
         if choice != "Reddit Shorts":   # Reddit Shorts (ui/reddit_shorts_section.py) off too, whichever style is picked
             _rs_section.deactivate(self)
-        if choice != "AI Director":   # AI Director (ui/ai_director_section.py) off too, whichever style is picked
+        if choice != "AI Director" and choice not in _ad_section.PRESETS:   # AI Director (ui/ai_director_section.py) off too, whichever style is picked
             _ad_section.deactivate(self)
         if choice != "War Documentary":
             self._war_deactivate()
@@ -3611,10 +3611,10 @@ class VideoGeneratorApp(ctk.CTk):
             _rs_section.activate(self)
             self._sync_primary_cta()
             return
-        if choice != "AI Director":
+        if choice != "AI Director" and choice not in _ad_section.PRESETS:
             _ad_section.deactivate(self)
-        if choice == "AI Director":   # its own page (ui/ai_director_section.py); nothing runs until Generate
-            _ad_section.activate(self)
+        if choice == "AI Director" or choice in _ad_section.PRESETS:   # its own page (ui/ai_director_section.py); City Planning = the same page with its look set; nothing runs until Generate
+            _ad_section.activate(self, choice)
             self._sync_primary_cta()
             return
         if choice != "Food Files":

@@ -27,13 +27,16 @@ from .style_kit import render_panel, section
 from .widgets import make_button
 
 STYLE = "AI Director"
+# Style cards that open this same page with one look pack chosen (they show under their own name in the picker)
+PRESETS = {"City Planning": "city_lens"}
 TAG = "[AI DIRECTOR]"
-AGENTS = {"Claude Code": "claude", "Gemini CLI": "gemini"}
+AGENTS = {"Claude Code": "claude", "Gemini CLI": "gemini", "Antigravity CLI (Google AI Pro)": "antigravity"}
 VOICES = {"My voiceover file (below)": "", "Andrew (US, calm man)": "en-US-AndrewNeural", "Brian (US)": "en-US-BrianNeural",
           "Guy (US)": "en-US-GuyNeural", "Jenny (US, warm woman)": "en-US-JennyNeural", "Aria (US)": "en-US-AriaNeural"}
-MODELS = {"Sonnet (fewer credits)": "sonnet", "Opus (best drawings, more credits)": "opus", "My plan's default": ""}
+# Tiers, mapped per AI in agent_kit/runner.py: Claude Sonnet / Opus, Antigravity Gemini Flash / top Gemini.
+MODELS = {"Fast (Sonnet / Gemini Flash)": "fast", "Best drawings, slower (Opus / top Gemini)": "best", "My plan's default": ""}
 PACKS = {"Teal documentary (3D + footage)": "doc_teal", "Cartoon history (drawn)": "history_toon",
-         "Doodle night story (drawn)": "doodle_dark"}
+         "Doodle night story (drawn)": "doodle_dark", "City planning (satellite maps)": "city_lens"}
 SCOPES = {"Test: first 2 minutes": 2.0, "Test: first 5 minutes": 5.0, "Whole video": 0.0}
 _ROOT = Path(__file__).resolve().parent.parent
 
@@ -84,7 +87,11 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     out = ctk.CTkFrame(body, fg_color="transparent")
     out.grid(row=1, column=0, sticky="w", pady=(8, 0))
     _label(out, "Voice", 0)
-    ctk.CTkOptionMenu(out, values=list(VOICES), variable=app._ad_edge_var, width=260).grid(row=0, column=1, sticky="w")
+    ctk.CTkOptionMenu(out, values=list(VOICES), variable=app._ad_edge_var, width=260,
+                      command=lambda v: _browse(app, "voice") if VOICES.get(v) == "" and not app._ad_voice_var.get().strip() else None,
+                      ).grid(row=0, column=1, sticky="w")
+    # The same file pick as the Voiceover row above, next to the voice menu where people look for it.
+    make_button(out, "Upload voiceover", lambda: _browse(app, "voice"), size="sm", width=150).grid(row=0, column=2, padx=(10, 0), sticky="w")
 
     body = section(block, 1, 2, "Who makes it, and how it looks")
     out = ctk.CTkFrame(body, fg_color="transparent")
@@ -93,7 +100,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     _label(out, "AI", 0)
     ai_row = ctk.CTkFrame(out, fg_color="transparent")
     ai_row.grid(row=0, column=1, sticky="w")
-    ctk.CTkOptionMenu(ai_row, values=list(AGENTS), variable=app._ad_agent_var, width=200).grid(row=0, column=0, padx=(0, 10))
+    ctk.CTkOptionMenu(ai_row, values=list(AGENTS), variable=app._ad_agent_var, width=250).grid(row=0, column=0, padx=(0, 10))
     make_button(ai_row, "Set up / sign in", lambda: _setup_agent(app), size="sm", width=140).grid(row=0, column=1, padx=(0, 8))
     make_button(ai_row, "Check", lambda: _check_agent(app), size="sm", width=80).grid(row=0, column=2)
     _label(out, "Model", 4)
@@ -115,8 +122,9 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     _label(out, "Notes", 3)
     ctk.CTkEntry(out, textvariable=app._ad_look_var, height=34, width=520,
                  placeholder_text="optional: e.g. lots of maps, warm colours, little text").grid(row=3, column=1, pady=(8, 0), sticky="w")
-    app._ad_agent_note = ctk.CTkLabel(body, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600)
-    app._ad_agent_note.grid(row=1, column=0, sticky="w", pady=(6, 0))
+    # Right under the AI picker: the answer of Set up / Check must show next to the buttons, not below the fold.
+    app._ad_agent_note = ctk.CTkLabel(ai_row, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600)
+    app._ad_agent_note.grid(row=1, column=0, columnspan=3, sticky="w", pady=(4, 0))
 
     body = section(block, 2, 3, "Generate", "the AI plans, checks, draws, renders and joins the whole video by itself")
     go = ctk.CTkFrame(body, fg_color="transparent")
@@ -218,6 +226,9 @@ def _setup_agent(app: Any) -> None:
     if lbl is not None:
         lbl.configure(text=("A Terminal window opened. In it type  /login  and press Return, sign in in the browser that opens, "
                             "then type  /exit . Back here, click Check." if agent == "claude" else
+                            "A Terminal window opened. It installs Antigravity CLI; sign in with your Google (AI Pro) account in the "
+                            "browser it opens, click Copy to Clipboard, paste the code into the Terminal window and press Return, "
+                            "then type  /quit . Back here, click Check." if agent == "antigravity" else
                             "A Terminal window opened. Choose Login with Google and sign in, then type  /quit . Back here, click Check."))
 
 
@@ -279,7 +290,7 @@ def _save(app: Any) -> None:
     if d is None or getattr(app, "_ad_restoring", False) or getattr(app, "_ad_script_var", None) is None:
         return
     try:
-        data = {"active": bool(getattr(app, "_ad_active", False)), "picks": _picks(app)}
+        data = {"active": bool(getattr(app, "_ad_active", False)), "picks": _picks(app), "style": style_name(app)}
         d.mkdir(parents=True, exist_ok=True)
         tmp = d / "settings.tmp"
         tmp.write_text(json.dumps(data, indent=1), encoding="utf-8")
@@ -309,9 +320,16 @@ def _restore(app: Any) -> None:
         app._ad_restoring = False
 
 
+def style_name(app: Any) -> str:
+    """The name this page shows as: AI Director, or the preset style card that opened it (City Planning)."""
+    return getattr(app, "_ad_style", STYLE) or STYLE
+
+
 def resume_on_open(app: Any) -> None:
-    if _read_settings(app).get("active"):
-        app.ui_call(lambda: app._on_style_pick(STYLE))
+    d = _read_settings(app)
+    if d.get("active"):
+        name = d.get("style") if d.get("style") in PRESETS else STYLE
+        app.ui_call(lambda: app._on_style_pick(name))
 
 
 def _browse(app: Any, what: str) -> None:
@@ -341,9 +359,10 @@ def _open_folder(app: Any) -> None:
 
 
 # ------------------------------------------------------------------ page
-def activate(app: Any) -> None:
+def activate(app: Any, style: str = STYLE) -> None:
     if getattr(app, "_ad_running", False):
         return
+    app._ad_style = style if style in PRESETS else STYLE
     app._war_deactivate()
     app._health_deactivate()
     app._pakmap_deactivate()
@@ -355,6 +374,9 @@ def activate(app: Any) -> None:
         build(app, app._view_visual_director.content, row=9)
     app._ad_active = True
     _restore(app)
+    pack = PRESETS.get(app._ad_style)
+    if pack:   # the style card's own look, whatever this project picked last on the plain AI Director page
+        app._ad_pack_var.set(next(k for k, v in PACKS.items() if v == pack))
     _save(app)
     _agent_note(app)
     app._ad_block.grid()
@@ -466,7 +488,7 @@ def on_generate(app: Any) -> None:
         try:
             job = rn.prepare(work, p["script"], p["voice"], edge or "en-US-AndrewNeural", p["look"], minutes, log=log,
                              pack=PACKS.get(p.get("pack", ""), "doc_teal"),
-                             model=MODELS.get(p.get("model", ""), "sonnet") if agent == "claude" else "")
+                             model=MODELS.get(p.get("model", ""), "fast") if agent != "gemini" else "")
             final = rn.run(agent, job, log=log, cancel=app._ad_cancel.is_set)
             shutil.copyfile(final, out_path)
         except Exception as exc:  # noqa: BLE001 - shown to the user, never silent

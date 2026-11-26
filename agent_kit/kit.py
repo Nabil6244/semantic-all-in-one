@@ -12,6 +12,7 @@ A project is a folder: voice/, media/, scenes/, clips/, look/ and final.mp4 live
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import shutil
@@ -237,6 +238,7 @@ GRADES = {
     "doc_teal": "eq=contrast=1.05:saturation=0.82:brightness=-0.02,colorbalance=rs=-0.05:gs=0.01:bs=0.06:rm=-0.03:bm=0.04,vignette=PI/5",
     "warm": "eq=contrast=1.04:saturation=1.05,colorbalance=rs=0.05:bs=-0.04,vignette=PI/5",
     "bw": "hue=s=0,eq=contrast=1.12,vignette=PI/5",
+    "city_lens": "eq=contrast=1.06:saturation=0.9:brightness=-0.01,colorbalance=rs=0.02:bs=-0.02,vignette=PI/6",
 }
 
 
@@ -269,9 +271,13 @@ _PACK_IMPORTS = {
     "doodle_dark": ("import { hero, heroAt, SPEED } from '/agent_kit/looks/doodle_dark/hero.js';\n"
                     "import * as L from '/agent_kit/looks/doodle_dark/light.js';\n"
                     "import { P } from '/agent_kit/looks/doodle_dark/palette.js';\n"),
+    "city_lens": ("import * as C from '/agent_kit/looks/city_lens/city.js';\n"
+                  "import { P, shade } from '/agent_kit/looks/city_lens/palette.js';\n"
+                  "import { makeCity } from '/agent_kit/looks/city_lens/city3d.js';\n"),
 }
 SHORT_FORM_NAMES = {"doc_teal": "K", "history_toon": "K, H, P, shade, person, personAt, OUTFITS",
-                    "doodle_dark": "K, hero, heroAt, SPEED, L (light.js), P"}
+                    "doodle_dark": "K, hero, heroAt, SPEED, L (light.js), P",
+                    "city_lens": "K, C (city.js), P, shade, makeCity (city3d.js)"}
 
 
 def _pack_of(P: Path) -> str:
@@ -516,6 +522,67 @@ def terrain(project: str, name: str, west: float, south: float, east: float, nor
             f"T.screen(lon, lat) for pins.")
 
 
+# ---- satellite (city maps: real aerial picture of a city, darkened in the scene) --------------------------------------
+
+SAT_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+SAT_CACHE = Path.home() / ".videogen" / "satellite"
+
+
+def satellite(project: str, name: str, west: float, south: float, east: float, north: float, zoom: int = 0) -> str:
+    """A real satellite picture of a place (Esri World Imagery tiles, cached in ~/.videogen/satellite) into
+    scenes/<name>_sat.jpg (2880x1620, so the camera can push in 1.5x and stay sharp) + scenes/<name>_sat.json, a
+    projection in FRAME pixels (1920x1080) like the map tool: K.lonlat(proj, lon, lat). The box is widened to 16:9.
+    zoom 0 = pick the sharpest that fits (a downtown: 15-16; a whole metro: 11-12)."""
+    import math
+    from PIL import Image
+    P = _project(project)
+    SAT_CACHE.mkdir(parents=True, exist_ok=True)
+    rad = math.radians
+    mx0, mx1 = rad(west), rad(east)
+    my = lambda lat: math.log(math.tan(math.pi / 4 + rad(max(-85, min(85, lat))) / 2))   # noqa: E731
+    my0, my1 = my(south), my(north)
+    cx, cy, w, h = (mx0 + mx1) / 2, (my0 + my1) / 2, mx1 - mx0, my1 - my0
+    if w / h < W / H:
+        w = h * W / H
+    else:
+        h = w * H / W
+    mx0, mx1, my0, my1 = cx - w / 2, cx + w / 2, cy - h / 2, cy + h / 2
+    OW, OH = int(W * 1.5), int(H * 1.5)
+    if not zoom:   # sharpest zoom whose tiles cover OW px across, within 400 tiles
+        zoom = max(1, min(18, int(math.ceil(math.log2(OW * 2 * math.pi / w / 256)))))
+    z = int(zoom)
+    while True:
+        tx0, tx1 = (mx0 + math.pi) / (2 * math.pi) * 2 ** z, (mx1 + math.pi) / (2 * math.pi) * 2 ** z
+        ty0, ty1 = (1 - my1 / math.pi) / 2 * 2 ** z, (1 - my0 / math.pi) / 2 * 2 ** z
+        n = (int(math.ceil(tx1)) - int(tx0)) * (int(math.ceil(ty1)) - int(ty0))
+        if n <= 400 or z <= 1:
+            break
+        z -= 1
+    canvas = Image.new("RGB", ((int(math.ceil(tx1)) - int(tx0)) * 256, (int(math.ceil(ty1)) - int(ty0)) * 256), (40, 42, 40))
+    for x in range(int(tx0), int(math.ceil(tx1))):
+        for y in range(int(ty0), int(math.ceil(ty1))):
+            f = SAT_CACHE / f"{z}_{x}_{y}.jpg"
+            if not f.exists():
+                try:
+                    _download(SAT_URL.format(z=z, x=x, y=y), f, max_mb=5)
+                except Exception:   # noqa: BLE001 - a missing tile stays dark grey
+                    continue
+            try:
+                canvas.paste(Image.open(f).convert("RGB"), ((x - int(tx0)) * 256, (y - int(ty0)) * 256))
+            except Exception:   # noqa: BLE001
+                f.unlink(missing_ok=True)
+    box = tuple(round(v) for v in ((tx0 - int(tx0)) * 256, (ty0 - int(ty0)) * 256, (tx1 - int(tx0)) * 256, (ty1 - int(ty0)) * 256))
+    img = canvas.crop(box).resize((OW, OH), Image.LANCZOS)
+    img.save(P / "scenes" / f"{name}_sat.jpg", quality=90)
+    proj = {"type": "mercator", "west": math.degrees(mx0), "east": math.degrees(mx1), "scale": W / w, "ox": 0, "oy": 0,
+            "x0": mx0, "y1": my1, "width": W, "height": H, "zoom": z}
+    (P / "scenes" / f"{name}_sat.json").write_text(json.dumps(proj), encoding="utf-8")
+    return (f"{P / 'scenes' / (name + '_sat.jpg')} {OW}x{OH}, zoom {z}, {n} tiles. Draw it full frame: C.sat('{name}') "
+            f"(city_lens) or <img class=\"sat\" src=\"/@scene/{name}_sat.jpg\" style=\"width:1920px;height:1080px\">. "
+            f"const proj = await (await fetch('/@scene/{name}_sat.json')).json(); K.lonlat(proj, lon, lat) -> frame px. "
+            "Credit line: 'Imagery: Esri, Maxar, Earthstar Geographics'.")
+
+
 # ---- check_plan -------------------------------------------------------------------------------------------------
 
 _NUM_WORDS = set("one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
@@ -650,6 +717,18 @@ def check_plan(project: str) -> str:
             probs.append(f"timing: the last scene ends at {end:.2f}s, before the plan's end {plan['end']}s")
     elif end < vlen + 0.3:
         probs.append(f"timing: the last scene ends at {end:.2f}s but the voice runs to {vlen:.2f}s (end at voice + 1 s)")
+    flashes = sum(1 for s in scenes for h in (s.get("hooks") or []) if str(h).split(":", 1)[0].strip().lower() == "flash")
+    allowed = max(1, int(total // 30))
+    if flashes > allowed:
+        probs.append(f"flash: {flashes} flash hooks in {total:.0f}s; at most {allowed} (one per 30 s, only the biggest reveal). "
+                     "Use punch, slam, wipe or highlight instead")
+    if str(plan.get("look", "")).strip() == "city_lens":        # the owner wants plenty of real footage between the maps
+        clips = [s for s in scenes if s.get("kind") in ("footage", "photo")]
+        need, fshare = max(2, int(total // 20)), sum(float(s["end"]) - float(s["start"]) for s in clips) / total if total else 0
+        if len(clips) < need or fshare < 0.25:
+            probs.append(f"footage: {len(clips)} footage/photo scenes, {fshare:.0%} of the runtime; city_lens wants at least {need} "
+                         "(one every ~20 s) and 25-40 % of the runtime: drone, street and archive footage of THAT city (search with "
+                         "its name), each with a place tag or number on it")
     share = graphics / total if total else 0
     if share < 0.7:
         probs.append(f"graphics: {share:.0%} of the runtime is graphics (half credit for footage with an overlay); aim for 70 %+")
@@ -745,6 +824,85 @@ def _sfx_len(f: Path) -> float:
 _SFX_MAX = {"riser": 5.0, "impact": 2.5, "transition": 2.0, "whoosh": 1.6, "ambience": 0, "cinematic": 0}
 
 
+_RMS: dict = {}
+
+
+def _rms_db(f: Path, seconds: float = 20.0) -> float:
+    """Measured loudness (RMS dBFS over the first `seconds`) of a sound file, cached."""
+    if f not in _RMS:
+        try:
+            out = subprocess.run(["ffmpeg", "-v", "error", "-t", str(seconds), "-i", str(f), "-ac", "1", "-ar", "11025", "-f", "f32le", "-"],
+                                 capture_output=True, timeout=60).stdout
+            import array
+            a = array.array("f", out[: len(out) // 4 * 4])
+            ms = sum(v * v for v in a) / max(1, len(a))
+            _RMS[f] = 10 * math.log10(ms) if ms > 0 else -60.0
+        except Exception:  # noqa: BLE001
+            _RMS[f] = -25.0
+    return _RMS[f]
+
+
+def _sound_profile(P: Path) -> tuple[dict, Path] | None:
+    """The look pack's sound.json (music, levelled effects, matching ambience) when plan.json names a look that has one."""
+    try:
+        look = str(json.loads((P / "plan.json").read_text(encoding="utf-8")).get("look", "")).strip()
+    except Exception:  # noqa: BLE001
+        return None
+    f = HERE / "looks" / look / "sound.json" if look else None
+    if not f or not f.exists():
+        return None
+    return json.loads(f.read_text(encoding="utf-8")), f.parent
+
+
+def _profile_sfx(prof: dict, name: str, i: int):
+    """(file, gain dB, max length) for an effect name under a sound profile, or None when the profile drops it."""
+    cat = name
+    if cat not in prof["sfx"]:
+        if cat in prof.get("alias", {}):
+            cat = prof["alias"][cat]
+        if cat is None:
+            return None
+        if cat not in prof["sfx"]:
+            cat = "tick"
+    c = prof["sfx"][cat]
+    f = SFX_ROOT / c["files"][i % len(c["files"])]
+    if not f.exists():
+        return None
+    return f, max(-30.0, min(12.0, float(c["rms"]) - _rms_db(f, 6))), float(c.get("len", 1.0))
+
+
+def _profile_ambience(prof: dict, P: Path, plan_scenes: list, end: float) -> list:
+    """Ambience segments [(file, start, dur, gain)] that match what each scene shows; neighbours with the same bed merge."""
+    amb = prof.get("ambience") or {}
+    segs = []
+    for sc in plan_scenes:
+        kind = sc.get("kind")
+        hp = P / "scenes" / f"{sc.get('name')}.html"
+        src = hp.read_text(encoding="utf-8") if kind == "graphic" and hp.exists() else ""
+        is_map = kind == "graphic" and any(k in src for k in ("C.sat(", "makeCity(", "_sat.json"))
+        if kind == "graphic" and not is_map:
+            continue
+        words = " ".join([str(sc.get("name", "")), str(sc.get("media", ""))] + [str(x) for x in sc.get("shows") or []]).lower()
+        pick = None
+        for r in amb.get("rules", []):
+            if any((w == "*footage" and kind in ("footage", "photo")) or (w != "*footage" and w in words) for w in r["words"]):
+                pick = r
+                break
+        if not pick:
+            continue
+        files = [SFX_ROOT / f for f in pick["files"] if (SFX_ROOT / f).exists()]
+        if not files:
+            continue
+        f = files[len(segs) % len(files)]
+        lvl = float(amb.get("footage_rms" if kind in ("footage", "photo") else "graphic_rms", -46))
+        a, b = float(sc["start"]), min(float(sc["end"]), end)
+        if segs and segs[-1][0] == f and abs(segs[-1][1] + segs[-1][2] - a) < 0.05:
+            segs[-1] = (f, segs[-1][1], b - segs[-1][1], max(segs[-1][3], lvl - _rms_db(f)))
+        elif b > a:
+            segs.append((f, a, b - a, lvl - _rms_db(f)))
+    return segs
+
+
 def join(project: str, clips: list, voice: str = "", music: str = "", music_db: float = -20.0, sfx: list | None = None,
          out: str = "", tail: float = 1.0, voice_end: float = 0.0) -> str:
     """Join clips (paths or names in clips/, in order) into final.mp4 with the voice, music under it (ducked while the voice
@@ -784,6 +942,9 @@ def join(project: str, clips: list, voice: str = "", music: str = "", music_db: 
         mix.append("[vo]")
         k += 1
     end = min(vid_len, (voice_len + tail) if voice_len else vid_len)
+    prof = _sound_profile(P)                 # a look pack with its own sound (city_lens): its bed, soft effects, ambience
+    if prof and not music:
+        music, music_db = str(prof[1] / prof[0]["music"]), float(prof[0].get("music_db", music_db))
     if music:
         mp = Path(music).expanduser()
         if not mp.exists() and (MUSIC_ROOT / music).exists():
@@ -799,15 +960,39 @@ def join(project: str, clips: list, voice: str = "", music: str = "", music_db: 
         k += 1
     elif voice:
         filters.append("[vkey]anullsink")
+    dropped = 0
     for i, s in enumerate(sfx or []):
-        f = _sfx_file(str(s.get("sound", "whoosh")), i)
+        name = str(s.get("sound", "whoosh"))
         ms = int(float(s.get("at", 0)) * 1000)
+        if prof and not Path(name).suffix:
+            got = _profile_sfx(prof[0], name, i)
+            if not got:
+                dropped += 1
+                continue
+            f, gain, cap = got
+            gain += max(-8.0, min(3.0, float(s.get("db", -14)) + 14))      # the agent's db nudges it a little, never loud
+        else:
+            f = _sfx_file(name, i)
+            gain = float(s.get("db", -10))
+            cap = float(s.get("len", _SFX_MAX.get(name, 1.2 if not Path(name).suffix else 0)))
         inputs += ["-i", str(f)]
-        cap = float(s.get("len", _SFX_MAX.get(str(s.get("sound", "whoosh")), 1.2 if not Path(str(s.get("sound", ""))).suffix else 0)))
         trim = f"atrim=0:{cap:.2f},afade=t=out:st={max(0.0, cap - 0.25):.2f}:d=0.25," if cap > 0 else ""
-        filters.append(f"[{k}:a]{trim}aresample=48000,aformat=channel_layouts=stereo,volume={float(s.get('db', -10))}dB,adelay={ms}|{ms}[s{i}]")
+        filters.append(f"[{k}:a]{trim}aresample=48000,aformat=channel_layouts=stereo,volume={gain:.2f}dB,adelay={ms}|{ms}[s{i}]")
         mix.append(f"[s{i}]")
         k += 1
+    if prof:
+        try:
+            plan_scenes = json.loads((P / "plan.json").read_text(encoding="utf-8")).get("scenes", [])
+        except Exception:  # noqa: BLE001
+            plan_scenes = []
+        for j, (f, a, d, gain) in enumerate(_profile_ambience(prof[0], P, plan_scenes, end)):
+            ms, off = int(a * 1000), (j * 13) % 25
+            inputs += ["-stream_loop", "-1", "-ss", str(off), "-i", str(f)]
+            fd = min(0.6, d / 3)
+            filters.append(f"[{k}:a]atrim=0:{d:.3f},aresample=48000,aformat=channel_layouts=stereo,volume={max(-40.0, min(12.0, gain)):.2f}dB,"
+                           f"afade=t=in:d={fd:.2f},afade=t=out:st={max(0.0, d - fd):.3f}:d={fd:.2f},adelay={ms}|{ms}[am{j}]")
+            mix.append(f"[am{j}]")
+            k += 1
     final = Path(out).expanduser() if out else P / "final.mp4"
     cmd = ["ffmpeg", "-hide_banner", "-y", *inputs]
     if mix:
@@ -826,7 +1011,10 @@ def join(project: str, clips: list, voice: str = "", music: str = "", music_db: 
     warn = ""
     if voice_len and vid_len < voice_len - 0.05:
         warn = f"\nWARNING: the picture ({vid_len:.2f}s) is shorter than the voice ({voice_len:.2f}s); the end of the voice is cut"
-    return f"{final}  {duration(final):.2f}s  ({len(files)} clips, picture {vid_len:.2f}s, voice {voice_len:.2f}s){warn}"
+    note = f"\nsound: the look's own bed, levelled effects and matching ambience" if prof else ""
+    if dropped:
+        note += f" ({dropped} effect(s) this look does not use were left out)"
+    return f"{final}  {duration(final):.2f}s  ({len(files)} clips, picture {vid_len:.2f}s, voice {voice_len:.2f}s){warn}{note}"
 
 
 if __name__ == "__main__":       # quick manual use:  python3 agent_kit/kit.py look clip.mp4

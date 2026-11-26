@@ -1,0 +1,16 @@
+// city_lens example: satellite map, the orange loop draws on, parking dots fill, a pin, the layer stack, a slow push.
+// Needs `satellite` name=kc first. Short scene file: the kit wraps it in the city_lens page.
+const proj = await (await fetch('/@scene/kc_sat.json')).json();
+const loop = C.blob(980, 560, 420, 300, 3);
+const lots = C.scatter(980, 560, 340, 230, 46, 7);
+const STACK = [{ label: 'River', color: P.blue }, { label: 'Parking', color: P.red }, { label: 'Freeways', color: P.orange }];
+const tLoop = K.when('loop', 0.4), tPark = K.when('parking', 1.6), tPin = K.when('station', 2.8);
+window.renderAt = async (t) => {
+  s.innerHTML = C.defs() + C.sat('kc') +
+    C.glowLoop(loop, K.prog(t, tLoop, 1.4), { pulse: Math.max(0, 1 - Math.abs(t - tLoop - 1.4) * 2) }) +
+    C.dots(lots, K.prog(t, tPark, 1.6, K.linear), { size: 16 }) +
+    C.pin(1290, 790, 'Union Station', K.prog(t, tPin, 0.5)) +
+    C.placeLabel(1010, 470, 'Downtown', K.prog(t, tLoop + 0.6, 0.6), { size: 54 });
+  tags.innerHTML = C.defs() + C.layerStack(STACK, 1 + K.prog(t, tPark, 0.5)) + C.sourceLine('Imagery: Esri, Maxar, Earthstar Geographics');
+  cam.style.transform = `scale(${1 + 0.1 * K.easeInOutSine(K.clamp(t / 5))}) translate(${-12 * t}px, ${-4 * t}px) scale(${K.punch(t, tPark)})`;
+};
