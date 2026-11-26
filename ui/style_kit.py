@@ -214,6 +214,7 @@ def wrap_style(app: Any, active: str) -> None:
     want = None if active == "Doodle Survival" else want   # Doodle Survival (ui/doodle_section.py) builds its own steps too
     want = None if active == "Food Files" else want   # Food Files (ui/foodfiles_section.py) builds its own steps too
     want = None if active == "Senior Trivia" else want   # Senior Trivia (ui/senior_trivia_section.py) builds its own steps too
+    want = None if active == "Reddit Shorts" else want   # Reddit Shorts (ui/reddit_shorts_section.py) builds its own steps too
     want = None if active == "AI Director" else want   # AI Director (ui/ai_director_section.py) builds its own steps too
     for name, (top, bottom) in wraps.items():
         if name != want:

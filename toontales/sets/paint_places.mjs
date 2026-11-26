@@ -21,15 +21,18 @@ fs.mkdirSync(raw, { recursive: true });
 const chFile = plan.channel ? path.join(path.dirname(new URL(import.meta.url).pathname), "..", "channels", `${plan.channel}.json`) : null;
 const ch = chFile && fs.existsSync(chFile) ? JSON.parse(fs.readFileSync(chFile, "utf8")) : {};
 const mode = plan.backgrounds || ch.backgrounds || "3d";
-const STYLE = ch.paint_style || "2D cartoon background painting for an animated history explainer show, flat colours with soft simple shading, clean bold dark-brown outlines, warm storybook palette, vector illustration";
-const FRAME = "Vertical 9:16 picture, eye-level view. The bottom 40% of the picture is open, empty, flat ground or floor in the foreground seen from slightly above, where characters will stand; the scenery is behind it. Nothing in the foreground. No text, no letters, no signs with writing, no logos";
+const STYLE = plan.paint_style || ch.paint_style || "2D cartoon background painting for an animated history explainer show, flat colours with soft simple shading, clean bold dark-brown outlines, warm storybook palette, vector illustration";
+const FRAME = plan.frame || "Vertical 9:16 picture, eye-level view. The bottom 40% of the picture is open, empty, flat ground or floor in the foreground seen from slightly above, where characters will stand; the scenery is behind it. Nothing in the foreground. No text, no letters, no signs with writing, no logos";
 const isWorld = n => { const p = plan.places[n]; return p && p.world && (mode === "3d" || !p.prompt); };
 const names = Object.keys(plan.places || {}).filter(n => !isWorld(n))  // 3D world places: nothing to paint
   .filter(n => redo.has(n) || !fs.existsSync(path.join(dir, `${n}.png`)));
 if (!names.length) { console.log("all places painted"); process.exit(0); }
 const prompts = names.map(n => {
   const p = plan.places[n];
-  return `${STYLE}. ${typeof p === "string" ? p : p.prompt}. Any people only small in the far background. ${FRAME}.`;
+  const body = typeof p === "string" ? p : p.prompt;
+  // a plan with its own cast (Reddit Shorts) shows its people big in the picture; Toon Tales places stay empty
+  if (plan.cast) return `${STYLE}. ${body}. ${FRAME}.`;
+  return `${STYLE}. ${body}. Any people only small in the far background. ${FRAME}.`;
 });
 console.log("painting", names.join(", "));
 

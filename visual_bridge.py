@@ -422,3 +422,10 @@ def _st_dir(ws) -> Path:
 
 
 OWNERS["senior_trivia"] = ("_st_active", _st_dir)   # Senior Trivia Flow pictures (ui/senior_trivia_section.py)
+
+
+def _rs_dir(ws) -> Path:
+    return Path(ws.root) / "state" / "reddit_shorts" / "assets"
+
+
+OWNERS["reddit_shorts"] = ("_rs_active", _rs_dir)   # Reddit Shorts Flow pictures (ui/reddit_shorts_section.py)

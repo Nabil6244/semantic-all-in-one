@@ -115,6 +115,7 @@ from ui import stickman_section as _sm_section   # Stickman (ui/stickman_section
 from ui import prepper_host_section as _ph_section   # Prepper Host (ui/prepper_host_section.py, prepper_host/)
 from ui import doodle_section as _ds_section   # Doodle Survival (ui/doodle_section.py, doodle_ai/)
 from ui import senior_trivia_section as _st_section   # Senior Trivia (ui/senior_trivia_section.py, senior_trivia/)
+from ui import reddit_shorts_section as _rs_section   # Reddit Shorts (ui/reddit_shorts_section.py, reddit_shorts/)
 from ui import ai_director_section as _ad_section   # AI Director (ui/ai_director_section.py, agent_kit/)
 from ui import foodfiles_section as _ff_section   # Food Files (ui/foodfiles_section.py, foodfiles/)
 from ui import aviation_section as _av_section   # Aviation (ui/aviation_section.py, aviation/)
@@ -3397,6 +3398,8 @@ class VideoGeneratorApp(ctk.CTk):
             return "Doodle Survival"
         if getattr(self, "_st_active", False):   # Senior Trivia (ui/senior_trivia_section.py): opt-in, per session
             return "Senior Trivia"
+        if getattr(self, "_rs_active", False):   # Reddit Shorts (ui/reddit_shorts_section.py): opt-in, per session
+            return "Reddit Shorts"
         if getattr(self, "_ad_active", False):   # AI Director (ui/ai_director_section.py): opt-in, per session
             return "AI Director"
         if getattr(self, "_ff_active", False):   # Food Files (ui/foodfiles_section.py): opt-in, per session
@@ -3534,6 +3537,8 @@ class VideoGeneratorApp(ctk.CTk):
             _ds_section.deactivate(self)
         if choice != "Senior Trivia":   # Senior Trivia (ui/senior_trivia_section.py) off too, whichever style is picked
             _st_section.deactivate(self)
+        if choice != "Reddit Shorts":   # Reddit Shorts (ui/reddit_shorts_section.py) off too, whichever style is picked
+            _rs_section.deactivate(self)
         if choice != "AI Director":   # AI Director (ui/ai_director_section.py) off too, whichever style is picked
             _ad_section.deactivate(self)
         if choice != "War Documentary":
@@ -3600,6 +3605,10 @@ class VideoGeneratorApp(ctk.CTk):
             _st_section.deactivate(self)
         if choice == "Senior Trivia":   # its own page (ui/senior_trivia_section.py); nothing runs until Generate
             _st_section.activate(self)
+        if choice != "Reddit Shorts":
+            _rs_section.deactivate(self)
+        if choice == "Reddit Shorts":   # its own page (ui/reddit_shorts_section.py); nothing runs until Generate
+            _rs_section.activate(self)
             self._sync_primary_cta()
             return
         if choice != "AI Director":
@@ -7792,6 +7801,8 @@ class VideoGeneratorApp(ctk.CTk):
             _ds_section.cta(self, action)
         elif action in ("st_generate", "st_render", "st_cancel"):
             _st_section.cta(self, action)
+        elif action in ("rs_generate", "rs_render", "rs_cancel"):
+            _rs_section.cta(self, action)
         elif action in ("ad_generate", "ad_cancel"):
             _ad_section.cta(self, action)
         elif action in ("ff_generate", "ff_render", "ff_cancel"):
@@ -8637,6 +8648,8 @@ class VideoGeneratorApp(ctk.CTk):
             return _ds_section.sync_cta(self)
         if getattr(self, "_st_active", False) and getattr(self, "_st_block", None) is not None:   # Senior Trivia owns the button while its page is up
             return _st_section.sync_cta(self)
+        if getattr(self, "_rs_active", False) and getattr(self, "_rs_block", None) is not None:   # Reddit Shorts owns the button while its page is up
+            return _rs_section.sync_cta(self)
         if getattr(self, "_ad_active", False) and getattr(self, "_ad_block", None) is not None:   # AI Director owns the button while its page is up
             return _ad_section.sync_cta(self)
         if getattr(self, "_ff_active", False) and getattr(self, "_ff_block", None) is not None:   # Food Files owns the button while its page is up
@@ -9501,6 +9514,7 @@ class VideoGeneratorApp(ctk.CTk):
         _ph_section.deactivate(self, remember=False)   # Prepper Host likewise, until resume_on_open below
         _ds_section.deactivate(self, remember=False)   # Doodle Survival likewise, until resume_on_open below
         _st_section.deactivate(self, remember=False)   # Senior Trivia likewise, until resume_on_open below
+        _rs_section.deactivate(self, remember=False)   # Reddit Shorts likewise, until resume_on_open below
         _ad_section.deactivate(self, remember=False)   # AI Director likewise, until resume_on_open below
         _ff_section.deactivate(self, remember=False)   # Food Files likewise, until resume_on_open below
         _av_section.deactivate(self, remember=False)   # Aviation likewise, until resume_on_open below
@@ -9518,6 +9532,7 @@ class VideoGeneratorApp(ctk.CTk):
         _ph_section.resume_on_open(self)   # a project left on the Prepper Host page opens on it again; nothing runs until Generate
         _ds_section.resume_on_open(self)   # a project left on the Doodle Survival page opens on it again; nothing runs until Make video
         _st_section.resume_on_open(self)   # a project left on the Senior Trivia page opens on it again; nothing runs until Generate
+        _rs_section.resume_on_open(self)   # a project left on the Reddit Shorts page opens on it again; nothing runs until Generate
         _ad_section.resume_on_open(self)   # a project left on the AI Director page opens on it again; nothing runs until Generate
         _ff_section.resume_on_open(self)   # a project left on the Food Files page opens on it again; nothing runs until Generate
         _av_section.resume_on_open(self)   # a project left on the Aviation page opens on it again; nothing runs until Generate scenes
@@ -17534,6 +17549,7 @@ class VideoGeneratorApp(ctk.CTk):
     _RUN_FLAGS = _RUN_FLAGS + ("_pc_running",)   # Motivation likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_kl_running",)   # Kids Learn likewise
     _RUN_FLAGS = _RUN_FLAGS + ("_rh_running",)   # Rules Horror likewise
+    _RUN_FLAGS = _RUN_FLAGS + ("_rs_running",)   # Reddit Shorts likewise
 
     def _heartbeat(self) -> None:
         """Every 30 s while a Generate runs: when nothing was logged for 30 s, say it is still working and for how long

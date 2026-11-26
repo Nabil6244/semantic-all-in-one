@@ -307,3 +307,15 @@ EXTRA_BLURBS[AI_DIRECTOR] = ("Claude or Gemini makes the whole video by itself f
                              "punchy text, every scene timed to the narration, music and sound effects. Test the first 2 minutes first.")
 EXTRA_CARDS[AI_DIRECTOR] = ("\u2726", "Claude or Gemini directs the whole video", "A script (+ your voiceover, or a free voice)",
                             "Science and history documentaries, explainers")
+
+
+# Reddit Shorts (ui/reddit_shorts_section.py, reddit_shorts/): appended here so nothing above changes
+REDDIT_SHORTS = "Reddit Shorts"
+STANDALONE = STANDALONE + (REDDIT_SHORTS,)
+GROUPS = tuple((title, names + (REDDIT_SHORTS,) if title == "Stories" else names) for title, names in GROUPS)
+EXTRA_BLURBS[REDDIT_SHORTS] = ("Reddit-style story Shorts (9:16, ~55 s): a post card while the title is read, then big word captions "
+                               "with the spoken word in yellow, over cartoon pictures that match the narration, each cut in on "
+                               "its words with a slow push-in, music and whooshes. Pick a ready story or paste your own; the "
+                               "voice is free and Flow paints the pictures once.")
+EXTRA_CARDS[REDDIT_SHORTS] = ("\U0001F4AC", "Reddit story Shorts", "A story (title + text)",
+                              "Am I the jerk, petty revenge, work stories, today I messed up")

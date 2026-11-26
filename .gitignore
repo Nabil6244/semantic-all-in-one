@@ -93,3 +93,7 @@ gta6_launch/work_launchnight/
 gta6_launch/work_savefile/
 gta6_launch/*_render.log
 agent_kit/vendor/node_modules/
+
+# Reddit Shorts: Flow downloads and replaced pictures (the b*.png pictures are kept)
+reddit_shorts/stories/*/places/raw/
+reddit_shorts/stories/*/places/old/

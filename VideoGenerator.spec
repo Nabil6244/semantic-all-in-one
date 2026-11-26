@@ -224,6 +224,11 @@ for _p in sorted((ROOT / "senior_trivia").glob("*/*.csv")):
     datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
 hiddenimports += ["senior_trivia", "senior_trivia.runner", "senior_trivia.csvplan", "senior_trivia.timeline", "senior_trivia.pictures",
                   "senior_trivia.host", "senior_trivia.render", "ui.senior_trivia_section"]
+# Reddit Shorts: reddit_shorts/ (stories, picture beats, renderer); the ready stories' painted pictures ship with it
+for _p in sorted((ROOT / "reddit_shorts" / "stories").glob("*/places/b*.png")):
+    datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
+hiddenimports += ["reddit_shorts", "reddit_shorts.runner", "reddit_shorts.render", "reddit_shorts.paint", "reddit_shorts.story",
+                  "reddit_shorts.stories", "reddit_shorts.beats", "ui.reddit_shorts_section"]
 # Doodle Survival: doodle_ai/ runs the user's Gemini CLI / Claude Code with videokit (agent_kit_mcp.py + agent_kit/, the
 # doodle_dark look pack); the MCP server needs a real Python on the machine, so the kit ships as plain files
 for _p in sorted((ROOT / "agent_kit").rglob("*")):

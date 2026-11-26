@@ -1,0 +1,36 @@
+{
+ "id": "reddit_grandma_house",
+ "paint_style": "2D cartoon illustration for an animated story Short, flat colours with soft simple shading, clean bold dark-brown outlines, warm bright storybook palette, expressive funny faces, vector illustration",
+ "frame": "Vertical 9:16 picture. The people and the main action fill the upper two thirds; keep the lower third simple and uncluttered. No text, no letters, no words on screens or papers, no logos, no speech bubbles",
+ "cast": "same characters as described",
+ "backgrounds": "flow",
+ "places": {
+  "b0": {
+   "prompt": "the narrator standing in front of a cosy old cottage with a garden and a front porch, holding a set of keys, surprised. Characters: Narrator: a young woman, late 20s, short brown bob hair, green sweater. Sister, Grandma are NOT in this picture"
+  },
+  "b1": {
+   "prompt": "grandma in a rocking chair smiling warmly next to the narrator as a little girl, old family photo feeling. Characters: Narrator: a young woman, late 20s, short brown bob hair, green sweater. Grandma: kind old lady, white bun, glasses. Sister is NOT in this picture"
+  },
+  "b2": {
+   "prompt": "the sister at the front door with a stern lawyer in a grey suit holding papers, the narrator shocked inside. Characters: Narrator: a young woman, late 20s, short brown bob hair, green sweater. Sister: woman with long blonde hair, red coat. Grandma is NOT in this picture"
+  },
+  "b3": {
+   "prompt": "a family living room, mom and dad standing with arms crossed behind the sister, the narrator alone on the other side. Characters: Narrator: a young woman, late 20s, short brown bob hair, green sweater. Sister: woman with long blonde hair, red coat. Grandma is NOT in this picture"
+  },
+  "b4": {
+   "prompt": "the narrator sitting alone at night on a sofa with a phone showing no replies, sad, rain on the window. Characters: Narrator: a young woman, late 20s, short brown bob hair, green sweater. Sister, Grandma are NOT in this picture"
+  },
+  "b5": {
+   "prompt": "the sister holding an open handwritten letter in an envelope, eyes wide. Characters: Sister: woman with long blonde hair, red coat. Narrator, Grandma are NOT in this picture"
+  },
+  "b6": {
+   "prompt": "flashback: the sister young, taking a thick stack of money from grandma at a kitchen table, sepia tones. Characters: Sister: woman with long blonde hair, red coat. Grandma: kind old lady, white bun, glasses. Narrator is NOT in this picture"
+  },
+  "b7": {
+   "prompt": "a big Sunday family dinner table with roast and potatoes, the sister standing reading the letter, everyone frozen in shock. Characters: Sister: woman with long blonde hair, red coat. Narrator, Grandma are NOT in this picture"
+  },
+  "b8": {
+   "prompt": "the dad smiling quietly passing a bowl of potatoes across the table to the narrator. Characters: Narrator: a young woman, late 20s, short brown bob hair, green sweater. Sister, Grandma are NOT in this picture"
+  }
+ }
+}
