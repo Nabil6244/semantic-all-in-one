@@ -240,6 +240,16 @@ class TestCamera(unittest.TestCase):
             build(TITLE + '1,Nairobi,,,,camera,,,Nairobi,,,,,,,,,,fly_to,local,,,\n1,Nairobi,,,,camera,,,Lodwar,,,,,,,,,,fly_to,local,,0.1,\n')
         self.assertIn("too close together", " ".join(cm.exception.report.errors))
 
+    def test_rows_timed_after_the_voiceover_ends_are_left_out_not_a_stop(self):
+        # Hybrid Map on Windows (2026-11-26): a CSV timed for a longer voice put moves[128] at 1735 s in a 1264 s video and the render stopped
+        r = build(TITLE + '1,Kenya has,,,,camera,,,Kenya,,,,,,,,,,start,country,,,\n'
+                  + R(item_no=1, t_start="500", layer_type="camera", geo_ref="Nairobi", camera_action="fly_to", frame="local")
+                  + R(item_no=1, t_start="600", layer_type="caption", layer_id="late", label_text="X", anchor="bc"), duration=20.0)
+        self.assertTrue(all(m["t"] + m["dur"] <= 20.0 for m in r.spec["camera"]["moves"]))
+        self.assertTrue(all(e["t_out"] <= 20.0 for e in r.spec["events"]))
+        self.assertNotIn("late", [e["id"] for e in r.spec["events"]])
+        self.assertIn("start after the video ends", " ".join(r.report.warnings))
+
     def test_defaults_are_explained_and_a_pull_back_into_the_globe_no_longer_warns(self):
         r = build(TITLE)
         self.assertIn("default world view", " ".join(r.report.warnings))
@@ -330,7 +340,9 @@ class TestWholeScript(unittest.TestCase):
         out = run("compile", str(self.SAMPLES / "kenya-story.csv"), "--words", str(d / "w.json"), "--out", str(d / "spec.json"))
         self.assertEqual(out.returncode, 0, out.stderr + out.stdout)
         self.assertEqual(len(json.loads((d / "spec.json").read_text())["events"]), 21)
-        self.assertNotEqual(run("check", str(self.SAMPLES / "kenya-story.csv"), "--words", str(d / "w.json"), "--duration", "5").returncode, 0)
+        short = run("check", str(self.SAMPLES / "kenya-story.csv"), "--words", str(d / "w.json"), "--duration", "5")  # layers past the end are left out, never a stop
+        self.assertEqual(short.returncode, 0, short.stderr + short.stdout)
+        self.assertIn("start after the video ends", short.stdout + short.stderr)
 
 
 if __name__ == "__main__":

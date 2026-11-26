@@ -423,6 +423,7 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
                 ev.pop("_iso", None)
     except Exception as exc:
         rep.warnings.append(f"fill colours skipped: {exc}")
+    events = _trim_to_video(events, info, total, rep)
     for ev in events:  # report the final windows (an 'out' row or clipping may have changed them)
         info[ev["id"]].t_in, info[ev["id"]].t_out = ev["t_in"], ev["t_out"]
     rep.events = sorted(info.values(), key=lambda e: (e.t_in, e.row))
@@ -455,6 +456,26 @@ def compile_rows(rows: List[Row], words: Sequence[Word], *, duration: Optional[f
     if rep.errors:
         raise CompileError(rep)
     return CompileResult(spec, rep, hints)
+
+
+def _trim_to_video(events: List[dict], info: Dict[str, Any], total: float, rep: Report) -> List[dict]:
+    """A layer timed after the voiceover ends (a CSV written for a longer voice) is left out, and one that runs past the end is cut
+    at the end, so the engine's 'ends after the video' rule never stops a render."""
+    keep, late = [], []
+    for ev in events:
+        if ev["t_in"] > total - MIN_VISIBLE_S:
+            late.append(ev)
+            continue
+        if ev["t_out"] > total:
+            ev["t_out"] = _num(total)
+        keep.append(ev)
+    if late:
+        first = min(e["t_in"] for e in late)
+        rep.warnings.append(f"{len(late)} layer(s) start after the video ends ({total:.1f}s), from {first:.1f}s: left out. "
+                            "The CSV was timed for a longer voiceover")
+        for ev in late:
+            info.pop(ev["id"], None)
+    return keep
 
 
 def _join_same_file(events: List[dict], info: Dict[str, Any], hints: Dict[str, Any], base: Optional[Path], rep: Report) -> List[dict]:
@@ -754,6 +775,11 @@ def _camera(cam_rows: List[Tuple[Row, float]], events: List[dict], total: float,
             else:
                 rep.warnings.append(f"the camera move at {a['t']:.1f}s was shortened from {a['dur']:.1f}s to {new:.1f}s so it ends before the next one")
                 a["dur"] = _num(new)
+    # a move timed after the voiceover ends (a CSV written for a longer voice) is left out; one that runs past the end is cut short
+    late = [m for m in moves if m["t"] > total - 0.3]
+    if late:
+        rep.warnings.append(f"{len(late)} camera move(s) start after the video ends ({total:.1f}s), from {late[0]['t']:.1f}s: left out")
+        moves[:] = [m for m in moves if all(m is not x for x in late)]
     for m in moves:
         if m["t"] + m["dur"] > total:
             m["dur"] = _num(max(0.3, total - m["t"]))
