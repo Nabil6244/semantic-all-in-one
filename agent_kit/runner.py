@@ -80,8 +80,21 @@ def open_setup_terminal(agent: str) -> str:
     """Open a visible Terminal / Command Prompt window that installs (if needed) and starts the agent so you can sign in."""
     cmd = setup_command(agent)
     if sys.platform == "darwin":
-        esc = cmd.replace("\\", "\\\\").replace('"', '\\"')
-        subprocess.Popen(["osascript", "-e", f'tell application "Terminal" to do script "{esc}"', "-e", 'tell application "Terminal" to activate'])
+        # A .command file opens in Terminal by itself. (Telling Terminal what to run with AppleScript needs the Automation
+        # permission, which macOS often refuses silently: "Not authorized to send Apple events to Terminal".)
+        f = Path.home() / ".videogen" / f"setup_{agent}.command"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text("#!/bin/zsh -l\n"
+                     'export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$HOME/.npm-global/bin:$PATH"\n'
+                     f'echo "Setting up {agent} for AI Director…"\n'
+                     "if ! command -v npm >/dev/null 2>&1 && [[ \"" + agent + "\" == gemini ]]; then\n"
+                     '  echo "Gemini CLI needs Node.js. Install it from https://nodejs.org (LTS), then click Set up again."; exit 1\n'
+                     "fi\n"
+                     f"{cmd}\n", encoding="utf-8")
+        f.chmod(0o755)
+        r = subprocess.run(["open", "-a", "Terminal", str(f)], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"could not open Terminal ({(r.stderr or r.stdout).strip()}). Open Terminal and run:  {cmd}")
     elif sys.platform == "win32":
         subprocess.Popen(f'start "Set up {agent}" cmd /k {cmd}', shell=True)
     else:
@@ -138,8 +151,10 @@ Voiceover: {project}/voice{voice_ext}
 {scope}
 Look and notes from the owner: {look}
 
-1. Call the videokit `guide` tool first and follow it exactly: align -> story pass -> plan.json -> check_plan until it says OK ->
-   for each scene write scenes/<name>.html, look at its stills (pass `at`), fix, render with `scene` (pass `at`) -> join -> look.
+1. Call the videokit `guide` tool first with pack="{pack}" and follow it exactly: align -> story pass -> plan.json (with
+   "look": "{pack}") -> check_plan until it says OK -> write every scene as a SHORT scene file (script only, the guide says how),
+   look at its stills (pass `at`), fix -> `render_all` once for all drawn scenes (`scene` only for footage/photo scenes) -> join
+   -> look. Save credits: one still per scene is usually enough, two for a scene with a cut; do not re-read files you wrote.
 2. {pack_rules}
 3. Write every file inside the project folder. Scene pages go in scenes/. Do not run shell commands: the tools do everything.
 4. The finished video must be {project}/final.mp4 (join with out="{project}/final.mp4"{voice_end_hint}).
@@ -153,18 +168,18 @@ PACKS = {
                  "   underwater; globe for the planet), at most 6 words on screen, real animal footage whenever an animal is named or the\n"
                  "   narration is about the sea or nature. What is said is what is seen."),
     "history_toon": ("illustrated cartoon history (history_toon)",
-                     "Use the history_toon look pack and read " + str(REPO / "agent_kit/looks/history_toon/README.md") + " before the first scene. Everything\n"
+                     "Use the history_toon look pack (its rules come with the guide). Everything\n"
                      "   is drawn in SVG: no footage, no photos. This video is NEW: design its own cast (era, clothes, colours) from the\n"
                      "   script in scenes/common.js and draw every place fresh from its sentence. Mix story shots, paper inserts, maps,\n"
                      "   cards, object metaphors and titles, never the same kind twice in a row. What is said is what is seen."),
     "doodle_dark": ("flat doodle story at night (doodle_dark)",
-                    "Use the doodle_dark look pack and read " + str(REPO / "agent_kit/looks/doodle_dark/README.md") + " before the first scene. Everything is\n"
+                    "Use the doodle_dark look pack (its rules come with the guide). Everything is\n"
                     "   drawn, no footage; draw every sentence new. What is said is what is seen."),
 }
 
 
 def prepare(project: str | Path, script: str | Path, voice: str | Path = "", edge_voice: str = "en-US-AndrewNeural", look: str = "",
-            minutes: float = 0.0, log: Callable = print, pack: str = "doc_teal") -> dict:
+            minutes: float = 0.0, log: Callable = print, pack: str = "doc_teal", model: str = "") -> dict:
     """Set up the project folder: script.txt, the voice (copied, or made with Edge), TASK.md, and the kit's server config for
     Claude (mcp.json) and Gemini (.gemini/settings.json, GEMINI.md). Returns the job description run() needs."""
     P = Path(project).expanduser().resolve()
@@ -190,7 +205,7 @@ def prepare(project: str | Path, script: str | Path, voice: str | Path = "", edg
              f"nearest {minutes:g}:00 in the voice, set plan.json \"end\" to that time + 0.6 s, and join with voice_end at that "
              f"sentence's end so the voice stops cleanly.")
     task = TASK.format(project=P, voice_ext=dst.suffix, scope=scope, look=look.strip() or PACKS.get(pack, PACKS["doc_teal"])[0],
-                       pack_rules=PACKS.get(pack, PACKS["doc_teal"])[1],
+                       pack_rules=PACKS.get(pack, PACKS["doc_teal"])[1], pack=pack if pack in PACKS else "doc_teal",
                        voice_end_hint=", voice_end=<the last sentence's end>" if minutes else "")
     (P / "TASK.md").write_text(task, encoding="utf-8")
     server = {"command": sys.executable, "args": [str(SERVER)]}
@@ -200,14 +215,15 @@ def prepare(project: str | Path, script: str | Path, voice: str | Path = "", edg
                                                             indent=1), encoding="utf-8")
     (P / "GEMINI.md").write_text("Read TASK.md and do it with the videokit tools. Call the videokit `guide` tool first.\n", encoding="utf-8")
     log(f"project ready: {P}")
-    return {"project": str(P), "task": task, "minutes": minutes}
+    return {"project": str(P), "task": task, "minutes": minutes, "model": model}
 
 
 def _cmd(agent: str, exe: str, job: dict) -> list:
     P = job["project"]
     prompt = f"Read {P}/TASK.md and do exactly what it says. The task, in full:\n\n{job['task']}"
     if agent == "claude":
-        return [exe, "-p", prompt, "--mcp-config", str(Path(P) / "mcp.json"), "--strict-mcp-config",
+        model = ["--model", job["model"]] if job.get("model") else []
+        return [exe, "-p", prompt, *model, "--mcp-config", str(Path(P) / "mcp.json"), "--strict-mcp-config",
                 "--allowedTools", "mcp__videokit", "Read", "Write", "Edit", "Glob", "Grep",
                 "--permission-mode", "acceptEdits", "--output-format", "stream-json", "--verbose"]
     return [exe, "-p", prompt, "--approval-mode", "auto_edit", "--allowed-mcp-server-names", "videokit", "--output-format", "stream-json"]
@@ -300,11 +316,12 @@ def main() -> int:
     ap.add_argument("--edge-voice", default="en-US-AndrewNeural")
     ap.add_argument("--look", default="")
     ap.add_argument("--pack", choices=list(PACKS), default="doc_teal", help="look pack")
+    ap.add_argument("--model", default="sonnet", help="Claude model: sonnet (cheaper) or opus; empty = the plan's default")
     ap.add_argument("--minutes", type=float, default=0.0, help="test only the first N minutes (0 = all)")
     ap.add_argument("--out", required=True, help="the project folder")
     ap.add_argument("--prepare-only", action="store_true")
     a = ap.parse_args()
-    job = prepare(a.out, a.script, a.voice, a.edge_voice, a.look, a.minutes, pack=a.pack)
+    job = prepare(a.out, a.script, a.voice, a.edge_voice, a.look, a.minutes, pack=a.pack, model=a.model if a.agent == "claude" else "")
     if a.prepare_only:
         print(json.dumps({"project": job["project"], "command": _cmd(a.agent, find_agent(a.agent) or a.agent, job)[:1]}))
         return 0

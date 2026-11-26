@@ -20,12 +20,39 @@ from agent_kit import kit  # noqa: E402
 PROTOCOL = "2025-06-18"
 
 
-def guide() -> str:
-    return (HERE / "agent_kit" / "GUIDE.md").read_text(encoding="utf-8")
+DRAWN = {"history_toon", "doodle_dark"}      # all-drawn packs: no 3D/footage rules, their own README instead
 
 
-def look(path: str, frames: int = 8, times: str = "", at: float | None = None, duration: float = 30.0):
-    text = kit.look(path, frames=frames, times=times, at=at, duration=duration)
+def guide(pack: str = "") -> str:
+    """The guide. With pack=<look pack>: only the parts that pack needs, plus its README (shorter = fewer credits)."""
+    text = (HERE / "agent_kit" / "GUIDE.md").read_text(encoding="utf-8")
+    pack = (pack or "").strip()
+    if not pack:
+        return text
+    parts = text.split("\n## ")
+    keep = [parts[0]]
+    for sec in parts[1:]:
+        title = sec.split("\n", 1)[0]
+        if title.startswith("Look packs") or (pack in DRAWN and title.startswith("3D first")):
+            continue
+        keep.append(sec)
+    out = "\n## ".join(keep)
+    readme = HERE / "agent_kit" / "looks" / pack / "README.md"
+    if readme.exists():
+        out += f"\n\n## Your look pack: {pack}\n" + readme.read_text(encoding="utf-8").split("\n", 1)[1]
+    out += (f"\n\n## Short scene files (use them)\nA scene file may hold ONLY its script: no <html>, <head>, layers or imports. "
+            f"The kit wraps it in the {pack} page with the layers #cam (svg #s + div #h inside it), svg #tags (outside the camera), "
+            f"#fl, vignette, grain, and these names already imported: {kit.SHORT_FORM_NAMES.get(pack, 'K')}. "
+            "window.sceneReady is set to document.fonts.ready. Import only your own film's names, e.g. "
+            "`import { CAST, city } from '/@scene/common.js';` (common.js must not re-export the names above). "
+            "Start an overlay page with the comment `// overlay` for a transparent body.\n"
+            "Make all scene files, look at their stills, then call `render_all` ONCE (it renders every drawn scene of plan.json "
+            "and keeps clips that did not change), instead of one `scene` call per scene.")
+    return out
+
+
+def look(path: str, frames: int = 8, times: str = "", at: float | None = None, duration: float = 30.0, size: int = 960):
+    text = kit.look(path, frames=frames, times=times, at=at, duration=duration, size=size)
     content = [{"type": "text", "text": text}]
     for line in text.splitlines():
         p = Path(line.split("  ")[0].strip())
@@ -37,7 +64,8 @@ def look(path: str, frames: int = 8, times: str = "", at: float | None = None, d
 
 S, I, N, A = {"type": "string"}, {"type": "integer"}, {"type": "number"}, {"type": "array"}
 TOOLS = {
-    "guide": (guide, "Read this first: how to make a video with these tools (steps, scene page rules, look, pacing).", {}, []),
+    "guide": (guide, "Read this first: how to make a video with these tools (steps, scene page rules, look, pacing). Pass "
+              "pack=<look pack> (doc_teal, history_toon, doodle_dark) to get only what that look needs.", {"pack": S}, []),
     "align": (kit.align, "Step 1. Transcribe the voiceover with word times into the project folder. Returns every sentence with its "
               "start and end time; word times are in <project>/voice/words.json.",
               {"project": S, "voice": S, "script": S, "language": S}, ["project", "voice"]),
@@ -63,9 +91,13 @@ TOOLS = {
               "Always pass `at` (the scene's start in the voice): the page then gets window.WORDS for K.when('word').",
               {"project": S, "name": S, "duration": N, "html": S, "media": S, "start": N, "zoom": N, "pan": S, "grade": S,
                "overlay_html": S, "workers": I, "at": N}, ["project", "name", "duration"]),
-    "look": (look, "See your work: a contact sheet of a clip (frames spread over it, or at `times`), or PNG stills of an HTML "
-             "scene at `times` (e.g. \"0.5,2,4\") without rendering it. Always look before moving on.",
-             {"path": S, "frames": I, "times": S, "at": N, "duration": N}, ["path"]),
+    "look": (look, "See your work: a contact sheet of a clip (frames spread over it, or at `times`), or stills of an HTML "
+             "scene at `times` (e.g. \"0.5,2,4\") without rendering it, 960 px wide (size=1920 only when you need fine detail). "
+             "Always look before moving on.",
+             {"path": S, "frames": I, "times": S, "at": N, "duration": N, "size": I}, ["path"]),
+    "render_all": (kit.render_all, "Render EVERY drawn scene of plan.json in one call (scenes/<name>.html, start/end from the plan, "
+                   "word times included). Clips whose scene file did not change are kept, so after fixing a few scenes call it "
+                   "again. Use it instead of one `scene` call per drawn scene.", {"project": S, "workers": I}, ["project"]),
     "join": (kit.join, "Last step. Join the clips (in order) with the voice, optional music (a file, ducked under the voice) and "
              "sound effects sfx=[{at, sound, db}] (sound: whoosh, impact, riser, transition, ui, text, cinematic, technology, "
              "ambience, or a file) into <project>/final.mp4 at -14 LUFS.",
@@ -82,7 +114,7 @@ def handle(msg: dict) -> dict | None:
     if method == "initialize":
         return ok({"protocolVersion": params.get("protocolVersion") or PROTOCOL, "capabilities": {"tools": {}},
                    "serverInfo": {"name": "videokit", "version": "1.0"},
-                   "instructions": "Call `guide` first. You make the video yourself: align -> story + plan.json -> check_plan -> scene -> look -> join."})
+                   "instructions": "Call `guide` first (with pack=<look pack>). You make the video yourself: align -> story + plan.json -> check_plan -> scene files -> look -> render_all -> join."})
     if method == "ping":
         return ok({})
     if method == "tools/list":

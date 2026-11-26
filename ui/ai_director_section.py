@@ -31,6 +31,7 @@ TAG = "[AI DIRECTOR]"
 AGENTS = {"Claude Code": "claude", "Gemini CLI": "gemini"}
 VOICES = {"My voiceover file (below)": "", "Andrew (US, calm man)": "en-US-AndrewNeural", "Brian (US)": "en-US-BrianNeural",
           "Guy (US)": "en-US-GuyNeural", "Jenny (US, warm woman)": "en-US-JennyNeural", "Aria (US)": "en-US-AriaNeural"}
+MODELS = {"Sonnet (fewer credits)": "sonnet", "Opus (best drawings, more credits)": "opus", "My plan's default": ""}
 PACKS = {"Teal documentary (3D + footage)": "doc_teal", "Cartoon history (drawn)": "history_toon",
          "Doodle night story (drawn)": "doodle_dark"}
 SCOPES = {"Test: first 2 minutes": 2.0, "Test: first 5 minutes": 5.0, "Whole video": 0.0}
@@ -60,6 +61,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._ad_edge_var = ctk.StringVar(value=list(VOICES)[1])
     app._ad_look_var = ctk.StringVar(value="")
     app._ad_pack_var = ctk.StringVar(value=next(iter(PACKS)))
+    app._ad_model_var = ctk.StringVar(value=next(iter(MODELS)))
     app._ad_agent_var = ctk.StringVar(value=next(iter(AGENTS)))
     app._ad_scope_var = ctk.StringVar(value=next(iter(SCOPES)))
     app._ad_status_var = ctk.StringVar(value="")
@@ -94,10 +96,22 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     ctk.CTkOptionMenu(ai_row, values=list(AGENTS), variable=app._ad_agent_var, width=200).grid(row=0, column=0, padx=(0, 10))
     make_button(ai_row, "Set up / sign in", lambda: _setup_agent(app), size="sm", width=140).grid(row=0, column=1, padx=(0, 8))
     make_button(ai_row, "Check", lambda: _check_agent(app), size="sm", width=80).grid(row=0, column=2)
+    _label(out, "Model", 4)
+    ctk.CTkOptionMenu(out, values=list(MODELS), variable=app._ad_model_var, width=260).grid(row=4, column=1, pady=(8, 0), sticky="w")
     _label(out, "Length", 1)
     ctk.CTkOptionMenu(out, values=list(SCOPES), variable=app._ad_scope_var, width=220).grid(row=1, column=1, pady=(8, 0), sticky="w")
     _label(out, "Look pack", 2)
-    ctk.CTkOptionMenu(out, values=list(PACKS), variable=app._ad_pack_var, width=260).grid(row=2, column=1, pady=(8, 0), sticky="w")
+    pack_row = ctk.CTkFrame(out, fg_color="transparent")
+    pack_row.grid(row=2, column=1, pady=(8, 0), sticky="w")
+    ctk.CTkOptionMenu(pack_row, values=list(PACKS), variable=app._ad_pack_var, width=260,
+                      ).grid(row=0, column=0, sticky="w")
+    app._ad_pack_thumb = ctk.CTkLabel(pack_row, text="", cursor="hand2")
+    app._ad_pack_thumb.grid(row=0, column=1, padx=(14, 0))
+    app._ad_pack_thumb.bind("<Button-1>", lambda _e: _open_pack_preview(app))
+    ctk.CTkLabel(pack_row, text="click the picture\nto see the look", font=ctk.CTkFont(size=11), text_color=T.MUTED,
+                 justify="left").grid(row=0, column=2, padx=(8, 0))
+    _show_pack_preview(app)
+    app._ad_pack_var.trace_add("write", lambda *_a: _show_pack_preview(app))   # also when a project's saved pick is restored
     _label(out, "Notes", 3)
     ctk.CTkEntry(out, textvariable=app._ad_look_var, height=34, width=520,
                  placeholder_text="optional: e.g. lots of maps, warm colours, little text").grid(row=3, column=1, pady=(8, 0), sticky="w")
@@ -120,14 +134,14 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(6, 0))
     render_panel(app, body, row=3)
     block.grid_remove()
-    for v in (app._ad_script_var, app._ad_voice_var, app._ad_edge_var, app._ad_look_var, app._ad_pack_var, app._ad_agent_var, app._ad_scope_var):
+    for v in (app._ad_script_var, app._ad_voice_var, app._ad_edge_var, app._ad_look_var, app._ad_pack_var, app._ad_model_var, app._ad_agent_var, app._ad_scope_var):
         v.trace_add("write", lambda *_a: _changed(app))
 
 
 # ------------------------------------------------------------------ picks
 def _picks(app: Any) -> dict:
     return {"script": app._ad_script_var.get().strip(), "voice": app._ad_voice_var.get().strip(), "edge": app._ad_edge_var.get(),
-            "look": app._ad_look_var.get().strip(), "pack": app._ad_pack_var.get(), "agent": app._ad_agent_var.get(),
+            "look": app._ad_look_var.get().strip(), "pack": app._ad_pack_var.get(), "model": app._ad_model_var.get(), "agent": app._ad_agent_var.get(),
             "scope": app._ad_scope_var.get()}
 
 
@@ -148,6 +162,43 @@ def _agent_note(app: Any) -> None:
         return
     exe = rn.find_agent(agent)
     lbl.configure(text=(f"{app._ad_agent_var.get()} found: {exe}" if exe else rn.install_hint(agent)))
+
+
+def _pack_dir(app: Any) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", _ROOT)) if getattr(sys, "frozen", False) else _ROOT
+    return base / "agent_kit" / "looks" / PACKS.get(app._ad_pack_var.get(), "doc_teal")
+
+
+def _show_pack_preview(app: Any) -> None:
+    """The small 2 x 2 picture of the chosen look (agent_kit/looks/<pack>/thumb.png)."""
+    lbl = getattr(app, "_ad_pack_thumb", None)
+    if lbl is None:
+        return
+    try:
+        from PIL import Image
+
+        with Image.open(_pack_dir(app) / "thumb.png") as im:
+            pic = im.convert("RGB")
+        img = ctk.CTkImage(light_image=pic, dark_image=pic, size=(192, 108))
+    except Exception:  # noqa: BLE001 - a look without a picture just shows none
+        lbl.configure(image=None, text="")
+        return
+    lbl.configure(image=img, text="")
+    lbl._img = img   # keep a reference
+
+
+def _open_pack_preview(app: Any) -> None:
+    """Open the full sheet (8 frames of a real video in this look) in the system viewer."""
+    f = _pack_dir(app) / "preview.jpg"
+    if not f.exists():
+        return
+    import os
+    import subprocess
+
+    if sys.platform == "win32":
+        os.startfile(str(f))  # type: ignore[attr-defined]
+    else:
+        subprocess.Popen(["open" if sys.platform == "darwin" else "xdg-open", str(f)])
 
 
 def _setup_agent(app: Any) -> None:
@@ -250,7 +301,7 @@ def _restore(app: Any) -> None:
     try:
         p = d.get("picks") or {}
         for var, k, allowed in ((app._ad_script_var, "script", None), (app._ad_voice_var, "voice", None), (app._ad_edge_var, "edge", VOICES),
-                                (app._ad_look_var, "look", None), (app._ad_pack_var, "pack", PACKS), (app._ad_agent_var, "agent", AGENTS), (app._ad_scope_var, "scope", SCOPES)):
+                                (app._ad_look_var, "look", None), (app._ad_pack_var, "pack", PACKS), (app._ad_model_var, "model", MODELS), (app._ad_agent_var, "agent", AGENTS), (app._ad_scope_var, "scope", SCOPES)):
             v = p.get(k)
             if v is not None and (allowed is None or v in allowed):
                 var.set(v)
@@ -414,7 +465,8 @@ def on_generate(app: Any) -> None:
         error, final = "", None
         try:
             job = rn.prepare(work, p["script"], p["voice"], edge or "en-US-AndrewNeural", p["look"], minutes, log=log,
-                             pack=PACKS.get(p.get("pack", ""), "doc_teal"))
+                             pack=PACKS.get(p.get("pack", ""), "doc_teal"),
+                             model=MODELS.get(p.get("model", ""), "sonnet") if agent == "claude" else "")
             final = rn.run(agent, job, log=log, cancel=app._ad_cancel.is_set)
             shutil.copyfile(final, out_path)
         except Exception as exc:  # noqa: BLE001 - shown to the user, never silent

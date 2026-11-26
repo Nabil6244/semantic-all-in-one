@@ -257,6 +257,52 @@ def _scene_words(P: Path, name: str, at: float | None, dur: float) -> list:
     return ["--words", str(f)]
 
 
+# ---- short scene files ------------------------------------------------------------------------------------------
+# A scene file may hold ONLY the scene's script (no <html>, <head>, layers or imports): the kit wraps it in the look pack's
+# page. Fewer lines for the AI to write per scene = fewer credits. Layers: #cam (camera: svg #s + div #h inside), svg #tags
+# (outside the camera: date tags, counters), #fl flash, vignette, grain.
+_PACK_IMPORTS = {
+    "doc_teal": "",
+    "history_toon": ("import * as H from '/agent_kit/looks/history_toon/props.js';\n"
+                     "import { P, shade } from '/agent_kit/looks/history_toon/palette.js';\n"
+                     "import { person, personAt, OUTFITS } from '/agent_kit/looks/history_toon/person.js';\n"),
+    "doodle_dark": ("import { hero, heroAt, SPEED } from '/agent_kit/looks/doodle_dark/hero.js';\n"
+                    "import * as L from '/agent_kit/looks/doodle_dark/light.js';\n"
+                    "import { P } from '/agent_kit/looks/doodle_dark/palette.js';\n"),
+}
+SHORT_FORM_NAMES = {"doc_teal": "K", "history_toon": "K, H, P, shade, person, personAt, OUTFITS",
+                    "doodle_dark": "K, hero, heroAt, SPEED, L (light.js), P"}
+
+
+def _pack_of(P: Path) -> str:
+    try:
+        lk = str(json.loads((P / "plan.json").read_text(encoding="utf-8")).get("look", "")).strip()
+    except Exception:
+        lk = ""
+    return lk if lk in _PACK_IMPORTS else "doc_teal"
+
+
+def _page(hp: Path, P: Path | None = None) -> Path:
+    """The page to render: the file itself when it is a full HTML page, else a wrapped copy next to it (scenes/.<name>.full.html)."""
+    src = hp.read_text(encoding="utf-8")
+    head = src.lstrip()[:200].lower()
+    if head.startswith("<") or "<html" in head:
+        return hp
+    pack = _pack_of(P if P is not None else hp.parent.parent)
+    over = "over" if "// overlay" in src[:200].lower() else ""
+    page = (f'<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/{pack}/look.css"></head>\n'
+            f'<body class="{over}"><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="{W}" height="{H}" '
+            f'class="abs" style="inset:0"></svg><div id="h" class="abs" style="inset:0"></div></div>\n'
+            f'<svg id="tags" width="{W}" height="{H}" class="abs" style="inset:0"></svg><div class="flash" id="fl"></div>'
+            + ("" if over else '<div class="vignette"></div><div class="grain"></div>') + '\n'
+            "<script type=\"module\">\nimport * as K from '/agent_kit/lib/kit.js';\n" + _PACK_IMPORTS[pack] +
+            "window.sceneReady = document.fonts.ready;\n" + src + "\n</script></body></html>\n")
+    out = hp.with_name(f".{hp.stem}.full.html")
+    if not out.exists() or out.read_text(encoding="utf-8") != page:
+        out.write_text(page, encoding="utf-8")
+    return out
+
+
 def scene(project: str, name: str, duration: float, html: str = "", media: str = "", start: float = 0.0,
           zoom: float = 1.08, pan: str = "center", grade: str = "doc_teal", overlay_html: str = "", workers: int = 3,
           at: float | None = None) -> str:
@@ -274,6 +320,9 @@ def scene(project: str, name: str, duration: float, html: str = "", media: str =
     if html:
         hp = Path(html).expanduser()
         hp = hp if hp.is_absolute() else P / "scenes" / hp
+        if not hp.exists():
+            raise FileNotFoundError(f"no scene file: {hp}")
+        hp = _page(hp, P)
         r = subprocess.run(["node", str(HERE / "scene.mjs"), "--html", str(hp), "--out", str(out), "--duration", f"{dur:.3f}",
                             "--fps", str(FPS), "--w", str(W), "--h", str(H), "--workers", str(workers), *_scene_words(P, name, at, dur)],
                            capture_output=True, text=True, timeout=3600)
@@ -313,7 +362,7 @@ def scene(project: str, name: str, duration: float, html: str = "", media: str =
         _run(["ffmpeg", "-hide_banner", "-y", "-ss", f"{start:.3f}", "-i", str(mp), "-vf", vf, "-t", f"{dur:.3f}", *_encode_args(base)])
     if overlay_html:
         hp = Path(overlay_html).expanduser()
-        hp = hp if hp.is_absolute() else P / "scenes" / hp
+        hp = _page(hp if hp.is_absolute() else P / "scenes" / hp, P)
         r = subprocess.run(["node", str(HERE / "scene.mjs"), "--html", str(hp), "--over", str(base), "--out", str(out),
                             "--duration", f"{dur:.3f}", "--fps", str(FPS), "--w", str(W), "--h", str(H), "--workers", str(workers),
                             *_scene_words(P, name, at, dur)],
@@ -323,6 +372,34 @@ def scene(project: str, name: str, duration: float, html: str = "", media: str =
             raise RuntimeError((events[-1] if events else {}).get("message") or r.stderr[-600:])
         base.unlink(missing_ok=True)
     return f"{out}  {_probe(out):.2f}s"
+
+
+def render_all(project: str, workers: int = 3) -> str:
+    """Render every drawn scene in plan.json (scenes/<name>.html, timed by its start/end) in ONE call. A clip newer than
+    its scene file, scenes/common.js and the word times is kept, so call it again after fixing a few scenes."""
+    P = _project(project)
+    plan = json.loads((P / "plan.json").read_text(encoding="utf-8"))
+    common = [f for f in (P / "scenes").glob("*.js")] + [P / "voice" / "words.json"]
+    newest_dep = max((f.stat().st_mtime for f in common if f.exists()), default=0)
+    lines, made, kept = [], 0, 0
+    for sc in plan.get("scenes", []):
+        name = sc.get("name", "")
+        hp = P / "scenes" / (sc.get("html") or f"{name}.html")
+        if sc.get("kind", "graphic") != "graphic" or not hp.exists():
+            if sc.get("kind", "graphic") == "graphic":
+                lines.append(f"MISSING {name}: no {hp.name}")
+            continue
+        dur = round(float(sc["end"]) - float(sc["start"]), 3)
+        out = P / "clips" / f"{_slug(name)}.mp4"
+        if out.exists() and out.stat().st_mtime > max(hp.stat().st_mtime, newest_dep) and abs(_probe(out) - dur) < 0.06:
+            kept += 1
+            continue
+        try:
+            lines.append(scene(project, name, dur, html=str(hp), at=float(sc["start"]), workers=workers))
+            made += 1
+        except Exception as exc:                          # one broken scene never stops the others
+            lines.append(f"FAILED {name}: {exc}")
+    return f"rendered {made}, kept {kept} unchanged\n" + "\n".join(lines)
 
 
 # ---- map --------------------------------------------------------------------------------------------------------
@@ -587,21 +664,34 @@ def check_plan(project: str) -> str:
 
 # ---- look -------------------------------------------------------------------------------------------------------
 
-def look(path: str, frames: int = 8, times: str = "", at: float | None = None, duration: float = 30.0) -> str:
+def look(path: str, frames: int = 8, times: str = "", at: float | None = None, duration: float = 30.0, size: int = 960) -> str:
     """A contact sheet (one JPG) of a clip: `frames` frames spread over it, or the given times ("0.5,2,4").
-    For an HTML scene file, PNG stills at `times` (no video is made). Returns the image path(s) to open."""
+    For an HTML scene file, JPG stills at `times`, `size` px wide (960 default; 1920 for full detail; no video is made).
+    Returns the image path(s) to open."""
     p = Path(path).expanduser().resolve()
     if p.suffix.lower() == ".html":
         ts = times or "0.5,2,4"
         outdir = p.parent.parent / "look" if p.parent.name == "scenes" else p.parent
         extra = _scene_words(p.parent.parent, p.stem, at, duration) if p.parent.name == "scenes" else []
-        r = subprocess.run(["node", str(HERE / "scene.mjs"), "--html", str(p), "--stills", ts, "--outdir", str(outdir),
+        page = _page(p)
+        r = subprocess.run(["node", str(HERE / "scene.mjs"), "--html", str(page), "--stills", ts, "--outdir", str(outdir),
                             "--w", str(W), "--h", str(H), *extra], capture_output=True, text=True, timeout=600)
         ev = [json.loads(l) for l in r.stdout.splitlines() if l.startswith("{")]
         if not ev or ev[-1].get("event") != "done":
             raise RuntimeError((ev[-1] if ev else {}).get("message") or r.stderr[-600:])
         note = f"\npage errors: {ev[-1]['errors']}" if ev[-1].get("errors") else ""
-        return "\n".join(ev[-1]["stills"]) + note
+        # half-size JPGs: plenty to spot cut-off text, overlaps and wrong pictures, at about a quarter of the image cost
+        small = []
+        for f in ev[-1]["stills"]:
+            fp = Path(f)
+            jp = outdir / (p.stem + fp.stem[len(page.stem):] + ".jpg") if fp.stem.startswith(page.stem) else fp.with_suffix(".jpg")
+            if size and size < W:
+                _run(["ffmpeg", "-hide_banner", "-y", "-i", str(fp), "-vf", f"scale={int(size)}:-2", "-q:v", "3", str(jp)])
+                fp.unlink(missing_ok=True)
+                small.append(str(jp))
+            else:
+                small.append(str(fp))
+        return "\n".join(small) + note
     d = _probe(p)
     ts = [float(x) for x in times.split(",")] if times else [d * (i + 0.5) / frames for i in range(frames)]
     outdir = p.parent.parent / "look" if p.parent.name == "clips" else p.parent

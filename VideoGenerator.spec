@@ -235,6 +235,10 @@ for _p in sorted((ROOT / "agent_kit").rglob("*")):
     if _p.is_file() and "node_modules" not in _p.parts and _p.suffix in (".py", ".js", ".mjs", ".css", ".md", ".json", ".html", ".ttf", ".txt"):
         datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
 datas.append((str(ROOT / "agent_kit_mcp.py"), "."))
+# AI Director: each look pack's preview pictures (preview.jpg sheet + thumb.png beside the Look pack choice)
+for _p in sorted((ROOT / "agent_kit" / "looks").glob("*/*.*")):
+    if _p.is_file() and _p.suffix in (".jpg", ".png"):
+        datas.append((str(_p), str(_p.parent.relative_to(ROOT))))
 hiddenimports += ["doodle_ai", "doodle_ai.runner", "ui.doodle_section"]
 # Food Files: foodfiles/ (CSV + script prompts, samples, the Anton font) on the Prepper Host spine; imported inside its page's handlers
 for _p in sorted((ROOT / "foodfiles").rglob("*")):
