@@ -4,31 +4,22 @@ You give a **script** (and a **voiceover**, or pick a free Edge voice). The AI m
 Video Kit: real 3D land and seafloor, 3D rock cut-aways, maps, real footage and animals, short text, every scene timed
 to your voice, music and sound effects.
 
-## One-time setup
+## One-time setup (two clicks)
+On the AI Director page, next to **AI**:
+1. Click **Set up / sign in**. It uses the Claude already on this computer (the Claude app's own Claude Code), or installs
+   Claude Code / Gemini CLI if there is none, and opens it in a Terminal window.
+   - Claude: type `/login`, press Return, sign in in the browser, then type `/exit`.
+   - Gemini: choose **Login with Google**, sign in, then type `/quit`.
+2. Click **Check**. It asks the AI one tiny question and shows *ready: installed and signed in*.
 
-### Claude (already on this Mac)
-The Claude app's Code tab installs Claude Code. Its command-line copy keeps its own sign-in, so sign in once:
-
-1. Open **Terminal**.
-2. Paste this (with the quotes) and press Return:
-   ```
-   "$HOME/Library/Application Support/Claude/claude-code/2.1.330/4262a1273231/claude.app/Contents/MacOS/claude"
-   ```
-   (the version folder may change after an update; the AI Director page shows the current path)
-3. Type `/login`, sign in in the browser, then type `/exit`.
-
-### Gemini
-1. Open **Terminal** and install it (Node is already on this Mac):
-   ```
-   npm install -g @google/gemini-cli
-   ```
-2. Run `gemini` once, choose **Login with Google**, sign in, then type `/quit`.
-   A Google account gets a free daily allowance; a long video can use it up, so test 2 minutes first.
+The Claude app and its Claude Code keep separate sign-ins, so this is needed once even when the Claude app is already signed in.
+Gemini needs Node (npm) installed; a free Google account has a daily allowance, so test 2 minutes first.
 
 ## Make a video in the app
 1. Open a project, pick the style **AI Director** (Documentary group).
 2. Choose the **script** (.txt) and your **voiceover** (mp3/wav), or leave the voiceover empty and pick an Edge voice.
-3. **AI**: Claude Code or Gemini CLI. **Length**: start with *Test: first 2 minutes*. **Look** (optional): a few words.
+3. **AI**: Claude Code or Gemini CLI. **Length**: start with *Test: first 2 minutes*. **Look pack**: Teal documentary,
+   Cartoon history (drawn) or Doodle night story. **Notes** (optional): a few words.
 4. Click **Generate**. The AI's steps show in the log; Stop ends it. The video lands in the project's final folder; the
    AI's work (plan, scene pages, clips) is in *Open work folder*.
 5. Happy with the test? Pick *Whole video* and Generate again in the same project: rendered clips are reused.

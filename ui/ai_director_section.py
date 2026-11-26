@@ -31,6 +31,8 @@ TAG = "[AI DIRECTOR]"
 AGENTS = {"Claude Code": "claude", "Gemini CLI": "gemini"}
 VOICES = {"My voiceover file (below)": "", "Andrew (US, calm man)": "en-US-AndrewNeural", "Brian (US)": "en-US-BrianNeural",
           "Guy (US)": "en-US-GuyNeural", "Jenny (US, warm woman)": "en-US-JennyNeural", "Aria (US)": "en-US-AriaNeural"}
+PACKS = {"Teal documentary (3D + footage)": "doc_teal", "Cartoon history (drawn)": "history_toon",
+         "Doodle night story (drawn)": "doodle_dark"}
 SCOPES = {"Test: first 2 minutes": 2.0, "Test: first 5 minutes": 5.0, "Whole video": 0.0}
 _ROOT = Path(__file__).resolve().parent.parent
 
@@ -57,6 +59,7 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     app._ad_voice_var = ctk.StringVar(value="")
     app._ad_edge_var = ctk.StringVar(value=list(VOICES)[1])
     app._ad_look_var = ctk.StringVar(value="")
+    app._ad_pack_var = ctk.StringVar(value=next(iter(PACKS)))
     app._ad_agent_var = ctk.StringVar(value=next(iter(AGENTS)))
     app._ad_scope_var = ctk.StringVar(value=next(iter(SCOPES)))
     app._ad_status_var = ctk.StringVar(value="")
@@ -86,12 +89,18 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
     out.grid(row=0, column=0, sticky="ew")
     out.grid_columnconfigure(1, weight=1)
     _label(out, "AI", 0)
-    ctk.CTkOptionMenu(out, values=list(AGENTS), variable=app._ad_agent_var, width=200).grid(row=0, column=1, sticky="w")
+    ai_row = ctk.CTkFrame(out, fg_color="transparent")
+    ai_row.grid(row=0, column=1, sticky="w")
+    ctk.CTkOptionMenu(ai_row, values=list(AGENTS), variable=app._ad_agent_var, width=200).grid(row=0, column=0, padx=(0, 10))
+    make_button(ai_row, "Set up / sign in", lambda: _setup_agent(app), size="sm", width=140).grid(row=0, column=1, padx=(0, 8))
+    make_button(ai_row, "Check", lambda: _check_agent(app), size="sm", width=80).grid(row=0, column=2)
     _label(out, "Length", 1)
     ctk.CTkOptionMenu(out, values=list(SCOPES), variable=app._ad_scope_var, width=220).grid(row=1, column=1, pady=(8, 0), sticky="w")
-    _label(out, "Look", 2)
+    _label(out, "Look pack", 2)
+    ctk.CTkOptionMenu(out, values=list(PACKS), variable=app._ad_pack_var, width=260).grid(row=2, column=1, pady=(8, 0), sticky="w")
+    _label(out, "Notes", 3)
     ctk.CTkEntry(out, textvariable=app._ad_look_var, height=34, width=520,
-                 placeholder_text="optional: e.g. teal documentary, lots of 3D maps, real animals, little text").grid(row=2, column=1, pady=(8, 0), sticky="w")
+                 placeholder_text="optional: e.g. lots of maps, warm colours, little text").grid(row=3, column=1, pady=(8, 0), sticky="w")
     app._ad_agent_note = ctk.CTkLabel(body, text="", font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600)
     app._ad_agent_note.grid(row=1, column=0, sticky="w", pady=(6, 0))
 
@@ -111,14 +120,15 @@ def build(app: Any, parent: Any, *, row: int = 9) -> None:
                  font=ctk.CTkFont(size=11), text_color=T.MUTED, anchor="w", justify="left", wraplength=600).grid(row=2, column=0, sticky="w", pady=(6, 0))
     render_panel(app, body, row=3)
     block.grid_remove()
-    for v in (app._ad_script_var, app._ad_voice_var, app._ad_edge_var, app._ad_look_var, app._ad_agent_var, app._ad_scope_var):
+    for v in (app._ad_script_var, app._ad_voice_var, app._ad_edge_var, app._ad_look_var, app._ad_pack_var, app._ad_agent_var, app._ad_scope_var):
         v.trace_add("write", lambda *_a: _changed(app))
 
 
 # ------------------------------------------------------------------ picks
 def _picks(app: Any) -> dict:
     return {"script": app._ad_script_var.get().strip(), "voice": app._ad_voice_var.get().strip(), "edge": app._ad_edge_var.get(),
-            "look": app._ad_look_var.get().strip(), "agent": app._ad_agent_var.get(), "scope": app._ad_scope_var.get()}
+            "look": app._ad_look_var.get().strip(), "pack": app._ad_pack_var.get(), "agent": app._ad_agent_var.get(),
+            "scope": app._ad_scope_var.get()}
 
 
 def _changed(app: Any) -> None:
@@ -138,6 +148,43 @@ def _agent_note(app: Any) -> None:
         return
     exe = rn.find_agent(agent)
     lbl.configure(text=(f"{app._ad_agent_var.get()} found: {exe}" if exe else rn.install_hint(agent)))
+
+
+def _setup_agent(app: Any) -> None:
+    """One click: uses the Claude already on this computer (the Claude app's own copy) or installs Claude Code / Gemini CLI,
+    then opens it in a Terminal window where its first start asks you to sign in. Nothing else starts."""
+    rn = _runner()
+    if rn is None:
+        return
+    agent = AGENTS.get(app._ad_agent_var.get(), "claude")
+    try:
+        rn.open_setup_terminal(agent)
+    except Exception as exc:  # noqa: BLE001
+        from tkinter import messagebox
+        messagebox.showerror("Set up", str(exc))
+        return
+    lbl = getattr(app, "_ad_agent_note", None)
+    if lbl is not None:
+        lbl.configure(text=("A Terminal window opened. In it type  /login  and press Return, sign in in the browser that opens, "
+                            "then type  /exit . Back here, click Check." if agent == "claude" else
+                            "A Terminal window opened. Choose Login with Google and sign in, then type  /quit . Back here, click Check."))
+
+
+def _check_agent(app: Any) -> None:
+    """Ask the AI one tiny question in the background: shows whether it is installed and signed in."""
+    rn = _runner()
+    lbl = getattr(app, "_ad_agent_note", None)
+    if rn is None or lbl is None:
+        return
+    name = app._ad_agent_var.get()
+    agent = AGENTS.get(name, "claude")
+    lbl.configure(text=f"Checking {name}…")
+
+    def work() -> None:
+        ok, msg = rn.check_ready(agent)
+        app.after(0, lambda: lbl.configure(text=f"{name}: {msg}", text_color=(T.ACCENT if ok else T.MUTED)))
+
+    threading.Thread(target=work, daemon=True).start()
 
 
 def _runner_quiet():
@@ -203,7 +250,7 @@ def _restore(app: Any) -> None:
     try:
         p = d.get("picks") or {}
         for var, k, allowed in ((app._ad_script_var, "script", None), (app._ad_voice_var, "voice", None), (app._ad_edge_var, "edge", VOICES),
-                                (app._ad_look_var, "look", None), (app._ad_agent_var, "agent", AGENTS), (app._ad_scope_var, "scope", SCOPES)):
+                                (app._ad_look_var, "look", None), (app._ad_pack_var, "pack", PACKS), (app._ad_agent_var, "agent", AGENTS), (app._ad_scope_var, "scope", SCOPES)):
             v = p.get(k)
             if v is not None and (allowed is None or v in allowed):
                 var.set(v)
@@ -366,7 +413,8 @@ def on_generate(app: Any) -> None:
     def worker() -> None:
         error, final = "", None
         try:
-            job = rn.prepare(work, p["script"], p["voice"], edge or "en-US-AndrewNeural", p["look"], minutes, log=log)
+            job = rn.prepare(work, p["script"], p["voice"], edge or "en-US-AndrewNeural", p["look"], minutes, log=log,
+                             pack=PACKS.get(p.get("pack", ""), "doc_teal"))
             final = rn.run(agent, job, log=log, cancel=app._ad_cancel.is_set)
             shutil.copyfile(final, out_path)
         except Exception as exc:  # noqa: BLE001 - shown to the user, never silent

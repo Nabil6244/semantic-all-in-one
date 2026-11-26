@@ -1,0 +1,21 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/history_toon/look.css"></head>
+<body><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="1920" height="1080" class="abs" style="inset:0"></svg></div><svg id="tags" width="1920" height="1080" class="abs" style="inset:0"></svg>
+<div class="flash" id="fl"></div><div class="vignette"></div><div class="grain"></div>
+<script type="module">
+import * as K from '/agent_kit/lib/kit.js';
+import { person, OUTFITS } from '/agent_kit/looks/history_toon/person.js';
+import * as H from '/agent_kit/looks/history_toon/props.js';
+window.sceneReady = document.fonts.ready;
+const D = 4, tB = K.when('volunteer', 1.0);
+const pilot = { ...OUTFITS.pilot, headband: true };
+window.renderAt = async (t) => {
+  let g = H.defs() + H.sky() + H.cloud(400, 200, 1.1) + H.cloud(1500, 150, 0.8) + H.hills(640, '#a7b996', { seed: 3 }) + H.trees(700, 12, { seed: 4 }) + H.hills(760, '#7f9a68', { seed: 1, amp: 30 }) + H.ground(820);
+  g += H.plane(t, 1400, 760, { s: 1.1, facing: -1 });
+  [560, 760, 960].forEach((x, i) => { g += person(t, { outfit: pilot, face: i === 1 ? 'sweat' : 'determined', pose: t > tB + i * 0.12 ? 'salute' : 'stand', x, y: 960, scale: 0.95, seed: i * 5 + 1 }); });
+  g += person(t, { outfit: 'officer', face: 'angry', pose: 'point', x: 230, y: 980, scale: 1.05, talking: true });
+  g += H.banner(760, 360, 'SPECIAL ATTACK UNIT', K.prog(t, tB, 0.5), { small: 'NAVY · 1945' });
+  g += H.pointLabel(760, 560, 'PILOT 2', { up: 70 });
+  s.innerHTML = g; tags.innerHTML = H.dateTag('APR 1945');
+  cam.style.transform = K.drift(t, D, { zoom: 0.04, x: -14, y: -6 }) + ` scale(${K.punch(t, tB, 0.04)})`;
+};
+</script></body></html>

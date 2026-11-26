@@ -1,0 +1,24 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/agent_kit/looks/history_toon/look.css"></head>
+<body><div id="cam" class="abs" style="inset:0;transform-origin:50% 50%"><svg id="s" width="1920" height="1080" class="abs" style="inset:0"></svg></div><svg id="tags" width="1920" height="1080" class="abs" style="inset:0"></svg>
+<div class="vignette"></div><div class="grain"></div>
+<script type="module">
+import * as K from '/agent_kit/lib/kit.js';
+import * as H from '/agent_kit/looks/history_toon/props.js';
+window.sceneReady = document.fonts.ready;
+const D = 5;
+const zoneD = 'M120 80 Q600 40 760 200 Q820 420 640 560 Q420 700 260 560 Q100 420 120 80Z';
+window.renderAt = async (t) => {
+  let g = H.defs() + H.mapSea({ label: 'PACIFIC OCEAN', lx: 1380, ly: 260 });
+  g += H.land('M0 0 H220 Q160 200 200 420 Q120 640 0 700 Z') + H.land('M420 220 q60 -40 120 10 q20 60 -40 90 q-80 10 -80 -100z') + H.land('M560 860 q160 -50 300 0 q-40 60 -300 0z');
+  g += H.land('M1180 520 q30 -20 50 4 q-10 30 -50 -4z') + H.land('M1500 600 q40 -20 70 10 q-20 30 -70 -10z');
+  g += H.zone(zoneD, K.prog(t, 0.3, 0.7), 440, 320);
+  g += H.pin(480, 250, 'HOME ISLANDS', K.prog(t, 1.0, 0.4), { icon: 'dot' });
+  g += H.pin(1200, 520, 'MARIANAS', K.prog(t, 1.4, 0.4), { icon: 'ship' });
+  g += H.pin(1540, 600, 'MARSHALLS', K.prog(t, 1.7, 0.4), { icon: 'ship' });
+  g += H.arrow('M1500 560 Q1350 420 1240 500', K.prog(t, 2.2, 0.6)) + H.arrow('M1160 500 Q900 320 620 400', K.prog(t, 2.8, 0.7));
+  g += H.ring(480, 240, 120, K.prog(t, 3.6, 0.5));
+  g += H.banner(1300, 800, 'LOSING THE WAR', K.prog(t, 3.2, 0.5));
+  s.innerHTML = g; tags.innerHTML = H.dateTag('1944') + H.counterTag('x2', 'CARRIERS');
+  cam.style.transform = K.drift(t, D, { zoom: 0.06, x: -20, y: 0 });
+};
+</script></body></html>

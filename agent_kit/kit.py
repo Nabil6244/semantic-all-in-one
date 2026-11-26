@@ -77,13 +77,14 @@ def align(project: str, voice: str, script: str = "", language: str = "") -> str
     kw = {"word_timestamps": True}
     if language:
         kw["language"] = language
-    if script_text:
-        kw["initial_prompt"] = " ".join(script_text.split()[:200])
+    # No initial_prompt: a long script prompt makes mlx-whisper (Apple GPU) invent a different text with wrong times.
+    # The script is used AFTER transcription instead, to fix spellings and punctuation word by word (times kept).
     segs, _info = transcribe(str(dst), "small", log=lambda *_: None, **kw)
     words = []
     for s in segs:
         for w in (s.words or []):
             words.append({"w": w.word.strip(), "s": round(float(w.start), 3), "e": round(float(w.end), 3)})
+    match = _respell(words, script_text) if script_text else None
     sentences, cur = [], []
     for w in words:
         cur.append(w)
@@ -99,8 +100,29 @@ def align(project: str, voice: str, script: str = "", language: str = "") -> str
                                                            ensure_ascii=False, indent=1), encoding="utf-8")
     lines = [f"voice {dst}  length {total:.2f}s  {len(words)} words  {len(sent)} sentences",
              f"word times: {P / 'voice' / 'words.json'}"]
+    if match is not None:
+        lines.insert(1, f"script match {match:.0%}" + ("  WARNING: the voice does not follow the script well; check the times"
+                                                       if match < 0.6 else ""))
     lines += [f"{s['n']:>3}  {s['start']:7.2f}-{s['end']:7.2f}  {s['text']}" for s in sent]
     return "\n".join(lines)
+
+
+def _respell(words: list, script_text: str) -> float:
+    """Replace heard words with the script's words where they line up (same count in a block), so names, numbers and
+    sentence punctuation come from the script while the times stay Whisper's. Returns the share of words matched."""
+    import difflib
+    norm = lambda s: re.sub(r"[^\w]", "", s.lower())
+    sw = script_text.split()
+    a, b = [norm(w["w"]) for w in words], [norm(x) for x in sw]
+    sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    same = 0
+    for op, i1, i2, j1, j2 in sm.get_opcodes():
+        if op == "equal":
+            same += i2 - i1
+        if op in ("equal", "replace") and i2 - i1 == j2 - j1:
+            for i, j in zip(range(i1, i2), range(j1, j2)):
+                words[i]["w"] = sw[j]
+    return same / max(1, len(b))
 
 
 # ---- find -------------------------------------------------------------------------------------------------------
@@ -609,7 +631,28 @@ def _sfx_file(name: str, i: int) -> Path:
     if not files:
         cats = sorted(x.name for x in SFX_ROOT.iterdir() if x.is_dir()) if SFX_ROOT.exists() else []
         raise ValueError(f"no sound effect '{name}'; give a file path or one of: {', '.join(cats)}")
+    # some library files are long beds (a 24 s 'ui', a 16 s 'impact'): pick only short one-shots unless the
+    # category is a bed itself, so an effect never turns into background noise under the voice
+    if name not in ("ambience", "cinematic"):
+        short = [f for f in files if 0 < _sfx_len(f) <= 6.0]
+        files = short or files
     return files[i % len(files)]
+
+
+_SFX_LENS: dict = {}
+
+
+def _sfx_len(f: Path) -> float:
+    if f not in _SFX_LENS:
+        try:
+            _SFX_LENS[f] = duration(f)
+        except Exception:
+            _SFX_LENS[f] = 0.0
+    return _SFX_LENS[f]
+
+
+# longest an effect may ring (s); a short fade-out ends it. 0 = play the whole file. Override per effect with "len".
+_SFX_MAX = {"riser": 5.0, "impact": 2.5, "transition": 2.0, "whoosh": 1.6, "ambience": 0, "cinematic": 0}
 
 
 def join(project: str, clips: list, voice: str = "", music: str = "", music_db: float = -20.0, sfx: list | None = None,
@@ -670,7 +713,9 @@ def join(project: str, clips: list, voice: str = "", music: str = "", music_db: 
         f = _sfx_file(str(s.get("sound", "whoosh")), i)
         ms = int(float(s.get("at", 0)) * 1000)
         inputs += ["-i", str(f)]
-        filters.append(f"[{k}:a]aresample=48000,aformat=channel_layouts=stereo,volume={float(s.get('db', -10))}dB,adelay={ms}|{ms}[s{i}]")
+        cap = float(s.get("len", _SFX_MAX.get(str(s.get("sound", "whoosh")), 1.2 if not Path(str(s.get("sound", ""))).suffix else 0)))
+        trim = f"atrim=0:{cap:.2f},afade=t=out:st={max(0.0, cap - 0.25):.2f}:d=0.25," if cap > 0 else ""
+        filters.append(f"[{k}:a]{trim}aresample=48000,aformat=channel_layouts=stereo,volume={float(s.get('db', -10))}dB,adelay={ms}|{ms}[s{i}]")
         mix.append(f"[s{i}]")
         k += 1
     final = Path(out).expanduser() if out else P / "final.mp4"

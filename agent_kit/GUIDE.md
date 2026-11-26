@@ -97,6 +97,13 @@ kind: graphic | footage | photo. `shows`: every concrete thing the scene puts on
   - `dayTag(n)` top-left on every scene once the story has a day.
   - About half the scenes are explainer cards in one system: near-black, faint dot grid, thin amber line icons drawn on,
     small spaced CAPS labels (see README).
+- **history_toon**: illustrated cartoon history documentary (wars, empires, strange true stories). Flat 2D cast with big
+  round white faces in era clothes, painted places, paper props that fill themselves in (forms, maps, calendars,
+  scrolls, cards, stamps). Everything drawn, no footage. `<link rel="stylesheet" href="/agent_kit/looks/history_toon/look.css">`.
+  Read `agent_kit/looks/history_toon/README.md` before the first scene.
+  - **Every video is new**: design this film's own cast (era, clothes, colours) from its script and draw every place
+    fresh from its sentence. The examples show the style only.
+  - Mix the six scene kinds (story shot, paper insert, map, cards, object metaphor, title), never the same twice in a row.
 - A new look: copy a pack's folder, change colours and fonts, keep the class names.
 
 ## Scene page rules (the renderer depends on these)
@@ -122,7 +129,7 @@ window.renderAt = async (t) => {
 - Local files: `K.file('/abs/path/photo.jpg')`; files next to the scene: `/@scene/name.ext`; repo files: `/path/from/repo`.
 - Overlay pages (over footage/photos) must have a transparent body (`<body class="over">` in doc_teal).
 - three.js: render into a canvas inside renderAt (`renderer.render(scene, camera)` once per call), `preserveDrawingBuffer: true`.
-- `window.WORDS` = this scene's words `[{w, s, e}]`, times from the scene start. `K.when(word, fallback)` finds one.
+- `window.WORDS` = this scene's words `[{w, s, e}]`, times from the scene start. `K.when(word, fallback)` finds the FIRST match (it also matches the start of longer words); when the word comes twice in the scene ("was on a trip. On the morning") pass `nth`: `K.when('on', 2.6, 1)`.
 
 ## Motion that looks professional
 - Ease everything (`easeOutExpo` for snaps, `easeOutCubic` for entries, `easeInOutSine` for drifts); stagger 0.08–0.15 s.
