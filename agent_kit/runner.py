@@ -184,10 +184,15 @@ def install_hint(agent: str) -> str:
 def make_voice(script: Path, out: Path, voice: str = "en-US-AndrewNeural", rate: str = "-4%", log: Callable = print) -> Path:
     """The free Edge voice for the whole script (edge-tts)."""
     log(f"making the voiceover with {voice} (free Edge voice)…")
-    r = subprocess.run([sys.executable, "-m", "edge_tts", "--voice", voice, f"--rate={rate}", "-f", str(script), "--write-media", str(out)],
-                       capture_output=True, text=True, timeout=3600)
-    if r.returncode != 0 or not out.exists():
-        raise RuntimeError("the Edge voice failed: " + (r.stderr or r.stdout)[-400:])
+    # In-process (the installed app has no Python to run `-m edge_tts` with: sys.executable would open the app again).
+    import asyncio
+    import edge_tts
+    try:
+        asyncio.run(edge_tts.Communicate(Path(script).read_text(encoding="utf-8"), voice, rate=rate).save(str(out)))
+    except Exception as exc:  # noqa: BLE001
+        raise RuntimeError(f"the Edge voice failed: {exc}") from exc
+    if not out.exists() or out.stat().st_size == 0:
+        raise RuntimeError("the Edge voice failed: no audio was written")
     return out
 
 
@@ -234,6 +239,17 @@ PACKS = {
 }
 
 
+def server_command() -> dict:
+    """How the agent starts the videokit server. From source: this Python + agent_kit_mcp.py. In the installed app
+    sys.executable is the app itself, so a bare `<app> agent_kit_mcp.py` opened a SECOND app window (its project picker)
+    and the agent got no tools, then "finished but did not write final.mp4". There the app runs the server with
+    --run-script (script_runner.dispatch), which opens no window and has every library the kit needs."""
+    sys.path.insert(0, str(REPO))
+    from script_runner import command
+    cmd = command(SERVER)
+    return {"command": cmd[0], "args": cmd[1:]}
+
+
 def prepare(project: str | Path, script: str | Path, voice: str | Path = "", edge_voice: str = "en-US-AndrewNeural", look: str = "",
             minutes: float = 0.0, log: Callable = print, pack: str = "doc_teal", model: str = "") -> dict:
     """Set up the project folder: script.txt, the voice (copied, or made with Edge), TASK.md, and the kit's server config for
@@ -264,7 +280,7 @@ def prepare(project: str | Path, script: str | Path, voice: str | Path = "", edg
                        pack_rules=PACKS.get(pack, PACKS["doc_teal"])[1], pack=pack if pack in PACKS else "doc_teal",
                        voice_end_hint=", voice_end=<the last sentence's end>" if minutes else "")
     (P / "TASK.md").write_text(task, encoding="utf-8")
-    server = {"command": sys.executable, "args": [str(SERVER)]}
+    server = server_command()
     (P / "mcp.json").write_text(json.dumps({"mcpServers": {"videokit": {"type": "stdio", **server}}}, indent=1), encoding="utf-8")
     (P / ".gemini").mkdir(exist_ok=True)
     (P / ".gemini" / "settings.json").write_text(json.dumps({"mcpServers": {"videokit": {**server, "trust": True, "timeout": 3600000}}},
@@ -377,6 +393,27 @@ def _agy_allow_videokit(log: Callable = print) -> None:
     log(f"allowed the videokit tools for Antigravity CLI ({f})")
 
 
+def _videokit_down(line: str) -> str:
+    """Claude's stream-json init event lists each MCP server's status: the reason videokit is not connected, or ''."""
+    try:
+        ev = json.loads(line)
+    except ValueError:
+        return ""
+    for srv in ev.get("mcp_servers") or []:
+        if srv.get("name") == "videokit":
+            st = str(srv.get("status", ""))
+            return "" if st in ("connected", "pending", "") else st
+    return "not listed"
+
+
+def _cmd_server(P: Path) -> list:
+    try:
+        srv = json.loads((P / "mcp.json").read_text(encoding="utf-8"))["mcpServers"]["videokit"]
+        return [srv["command"], *srv.get("args", [])]
+    except (OSError, ValueError, KeyError):
+        return ["?"]
+
+
 def run(agent: str, job: dict, log: Callable = print, cancel: Callable[[], bool] = lambda: False) -> Path:
     """Run the agent headless until it finishes (or Stop). Returns final.mp4. The agent's own log: <project>/agent.log."""
     if agent not in AGENTS:
@@ -404,6 +441,11 @@ def run(agent: str, job: dict, log: Callable = print, cancel: Callable[[], bool]
                 msg = _say(agent, line)
                 if msg:
                     log(msg)
+                if agent == "claude" and '"subtype":"init"' in line.replace(" ", ""):
+                    bad = _videokit_down(line)
+                    if bad:
+                        raise RuntimeError(f"the Video Kit tools did not start for Claude Code ({bad}), so it cannot make the "
+                                           f"video. Server command: {' '.join(_cmd_server(P))}. See {P / 'agent.log'}")
                 if agent == "claude" and ("Not logged in" in line or "Please run /login" in line):
                     raise RuntimeError(f"Claude Code is not signed in. Once, in Terminal, run:\n  \"{exe}\"\nthen type /login, sign in, "
                                        "and type /exit. After that the AI Director page works.")

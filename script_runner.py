@@ -76,6 +76,11 @@ def dispatch(argv=None) -> bool:
                 setattr(sys, name, io.TextIOWrapper(io.FileIO(fd, "w", closefd=False), line_buffering=True))
             except Exception:   # noqa: BLE001
                 setattr(sys, name, open(os.devnull, "w"))
+    if sys.stdin is None:                              # stdio tools (the videokit MCP server) read the parent's pipe
+        try:
+            sys.stdin = io.TextIOWrapper(io.FileIO(0, "r", closefd=False))
+        except Exception:   # noqa: BLE001
+            sys.stdin = open(os.devnull)
     sys.argv = [str(script), *argv[3:]]
     sys.path.insert(0, str(script.parent))
     code = 0

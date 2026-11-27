@@ -102,6 +102,12 @@ def job_status(job: str, log_lines: int = 15) -> str:
     p = _job(job)
     if not p.is_file():
         raise ValueError(f"no such job: {job}")
+    try:
+        info = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        info = {}
+    if info.get("kind") == "ai_director":
+        return json.dumps(_ai_status(p, info, max(0, min(int(log_lines), 80))), indent=2)
     st = M.read_status(p) or {"state": "starting"}
     st["job"] = p.name
     st["log_tail"] = _tail(p.with_name(p.stem + ".log"), max(0, min(int(log_lines), 80)))
@@ -113,9 +119,17 @@ def list_jobs(limit: int = 10) -> str:
                   reverse=True)[:max(1, min(int(limit), 50))]
     rows = []
     for p in jobs:
+        if p.name.startswith("ai_"):
+            continue
         st = M.read_status(p)
         rows.append({"job": p.name, "state": st.get("state", "unknown"), "step": st.get("step", st.get("message", "")),
                      "video": st.get("video", "")})
+    for p in sorted(JOBS_DIR.glob("ai_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:5]:
+        try:
+            st = _ai_status(p, json.loads(p.read_text(encoding="utf-8")), 0)
+            rows.append({"job": p.name, "state": st["state"], "step": "AI Director", "video": st.get("video", "")})
+        except (OSError, ValueError, KeyError):
+            pass
     batches = sorted(JOBS_DIR.glob("batch_*_report.txt"), key=lambda p: p.stat().st_mtime, reverse=True)[:3]
     return json.dumps({"jobs": rows, "recent_batch_reports": [str(b) for b in batches]}, indent=2)
 
@@ -127,6 +141,9 @@ def stop_job(job: str) -> str:
         raise ValueError("this job was not started by this server, so it is left alone; stop it in the app")
     pid = int(pf.read_text().strip())
     st = M.read_status(p) or {}
+    if p.name.startswith("ai_") and not _alive(pid):
+        pf.unlink(missing_ok=True)
+        return f"{p.name} had already finished"
     if st.get("state") in ("done", "failed"):
         pf.unlink(missing_ok=True)                       # finished on its own: its pid may belong to another program now
         return f"{p.name} had already finished ({st.get('state')})"
@@ -148,6 +165,92 @@ def stop_job(job: str) -> str:
     except OSError:
         pass
     return f"stopped {p.name} (pid {pid})"
+
+
+AI_PACKS = ("doodle_dark", "history_toon", "city_lens", "doc_teal")
+AI_AGENTS = ("claude", "gemini", "antigravity")
+
+
+def _ai_runner() -> list:
+    """The command that runs the AI Director headless (no window): from a source folder a child Python with
+    agent_kit.runner; else the installed app with --run-script on the runner bundled inside it (the app has every library
+    it needs, which a plain Python on this Mac may not)."""
+    if (HERE / "agent_kit" / "runner.py").is_file() and (HERE / "app.py").is_file():
+        return [sys.executable, "-u", "-m", "agent_kit.runner"]
+    app = M.find_app("")
+    if not app:
+        raise ValueError(f"{M.APP_NAME} was not found (install it in /Applications)")
+    exe = Path(app[-1])
+    for up in (exe.parent, exe.parent.parent, exe.parent.parent.parent):
+        for f in (up / "agent_kit" / "runner.py", up / "Resources" / "agent_kit" / "runner.py", up / "_internal" / "agent_kit" / "runner.py"):
+            if f.is_file():
+                return [*app, "--run-script", str(f)]
+    raise ValueError(f"the AI Director is not in this copy of {M.APP_NAME}; install the latest version")
+
+
+def start_ai_director(script: str, voice: str = "", look_pack: str = "doodle_dark", agent: str = "claude", minutes: float = 0,
+                      model: str = "fast", notes: str = "", out: str = "") -> str:
+    script, voice = _path(script), _path(voice)
+    if not script or not Path(script).is_file():
+        raise ValueError(f"script file not found: {script or '(none)'}")
+    if voice and (not Path(voice).is_file() or Path(voice).suffix.lower() not in M.VOICE_EXT):
+        raise ValueError(f"voice must be an audio file ({', '.join(M.VOICE_EXT)})")
+    if look_pack not in AI_PACKS:
+        raise ValueError(f"look_pack must be one of {', '.join(AI_PACKS)}")
+    if agent not in AI_AGENTS:
+        raise ValueError(f"agent must be one of {', '.join(AI_AGENTS)}")
+    JOBS_DIR.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    project = Path(_path(out)) if out else Path.home() / "Downloads" / M.APP_NAME / f"AI_Director_{stamp}_{Path(script).stem[:40]}"
+    cmd = [*_ai_runner(), "--agent", agent, "--script", script, "--out", str(project), "--pack", look_pack,
+           "--model", model if agent != "gemini" else "", "--minutes", str(float(minutes or 0))]
+    if voice:
+        cmd += ["--voice", voice]
+    if notes:
+        cmd += ["--look", notes]
+    job = JOBS_DIR / f"ai_{stamp}.json"
+    log = job.with_suffix(".log")
+    job.write_text(json.dumps({"kind": "ai_director", "project": str(project), "started": time.time(), "agent": agent,
+                               "look_pack": look_pack, "command": cmd}, indent=2), encoding="utf-8")
+    proc = _spawn(cmd, env=dict(os.environ, PYTHONUNBUFFERED="1"), log=log)
+    _pid_file(job).write_text(str(proc.pid), encoding="utf-8")
+    time.sleep(3)
+    if proc.poll() not in (None, 0):
+        raise ValueError("the AI Director did not start:\n" + "\n".join(_tail(log, 20)))
+    return json.dumps({"job": job.name, "project": str(project), "video": str(project / "final.mp4"), "log": str(log),
+                       "agent_log": str(project / "agent.log"), "pid": proc.pid,
+                       "next": "check it with job_status (it takes a while: the AI plans, draws and renders every scene)"}, indent=2)
+
+
+def _alive(pid: int) -> bool:
+    if os.name == "nt":
+        out = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True, timeout=20).stdout
+        return str(pid) in out
+    try:
+        os.killpg(pid, 0)
+        return True
+    except PermissionError:
+        return True
+    except ProcessLookupError:
+        return False
+
+
+def _ai_status(p: Path, info: dict, log_lines: int) -> dict:
+    final = Path(info["project"]) / "final.mp4"
+    pf = _pid_file(p)
+    running = pf.is_file() and _alive(int(pf.read_text().strip() or 0))
+    tail = _tail(p.with_suffix(".log"), log_lines)
+    if final.is_file() and final.stat().st_mtime > info.get("started", 0) and not running:
+        state = "done"
+    elif running:
+        state = "running"
+    else:
+        state = "failed"
+    st = {"job": p.name, "state": state, "project": info["project"], "log_tail": tail,
+          "agent_log_tail": _tail(Path(info["project"]) / "agent.log", min(log_lines, 10))}
+    if state == "done":
+        st["video"] = str(final)
+    return st
 
 
 BATCH_COLS = ("style", "voice", "script", "csv", "music", "title", "out", "channel", "description", "tags", "thumbnail", "publish_at")
@@ -188,6 +291,14 @@ TOOLS = {
     "start_video": (start_video, "Start rendering one video in the background (the app opens and presses its own buttons). Paths may be "
                     "absolute or relative to the project folder. Only call this when the user asked for the render. Returns a job id.",
                     {"style": S, "voice": S, "script": S, "csv": S, "music": S, "title": S, "out": S, "force": B}, ["style"]),
+    "start_ai_director": (start_ai_director, "Start the AI Director (the app's Visual Director / AI Director page) headless, with "
+                          "no window and no screen control: an AI agent (Claude Code by default) plans, draws and renders the whole "
+                          "video from a script (.txt) and an optional voiceover (else a free Edge voice is made). look_pack: "
+                          "doodle_dark (Doodle night story, drawn), history_toon, city_lens or doc_teal. minutes>0 = a test of the "
+                          "first N minutes. model: fast or best. Only call this when the user asked for the video. Returns a job id "
+                          "for job_status / stop_job.",
+                          {"script": S, "voice": S, "look_pack": S, "agent": S, "minutes": N, "model": S, "notes": S, "out": S},
+                          ["script"]),
     "job_status": (job_status, "Where a video job is: state, current step, the finished video path or the failure, and the last log lines.",
                    {"job": S, "log_lines": I}, ["job"]),
     "list_jobs": (list_jobs, "Recent video jobs with their state, plus recent overnight batch reports.", {"limit": I}, []),
@@ -208,7 +319,10 @@ def handle(msg: dict) -> dict | None:
     ok = lambda result: {"jsonrpc": "2.0", "id": mid, "result": result}   # noqa: E731
     if method == "initialize":
         return ok({"protocolVersion": params.get("protocolVersion") or PROTOCOL, "capabilities": {"tools": {}},
-                   "serverInfo": {"name": "semantic-yt-studio", "version": "1.0"}})
+                   "serverInfo": {"name": "semantic-yt-studio", "version": "1.1"},
+                   "instructions": "Every Semantic YT Studio action is a tool here: CSV styles with start_video / queue_overnight, the "
+                                   "AI Director (Visual Director page) with start_ai_director. Never control the screen or the app "
+                                   "window (no computer use) to press its buttons."})
     if method == "ping":
         return ok({})
     if method == "tools/list":

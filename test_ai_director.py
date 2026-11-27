@@ -1,6 +1,8 @@
 """AI Director page + Video Kit runner: the app wiring, the project setup each agent needs, and the kit's offline tools."""
 
 import json
+import sys
+import unittest
 from pathlib import Path
 
 import pytest
@@ -174,3 +176,33 @@ def test_city_planning_card_opens_ai_director_with_city_lens():
     assert S.PRESETS["City Planning"] in S.PACKS.values()
     app = (ROOT / "app.py").read_text(encoding="utf-8")
     assert "_ad_section.activate(self, choice)" in app and "return _ad_section.style_name(self)" in app
+
+
+class ServerCommandTest(unittest.TestCase):
+    """In the installed app sys.executable is the app: the videokit server must start with --run-script (no 2nd window)."""
+
+    def test_source_and_frozen(self):
+        from unittest import mock
+        from agent_kit import runner
+        self.assertEqual(runner.server_command(), {"command": sys.executable, "args": [str(runner.SERVER)]})
+        with mock.patch.object(sys, "frozen", True, create=True):
+            self.assertEqual(runner.server_command(), {"command": sys.executable, "args": ["--run-script", str(runner.SERVER)]})
+
+    def test_videokit_down(self):
+        from agent_kit import runner
+        self.assertEqual(runner._videokit_down('{"type":"system","subtype":"init","mcp_servers":[{"name":"videokit","status":"connected"}]}'), "")
+        self.assertEqual(runner._videokit_down('{"type":"system","subtype":"init","mcp_servers":[{"name":"videokit","status":"failed"}]}'), "failed")
+        self.assertEqual(runner._videokit_down('{"type":"system","subtype":"init","mcp_servers":[]}'), "not listed")
+
+
+def test_mix_rules_flag_clip_blocks_repeats_and_slow_pace():
+    from agent_kit import kit
+    sc = lambda n, a, b, kind='graphic', tpl='sat', media='': {'name': n, 'start': a, 'end': b, 'kind': kind, 'tpl': tpl, 'media': media, 'hooks': ['pop:x'] * 3}
+    clips = [sc(f'c{i}', i * 3, i * 3 + 3, 'footage', 'foot', f'/m/a{i % 2}.mp4') for i in range(3)]
+    probs = kit._mix_rules(clips + [sc('g1', 9, 15), sc('g2', 15, 18)], 18, 'city_lens')
+    text = '\n'.join(probs)
+    assert '3 footage scenes in a row' in text
+    assert 'already shown' in text            # a0 again 6 s later
+    assert 'twice in a row' in text           # sat, sat
+    assert 'g1: 6.0s' in text                  # slower than city_lens pace
+    assert not kit._mix_rules([sc('a', 0, 3), sc('b', 3, 6, tpl='chart')], 6, 'doc_teal')

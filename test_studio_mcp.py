@@ -25,7 +25,16 @@ class StudioMcpTest(unittest.TestCase):
         self.assertEqual(len(r), 2)                       # the notification gets no reply
         self.assertEqual(r[0]["result"]["protocolVersion"], "2025-06-18")
         names = {t["name"] for t in r[1]["result"]["tools"]}
-        self.assertEqual(names, {"list_styles", "get_csv_prompt", "start_video", "job_status", "list_jobs", "stop_job", "queue_overnight"})
+        self.assertEqual(names, {"list_styles", "get_csv_prompt", "start_video", "job_status", "list_jobs", "stop_job", "queue_overnight",
+                                 "start_ai_director"})
+        self.assertIn("start_ai_director", r[0]["result"]["instructions"])   # no screen control for the AI Director
+
+    def test_ai_director_bad_args(self):
+        r = self.talk(self.call("start_ai_director", {"script": "/no/such/script.txt"}, mid=1),
+                      self.call("start_ai_director", {"script": __file__, "look_pack": "nope"}, mid=2))
+        self.assertTrue(r[0]["result"]["isError"])
+        self.assertIn("script file not found", r[0]["result"]["content"][0]["text"])
+        self.assertIn("look_pack", r[1]["result"]["content"][0]["text"])
 
     def test_styles_and_prompt(self):
         r = self.talk(self.call("list_styles", mid=1), self.call("get_csv_prompt", {"style": "war"}, mid=2))
